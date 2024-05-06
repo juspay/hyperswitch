@@ -153,14 +153,11 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 ),
             })
             .collect::<Vec<_>>();
-        let metadata: SignifydPaymentMetadata = item
-            .frm_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "frm_metadata",
-            })?
-            .parse_value("Signifyd Payment Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let metadata: Option<SignifydPaymentMetadata> = item.frm_metadata.clone().map(|metadata| {
+            metadata
+                .parse_value("Signifyd Payment Metadata")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        });
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
         let street_addr = ship_address.get_line1()?;
@@ -188,7 +185,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
         let order_channel: OrderChannel = OrderChannel::Web;
         let shipments = Shipments {
             destination,
-            fulfillment_method: metadata.fulfillment_method,
+            fulfillment_method: metadata.map(|metadata| metadata.fulfillment_method),
         };
         let purchase = Purchase {
             created_at,
@@ -197,7 +194,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: metadata.total_shipping_cost,
+            total_shipping_cost: metadata.map(|metadata| metadata.coverage_request),
             confirmation_email: item.request.email.clone(),
             confirmation_phone: billing_address
                 .clone()
@@ -208,7 +205,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             order_id: item.attempt_id.clone(),
             purchase,
             decision_delivery: DecisionDelivery::Sync,
-            coverage_requests: metadata.coverage_request,
+            coverage_requests: metadata.map(|metadata| metadata.coverage_request),
         })
     }
 }
@@ -387,14 +384,11 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 ),
             })
             .collect::<Vec<_>>();
-        let metadata: SignifydPaymentMetadata = item
-            .frm_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "frm_metadata",
-            })?
-            .parse_value("Signifyd Payment Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let metadata: Option<SignifydPaymentMetadata> = item.frm_metadata.clone().map(|metadata| {
+            metadata
+                .parse_value("Signifyd Payment Metadata")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        });
         let ship_address = item.get_shipping_address()?;
         let street_addr = ship_address.get_line1()?;
         let city_addr = ship_address.get_city()?;
@@ -421,7 +415,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
         let order_channel = OrderChannel::Web;
         let shipments: Shipments = Shipments {
             destination,
-            fulfillment_method: metadata.fulfillment_method,
+            fulfillment_method: metadata.map(|metadata| metadata.coverage_request),
         };
         let purchase = Purchase {
             created_at,
@@ -430,7 +424,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: metadata.total_shipping_cost,
+            total_shipping_cost: metadata.map(|metadata| metadata.coverage_request),
             confirmation_email: item.request.email.clone(),
             confirmation_phone: billing_address
                 .clone()
@@ -441,7 +435,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             checkout_id: item.payment_id.clone(),
             order_id: item.attempt_id.clone(),
             purchase,
-            coverage_requests: metadata.coverage_request,
+            coverage_requests: metadata.map(|metadata| metadata.coverage_request),
         })
     }
 }
