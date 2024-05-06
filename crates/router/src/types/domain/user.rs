@@ -158,6 +158,40 @@ pub struct UserPassword(Secret<String>);
 impl UserPassword {
     pub fn new(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
+
+        let mut has_upper_case = false;
+        let mut has_lower_case = false;
+        let mut has_numeric_value = false;
+        let mut has_special_character = false;
+        let mut has_whitespace = false;
+
+        for c in password.chars() {
+            has_upper_case = has_upper_case || c.is_uppercase();
+            has_lower_case = has_lower_case || c.is_lowercase();
+            has_numeric_value = has_numeric_value || c.is_numeric();
+            has_special_character =
+                has_special_character || !(c.is_alphanumeric() && c.is_whitespace());
+            has_whitespace = has_whitespace || c.is_whitespace();
+        }
+
+        let is_password_format_valid = has_upper_case
+            && has_lower_case
+            && has_numeric_value
+            && has_special_character
+            && !has_whitespace;
+
+        let is_too_long = password.graphemes(true).count() > consts::user::MAX_PASSWORD_LENGTH;
+        let is_too_short = password.graphemes(true).count() < consts::user::MIN_PASSWORD_LENGTH;
+
+        if is_too_short || is_too_long || !is_password_format_valid {
+            Err(UserErrors::PasswordParsingError.into())
+        } else {
+            Ok(Self(password.into()))
+        }
+    }
+
+    pub fn new_without_validation(password: Secret<String>) -> UserResult<Self> {
+        let password = password.expose();
         if password.is_empty() {
             Err(UserErrors::PasswordParsingError.into())
         } else {
@@ -636,7 +670,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password::get_temp_password().into())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -680,7 +714,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: UserPassword::new(user.0.password)?,
+            password: UserPassword::new_without_validation(user.0.password)?,
             new_merchant,
         })
     }
@@ -692,7 +726,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password::get_temp_password().into())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {

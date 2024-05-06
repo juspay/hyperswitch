@@ -38,3 +38,9 @@ pub fn is_correct_password(
     }
     .change_context(UserErrors::InternalServerError)
 }
+
+pub fn get_temp_password() -> String {
+    let mut uuid_pass = uuid::Uuid::new_v4().to_string();
+    uuid_pass.push_str("H$witch@12");
+    uuid_pass
+}
