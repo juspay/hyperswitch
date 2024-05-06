@@ -883,7 +883,7 @@ pub async fn accept_invite_from_email_token_only_flow(
 
     let merchant_id = email_token
         .get_merchant_id()
-        .ok_or(UserErrors::InternalServerError)?;
+        .ok_or(UserErrors::LinkInvalid)?;
 
     let user_role = state
         .store
