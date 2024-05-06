@@ -151,6 +151,7 @@ Email         : {user_email}
 pub struct EmailToken {
     email: String,
     merchant_id: Option<String>,
+    flow: domain::Origin,
     exp: u64,
 }
 
@@ -158,6 +159,7 @@ impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
         merchant_id: Option<String>,
+        flow: domain::Origin,
         settings: &configs::Settings,
     ) -> CustomResult<String, UserErrors> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
@@ -165,6 +167,7 @@ impl EmailToken {
         let token_payload = Self {
             email: email.get_secret().expose(),
             merchant_id,
+            flow,
             exp,
         };
         jwt::generate_jwt(&token_payload, settings).await
@@ -176,6 +179,10 @@ impl EmailToken {
 
     pub fn get_merchant_id(&self) -> Option<&str> {
         self.merchant_id.as_deref()
+    }
+
+    pub fn get_flow(&self) -> domain::Origin {
+        self.flow.clone()
     }
 }
 
@@ -197,9 +204,14 @@ pub struct VerifyEmail {
 #[async_trait::async_trait]
 impl EmailData for VerifyEmail {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::VerifyEmail,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let verify_email_link =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
@@ -226,9 +238,14 @@ pub struct ResetPassword {
 #[async_trait::async_trait]
 impl EmailData for ResetPassword {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::ResetPassword,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let reset_password_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
@@ -256,9 +273,14 @@ pub struct MagicLink {
 #[async_trait::async_trait]
 impl EmailData for MagicLink {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::MagicLink,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let magic_link_login =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
@@ -276,6 +298,7 @@ impl EmailData for MagicLink {
     }
 }
 
+// TODO: Deprecate this and use InviteRegisteredUser for new invites
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
@@ -290,6 +313,7 @@ impl EmailData for InviteUser {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
+            domain::Origin::ResetPassword,
             &self.settings,
         )
         .await
@@ -310,6 +334,7 @@ impl EmailData for InviteUser {
         })
     }
 }
+
 pub struct InviteRegisteredUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
@@ -324,6 +349,7 @@ impl EmailData for InviteRegisteredUser {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
+            domain::Origin::AcceptInvitationFromEmail,
             &self.settings,
         )
         .await
