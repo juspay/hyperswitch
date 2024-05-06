@@ -1,6 +1,6 @@
 use bigdecimal::ToPrimitive;
-use common_utils::pii::Email;
-use error_stack;
+use common_utils::{ext_traits::ValueExt, pii::Email};
+use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -56,7 +56,7 @@ pub enum OrderChannel {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all(serialize = "SCREAMING_SNAKE_CASE", deserialize = "snake_case"))]
 pub enum FulfillmentMethod {
     Delivery,
     CounterPickup,
@@ -107,8 +107,8 @@ pub struct Address {
     country_code: common_enums::CountryAlpha2,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Debug, Serialize, Eq, PartialEq, Deserialize)]
+#[serde(rename_all(serialize = "SCREAMING_SNAKE_CASE", deserialize = "snake_case"))]
 pub enum CoverageRequests {
     Fraud,
     Inr,
@@ -124,6 +124,14 @@ pub struct SignifydPaymentsSaleRequest {
     purchase: Purchase,
     decision_delivery: DecisionDelivery,
     coverage_requests: Option<CoverageRequests>,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq, Deserialize)]
+#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+pub struct SignifydPaymentMetadata {
+    pub total_shipping_cost: Option<i64>,
+    pub fulfillment_method: Option<FulfillmentMethod>,
+    pub coverage_request: Option<CoverageRequests>,
 }
 
 impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
@@ -145,6 +153,14 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 ),
             })
             .collect::<Vec<_>>();
+        let metadata: SignifydPaymentMetadata = item
+            .frm_metadata
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "frm_metadata",
+            })?
+            .parse_value("Signifyd Payment Metadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
         let street_addr = ship_address.get_line1()?;
@@ -172,7 +188,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
         let order_channel: OrderChannel = OrderChannel::Web;
         let shipments = Shipments {
             destination,
-            fulfillment_method: Some(FulfillmentMethod::Delivery),
+            fulfillment_method: metadata.fulfillment_method,
         };
         let purchase = Purchase {
             created_at,
@@ -181,7 +197,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: Some(item.request.amount),
+            total_shipping_cost: metadata.total_shipping_cost,
             confirmation_email: item.request.email.clone(),
             confirmation_phone: billing_address
                 .clone()
@@ -192,7 +208,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             order_id: item.attempt_id.clone(),
             purchase,
             decision_delivery: DecisionDelivery::Sync,
-            coverage_requests: Some(CoverageRequests::Fraud),
+            coverage_requests: metadata.coverage_request,
         })
     }
 }
@@ -349,6 +365,7 @@ pub struct SignifydPaymentsCheckoutRequest {
     checkout_id: String,
     order_id: String,
     purchase: Purchase,
+    coverage_requests: Option<CoverageRequests>,
 }
 
 impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
@@ -370,6 +387,14 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 ),
             })
             .collect::<Vec<_>>();
+        let metadata: SignifydPaymentMetadata = item
+            .frm_metadata
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "frm_metadata",
+            })?
+            .parse_value("Signifyd Payment Metadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let ship_address = item.get_shipping_address()?;
         let street_addr = ship_address.get_line1()?;
         let city_addr = ship_address.get_city()?;
@@ -396,7 +421,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
         let order_channel = OrderChannel::Web;
         let shipments: Shipments = Shipments {
             destination,
-            fulfillment_method: Some(FulfillmentMethod::Delivery),
+            fulfillment_method: metadata.fulfillment_method,
         };
         let purchase = Purchase {
             created_at,
@@ -405,7 +430,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: Some(item.request.amount),
+            total_shipping_cost: metadata.total_shipping_cost,
             confirmation_email: item.request.email.clone(),
             confirmation_phone: billing_address
                 .clone()
@@ -416,6 +441,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             checkout_id: item.payment_id.clone(),
             order_id: item.attempt_id.clone(),
             purchase,
+            coverage_requests: metadata.coverage_request,
         })
     }
 }
