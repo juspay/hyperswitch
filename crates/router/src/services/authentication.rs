@@ -696,24 +696,25 @@ where
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
-        let organization = state
-            .store()
-            .list_merchant_accounts_by_organization_id(&org_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
-        let org_merchant_ids: Vec<String> = permissions
+
+        let org_merchant_ids: Vec<String> = match permissions
             .iter()
-            .filter_map(|permission| match permission {
-                Permission::OrgAnalytics => Some(
-                    organization
-                        .iter()
-                        .map(|org| org.merchant_id.clone())
-                        .collect(),
-                ),
-                _ => None,
-            })
-            .next()
-            .unwrap_or_else(|| vec![merchant.merchant_id.clone()]);
+            .find(|&permission| *permission == Permission::OrgAnalytics)
+        {
+            Some(_) => {
+                let organization = state
+                    .store()
+                    .list_merchant_accounts_by_organization_id(&org_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+
+                organization
+                    .iter()
+                    .map(|org| org.merchant_id.clone())
+                    .collect()
+            }
+            None => vec![merchant.merchant_id.clone()],
+        };
 
         let auth = AuthenticationDataOrg {
             merchant_account: merchant,
