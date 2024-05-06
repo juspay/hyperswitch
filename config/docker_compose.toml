@@ -397,7 +397,7 @@ connector_list = "stripe,adyen,cybersource"
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "wise"
+payout_connector_list = "stripe,wise"
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
