@@ -41,20 +41,17 @@ pub fn is_correct_password(
 }
 
 pub fn get_temp_password() -> String {
-    let mut uuid_pass = uuid::Uuid::new_v4().to_string();
+    let uuid_pass = uuid::Uuid::new_v4().to_string();
     let mut rng = rand::thread_rng();
 
     let special_chars: Vec<char> = "!@#$%^&*()-_=+[]{}|;:,.<>?".chars().collect();
-    let specialchars: char = special_chars.choose(&mut rng);
 
-    let random_suffix = format!(
-        "{}{}{}{}",
+    format!(
+        "{}{}{}{}{}",
+        uuid_pass,
         rng.gen_range('A'..='Z'),
-        specialchars,
+        special_chars.choose(&mut rng),
         rng.gen_range('a'..='z'),
         rng.gen_range('0'..='9'),
-    );
-
-    uuid_pass.push_str(&random_suffix);
-    uuid_pass
+    )
 }
