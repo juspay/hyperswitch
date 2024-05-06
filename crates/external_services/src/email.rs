@@ -123,6 +123,9 @@ pub enum AvailableEmailClients {
 /// Struct that contains the settings required to construct an EmailClient.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct EmailSettings {
+    /// Hyperswitch as tenant
+    pub tenant_name: String,
+
     /// The AWS region to send SES requests to.
     pub aws_region: String,
 
