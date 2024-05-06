@@ -756,8 +756,7 @@ pub async fn update_customer_payment_method(
 
         if pm.status == enums::PaymentMethodStatus::AwaitingData {
             return Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Payment method update for the given payment method is not supported"
-                    .into()
+                message: "Payment method is awaiting data so it cannot be updated".into()
             }));
         }
 
