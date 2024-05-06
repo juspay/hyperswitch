@@ -8015,8 +8015,7 @@
           "recurring_enabled",
           "installment_payment_enabled",
           "requires_cvv",
-          "default_payment_method_set",
-          "billing"
+          "default_payment_method_set"
         ],
         "properties": {
           "payment_token": {
@@ -8142,7 +8141,12 @@
             "example": true
           },
           "billing": {
-            "$ref": "#/components/schemas/Address"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         }
       },
