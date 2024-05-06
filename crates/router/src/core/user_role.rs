@@ -172,7 +172,6 @@ pub async fn accept_invitation(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::AcceptInvitationRequest,
-    _req_state: ReqState,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
@@ -228,7 +227,6 @@ pub async fn accept_invitation_token_only_flow(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::AcceptInvitationRequest,
-    _req_state: ReqState,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
