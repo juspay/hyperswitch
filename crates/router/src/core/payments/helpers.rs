@@ -3072,7 +3072,7 @@ pub async fn insert_merchant_connector_creds_to_config(
         );
 
         redis
-            .serialize_and_set_key_with_expiry(key.as_str(), &encoded_data.peek(), i64::from(900))
+            .serialize_and_set_key_with_expiry(key.as_str(), &encoded_data.peek(), crate::consts::CONNECTOR_TOKEN_TTL)
             .await
             .map_or_else(
                 |e| {
@@ -3165,10 +3165,10 @@ pub async fn get_merchant_connector_account(
                             .await
                             .change_context(
                                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: key,
+                                    id: key.clone(),
                                 },
                             )
-                            .attach_printable("Failed to get redis Value")
+                            .attach_printable(key + ": Not found in Redis")
                     })
                     .await
             };
