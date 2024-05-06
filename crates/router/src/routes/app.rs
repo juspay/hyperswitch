@@ -1201,6 +1201,7 @@ impl User {
         #[cfg(feature = "email")]
         {
             route = route
+                .service(web::resource("/from_email").route(web::post().to(user_from_email)))
                 .service(
                     web::resource("/connect_account").route(web::post().to(user_connect_account)),
                 )
