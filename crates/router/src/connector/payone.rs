@@ -9,7 +9,6 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
-
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use time::{format_description, OffsetDateTime};
@@ -143,7 +142,7 @@ impl ConnectorCommon for Payone {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-          api::CurrencyUnit::Minor
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -214,8 +213,7 @@ impl ConnectorCommon for Payone {
     }
 }
 
-impl ConnectorValidation for Payone {
-}
+impl ConnectorValidation for Payone {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Payone
@@ -269,7 +267,6 @@ impl api::PayoutFulfill for Payone {}
 impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for Payone
 {
-    
     fn get_url(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
@@ -289,8 +286,6 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    
-
         self.build_headers(req, connectors)
     }
 

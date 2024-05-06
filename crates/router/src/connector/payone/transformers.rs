@@ -2,29 +2,28 @@
 use api_models::payouts::PayoutMethodData;
 use cards::CardNumber;
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use crate::connector::utils::CardIssuer;
-use crate::connector::utils::CARD_REGEX;
-use masking::ExposeInterface;
-use crate::connector::utils::get_unimplemented_payment_method_error_message;
 
-use crate::utils::OptionExt;
+use crate::{
+    connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer, CARD_REGEX},
+    utils::OptionExt,
+};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::{self, RouterData},
-    core::errors, logger,
+    core::errors,
+    logger,
     types::{
         self,
         storage::enums::{self as storage_enums, PayoutEntityType},
         transformers::ForeignFrom,
     },
 };
-
 
 pub struct PayoneRouterData<T> {
     pub amount: i64,
@@ -151,7 +150,6 @@ impl Card {
     }
 }
 
-
 #[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -225,7 +223,10 @@ impl TryFrom<&PayoutMethodData> for Card {
                         field_name: "payout_method_data.card.holder_name",
                     })?,
                 expiry_date: match card.get_expiry_date_as_mmyy() {
-                    Ok(date) => {logger::debug!("date date {}",date.clone().expose());date},
+                    Ok(date) => {
+                        logger::debug!("date date {}", date.clone().expose());
+                        date
+                    }
                     Err(_) => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "payout_method_data.card.expiry_date",
                     })?,
@@ -293,8 +294,9 @@ impl ForeignFrom<PayoneStatus> for storage_enums::PayoutStatus {
             PayoneStatus::AccountCredited => Self::Success,
             PayoneStatus::RejectedCredit | PayoneStatus::Rejected => Self::Cancelled,
             PayoneStatus::Cancelled | PayoneStatus::Reversed => Self::Cancelled,
-            PayoneStatus::Created |  PayoneStatus::PendingApproval | PayoneStatus::PayoutRequested => Self::Pending,
-            
+            PayoneStatus::Created
+            | PayoneStatus::PendingApproval
+            | PayoneStatus::PayoutRequested => Self::Pending,
         }
     }
 }
