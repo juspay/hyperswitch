@@ -229,6 +229,8 @@ impl ConnectorConfig {
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
+            PayoutConnectors::Paypal => Ok(connector_data.paypal),
+            PayoutConnectors::Wise => Ok(connector_data.wise_payout),
         }
     }
 
@@ -282,9 +284,7 @@ impl ConnectorConfig {
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Payme => Ok(connector_data.payme),
-            // Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Payone => Ok(connector_data.payone_payout),
-
             Connector::Paypal => Ok(connector_data.paypal),
             Connector::Payu => Ok(connector_data.payu),
             Connector::Placetopay => Ok(connector_data.placetopay),

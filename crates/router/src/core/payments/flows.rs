@@ -142,7 +142,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Billwerk,
@@ -168,6 +167,7 @@ default_imp_for_complete_authorize!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Rapyd,
@@ -213,7 +213,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -251,6 +250,7 @@ default_imp_for_webhook_source_verification!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -301,7 +301,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -337,6 +336,7 @@ default_imp_for_create_customer!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Paypal,
     connector::Payme,
     connector::Payu,
@@ -389,7 +389,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -415,6 +414,7 @@ default_imp_for_connector_redirect_response!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -446,7 +446,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Payone,
     connector::Zsl,
     connector::Aci,
     connector::Adyen,
@@ -483,6 +482,7 @@ default_imp_for_connector_request_id!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -536,7 +536,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -572,6 +571,7 @@ default_imp_for_accept_dispute!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Paypal,
     connector::Payme,
     connector::Payu,
@@ -646,7 +646,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -681,8 +680,9 @@ default_imp_for_file_upload!(
     connector::Nuvei,
     connector::Opayo,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -733,7 +733,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -768,8 +767,9 @@ default_imp_for_submit_evidence!(
     connector::Nuvei,
     connector::Opayo,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -820,7 +820,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -855,8 +854,9 @@ default_imp_for_defend_dispute!(
     connector::Nuvei,
     connector::Opayo,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -908,7 +908,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Payone,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -940,6 +939,7 @@ default_imp_for_pre_processing_steps!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -1090,6 +1090,8 @@ default_imp_for_payouts_create!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
+    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -1142,7 +1144,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Payone,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1178,6 +1179,7 @@ default_imp_for_payouts_eligibility!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1229,7 +1231,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Payone,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1313,7 +1314,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Payone,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1349,6 +1349,7 @@ default_imp_for_payouts_cancel!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1399,7 +1400,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1436,6 +1436,7 @@ default_imp_for_payouts_quote!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1487,7 +1488,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1614,6 +1614,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1664,7 +1665,6 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1702,6 +1702,7 @@ default_imp_for_approve!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1753,7 +1754,6 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1791,6 +1791,7 @@ default_imp_for_reject!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1826,7 +1827,6 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1864,6 +1864,7 @@ default_imp_for_fraud_check!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -1915,7 +1916,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1953,6 +1953,7 @@ default_imp_for_frm_sale!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2004,7 +2005,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2042,6 +2042,7 @@ default_imp_for_frm_checkout!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2093,7 +2094,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2131,6 +2131,7 @@ default_imp_for_frm_transaction!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2182,7 +2183,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2220,6 +2220,7 @@ default_imp_for_frm_fulfillment!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2271,7 +2272,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2309,6 +2309,7 @@ default_imp_for_frm_record_return!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2358,7 +2359,6 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2395,6 +2395,7 @@ default_imp_for_incremental_authorization!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2444,7 +2445,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2480,6 +2480,7 @@ default_imp_for_revoking_mandates!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
@@ -2571,7 +2572,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_connector_authentication!(
-    connector::Payone,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2608,6 +2608,7 @@ default_imp_for_connector_authentication!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,

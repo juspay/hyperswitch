@@ -276,8 +276,8 @@ impl Connector {
             | Self::Nmi
             | Self::Nuvei
             | Self::Opennode
-            | Self::Payone
             | Self::Payme
+            | Self::Payone
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -347,11 +347,11 @@ pub enum AuthenticationConnectors {
 pub enum PayoutConnectors {
     Adyen,
     Stripe,
-    Wise,
+    Payone,
     Paypal,
     Ebanx,
     Cybersource,
-    Payone,
+    Wise,
 }
 
 #[cfg(feature = "payouts")]
@@ -360,11 +360,12 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
-            PayoutConnectors::Payone => Self::Payone,
+            PayoutConnectors::Wise => Self::Wise,
+
         }
     }
 }
@@ -375,11 +376,11 @@ impl From<PayoutConnectors> for Connector {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
-            PayoutConnectors::Payone => Self::Payone,
+            PayoutConnectors::Wise => Self::Wise,
         }
     }
 }

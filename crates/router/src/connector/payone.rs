@@ -52,8 +52,6 @@ impl Payone {
             merchant_account,
             api_secret,
         } = auth;
-
-        // let current_time = get_current_date_time()?;
         let string_to_hash: String = format!(
             "{}\n{}\n{}\n{}\n",
             http_method,
@@ -64,10 +62,7 @@ impl Payone {
         println!("{string_to_hash:?}");
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.expose().as_bytes());
         let hash_hmac = consts::BASE64_ENGINE.encode(hmac::sign(&key, string_to_hash.as_bytes()));
-        // logger::debug!("hjjjjjheeeeeeeeeeeeeeee {signature_header}:?");
-        // println!("{signature_header:?}");
         let signature_header = format!("GCS v1HMAC:{}:{}", api_key.peek(), hash_hmac);
-        logger::debug!("signature_header  {:?}", signature_header);
 
         Ok(signature_header)
     }
@@ -81,11 +76,6 @@ pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {
         .format(&format)
         .change_context(errors::ConnectorError::InvalidDateFormat)
 }
-// fn hmac_sha256(key: &[u8], message: &[u8]) -> Vec<u8> {
-//     let key = hmac::Key::new(hmac::HMAC_SHA256, key);
-//     let signature = hmac::sign(&key, message);
-//     signature.as_ref().to_vec()
-// }
 impl api::Payment for Payone {}
 impl api::PaymentSession for Payone {}
 impl api::ConnectorAccessToken for Payone {}
@@ -152,16 +142,13 @@ impl ConnectorCommon for Payone {
         "payone"
     }
 
-    // fn get_currency_unit(&self) -> api::CurrencyUnit {
-    //     todo!()
-    //     //    TODO! Check connector documentation, on which unit they are processing the currency.
-    //     //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-    //     //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
-    // }
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+          api::CurrencyUnit::Minor
+    }
 
-    // fn common_get_content_type(&self) -> &'static str {
-    //     "application/json"
-    // }
+    fn common_get_content_type(&self) -> &'static str {
+        "application/json"
+    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.payone.base_url.as_ref()
@@ -228,13 +215,11 @@ impl ConnectorCommon for Payone {
 }
 
 impl ConnectorValidation for Payone {
-    //TODO: implement functions when support enabled
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Payone
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -277,209 +262,76 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 #[cfg(feature = "payouts")]
 impl api::Payouts for Payone {}
 
-// #[cfg(feature = "payouts")]
-// impl api::PayoutFulfill for Payone {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Payone {}
 
 #[cfg(feature = "payouts")]
-impl api::PayoutCreate for Payone {}
-
-// #[cfg(feature = "payouts")]
-// impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
-//     for Payone
-// {
-//     fn get_url(
-//         &self,
-//         req: &types::PayoutsRouterData<api::PoFulfill>,
-//         _connectors: &settings::Connectors,
-//     ) -> CustomResult<String, errors::ConnectorError> {
-//         let auth = payone::PayoneAuthType::try_from(&req.connector_auth_type)
-//             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-//         // let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
-//         //     errors::ConnectorError::MissingRequiredField {
-//         //         field_name: "transfer_id",
-//         //     },
-//         // )?;
-//         Ok(format!(
-//             "https://payment.preprod.payone.com/v2/{}/payouts",
-//             auth.merchant_account.peek()
-//         ))
-//     }
-
-//     fn get_headers(
-//         &self,
-//         req: &types::PayoutsRouterData<api::PoFulfill>,
-//         connectors: &settings::Connectors,
-//     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-//         self.build_headers(req, connectors)
-//     }
-
-//     fn get_request_body(
-//         &self,
-//         req: &types::PayoutsRouterData<api::PoFulfill>,
-//         _connectors: &settings::Connectors,
-//     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-//         let connector_req = payone::PayonePayoutFulfillRequest::try_from(req)?;
-//         Ok(RequestContent::Json(Box::new(connector_req)))
-//     }
-
-//     fn build_request(
-//         &self,
-//         req: &types::PayoutsRouterData<api::PoFulfill>,
-//         connectors: &settings::Connectors,
-//     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-//         let request = services::RequestBuilder::new()
-//             .method(services::Method::Post)
-//             .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
-//             // .attach_default_headers()
-//             .headers(types::PayoutFulfillType::get_headers(
-//                 self, req, connectors,
-//             )?)
-//             .set_body(types::PayoutFulfillType::get_request_body(
-//                 self, req, connectors,
-//             )?)
-//             .build();
-
-//         Ok(Some(request))
-//     }
-
-//     #[instrument(skip_all)]
-//     fn handle_response(
-//         &self,
-//         data: &types::PayoutsRouterData<api::PoFulfill>,
-//         event_builder: Option<&mut ConnectorEvent>,
-//         res: Response,
-//     ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
-//         let response: payone::PayoneFulfillResponse = res
-//             .response
-//             .parse_struct("PayoneFulfillResponse")
-//             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-//         event_builder.map(|i| i.set_response_body(&response));
-//         router_env::logger::info!(connector_response=?response);
-
-//         types::RouterData::try_from(types::ResponseRouterData {
-//             response,
-//             data: data.clone(),
-//             http_code: res.status_code,
-//         })
-//     }
-
-//     fn get_error_response(
-//         &self,
-//         res: Response,
-//         event_builder: Option<&mut ConnectorEvent>,
-//     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-//         self.build_error_response(res, event_builder)
-//     }
-// }
-
-#[async_trait::async_trait]
-#[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
+impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for Payone
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PayoutsRouterData<api::PoCreate>,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-
-        logger::debug!("PoCreate execute pretasks debug");
-        // Create a quote
-        let quote_router_data =
-            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
-        let quote_connector_integration: Box<
-            &(dyn ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
-                  + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(self);
-        let quote_router_resp = services::execute_connector_processing_step(
-            app_state,
-            quote_connector_integration,
-            quote_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-
-        match quote_router_resp.response.to_owned() {
-            Ok(resp) => {
-                router_data.quote_id = Some(resp.connector_payout_id);
-                Ok(())
-            }
-            Err(_err) => {
-                router_data.response = quote_router_resp.response;
-                Ok(())
-            }
-        }
-    }
-
+    
     fn get_url(
         &self,
-        req: &types::PayoutsRouterData<api::PoCreate>,
-        connectors: &settings::Connectors,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = payone::PayoneAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        // let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
-        //     errors::ConnectorError::MissingRequiredField {
-        //         field_name: "transfer_id",
-        //     },
-        // )?;
         Ok(format!(
-            "{}/v2/{}/payouts",
-            self.base_url(connectors),
-            auth.merchant_account.peek() // "https://payment.preprod.payone.com/v2/Hyperswitch/payouts"
+            "{}v2/{}/payouts",
+            self.base_url(_connectors),
+            auth.merchant_account.peek()
         ))
     }
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PoCreate>,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    
+
         self.build_headers(req, connectors)
     }
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PoCreate>,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        logger::debug!("it is in get_request_body debug");
-        let connector_req = payone::PayonePayoutCreateRequest::try_from(req)?;
+        let connector_req = payone::PayonePayoutFulfillRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PoCreate>,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
-            .set_body(types::PayoutCreateType::get_request_body(
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
-
         Ok(Some(request))
     }
 
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PoCreate>,
+        data: &types::PayoutsRouterData<api::PoFulfill>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PoCreate>, errors::ConnectorError> {
-        let response: payone::PayonePayoutResponse = res
+    ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
+        let response: payone::PayonePayoutFulfillResponse = res
             .response
-            .parse_struct("PayonePayoutResponse")
+            .parse_struct("PayonePayoutFulfillResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -500,6 +352,130 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         self.build_error_response(res, event_builder)
     }
 }
+
+// #[async_trait::async_trait]
+// #[cfg(feature = "payouts")]
+// impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
+//     for Payone
+// {
+//     async fn execute_pretasks(
+//         &self,
+//         router_data: &mut types::PayoutsRouterData<api::PoCreate>,
+//         app_state: &routes::AppState,
+//     ) -> CustomResult<(), errors::ConnectorError> {
+
+//         logger::debug!("PoCreate execute pretasks debug");
+//         // Create a quote
+//         let quote_router_data =
+//             &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
+//         let quote_connector_integration: Box<
+//             &(dyn ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
+//                   + Send
+//                   + Sync
+//                   + 'static),
+//         > = Box::new(self);
+//         let quote_router_resp = services::execute_connector_processing_step(
+//             app_state,
+//             quote_connector_integration,
+//             quote_router_data,
+//             payments::CallConnectorAction::Trigger,
+//             None,
+//         )
+//         .await?;
+
+//         match quote_router_resp.response.to_owned() {
+//             Ok(resp) => {
+//                 router_data.quote_id = Some(resp.connector_payout_id);
+//                 Ok(())
+//             }
+//             Err(_err) => {
+//                 router_data.response = quote_router_resp.response;
+//                 Ok(())
+//             }
+//         }
+//     }
+
+//     fn get_url(
+//         &self,
+//         req: &types::PayoutsRouterData<api::PoCreate>,
+//         connectors: &settings::Connectors,
+//     ) -> CustomResult<String, errors::ConnectorError> {
+//         let auth = payone::PayoneAuthType::try_from(&req.connector_auth_type)
+//             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+//         Ok(format!(
+//             "{}/v2/{}/payouts",
+//             self.base_url(connectors),
+//             auth.merchant_account.peek() // "https://payment.preprod.payone.com/v2/Hyperswitch/payouts"
+//         ))
+//     }
+
+//     fn get_headers(
+//         &self,
+//         req: &types::PayoutsRouterData<api::PoCreate>,
+//         connectors: &settings::Connectors,
+//     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+//         self.build_headers(req, connectors)
+//     }
+
+//     // fn get_request_body(
+//     //     &self,
+//     //     req: &types::PayoutsRouterData<api::PoCreate>,
+//     //     _connectors: &settings::Connectors,
+//     // ) -> CustomResult<RequestContent, errors::ConnectorError> {
+//     //     logger::debug!("it is in get_request_body debug");
+//     //     let connector_req = payone::PayonePayoutCreateRequest::try_from(req)?;
+//     //     Ok(RequestContent::Json(Box::new(connector_req)))
+//     // }
+
+//     fn build_request(
+//         &self,
+//         req: &types::PayoutsRouterData<api::PoCreate>,
+//         connectors: &settings::Connectors,
+//     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+//         let request = services::RequestBuilder::new()
+//             .method(services::Method::Post)
+//             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
+//             .attach_default_headers()
+//             .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
+//             .set_body(types::PayoutCreateType::get_request_body(
+//                 self, req, connectors,
+//             )?)
+//             .build();
+
+//         Ok(Some(request))
+//     }
+
+//     #[instrument(skip_all)]
+//     fn handle_response(
+//         &self,
+//         data: &types::PayoutsRouterData<api::PoCreate>,
+//         event_builder: Option<&mut ConnectorEvent>,
+//         res: Response,
+//     ) -> CustomResult<types::PayoutsRouterData<api::PoCreate>, errors::ConnectorError> {
+//         let response: payone::PayonePayoutFulfillResponse = res
+//             .response
+//             .parse_struct("PayonePayoutResponse")
+//             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+//         event_builder.map(|i| i.set_response_body(&response));
+//         router_env::logger::info!(connector_response=?response);
+
+//         types::RouterData::try_from(types::ResponseRouterData {
+//             response,
+//             data: data.clone(),
+//             http_code: res.status_code,
+//         })
+//     }
+
+//     fn get_error_response(
+//         &self,
+//         res: Response,
+//         event_builder: Option<&mut ConnectorEvent>,
+//     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+//         self.build_error_response(res, event_builder)
+//     }
+// }
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Payone {
