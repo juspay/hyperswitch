@@ -60,7 +60,13 @@ function initializeCollectSDK() {
 
   // Create payment method collect widget
   var paymentMethodCollectOptions = {
+    linkId: paymentMethodCollectDetails.pm_collect_link_id,
+    customerId: paymentMethodCollectDetails.customer_id,
+    theme: paymentMethodCollectDetails.theme,
+    collectorName: paymentMethodCollectDetails.collector_name,
+    logo: paymentMethodCollectDetails.logo,
     enabledPaymentMethods: paymentMethodCollectDetails.enabled_payment_methods,
+    returnUrl: paymentMethodCollectDetails.return_url,
   };
   paymentMethodCollect = widgets.create(
     "paymentMethodCollect",
