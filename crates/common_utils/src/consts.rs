@@ -77,3 +77,9 @@ pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
+
+/// Default ttl for Extended card info  in redis (in seconds)
+pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
+
+/// Max ttl for Extended card info in redis (in seconds)
+pub const MAX_TTL_FOR_EXTENDED_CARD_INFO: u16 = 60 * 60;

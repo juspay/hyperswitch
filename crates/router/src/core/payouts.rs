@@ -7,12 +7,12 @@ use std::vec::IntoIter;
 
 use api_models::enums as api_enums;
 use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii};
-#[cfg(feature = "olap")]
-use data_models::errors::StorageError;
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
+#[cfg(feature = "olap")]
+use hyperswitch_domain_models::errors::StorageError;
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
 #[cfg(feature = "olap")]

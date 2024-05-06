@@ -89,7 +89,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
-    // Ebanx,
+    Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -201,6 +201,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Dlocal
+            | Self::Ebanx
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay
@@ -259,6 +260,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Dlocal
+            | Self::Ebanx
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay
@@ -345,6 +347,7 @@ pub enum PayoutConnectors {
     Stripe,
     Wise,
     Paypal,
+    Ebanx,
 }
 
 #[cfg(feature = "payouts")]
@@ -355,6 +358,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
+            PayoutConnectors::Ebanx => Self::Ebanx,
         }
     }
 }
@@ -367,6 +371,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
+            PayoutConnectors::Ebanx => Self::Ebanx,
         }
     }
 }
@@ -380,6 +385,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
             Connector::Paypal => Ok(Self::Paypal),
+            Connector::Ebanx => Ok(Self::Ebanx),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }

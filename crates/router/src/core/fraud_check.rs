@@ -243,10 +243,11 @@ where
                                 })
                                 .collect::<Vec<_>>()
                                 .concat();
+
                             let additional_payment_data = match &payment_data.payment_method_data {
                                 Some(pmd) => {
                                     let additional_payment_data =
-                                        get_additional_payment_data(pmd, db).await;
+                                        get_additional_payment_data(pmd, db, &profile_id).await;
                                     Some(additional_payment_data)
                                 }
                                 None => payment_data
