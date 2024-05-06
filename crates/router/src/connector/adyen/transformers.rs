@@ -4619,6 +4619,10 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::BankPayout::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
@@ -4656,6 +4660,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                             },
                         )?,
                     },
+                    api_models::payouts::Wallet::Venmo(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Venmo Wallet is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
                 let payout_wallet = PayoutWalletData {
@@ -4754,10 +4764,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
         let status = payout_eligible.map_or(
             {
                 response.result_code.map_or(
-                    response
-                        .response
-                        .map(storage_enums::PayoutStatus::foreign_from),
-                    |rc| Some(storage_enums::PayoutStatus::foreign_from(rc)),
+                    response.response.map(storage_enums::PayoutStatus::from),
+                    |rc| Some(storage_enums::PayoutStatus::from(rc)),
                 )
             },
             |pe| {
@@ -4774,6 +4782,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
                 status,
                 connector_payout_id: response.psp_reference,
                 payout_eligible,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -4781,8 +4790,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<AdyenStatus> for storage_enums::PayoutStatus {
-    fn foreign_from(adyen_status: AdyenStatus) -> Self {
+impl From<AdyenStatus> for storage_enums::PayoutStatus {
+    fn from(adyen_status: AdyenStatus) -> Self {
         match adyen_status {
             AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => Self::Success,
             AdyenStatus::Cancelled | AdyenStatus::PayoutDeclineReceived => Self::Cancelled,
