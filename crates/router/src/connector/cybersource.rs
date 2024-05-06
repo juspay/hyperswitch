@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
@@ -116,13 +116,10 @@ impl ConnectorCommon for Cybersource {
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceErrorResponse = res
-            .response
-            .parse_struct("Cybersource ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<
+            cybersource::CybersourceErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("Cybersource ErrorResponse");
 
         let error_message = if res.status_code == 401 {
             consts::CONNECTOR_UNAUTHORIZED_ERROR
@@ -130,7 +127,9 @@ impl ConnectorCommon for Cybersource {
             consts::NO_ERROR_MESSAGE
         };
         match response {
-            transformers::CybersourceErrorResponse::StandardError(response) => {
+            Ok(transformers::CybersourceErrorResponse::StandardError(response)) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
                 let (code, connector_reason) = match response.error_information {
                     Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
                     None => (
@@ -162,7 +161,9 @@ impl ConnectorCommon for Cybersource {
                     connector_transaction_id: None,
                 })
             }
-            transformers::CybersourceErrorResponse::AuthenticationError(response) => {
+            Ok(transformers::CybersourceErrorResponse::AuthenticationError(response)) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
                 Ok(types::ErrorResponse {
                     status_code: res.status_code,
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -172,7 +173,9 @@ impl ConnectorCommon for Cybersource {
                     connector_transaction_id: None,
                 })
             }
-            transformers::CybersourceErrorResponse::NotAvailableError(response) => {
+            Ok(transformers::CybersourceErrorResponse::NotAvailableError(response)) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
                 let error_response = response
                     .errors
                     .iter()
@@ -193,6 +196,14 @@ impl ConnectorCommon for Cybersource {
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                router_env::logger::error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(
+                    res,
+                    "cybersource".to_owned(),
+                )
             }
         }
     }

@@ -23,8 +23,8 @@ pub use common_utils::{
     fp_utils::when,
     validation::validate_email,
 };
-use data_models::payments::PaymentIntent;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
@@ -849,6 +849,7 @@ where
         enums::IntentStatus::Succeeded
             | enums::IntentStatus::Failed
             | enums::IntentStatus::PartiallyCaptured
+            | enums::IntentStatus::RequiresMerchantAction
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,

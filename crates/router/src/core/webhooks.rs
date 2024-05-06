@@ -307,8 +307,10 @@ pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<data_models::payments::payment_attempt::PaymentAttempt, errors::ApiErrorResponse>
-{
+) -> CustomResult<
+    hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    errors::ApiErrorResponse,
+> {
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
@@ -346,7 +348,7 @@ pub async fn get_or_update_dispute_object(
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     business_profile: &diesel_models::business_profile::BusinessProfile,
     connector_name: &str,
@@ -490,8 +492,10 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
-            // Merchant doesn't have pull mechanism enabled, so we have to authorize whenever we receive a ARes webhook
+            // Merchant doesn't have pull mechanism enabled and if it's challenge flow, we have to authorize whenever we receive a ARes webhook
             if !is_pull_mechanism_enabled
+                && updated_authentication.authentication_type
+                    == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             {
                 let payment_confirm_req = api::PaymentsRequest {

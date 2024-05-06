@@ -2,7 +2,9 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 
 use super::generics;
 use crate::{
-    business_profile::{BusinessProfile, BusinessProfileNew, BusinessProfileUpdateInternal},
+    business_profile::{
+        BusinessProfile, BusinessProfileNew, BusinessProfileUpdate, BusinessProfileUpdateInternal,
+    },
     errors,
     schema::business_profile::dsl,
     PgPooledConn, StorageResult,
@@ -18,12 +20,12 @@ impl BusinessProfile {
     pub async fn update_by_profile_id(
         self,
         conn: &PgPooledConn,
-        business_profile: BusinessProfileUpdateInternal,
+        business_profile: BusinessProfileUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.profile_id.clone(),
-            business_profile,
+            BusinessProfileUpdateInternal::from(business_profile),
         )
         .await
         {
