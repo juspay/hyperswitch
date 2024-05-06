@@ -2,12 +2,12 @@ use std::marker::PhantomData;
 
 use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, StringExt};
+use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
