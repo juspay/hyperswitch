@@ -45,12 +45,15 @@ pub fn get_temp_password() -> String {
     let mut rng = rand::thread_rng();
 
     let special_chars: Vec<char> = "!@#$%^&*()-_=+[]{}|;:,.<>?".chars().collect();
+    let specialchars: char = special_chars
+        .choose(&mut rand::thread_rng())
+        .unwrap_or(&'@');
 
     format!(
         "{}{}{}{}{}",
-        uuid_pass,
+        uuid_pass
         rng.gen_range('A'..='Z'),
-        special_chars.choose(&mut rng),
+        specialchars,
         rng.gen_range('a'..='z'),
         rng.gen_range('0'..='9'),
     )
