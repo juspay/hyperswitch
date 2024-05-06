@@ -1741,6 +1741,7 @@ pub async fn extended_card_info_toggle(
 
 pub async fn connector_agnostic_mit_toggle(
     state: AppState,
+    merchant_id: &str,
     profile_id: &str,
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
@@ -1752,6 +1753,12 @@ pub async fn connector_agnostic_mit_toggle(
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
         })?;
+
+    if business_profile.merchant_id != merchant_id {
+        Err(errors::ApiErrorResponse::AccessForbidden {
+            resource: profile_id.to_string(),
+        })?
+    }
 
     if business_profile.is_connector_agnostic_mit_enabled
         != Some(connector_agnostic_mit_choice.enabled)
