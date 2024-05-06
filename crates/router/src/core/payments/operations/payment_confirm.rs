@@ -341,7 +341,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         payment_attempt.browser_info = browser_info;
@@ -412,16 +412,26 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let n_request_payment_method_data = request
             .payment_method_data
             .as_ref()
-            .map(|pmd| pmd.payment_method_data.clone());
+            .and_then(|pmd| pmd.payment_method_data.clone());
 
         let store = state.clone().store;
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
                 Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
-                        helpers::get_additional_payment_data(&payment_method_data, store.as_ref())
-                            .await
+                        helpers::get_additional_payment_data(
+                            &payment_method_data,
+                            store.as_ref(),
+                            profile_id.as_ref(),
+                        )
+                        .await
                     })
                     .await)
             }
@@ -524,7 +534,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             &request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
             &request.payment_method_type,
             &mandate_type,
             &token,
@@ -570,11 +580,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            })
             .zip(additional_pm_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data
-                    .payment_method_data
-                    .apply_additional_payment_data(additional_payment_data)
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
         let authentication = payment_attempt.authentication_id.as_ref().async_map(|authentication_id| async move {
             state
@@ -1058,12 +1069,19 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .clone();
         let payment_token = payment_data.token.clone();
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
+        let profile_id = payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
+                    .await
             })
             .await
             .as_ref()

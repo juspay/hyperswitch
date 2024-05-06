@@ -158,32 +158,7 @@ pub struct UserPassword(Secret<String>);
 impl UserPassword {
     pub fn new(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
-
-        let mut has_upper_case = false;
-        let mut has_lower_case = false;
-        let mut has_numeric_value = false;
-        let mut has_special_character = false;
-        let mut has_whitespace = false;
-
-        for c in password.chars() {
-            has_upper_case = has_upper_case || c.is_uppercase();
-            has_lower_case = has_lower_case || c.is_lowercase();
-            has_numeric_value = has_numeric_value || c.is_numeric();
-            has_special_character =
-                has_special_character || !(c.is_alphanumeric() && c.is_whitespace());
-            has_whitespace = has_whitespace || c.is_whitespace();
-        }
-
-        let is_password_format_valid = has_upper_case
-            && has_lower_case
-            && has_numeric_value
-            && has_special_character
-            && !has_whitespace;
-
-        let is_too_long = password.graphemes(true).count() > consts::user::MAX_PASSWORD_LENGTH;
-        let is_too_short = password.graphemes(true).count() < consts::user::MIN_PASSWORD_LENGTH;
-
-        if is_too_short || is_too_long || !is_password_format_valid {
+        if password.is_empty() {
             Err(UserErrors::PasswordParsingError.into())
         } else {
             Ok(Self(password.into()))
