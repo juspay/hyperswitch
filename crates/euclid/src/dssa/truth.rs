@@ -1,3 +1,4 @@
+use constraint_graph_macros::constraint_graph;
 use euclid_macros::knowledge;
 use once_cell::sync::Lazy;
 
@@ -5,26 +6,17 @@ use crate::{dssa::graph::euclid_graph_prelude, frontend::dir};
 
 pub static ANALYSIS_GRAPH: Lazy<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>> =
     Lazy::new(|| {
-        knowledge! {
-            // Payment Method should be `Card` for a CardType to be present
-            PaymentMethod(Card) ->> CardType(any);
+        constraint_graph! {
+            imports {
+                use hyperswitch_constraint_graph as cgraph;
+                use crate::frontend::dir::{enums::*, DirKey, DirKeyKind, DirValue};
+            }
 
-            // Payment Method should be `PayLater` for a PayLaterType to be present
-            PaymentMethod(PayLater) ->> PayLaterType(any);
+            domain PaymentMethods
+                with identifier "payment_methods"
+                and description "payment methods eligibility";
 
-            // Payment Method should be `Wallet` for a WalletType to be present
-            PaymentMethod(Wallet) ->> WalletType(any);
-
-            // Payment Method should be `BankRedirect` for a BankRedirectType to
-            // be present
-            PaymentMethod(BankRedirect) ->> BankRedirectType(any);
-
-            // Payment Method should be `BankTransfer` for a BankTransferType to
-            // be present
-            PaymentMethod(BankTransfer) ->> BankTransferType(any);
-
-            // Payment Method should be `GiftCard` for a GiftCardType to
-            // be present
-            PaymentMethod(GiftCard) ->> GiftCardType(any);
+            key type = DirKey;
+            value type = DirValue;
         }
     });

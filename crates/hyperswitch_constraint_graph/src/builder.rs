@@ -188,7 +188,7 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<&str>,
+        domain: Option<DomainId>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
@@ -213,7 +213,7 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<&str>,
+        domain: Option<DomainId>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()

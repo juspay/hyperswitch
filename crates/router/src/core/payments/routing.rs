@@ -836,7 +836,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         .iter()
         .map(|item| item.connector)
         .collect::<Vec<_>>();
-    logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing");
+    logger::error!(final_selected_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing");
 
     Ok(final_selection)
 }

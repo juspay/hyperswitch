@@ -98,6 +98,38 @@ pub struct DirKey {
     pub value: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+pub enum DirKeyAlt {
+    PaymentMethod,
+    CardBin,
+    CardType,
+    CardNetwork,
+    PayLaterType,
+    GiftCardType,
+    MandateAcceptanceType,
+    MandateType,
+    PaymentType,
+    WalletType,
+    UpiType,
+    VoucherType,
+    BankTransferType,
+    BankRedirectType,
+    BankDebitType,
+    CryptoType,
+    MetaData { key: String },
+    RewardType,
+    PaymentAmount,
+    PaymentCurrency,
+    AuthenticationType,
+    CaptureMethod,
+    BusinessCountry,
+    BillingCountry,
+    Connector,
+    BusinessLabel,
+    SetupFutureUsage,
+    CardRedirectType,
+}
+
 impl DirKey {
     pub fn new(kind: DirKeyKind, value: Option<String>) -> Self {
         Self { kind, value }

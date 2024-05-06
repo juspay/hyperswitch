@@ -585,3 +585,223 @@ where
         Ok(node_builder.build())
     }
 }
+
+#[cfg(test)]
+pub mod demo {
+    use super::*;
+    use crate::{types::*, ConstraintGraphBuilder};
+    use std::collections::HashSet;
+
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+    pub enum Currency {
+        USD,
+        INR,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+    pub enum Connector {
+        Stripe,
+        Cybersource,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+    pub enum PaymentType {
+        OneTime,
+        SetupMandate,
+        NewMandate,
+        RecurringMandate,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+    pub enum KeyKind {
+        PaymentType,
+        Connector,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+    pub enum Value {
+        PaymentType(PaymentType),
+        Connector(Connector),
+    }
+
+    impl KeyNode for KeyKind {}
+
+    impl ValueNode for Value {
+        type Key = KeyKind;
+
+        fn get_key(&self) -> Self::Key {
+            match self {
+                Self::PaymentType(_) => KeyKind::PaymentType,
+                Self::Connector(_) => KeyKind::Connector,
+            }
+        }
+    }
+
+    struct CheckCtx(HashSet<Value>);
+
+    impl CheckingContext for CheckCtx {
+        type Value = Value;
+
+        fn from_node_values<L>(vals: impl IntoIterator<Item = L>) -> Self
+        where
+            L: Into<Self::Value>,
+        {
+            Self(HashSet::from_iter(vals.into_iter().map(Into::into)))
+        }
+
+        fn check_presence(&self, value: &NodeValue<Self::Value>, _strength: Strength) -> bool {
+            match value {
+                NodeValue::Key(k) => self.0.iter().any(|ctx_val| &ctx_val.get_key() == k),
+                NodeValue::Value(v) => self.0.iter().any(|ctx_val| ctx_val == v),
+            }
+        }
+
+        fn get_values_by_key(
+            &self,
+            expected: &<Self::Value as ValueNode>::Key,
+        ) -> Option<Vec<Self::Value>> {
+            Some(
+                self.0
+                    .iter()
+                    .filter(|ctx_val| &ctx_val.get_key() == expected)
+                    .cloned()
+                    .collect(),
+            )
+        }
+    }
+
+    #[test]
+    pub fn basic_example() {
+        let mut builder = ConstraintGraphBuilder::<'_, Value>::new();
+
+        const PMT2C: &str = "pmt_to_connector";
+
+        let c_stripe = builder.make_value_node::<()>(
+            NodeValue::Value(Value::Connector(Connector::Stripe)),
+            None,
+            None,
+        );
+
+        let c_cybersource = builder.make_value_node::<()>(
+            NodeValue::Value(Value::Connector(Connector::Cybersource)),
+            None,
+            None,
+        );
+
+        let pmt_ot = builder.make_value_node::<()>(
+            NodeValue::Value(Value::PaymentType(PaymentType::OneTime)),
+            None,
+            None,
+        );
+
+        let pmt_sm = builder.make_value_node::<()>(
+            NodeValue::Value(Value::PaymentType(PaymentType::SetupMandate)),
+            None,
+            None,
+        );
+
+        let pmt_nm = builder.make_value_node::<()>(
+            NodeValue::Value(Value::PaymentType(PaymentType::NewMandate)),
+            None,
+            None,
+        );
+
+        let pmt_rm = builder.make_value_node::<()>(
+            NodeValue::Value(Value::PaymentType(PaymentType::RecurringMandate)),
+            None,
+            None,
+        );
+
+        // Payment Method Type -> Connector Domain
+        let pmt2c_domain = builder
+            .make_domain(PMT2C, "Validating the Payment Method Type for a Connector")
+            .unwrap();
+
+        let stripe_pms = builder
+            .make_any_aggregator::<()>(
+                &[
+                    (pmt_ot, Relation::Positive, Strength::Strong),
+                    (pmt_nm, Relation::Positive, Strength::Strong),
+                    (pmt_rm, Relation::Positive, Strength::Strong),
+                ],
+                None,
+                None,
+                Some(pmt2c_domain),
+            )
+            .unwrap();
+
+        builder
+            .make_edge(
+                stripe_pms,
+                c_stripe,
+                Strength::Strong,
+                Relation::Positive,
+                Some(pmt2c_domain),
+            )
+            .unwrap();
+
+        let cybersource_pms = builder
+            .make_any_aggregator::<()>(
+                &[
+                    (pmt_ot, Relation::Positive, Strength::Strong),
+                    (pmt_sm, Relation::Positive, Strength::Strong),
+                    (pmt_rm, Relation::Positive, Strength::Strong),
+                ],
+                None,
+                None,
+                Some(pmt2c_domain),
+            )
+            .unwrap();
+
+        builder
+            .make_edge(
+                cybersource_pms,
+                c_cybersource,
+                Strength::Strong,
+                Relation::Positive,
+                Some(pmt2c_domain),
+            )
+            .unwrap();
+
+        let graph = builder.build();
+        let ctx = CheckCtx(HashSet::from_iter([
+            Value::Connector(Connector::Stripe),
+            Value::PaymentType(PaymentType::OneTime),
+        ]));
+
+        let mut memoization = Memoization::new();
+        let check_res = graph.check_node(
+            &ctx,
+            c_stripe,
+            Relation::Positive,
+            Strength::Strong,
+            &mut memoization,
+            &mut CycleCheck::new(),
+            Some(&[PMT2C]),
+        );
+
+        println!("{}", serde_json::to_string_pretty(&check_res).unwrap());
+        assert!(check_res.is_ok());
+
+        let ctx = CheckCtx(HashSet::from_iter([
+            Value::Connector(Connector::Stripe),
+            Value::PaymentType(PaymentType::SetupMandate),
+        ]));
+
+        let mut memoization = Memoization::new();
+        let check_failure = graph.check_node(
+            &ctx,
+            c_stripe,
+            Relation::Positive,
+            Strength::Strong,
+            &mut memoization,
+            &mut CycleCheck::new(),
+            Some(&[PMT2C]),
+        );
+
+        println!("{}", serde_json::to_string_pretty(&check_failure).unwrap());
+        assert!(check_failure.is_err());
+    }
+
+    // How to model connector configs?
+}

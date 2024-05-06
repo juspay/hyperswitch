@@ -110,6 +110,39 @@ impl ToString for Atom {
     }
 }
 
+macro_rules! do_stuff {
+    ($($t:tt)*) => {};
+}
+
+do_stuff! {
+    imports {
+
+    }
+
+    key type = MyKey;
+    value type = MyValue;
+
+    map comparisons {
+        > -> GreaterThan,
+        < -> LessThan,
+        = -> Equal,
+        // >= -> unsupported,
+        // <= -> unsupported,
+    }
+
+    map number(comparison, number) = {
+
+    }
+
+    domain MyDomain
+        with identifier "hello there"
+        and description "something";
+
+    rule under MyDomain:
+        PaymentMethod = Card & any CardType
+        | PaymentMethod = Wallet & WalletType = ApplePay ->> Connector(Stripe);
+}
+
 impl Parse for Atom {
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let maybe_any: syn::Ident = input.parse()?;
