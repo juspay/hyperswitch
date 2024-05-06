@@ -690,13 +690,13 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
-        //get merchant ids for above org_id
+
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
-
+        //get merchant ids if the user is org admin or return with default merchant id
         let org_merchant_ids: Vec<String> = match permissions
             .iter()
             .find(|&permission| *permission == Permission::OrgAnalytics)
