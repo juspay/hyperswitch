@@ -1516,6 +1516,7 @@ default_imp_for_payouts_recipient!(
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
+    connector::Mifinity,
     connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
