@@ -260,10 +260,8 @@ pub async fn accept_invitation_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let current_flow = domain::CurrentFlow::new(
-        user_token.origin,
-        domain::UserFlow::SPTFlow(domain::SPTFlow::AcceptInvitationFromEmail),
-    )?;
+    let current_flow =
+        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::MerchantSelect.into())?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
     let token = next_flow

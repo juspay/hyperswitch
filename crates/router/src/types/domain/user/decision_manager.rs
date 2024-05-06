@@ -6,7 +6,7 @@ use super::UserFromStorage;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::AppState,
-    services::authentication as auth,
+    services::authentication as auth, utils,
 };
 
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -234,12 +234,14 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-
                 let user_role = self
                     .user
                     .get_preferred_or_active_user_role_from_db(state)
                     .await
                     .to_not_found_response(UserErrors::InternalServerError)?;
+                utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role)
+                    .await;
+
                 jwt_flow.generate_jwt(state, self, &user_role).await
             }
         }
@@ -257,6 +259,8 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
+                utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role)
+                    .await;
 
                 jwt_flow.generate_jwt(state, self, &user_role).await
             }
@@ -290,5 +294,17 @@ impl From<JWTFlow> for TokenPurpose {
         match value {
             JWTFlow::UserInfo => Self::UserInfo,
         }
+    }
+}
+
+impl From<SPTFlow> for UserFlow {
+    fn from(value: SPTFlow) -> Self {
+        Self::SPTFlow(value)
+    }
+}
+
+impl From<JWTFlow> for UserFlow {
+    fn from(value: JWTFlow) -> Self {
+        Self::JWTFlow(value)
     }
 }

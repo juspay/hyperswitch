@@ -124,19 +124,29 @@ pub async fn signup_token_only_flow(
     state: AppState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignUpResponse>> {
-    let user_from_db: domain::UserFromStorage = state
-        .store
-        .find_user_by_email(&request.email)
-        .await
-        .to_not_found_response(UserErrors::InvalidCredentials)?
-        .into();
-
-    user_from_db.compare_password(request.password)?;
+    let new_user = domain::NewUser::try_from(request)?;
+    new_user
+        .get_new_merchant()
+        .get_new_organization()
+        .insert_org_in_db(state.clone())
+        .await?;
+    let user_from_db = new_user
+        .insert_user_and_merchant_in_db(state.clone())
+        .await?;
+    let user_role = new_user
+        .insert_user_role_in_db(
+            state.clone(),
+            consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            UserStatus::Active,
+        )
+        .await?;
 
     let next_flow =
-        domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
+        domain::NextFlow::from_origin(domain::Origin::SignUp, user_from_db.clone(), &state).await?;
 
-    let token = next_flow.get_token(&state).await?;
+    let token = next_flow
+        .get_token_with_user_role(&state, &user_role)
+        .await?;
 
     let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
         token: token.clone(),
@@ -902,8 +912,11 @@ pub async fn accept_invite_from_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let next_flow =
-        domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
+    let current_flow = domain::CurrentFlow::new(
+        user.origin,
+        domain::SPTFlow::AcceptInvitationFromEmail.into(),
+    )?;
+    let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
     let token = next_flow
         .get_token_with_user_role(&state, &user_role)
@@ -1333,10 +1346,8 @@ pub async fn verify_email_token_only_flow(
         .await
         .map_err(|e| logger::error!(?e));
 
-    let current_flow = domain::CurrentFlow::new(
-        email_token.get_flow(),
-        domain::UserFlow::SPTFlow(domain::SPTFlow::VerifyEmail),
-    )?;
+    let current_flow =
+        domain::CurrentFlow::new(email_token.get_flow(), domain::SPTFlow::VerifyEmail.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 
