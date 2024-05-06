@@ -316,8 +316,9 @@ pub async fn delete_customer(
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
-        connector_customer: None,
+        connector_customer: Some(None),
         address_id: None,
+        default_payment_method_id: Some(None),
     };
     db.update_customer_by_customer_id_merchant_id(
         req.customer_id.clone(),
@@ -441,6 +442,7 @@ pub async fn update_customer(
                     description: update_customer.description,
                     connector_customer: None,
                     address_id: address.clone().map(|addr| addr.address_id),
+                    default_payment_method_id: None,
                 })
             }
             .await
