@@ -146,7 +146,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
         item: BamboraRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
+            api_models::payments::PaymentMethodData::Card(req_card) => {
                 let three_ds = match item.router_data.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,
