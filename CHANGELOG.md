@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.06.0
+
+### Features
+
+- **core:** Add profile level config to toggle extended card bin ([#4445](https://github.com/juspay/hyperswitch/pull/4445)) ([`0304e8e`](https://github.com/juspay/hyperswitch/commit/0304e8e76a8ca1f602305991c4129107b20d148e))
+- **euclid_wasm:** Add configs for new payout connectors ([#4528](https://github.com/juspay/hyperswitch/pull/4528)) ([`9f41919`](https://github.com/juspay/hyperswitch/commit/9f41919094638baf9ea405a5acb89d69ecf1e2b7))
+
+### Bug Fixes
+
+- **connector:** [BAMBORA] Restrict Card Expiry Year to 2 Digits and pass Amount in Decimal Format ([#4536](https://github.com/juspay/hyperswitch/pull/4536)) ([`d5d9006`](https://github.com/juspay/hyperswitch/commit/d5d9006fbd8e32f822f1e84d486b8a4483164baa))
+- **users:** Revert add password validations ([#4542](https://github.com/juspay/hyperswitch/pull/4542)) ([`bcce8b0`](https://github.com/juspay/hyperswitch/commit/bcce8b0489aad8455748e0945127f0a7447e8fb1))
+
+### Refactors
+
+- **connector:** [NMI] Change fields for external auth due to API contract changes ([#4531](https://github.com/juspay/hyperswitch/pull/4531)) ([`7417250`](https://github.com/juspay/hyperswitch/commit/74172509e3b9c0af04bb2fe8a5192ab7f7fd37b5))
+
+### Documentation
+
+- **cypress:** Update cypress docs ([#4505](https://github.com/juspay/hyperswitch/pull/4505)) ([`17b369c`](https://github.com/juspay/hyperswitch/commit/17b369cfabc42d4d06f65b92e967057dba348731))
+
+**Full Changelog:** [`2024.05.03.1...2024.05.06.0`](https://github.com/juspay/hyperswitch/compare/2024.05.03.1...2024.05.06.0)
+
+- - -
+
 ## 2024.05.03.1
 
 ### Bug Fixes

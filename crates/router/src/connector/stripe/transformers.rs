@@ -1057,44 +1057,6 @@ impl From<&domain::BankDebitData> for StripePaymentMethodType {
     }
 }
 
-impl TryFrom<(&domain::payments::PayLaterData, StripePaymentMethodType)> for StripeBillingAddress {
-    type Error = errors::ConnectorError;
-
-    fn try_from(
-        (pay_later_data, pm_type): (&domain::payments::PayLaterData, StripePaymentMethodType),
-    ) -> Result<Self, Self::Error> {
-        match (pay_later_data, pm_type) {
-            (
-                domain::payments::PayLaterData::KlarnaRedirect {
-                    billing_email,
-                    billing_country,
-                },
-                StripePaymentMethodType::Klarna,
-            ) => Ok(Self {
-                email: Some(billing_email.to_owned()),
-                country: Some(billing_country.to_owned()),
-                ..Self::default()
-            }),
-            (
-                domain::payments::PayLaterData::AffirmRedirect {},
-                StripePaymentMethodType::Affirm,
-            ) => Ok(Self::default()),
-            (
-                domain::payments::PayLaterData::AfterpayClearpayRedirect {
-                    billing_email,
-                    billing_name,
-                },
-                StripePaymentMethodType::AfterpayClearpay,
-            ) => Ok(Self {
-                email: Some(billing_email.to_owned()),
-                name: Some(billing_name.to_owned()),
-                ..Self::default()
-            }),
-            _ => Err(errors::ConnectorError::MismatchedPaymentData),
-        }
-    }
-}
-
 impl From<&domain::BankDebitBilling> for StripeBillingAddress {
     fn from(item: &domain::BankDebitBilling) -> Self {
         Self {
@@ -1316,7 +1278,7 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
-            let billing_address = StripeBillingAddress::try_from((pay_later_data, stripe_pm_type))?;
+
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
                     payment_method_data_type: stripe_pm_type,
