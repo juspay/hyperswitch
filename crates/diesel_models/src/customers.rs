@@ -109,13 +109,9 @@ impl CustomerUpdateInternal {
             phone_country_code: phone_country_code.map_or(source.phone_country_code, Some),
             metadata: metadata.map_or(source.metadata, Some),
             modified_at: common_utils::date_time::now(),
-            connector_customer: connector_customer
-                .flatten()
-                .map_or(source.connector_customer, Some),
+            connector_customer: connector_customer.unwrap_or(None),
             address_id: address_id.map_or(source.address_id, Some),
-            default_payment_method_id: default_payment_method_id
-                .flatten()
-                .map_or(source.default_payment_method_id, Some),
+            default_payment_method_id: default_payment_method_id.unwrap_or(None),
             ..source
         }
     }
