@@ -2679,6 +2679,15 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "erased-serde"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c138974f9d5e7fe373eb04df7cae98833802ae4b11c24ac7039a21d5af4b26c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "erased-serde"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b73807008a3c7f171cc40312f37d95ef0396e048b5848d775f54b1a4dd4a0d3"
@@ -2733,10 +2742,11 @@ version = "0.1.0"
 dependencies = [
  "common_enums",
  "criterion",
- "erased-serde",
+ "erased-serde 0.4.4",
  "euclid_macros",
  "frunk",
  "frunk_core",
+ "hyperswitch_constraint_graph",
  "nom",
  "once_cell",
  "rustc-hash",
@@ -2768,6 +2778,7 @@ dependencies = [
  "currency_conversion",
  "euclid",
  "getrandom",
+ "hyperswitch_constraint_graph",
  "kgraph_utils",
  "once_cell",
  "ron-parser",
@@ -3603,6 +3614,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperswitch_constraint_graph"
+version = "0.1.0"
+dependencies = [
+ "erased-serde 0.3.31",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "thiserror",
+]
+
+[[package]]
 name = "hyperswitch_domain_models"
 version = "0.1.0"
 dependencies = [
@@ -3911,6 +3934,7 @@ dependencies = [
  "common_enums",
  "criterion",
  "euclid",
+ "hyperswitch_constraint_graph",
  "masking",
  "serde",
  "serde_json",
@@ -4067,7 +4091,7 @@ version = "0.1.0"
 dependencies = [
  "bytes 1.6.0",
  "diesel",
- "erased-serde",
+ "erased-serde 0.4.4",
  "serde",
  "serde_json",
  "subtle",
@@ -5599,7 +5623,7 @@ dependencies = [
  "digest",
  "dyn-clone",
  "encoding_rs",
- "erased-serde",
+ "erased-serde 0.4.4",
  "error-stack",
  "euclid",
  "events",
@@ -5608,6 +5632,7 @@ dependencies = [
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
+ "hyperswitch_constraint_graph",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
@@ -6700,6 +6725,15 @@ dependencies = [
 
 [[package]]
 name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+dependencies = [
+ "strum_macros 0.25.3",
+]
+
+[[package]]
+name = "strum"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d8cec3501a5194c432b2b7976db6b7d10ec95c253208b45f83f7136aa985e29"
@@ -6718,6 +6752,19 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.57",
 ]
 
 [[package]]
