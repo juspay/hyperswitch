@@ -661,10 +661,10 @@ where
                         customer_acceptance: d.customer_acceptance.map(|d| {
                             api::CustomerAcceptance {
                                 acceptance_type: match d.acceptance_type {
-                                    data_models::mandates::AcceptanceType::Online => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                                         api::AcceptanceType::Online
                                     }
-                                    data_models::mandates::AcceptanceType::Offline => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                                         api::AcceptanceType::Offline
                                     }
                                 },
@@ -676,7 +676,7 @@ where
                             }
                         }),
                         mandate_type: d.mandate_type.map(|d| match d {
-                            data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                                 api::MandateType::MultiUse(Some(api::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -685,7 +685,7 @@ where
                                     metadata: i.metadata,
                                 }))
                             }
-                            data_models::mandates::MandateDataType::SingleUse(i) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
                                 api::MandateType::SingleUse(api::payments::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -694,7 +694,7 @@ where
                                     metadata: i.metadata,
                                 })
                             }
-                            data_models::mandates::MandateDataType::MultiUse(None) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
                                 api::MandateType::MultiUse(None)
                             }
                         }),
