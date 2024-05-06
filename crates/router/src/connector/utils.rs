@@ -239,7 +239,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|billing_address| billing_address.get_optional_full_name())
             .ok_or_else(missing_field_err(
-                "payment_method_data.billing.address.full_name",
+                "payment_method_data.billing.address.first_name",
             ))
     }
 
