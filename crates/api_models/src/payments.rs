@@ -1211,22 +1211,17 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
             bank_account_holder_name: Option<&Secret<String>>,
         ) -> Option<Address> {
             // We will always have address here
-            let mut address =
-                bank_debit_billing.and_then(GetAddressFromPaymentMethodData::get_billing_address);
+            let mut address = bank_debit_billing
+                .and_then(GetAddressFromPaymentMethodData::get_billing_address)?;
 
             // Prefer `account_holder_name` over `name`
-            address = address.map(|mut address| -> Address {
-                address.address = address
-                    .address
-                    .map(|mut address_details| -> AddressDetails {
-                        address_details.first_name = bank_account_holder_name
-                            .or(address_details.first_name.as_ref())
-                            .cloned();
-                        address_details
-                    });
-                address
+            address.address.as_mut().map(|address| {
+                address.first_name = bank_account_holder_name
+                    .or(address.first_name.as_ref())
+                    .cloned();
             });
-            address
+
+            Some(address)
         }
 
         match self {
