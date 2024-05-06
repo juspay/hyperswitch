@@ -3,6 +3,7 @@ version: "3.8"
 volumes:
   pg_data:
   redisinsight_store:
+  ckh_data:
 
 networks:
   router_net:
@@ -321,12 +322,14 @@ services:
       KAFKA_CLUSTERS_0_JMXPORT: 9997
 
   clickhouse-server:
-    image: clickhouse/clickhouse-server:23.5
+    image: clickhouse/clickhouse-server:24.3
     networks:
       - router_net
     ports:
       - "9000"
       - "8123:8123"
+    volumes:
+      - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
     profiles:
       - analytics
     ulimits:
