@@ -1,6 +1,7 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+use base64::Engine;
 #[cfg(feature = "frm")]
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
@@ -9,6 +10,7 @@ use transformers as signifyd;
 
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
@@ -65,7 +67,10 @@ impl ConnectorCommon for Signifyd {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = signifyd::SignifydAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_api_key = format!("Basic {}", auth.api_key.peek());
+        let auth_api_key = format!(
+            "Basic {}",
+            consts::BASE64_ENGINE.encode(auth.api_key.peek())
+        );
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),

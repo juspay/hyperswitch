@@ -35,6 +35,10 @@ pub struct Purchase {
     total_price: i64,
     products: Vec<Products>,
     shipments: Shipments,
+    currency: Option<common_enums::Currency>,
+    total_shipping_cost: Option<i64>,
+    confirmation_email: Option<Email>,
+    confirmation_phone: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
@@ -51,17 +55,36 @@ pub enum OrderChannel {
     Mit,
 }
 
+#[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FulfillmentMethod {
+    Delivery,
+    CounterPickup,
+    CubsidePickup,
+    LockerPickup,
+    StandardShipping,
+    ExpeditedShipping,
+    GasPickup,
+    ScheduledDelivery,
+}
+
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Products {
     item_name: String,
     item_price: i64,
     item_quantity: i32,
+    item_id: Option<String>,
+    item_category: Option<String>,
+    item_sub_category: Option<String>,
+    item_is_digital: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Shipments {
     destination: Destination,
+    fulfillment_method: Option<FulfillmentMethod>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
@@ -85,11 +108,22 @@ pub struct Address {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CoverageRequests {
+    Fraud,
+    Inr,
+    Snad,
+    All,
+    None,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SignifydPaymentsSaleRequest {
     order_id: String,
     purchase: Purchase,
     decision_delivery: DecisionDelivery,
+    coverage_requests: Option<CoverageRequests>,
 }
 
 impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
@@ -103,9 +137,16 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 item_name: order_detail.product_name.clone(),
                 item_price: order_detail.amount,
                 item_quantity: i32::from(order_detail.quantity),
+                item_id: order_detail.product_id.clone(),
+                item_category: order_detail.category.clone(),
+                item_sub_category: order_detail.sub_category.clone(),
+                item_is_digital: Some(
+                    order_detail.product_type == Some(api_models::payments::ProductType::Digital),
+                ),
             })
             .collect::<Vec<_>>();
         let ship_address = item.get_shipping_address()?;
+        let billing_address = item.get_billing()?;
         let street_addr = ship_address.get_line1()?;
         let city_addr = ship_address.get_city()?;
         let zip_code_addr = ship_address.get_zip()?;
@@ -128,19 +169,30 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
         };
 
         let created_at = common_utils::date_time::now();
-        let order_channel = OrderChannel::Web;
-        let shipments = Shipments { destination };
+        let order_channel: OrderChannel = OrderChannel::Web;
+        let shipments = Shipments {
+            destination,
+            fulfillment_method: Some(FulfillmentMethod::Delivery),
+        };
         let purchase = Purchase {
             created_at,
             order_channel,
             total_price: item.request.amount,
             products,
             shipments,
+            currency: item.request.currency,
+            total_shipping_cost: Some(item.request.amount),
+            confirmation_email: item.request.email.clone(),
+            confirmation_phone: billing_address
+                .clone()
+                .phone
+                .and_then(|phone_data| phone_data.number),
         };
         Ok(Self {
             order_id: item.attempt_id.clone(),
             purchase,
             decision_delivery: DecisionDelivery::Sync,
+            coverage_requests: Some(CoverageRequests::Fraud),
         })
     }
 }
@@ -310,6 +362,12 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 item_name: order_detail.product_name.clone(),
                 item_price: order_detail.amount,
                 item_quantity: i32::from(order_detail.quantity),
+                item_id: order_detail.product_id.clone(),
+                item_category: order_detail.category.clone(),
+                item_sub_category: order_detail.sub_category.clone(),
+                item_is_digital: Some(
+                    order_detail.product_type == Some(api_models::payments::ProductType::Digital),
+                ),
             })
             .collect::<Vec<_>>();
         let ship_address = item.get_shipping_address()?;
@@ -319,6 +377,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
         let country_code_addr = ship_address.get_country()?;
         let _first_name_addr = ship_address.get_first_name()?;
         let _last_name_addr = ship_address.get_last_name()?;
+        let billing_address = item.get_billing()?;
         let address: Address = Address {
             street_address: street_addr.clone(),
             unit: None,
@@ -335,13 +394,23 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
         };
         let created_at = common_utils::date_time::now();
         let order_channel = OrderChannel::Web;
-        let shipments: Shipments = Shipments { destination };
+        let shipments: Shipments = Shipments {
+            destination,
+            fulfillment_method: Some(FulfillmentMethod::Delivery),
+        };
         let purchase = Purchase {
             created_at,
             order_channel,
             total_price: item.request.amount,
             products,
             shipments,
+            currency: item.request.currency,
+            total_shipping_cost: Some(item.request.amount),
+            confirmation_email: item.request.email.clone(),
+            confirmation_phone: billing_address
+                .clone()
+                .phone
+                .and_then(|phone_data| phone_data.number),
         };
         Ok(Self {
             checkout_id: item.payment_id.clone(),
