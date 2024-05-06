@@ -92,6 +92,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 }),
                 email: None,
             }),
+            None,
         ),
         connector_meta_data: None,
         amount_captured: None,

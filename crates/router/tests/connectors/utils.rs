@@ -69,6 +69,7 @@ impl PaymentInfo {
                     phone: None,
                     email: None,
                 }),
+                None,
             )),
             ..Default::default()
         }

@@ -2425,23 +2425,28 @@ pub mod payment_address {
             shipping: Option<api::Address>,
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
+            should_unify_address: Option<bool>,
         ) -> Self {
             // billing -> .billing, this is the billing details passed in the root of payments request
-            // payment_method_billing -> .payment_method_data.billing
+            // payment_method_billing -> payment_method_data.billing
 
-            // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
-            // The unified payment_method_billing will be used as billing address and passed to the connector module
-            // This unification is required in order to provide backwards compatibility
-            // so that if `payment.billing` is passed it should be sent to the connector module
-            // Unify the billing details with `payment_method_data.billing`
-            let unified_payment_method_billing = payment_method_billing
-                .as_ref()
-                .map(|payment_method_billing| {
-                    payment_method_billing
-                        .clone()
-                        .unify_address(billing.as_ref())
-                })
-                .or(billing.clone());
+            let unified_payment_method_billing = if should_unify_address.unwrap_or(true) {
+                // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
+                // The unified payment_method_billing will be used as billing address and passed to the connector module
+                // This unification is required in order to provide backwards compatibility
+                // so that if `payment.billing` is passed it should be sent to the connector module
+                // Unify the billing details with `payment_method_data.billing`
+                payment_method_billing
+                    .as_ref()
+                    .map(|payment_method_billing| {
+                        payment_method_billing
+                            .clone()
+                            .unify_address(billing.as_ref())
+                    })
+                    .or(billing.clone())
+            } else {
+                payment_method_billing
+            };
 
             Self {
                 shipping,
