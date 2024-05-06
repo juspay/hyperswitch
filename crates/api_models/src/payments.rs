@@ -3675,6 +3675,8 @@ pub struct OrderDetailsWithAmount {
     pub product_id: Option<String>,
     /// Category of the product that is being purchased
     pub category: Option<String>,
+    /// Sub category of the product that is being purchased
+    pub sub_category: Option<String>,
     /// Brand of the product that is being purchased
     pub brand: Option<String>,
     /// Type of the product that is being purchased
@@ -3709,6 +3711,8 @@ pub struct OrderDetails {
     pub product_id: Option<String>,
     /// Category of the product that is being purchased
     pub category: Option<String>,
+    /// Sub category of the product that is being purchased
+    pub sub_category: Option<String>,
     /// Brand of the product that is being purchased
     pub brand: Option<String>,
     /// Type of the product that is being purchased

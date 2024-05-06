@@ -173,6 +173,8 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             request: FrmRequest::Sale(FraudCheckSaleData {
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
+                currency: router_data.request.currency,
+                email: router_data.request.email,
             }),
             response: FrmResponse::Sale(router_data.response),
         }))
@@ -318,6 +320,8 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             request: FrmRequest::Sale(FraudCheckSaleData {
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
+                currency: router_data.request.currency,
+                email: router_data.request.email,
             }),
             response: FrmResponse::Sale(router_data.response),
         })

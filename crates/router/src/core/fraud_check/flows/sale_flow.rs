@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use crate::{
     core::{
@@ -65,6 +66,12 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             request: FraudCheckSaleData {
                 amount: self.payment_attempt.amount,
                 order_details: self.order_details.clone(),
+                currency: self.payment_attempt.currency,
+                email: customer.clone().and_then(|customer_data| {
+                    customer_data
+                        .email
+                        .and_then(|email| Email::try_from(email.into_inner().expose()).ok())
+                }),
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
