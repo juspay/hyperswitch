@@ -2101,10 +2101,19 @@ pub async fn list_payment_methods(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     }
 
+    // Check for `use_billing_as_payment_method_billing` config under business_profile
+    // If this is disabled, then the billing details in required fields will be empty and have to be collected by the customer
+    let billing_address_for_calculating_required_fields = business_profile
+        .as_ref()
+        .and_then(|business_profile| business_profile.use_billing_as_payment_method_billing)
+        .unwrap_or(true)
+        .then_some(billing_address.as_ref())
+        .flatten();
+
     let req = api_models::payments::PaymentsRequest::foreign_from((
         payment_attempt.as_ref(),
         shipping_address.as_ref(),
-        billing_address.as_ref(),
+        billing_address_for_calculating_required_fields,
         customer.as_ref(),
     ));
     let req_val = serde_json::to_value(req).ok();

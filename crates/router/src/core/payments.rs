@@ -2445,7 +2445,7 @@ pub mod payment_address {
                     })
                     .or(billing.clone())
             } else {
-                payment_method_billing
+                payment_method_billing.clone()
             };
 
             Self {
