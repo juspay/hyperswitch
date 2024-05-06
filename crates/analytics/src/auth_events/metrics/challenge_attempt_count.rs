@@ -34,7 +34,7 @@ where
         pool: &T,
     ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::ConnectorEvents);
+            QueryBuilder::new(AnalyticsCollection::ConnectorEventsAnalytics);
 
         query_builder
             .add_select_column(Aggregate::Count {

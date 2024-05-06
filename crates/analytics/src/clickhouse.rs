@@ -136,7 +136,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             AnalyticsCollection::SdkEvents
             | AnalyticsCollection::ApiEvents
             | AnalyticsCollection::ConnectorEvents
-            | AnalyticsCollection::AuthEvents
+            | AnalyticsCollection::ConnectorEventsAnalytics
             | AnalyticsCollection::OutgoingWebhookEvent => TableEngine::BasicTree,
         }
     }
@@ -373,7 +373,8 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::Payment => Ok("payment_attempts".to_string()),
             Self::Refund => Ok("refunds".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
-            Self::ApiEvents | Self::AuthEvents => Ok("api_events_audit".to_string()),
+            Self::ApiEvents => Ok("api_events_audit".to_string()),
+            Self::ConnectorEventsAnalytics => Ok("connector_events".to_string()),
             Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
