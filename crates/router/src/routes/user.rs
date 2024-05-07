@@ -353,7 +353,7 @@ pub async fn list_users_for_merchant_account(
 pub async fn rotate_password(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Json<user_api::ResetPasswordRequest>,
+    payload: web::Json<user_api::RotatePasswordRequest>,
 ) -> HttpResponse {
     let flow = Flow::RotatePassword;
     Box::pin(api::server_wrap(
@@ -396,20 +396,31 @@ pub async fn reset_password(
 ) -> HttpResponse {
     let flow = Flow::ResetPassword;
     let is_token_only = query.into_inner().token_only;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload.into_inner(),
-        |state, _, payload, _| user_core::reset_password(state, payload),
-        if let Some(true) = is_token_only {
-            &auth::SinglePurposeJWTAuth(TokenPurpose::ResetPassword)
-        } else {
-            &auth::NoAuth
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+    if let Some(true) = is_token_only {
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload.into_inner(),
+            |state, user, payload, _| user_core::reset_password_token_only_flow(state,user, payload),
+            &auth::SinglePurposeJWTAuth(TokenPurpose::ResetPassword),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+    else{
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload.into_inner(),
+            |state, _, payload, _| user_core::reset_password(state, payload),
+            &auth::NoAuth,
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+    
 }
 pub async fn invite_multiple_user(
     state: web::Data<AppState>,

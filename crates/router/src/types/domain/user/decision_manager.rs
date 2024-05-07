@@ -156,8 +156,9 @@ const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 4] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
+const RESET_PASSWORD_FLOW: [UserFlow; 3] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::ResetPassword),
 ];
 
@@ -261,7 +262,8 @@ impl From<SPTFlow> for TokenPurpose {
             SPTFlow::VerifyEmail => Self::VerifyEmail,
             SPTFlow::AcceptInvitationFromEmail => Self::AcceptInvitationFromEmail,
             SPTFlow::MerchantSelect => Self::AcceptInvite,
-            SPTFlow::ResetPassword | SPTFlow::ForceSetPassword => Self::ResetPassword,
+            SPTFlow::ResetPassword => Self::ResetPassword,
+            SPTFlow::ForceSetPassword => Self::ForceSetPassword,
         }
     }
 }
