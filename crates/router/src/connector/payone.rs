@@ -93,7 +93,6 @@ impl
         types::PaymentsResponseData,
     > for Payone
 {
-    
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payone

@@ -365,7 +365,6 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Wise => Self::Wise,
-
         }
     }
 }

@@ -1130,6 +1130,11 @@ impl CardData for payouts::Card {
         }
         Secret::new(year)
     }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.expiry_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
+    }
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.expiry_month.clone().expose();

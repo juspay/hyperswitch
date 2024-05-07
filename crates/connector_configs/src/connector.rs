@@ -229,8 +229,6 @@ impl ConnectorConfig {
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
-            PayoutConnectors::Paypal => Ok(connector_data.paypal),
-            PayoutConnectors::Wise => Ok(connector_data.wise_payout),
         }
     }
 
