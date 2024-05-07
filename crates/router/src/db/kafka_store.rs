@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use serde::{Serialize};
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::errors::CustomResult;
 use data_models::payments::{
@@ -23,6 +21,8 @@ use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
 };
+use serde::Serialize;
+use std::sync::Arc;
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
@@ -72,14 +72,14 @@ use crate::{
     },
 };
 
-#[derive(Clone,Serialize)]
+#[derive(Clone, Serialize)]
 pub struct TenantID(pub String);
 
 #[derive(Clone)]
 pub struct KafkaStore {
     kafka_producer: KafkaProducer,
     pub diesel_store: Store,
-    pub tenant_id: TenantID
+    pub tenant_id: TenantID,
 }
 
 impl KafkaStore {
@@ -87,7 +87,7 @@ impl KafkaStore {
         Self {
             kafka_producer,
             diesel_store: store,
-            tenant_id: tenant_id
+            tenant_id,
         }
     }
 }
