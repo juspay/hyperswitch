@@ -783,7 +783,7 @@ impl UserFromStorage {
             };
 
         let password_change_duration =
-            time::Duration::days(state.conf.user.password_validity_in_days);
+            time::Duration::days(state.conf.user.password_validity_in_days.into());
         let last_date_for_password_rotate = last_password_modified_at
             .checked_add(password_change_duration)
             .ok_or(UserErrors::InternalServerError)?;

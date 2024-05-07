@@ -395,7 +395,7 @@ pub struct Secrets {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
-    pub password_validity_in_days: i64,
+    pub password_validity_in_days: u16,
 }
 
 #[derive(Debug, Deserialize, Clone)]
