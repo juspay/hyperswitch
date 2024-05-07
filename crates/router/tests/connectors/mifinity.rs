@@ -12,7 +12,7 @@ impl utils::Connector for MifinityTest {
         use router::connector::Mifinity;
         types::api::ConnectorData {
             connector: Box::new(&Mifinity),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Adyen,
             // Added as Dummy connector as template code is added for future usage
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
