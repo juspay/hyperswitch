@@ -241,7 +241,7 @@ impl NextFlow {
                     .get_preferred_or_active_user_role_from_db(state)
                     .await
                     .to_not_found_response(UserErrors::InternalServerError)?;
-                utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role)
+                utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
                     .await;
 
                 jwt_flow.generate_jwt(state, self, &user_role).await
@@ -261,10 +261,10 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-                utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role)
+                utils::user_role::set_role_permissions_in_cache_by_user_role(state, user_role)
                     .await;
 
-                jwt_flow.generate_jwt(state, self, &user_role).await
+                jwt_flow.generate_jwt(state, self, user_role).await
             }
         }
     }
