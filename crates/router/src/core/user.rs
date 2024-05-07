@@ -465,6 +465,7 @@ pub async fn reset_password_token_only_flow(
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
+<<<<<<< Updated upstream
 
     if let Some(inviter_merchant_id) = email_token.get_merchant_id() {
         let update_status_result = state
@@ -480,6 +481,8 @@ pub async fn reset_password_token_only_flow(
             .await;
         logger::info!(?update_status_result);
     }
+=======
+>>>>>>> Stashed changes
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await

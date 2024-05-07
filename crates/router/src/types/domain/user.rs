@@ -775,16 +775,16 @@ impl UserFromStorage {
     }
 
     pub fn is_password_rotate_required(&self, state: &AppState) -> UserResult<bool> {
-        let last_password_changed_at =
-            if let Some(last_password_changed_at) = self.0.last_password_changed_at {
-                last_password_changed_at.date()
+        let last_password_modified_at =
+            if let Some(last_password_modified_at) = self.0.last_password_modified_at {
+                last_password_modified_at.date()
             } else {
                 return Ok(true);
             };
 
         let password_change_duration =
             time::Duration::days(state.conf.user.password_validity_in_days);
-        let last_date_for_password_rotate = last_password_changed_at
+        let last_date_for_password_rotate = last_password_modified_at
             .checked_add(password_change_duration)
             .ok_or(UserErrors::InternalServerError)?;
 

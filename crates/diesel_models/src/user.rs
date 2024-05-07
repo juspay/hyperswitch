@@ -20,7 +20,7 @@ pub struct User {
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub preferred_merchant_id: Option<String>,
-    pub last_password_changed_at: Option<PrimitiveDateTime>,
+    pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(
@@ -36,7 +36,7 @@ pub struct UserNew {
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub preferred_merchant_id: Option<String>,
-    pub last_password_changed_at: Option<PrimitiveDateTime>,
+    pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -47,7 +47,7 @@ pub struct UserUpdateInternal {
     is_verified: Option<bool>,
     last_modified_at: PrimitiveDateTime,
     preferred_merchant_id: Option<String>,
-    last_password_changed_at: Option<PrimitiveDateTime>,
+    last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug)]
@@ -73,7 +73,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 is_verified: Some(true),
                 last_modified_at,
                 preferred_merchant_id: None,
-                last_password_changed_at: None,
+                last_password_modified_at: None,
             },
             UserUpdate::AccountUpdate {
                 name,
@@ -85,7 +85,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 is_verified,
                 last_modified_at,
                 preferred_merchant_id,
-                last_password_changed_at: None,
+                last_password_modified_at: None,
             },
             UserUpdate::PasswordUpdate { password } => Self {
                 name: None,
@@ -93,7 +93,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 is_verified: None,
                 last_modified_at,
                 preferred_merchant_id: None,
-                last_password_changed_at: Some(last_modified_at),
+                last_password_modified_at: Some(last_modified_at),
             },
         }
     }

@@ -162,7 +162,7 @@ impl UserInterface for MockDb {
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
             preferred_merchant_id: user_data.preferred_merchant_id,
-            last_password_changed_at: user_data.last_password_changed_at,
+            last_password_modified_at: user_data.last_password_modified_at,
         };
         users.push(user.clone());
         Ok(user)
@@ -231,6 +231,7 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::PasswordUpdate { password } => storage::User {
                         password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };
@@ -273,6 +274,7 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::PasswordUpdate { password } => storage::User {
                         password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };
