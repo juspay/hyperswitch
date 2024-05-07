@@ -289,7 +289,7 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
-    payment_attempt.encoded_data = request.param.clone();
+    payment_attempt.encoded_data.clone_from(&request.param);
 
     let attempts = match request.expand_attempts {
         Some(true) => {
@@ -490,6 +490,7 @@ async fn get_tracker_for_sync<
         authentication,
         frm_metadata: None,
         recurring_details: None,
+        poll_config: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

@@ -37,15 +37,10 @@ To run test cases, follow these steps:
    export CYPRESS_BASEURL="base_url"
    export DEBUG=cypress:cli
    export CYPRESS_ADMINAPIKEY="admin_api_key"
+   export CYPRESS_CONNECToR_AUtH_FILE_PATH="path/to/creds.json"
    ```
 
 4. Run Cypress test cases
-
-   To execute a connector create test, ensure the connector details are included in the `creds.json` file. Then, integrate the path in the `command.js` as follows:
-
-   ```javascript
-   import ConnectorAuthDetails from "../../creds.json";
-   ```
 
    To run the tests in a browser in interactive mode run the following command
 
@@ -58,6 +53,9 @@ To run test cases, follow these steps:
    ```shell
    npm run cypress:ci
    ```
+
+> [!NOTE]
+> To learn about how creds file should be structured, refer to the [example.creds.json](#example-credsjson) section below.
 
 ## Folder Structure
 
@@ -169,9 +167,7 @@ To add new test scenarios:
 For example, to add a scenario for listing mandates in the `Mandateflows`:
 
 ```javascript
-
 // cypress/ConnectorTest/CreateSingleuseMandate.js
-
 describe("Payment Scenarios", () => {
   it("should complete a successful payment", () => {
     // Your test logic here
@@ -194,3 +190,53 @@ You can create similar scenarios by calling other functions defined in `command.
 ## Additional Resources
 
 For more information on using Cypress and writing effective tests, refer to the official Cypress documentation: [Cypress Documentation](https://docs.cypress.io/)
+
+## Example creds.json
+
+```json
+{
+  "adyen": {
+    "auth_type": "SignatureKey",
+    "api_key": "api_key",
+    "key1": "key1",
+    "api_secret": "api_secret"
+  },
+  "bankofamerica": {
+    "auth_type": "SignatureKey",
+    "api_key": "api_key",
+    "key1": "key1",
+    "api_secret": "api_secret"
+  },
+  "bluesnap": {
+    "auth_type": "BodyKey",
+    "api_key": "api_key",
+    "key1": "key1"
+  },
+  "cybersource": {
+    "auth_type": "SignatureKey",
+    "api_key": "api_key",
+    "key1": "key1",
+    "api_secret": "api_secret"
+  },
+  "nmi": {
+    "auth_type": "BodyKey",
+    "api_key": "api_key",
+    "key1": "key1"
+  },
+  "paypal": {
+    "auth_type": "BodyKey",
+    "api_key": "api_key",
+    "key1": "key1"
+  },
+  "stripe": {
+    "auth_type": "HeaderKey",
+    "api_key": "api_key"
+  },
+  "trustpay": {
+    "auth_type": "SignatureKey",
+    "api_key": "api_key",
+    "key1": "key1",
+    "api_secret": "api_secret"
+  }
+}
+```

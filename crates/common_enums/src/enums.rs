@@ -128,7 +128,7 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Dlocal,
-    // Ebanx,
+    Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -137,6 +137,7 @@ pub enum RoutableConnectors {
     Helcim,
     Iatapay,
     Klarna,
+    Mifinity,
     Mollie,
     Multisafepay,
     Nexinets,
@@ -1429,6 +1430,7 @@ pub enum PaymentMethodType {
     Twint,
     UpiCollect,
     Vipps,
+    Venmo,
     Walley,
     WeChatPay,
     SevenEleven,
@@ -2113,6 +2115,7 @@ pub enum PayoutStatus {
     RequiresCreation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
+    RequiresVendorAccountCreation,
 }
 
 #[derive(
@@ -2249,7 +2252,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
-    FrmAutoRefund,
+    FrmAuthorizeTransaction, // When manual capture payment which was marked fraud and held, when approved needs to be authorized.
 }
 
 #[derive(
@@ -2703,4 +2706,19 @@ pub enum BankType {
 pub enum BankHolderType {
     Personal,
     Business,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TokenPurpose {
+    #[serde(rename = "totp")]
+    #[strum(serialize = "totp")]
+    TOTP,
+    VerifyEmail,
+    AcceptInvitationFromEmail,
+    ForceSetPassword,
+    ResetPassword,
+    AcceptInvite,
+    UserInfo,
 }

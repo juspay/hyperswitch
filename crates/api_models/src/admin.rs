@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::{
+    consts,
     crypto::{Encryptable, OptionalEncryptableName},
     pii,
 };
@@ -455,7 +456,7 @@ pub struct MerchantConnectorCreate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -608,7 +609,7 @@ pub struct MerchantConnectorResponse {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -701,7 +702,7 @@ pub struct MerchantConnectorUpdate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
@@ -1042,6 +1043,9 @@ pub struct BusinessProfileUpdate {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    /// Merchant's config to support extended card info feature
+    pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -1095,3 +1099,55 @@ pub struct ExtendedCardInfoChoice {
 }
 
 impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConnectorAgnosticMitChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ConnectorAgnosticMitChoice {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExtendedCardInfoConfig {
+    /// Merchant public key
+    #[schema(value_type = String)]
+    pub public_key: Secret<String>,
+    /// TTL for extended card info
+    #[schema(default = 900, maximum = 7200, value_type = u16)]
+    #[serde(default)]
+    pub ttl_in_secs: TtlForExtendedCardInfo,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct TtlForExtendedCardInfo(u16);
+
+impl Default for TtlForExtendedCardInfo {
+    fn default() -> Self {
+        Self(consts::DEFAULT_TTL_FOR_EXTENDED_CARD_INFO)
+    }
+}
+
+impl<'de> Deserialize<'de> for TtlForExtendedCardInfo {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u16::deserialize(deserializer)?;
+
+        // Check if value exceeds the maximum allowed
+        if value > consts::MAX_TTL_FOR_EXTENDED_CARD_INFO {
+            Err(serde::de::Error::custom(
+                "ttl_in_secs must be less than or equal to 7200 (2hrs)",
+            ))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl std::ops::Deref for TtlForExtendedCardInfo {
+    type Target = u16;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}

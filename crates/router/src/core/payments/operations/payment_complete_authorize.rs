@@ -138,7 +138,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     &request
                         .payment_method_data
                         .as_ref()
-                        .map(|pmd| pmd.payment_method_data.clone()),
+                        .and_then(|pmd| pmd.payment_method_data.clone()),
                     &request.payment_method_type,
                     &mandate_type,
                     &token,
@@ -284,7 +284,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -307,6 +307,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: None,
             recurring_details,
+            poll_config: None,
         };
 
         let customer_details = Some(CustomerDetails {

@@ -112,7 +112,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
 
-        payment_attempt.cancellation_reason = request.cancellation_reason.clone();
+        payment_attempt
+            .cancellation_reason
+            .clone_from(&request.cancellation_reason);
 
         let creds_identifier = request
             .merchant_connector_details
@@ -188,6 +190,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_metadata: None,
             authentication: None,
             recurring_details: None,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
