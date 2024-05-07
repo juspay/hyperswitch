@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::payment_attempt::PaymentAttempt,
 };
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use time::PrimitiveDateTime;
@@ -1002,17 +1002,18 @@ impl PaymentCreate {
                 request.capture_method,
             )?;
 
-        let charges = match request.charges {
-            Some(charges) => {
-                let payment_charges = serde_json::to_value(charges)
-                    .map_err(|err| {
-                        logger::warn!("Failed to serialize PaymentChargeRequest - {}", err);
-                        Err(errors::ApiErrorResponse::InternalServerError)
-                    })?;
-                Some(payment_charges)
-            }
-            None => None,
-        };
+        let charges = request
+            .charges
+            .as_ref()
+            .map(|charges| match serde_json::to_value(charges) {
+                Ok(charges) => Ok(Secret::new(charges)),
+                Err(err) => {
+                    logger::warn!("Failed to serialize PaymentCharges - {}", err);
+                    Err(err)
+                }
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
@@ -1059,7 +1060,7 @@ impl PaymentCreate {
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
-            charges: None,
+            charges,
         })
     }
 

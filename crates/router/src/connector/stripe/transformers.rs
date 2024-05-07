@@ -163,6 +163,7 @@ pub struct PaymentIntentRequest {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum IntentCharges {
     Direct(DirectCharges),
     Destination(DestinationCharges),
@@ -2006,19 +2007,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None
         };
 
-        let charges = match &item.request.charges {
+        let (charges, customer, payment_method_types) = match &item.request.charges {
             Some(charges) => match &charges.charge_type {
                 api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
-                    api_enums::StripeChargeType::Direct => {
+                    api_enums::StripeChargeType::Direct => (
                         Some(IntentCharges::Direct(DirectCharges {
                             application_fee_amount: charges.fees.clone(),
                             automatic_payment_methods_enabled: charges
                                 .automatic_payment_methods_enabled
                                 .clone()
                                 .unwrap_or(true),
-                        }))
-                    }
-                    api_enums::StripeChargeType::Destination => {
+                        })),
+                        None,
+                        None,
+                    ),
+                    api_enums::StripeChargeType::Destination => (
                         Some(IntentCharges::Destination(DestinationCharges {
                             application_fee_amount: charges.fees.clone(),
                             destination_account_id: charges.transfer_account_id.clone(),
@@ -2026,9 +2029,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 .automatic_payment_methods_enabled
                                 .clone()
                                 .unwrap_or(true),
-                        }))
-                    }
-                    api_enums::StripeChargeType::Custom => {
+                        })),
+                        None,
+                        None,
+                    ),
+                    api_enums::StripeChargeType::Custom => (
                         Some(IntentCharges::Custom(CustomCharges {
                             application_fee_amount: charges.fees.clone(),
                             transfer_group: charges.transfer_account_id.clone(),
@@ -2036,11 +2041,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 .automatic_payment_methods_enabled
                                 .clone()
                                 .unwrap_or(true),
-                        }))
-                    }
+                        })),
+                        None,
+                        None,
+                    ),
                 },
             },
-            None => None,
+            None => (
+                None,
+                item.connector_customer.to_owned().map(Secret::new),
+                payment_method_types,
+            ),
         };
 
         Ok(Self {
@@ -2062,7 +2073,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             payment_data,
             payment_method_options,
             payment_method,
-            customer: item.connector_customer.to_owned().map(Secret::new),
+            customer,
             setup_mandate_details,
             off_session: item.request.off_session,
             setup_future_usage: item.request.setup_future_usage,

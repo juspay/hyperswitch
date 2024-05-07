@@ -473,14 +473,16 @@ pub struct PaymentsRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentChargeRequest {
+    #[serde(untagged)]
     Stripe(StripeChargeRequest),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct StripeChargeRequest {
     pub charge_type: api_enums::StripeChargeType,
-    pub fees: String,
+    pub fees: i64,
     pub transfer_account_id: String,
     pub automatic_payment_methods_enabled: Option<bool>,
 }
