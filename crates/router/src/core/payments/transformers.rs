@@ -463,14 +463,17 @@ where
     let payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
-    let payment_method_data_response = payment_method_data.map(|payment_method_data| {
-        api_models::payments::PaymentMethodDataResponseWithBilling {
-            payment_method_data,
-            billing: payment_data
-                .address
-                .get_request_payment_method_billing()
-                .cloned(),
-        }
+    let payment_method_data_response = (payment_method_data.is_some()
+        || payment_data
+            .address
+            .get_request_payment_method_billing()
+            .is_some())
+    .then_some(api_models::payments::PaymentMethodDataResponseWithBilling {
+        payment_method_data,
+        billing: payment_data
+            .address
+            .get_request_payment_method_billing()
+            .cloned(),
     });
 
     let mut headers = connector_http_status_code
