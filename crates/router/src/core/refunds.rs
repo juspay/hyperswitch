@@ -788,8 +788,7 @@ pub async fn get_filters_for_refunds(
         return Err(errors::ApiErrorResponse::InternalServerError.into());
     };
 
-    let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
-    merchant_connector_accounts
+    let connector_map = merchant_connector_accounts
         .iter()
         .filter_map(|merchant_connector_account| {
             merchant_connector_account
@@ -805,12 +804,13 @@ pub async fn get_filters_for_refunds(
                     (merchant_connector_account.connector_name.clone(), info)
                 })
         })
-        .for_each(|(connector_name, info)| {
-            connector_map
-                .entry(connector_name.clone())
-                .or_default()
-                .push(info);
-        });
+        .fold(
+            HashMap::new(),
+            |mut map: HashMap<String, Vec<MerchantConnectorInfo>>, (connector_name, info)| {
+                map.entry(connector_name).or_default().push(info);
+                map
+            },
+        );
 
     Ok(services::ApplicationResponse::Json(
         api_models::refunds::RefundListFilters {

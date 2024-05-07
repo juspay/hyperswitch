@@ -192,7 +192,7 @@ pub struct RefundListMetaData {
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RefundListFilters {
-    /// The list of available connector filters
+    /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
     pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
     /// The list of available currency filters
     #[schema(value_type = Vec<Currency>)]
