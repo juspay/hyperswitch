@@ -42,7 +42,7 @@ pub struct Purchase {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all(serialize = "SCREAMING_SNAKE_CASE", deserialize = "snake_case"))]
 pub enum OrderChannel {
     Web,
     Phone,
@@ -110,11 +110,11 @@ pub struct Address {
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
 #[serde(rename_all(serialize = "SCREAMING_SNAKE_CASE", deserialize = "snake_case"))]
 pub enum CoverageRequests {
-    Fraud,
-    Inr,
-    Snad,
-    All,
-    None,
+    Fraud, // use when you need a financial guarantee for Payment Fraud.
+    Inr,   // use when you need a financial guarantee for Item Not Received.
+    Snad, // use when you need a financial guarantee for fraud alleging items are Significantly Not As Described.
+    All,  // use when you need a financial guarantee on all chargebacks.
+    None, // use when you do not need a financial guarantee. Suggested actions in decision.checkpointAction are recommendations.
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -126,12 +126,13 @@ pub struct SignifydPaymentsSaleRequest {
     coverage_requests: Option<CoverageRequests>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
 #[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
 pub struct SignifydFrmMetadata {
     pub total_shipping_cost: Option<i64>,
     pub fulfillment_method: Option<FulfillmentMethod>,
     pub coverage_request: Option<CoverageRequests>,
+    pub order_channel: OrderChannel,
 }
 
 impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
@@ -148,20 +149,20 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 item_id: order_detail.product_id.clone(),
                 item_category: order_detail.category.clone(),
                 item_sub_category: order_detail.sub_category.clone(),
-                item_is_digital: Some(
-                    order_detail.product_type == Some(api_models::payments::ProductType::Digital),
-                ),
+                item_is_digital: order_detail
+                    .product_type
+                    .as_ref()
+                    .map(|product| (product == &api_models::payments::ProductType::Digital)),
             })
             .collect::<Vec<_>>();
-        let metadata: Option<SignifydFrmMetadata> = item
+        let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
-            .map(|metadata| {
-                metadata
-                    .parse_value("Signifyd Frm Metadata")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-            })
-            .transpose()?;
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "frm_metadata",
+            })?
+            .parse_value("Signifyd Frm Metadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
         let street_addr = ship_address.get_line1()?;
@@ -186,12 +187,10 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
         };
 
         let created_at = common_utils::date_time::now();
-        let order_channel: OrderChannel = OrderChannel::Web;
+        let order_channel = metadata.order_channel;
         let shipments = Shipments {
             destination,
-            fulfillment_method: metadata
-                .as_ref()
-                .and_then(|metadata| metadata.fulfillment_method.clone()),
+            fulfillment_method: metadata.fulfillment_method,
         };
         let purchase = Purchase {
             created_at,
@@ -200,7 +199,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: metadata.as_ref().and_then(|meta| meta.total_shipping_cost),
+            total_shipping_cost: metadata.total_shipping_cost,
             confirmation_email: item.request.email.clone(),
             confirmation_phone: billing_address
                 .clone()
@@ -210,10 +209,8 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
         Ok(Self {
             order_id: item.attempt_id.clone(),
             purchase,
-            decision_delivery: DecisionDelivery::Sync,
-            coverage_requests: metadata
-                .as_ref()
-                .and_then(|metadata| metadata.coverage_request.clone()),
+            decision_delivery: DecisionDelivery::Sync, // Specify SYNC if you require the Response to contain a decision field. If you have registered for a webhook associated with this checkpoint, then the webhook will also be sent when SYNC is specified. If ASYNC_ONLY is specified, then the decision field in the response will be null, and you will require a Webhook integration to receive Signifyd's final decision
+            coverage_requests: metadata.coverage_request,
         })
     }
 }
@@ -387,20 +384,20 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 item_id: order_detail.product_id.clone(),
                 item_category: order_detail.category.clone(),
                 item_sub_category: order_detail.sub_category.clone(),
-                item_is_digital: Some(
-                    order_detail.product_type == Some(api_models::payments::ProductType::Digital),
-                ),
+                item_is_digital: order_detail
+                    .product_type
+                    .as_ref()
+                    .map(|product| (product == &api_models::payments::ProductType::Digital)),
             })
             .collect::<Vec<_>>();
-        let metadata: Option<SignifydFrmMetadata> = item
+        let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
-            .map(|metadata| {
-                metadata
-                    .parse_value("Signifyd Frm Metadata")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-            })
-            .transpose()?;
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "frm_metadata",
+            })?
+            .parse_value("Signifyd Frm Metadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let ship_address = item.get_shipping_address()?;
         let street_addr = ship_address.get_line1()?;
         let city_addr = ship_address.get_city()?;
@@ -424,12 +421,10 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             address,
         };
         let created_at = common_utils::date_time::now();
-        let order_channel = OrderChannel::Web;
+        let order_channel = metadata.order_channel;
         let shipments: Shipments = Shipments {
             destination,
-            fulfillment_method: metadata
-                .as_ref()
-                .and_then(|metadata| metadata.fulfillment_method.clone()),
+            fulfillment_method: metadata.fulfillment_method,
         };
         let purchase = Purchase {
             created_at,
@@ -438,9 +433,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: metadata
-                .as_ref()
-                .and_then(|metadata| metadata.total_shipping_cost),
+            total_shipping_cost: metadata.total_shipping_cost,
             confirmation_email: item.request.email.clone(),
             confirmation_phone: billing_address
                 .clone()
@@ -451,9 +444,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             checkout_id: item.payment_id.clone(),
             order_id: item.attempt_id.clone(),
             purchase,
-            coverage_requests: metadata
-                .as_ref()
-                .and_then(|metadata| metadata.coverage_request.clone()),
+            coverage_requests: metadata.coverage_request,
         })
     }
 }

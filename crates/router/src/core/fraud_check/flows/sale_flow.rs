@@ -67,11 +67,17 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                 amount: self.payment_attempt.amount,
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
-                email: customer.clone().and_then(|customer_data| {
-                    customer_data
-                        .email
-                        .and_then(|email| Email::try_from(email.into_inner().expose()).ok())
-                }),
+                email: customer
+                    .clone()
+                    .and_then(|customer_data| {
+                        customer_data
+                            .email
+                            .map(|email| Email::try_from(email.into_inner().expose()))
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "customer.customer_data.email",
+                    })?,
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
