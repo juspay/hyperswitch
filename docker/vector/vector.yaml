@@ -16,7 +16,7 @@ sources:
       codec: json
 
 transforms:
-  cassandra_get:
+  cassandra_get_old_event:
     type: lua
     inputs:
       - kafka_payments
@@ -27,7 +27,6 @@ transforms:
       shutdown: shutdown
     source: |-
       function init(emit)
-
         local cassandra = require "cassandra"
         
         client = assert(cassandra.new {
@@ -38,7 +37,6 @@ transforms:
 
         client:settimeout(1000)
         assert(client:connect())
-
       end
 
       function db_get(id, id_type, version)
@@ -68,7 +66,6 @@ transforms:
           event.log.old_log = json.decode(old_event[1].state)
         end
         emit(event)
-
       end
 
       function shutdown(emit)
@@ -84,17 +81,43 @@ transforms:
   club_with_old_event:
     type: remap
     inputs:
-      - cassandra_get
+      - cassandra_get_old_event
     source: >-
-      new_event_keys = keys(.log) ?? [];
-      old_log = object(.old_log) ?? {};
-      for_each(old_log) -> |key, value| {
-        if !includes(new_event_keys, key) {
-          .log = set!(.log, [key], value)
-        }
+      db_log = .old_log;
+      new_log_type = .log_type;
+      new_log = .log;
+
+      traverse_map = if new_log_type == "intent" {
+        {}
+      } else if new_log_type == "attempt" {
+        {"attempts": new_log.attempt_id}
+      } else if new_log_type == "refund" {
+        {"attempts": new_log.attempt_id, "refunds": new_log.refund_id}
+      } else if new_log_type == "dispute" {
+        {"attempts": new_log.attempt_id, "disputes": new_log.dispute_id}
+      } else {
+        null
       }
 
-  cassandra_set:
+      if is_object(traverse_map) {
+        traverse_map = object!(traverse_map);
+        path = [];
+        for_each(traverse_map) -> |k, v| {
+          path = append(path, [k, v])
+        }
+        log = get(db_log, path) ?? {};
+
+        new_log = object(new_log) ?? {};
+        for_each(new_log) -> |k, v| {
+          log = set!(log, [k], v)
+        };
+
+        .db_merchant_id = log.merchant_id
+        .db_payment_id = log.payment_id
+        .log = set!(db_log, path, log)
+      }
+
+  cassandra_set_new_event:
     type: lua
     inputs:
       - club_with_old_event
@@ -132,7 +155,7 @@ transforms:
 
       function process(event, emit)
         local json = require "json"
-        local new_event_insert = db_set(json.encode(event.log.log), string.format("%s_%s", event.log.log.merchant_id, event.log.log.payment_id), "merchant_payment")
+        local new_event_insert = db_set(json.encode(event.log.log), string.format("%s_%s", event.log.db_merchant_id, event.log.db_payment_id), "merchant_payment")
         emit(event)
       end
 
@@ -143,7 +166,7 @@ transforms:
   generate_signed_events:
     type: remap
     inputs:
-      - cassandra_set
+      - cassandra_set_new_event
     source: >-
       events = [];
       if exists(.old_log) {
@@ -154,6 +177,12 @@ transforms:
       events = push(events, .log);
       . = events
 
+  # split_events:
+  #   type: remap
+  #   inputs:
+  #     - generate_signed_events
+  #   source: >-
+
 sinks:
   console:
     inputs:
@@ -162,3 +191,20 @@ sinks:
     type: console
     encoding:
       codec: json
+
+  # type Metric =
+  #   | TotalCount
+  #   | CountMatchString { key: string, value: string, alias: string }
+  #   | TotalAmount { amount_key: string }
+  #   | TotalAmountMatchString { amount_key: string, key: string, value: string, alias: string };
+
+  # metrics = [CountTotal, CountMatchString {"status", "charged"}, TotalAmount {"amount"}, TotalAmountMatchString {"amount", "status", "charged"}];
+
+  # fn metric_name(metric) {
+  #     match metric {
+  #       TotalCount => "count"
+  #       CountMatchString { key: key, value: value, alias: alias } => alias
+  #       TotalAmount => amount
+  #       TotalAmountMatchString { amount_key: amount_key, key: key, value: value, alias: alias } => alias
+  #     }
+  # }

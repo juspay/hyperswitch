@@ -13,4 +13,4 @@ CREATE TABLE IF NOT EXISTS sessionizer.payments (
 
 INSERT INTO sessionizer.payments
     (id, id_type, state, version)
-    VALUES ('test_abc', 'merchant_payment', '{"payment_id": "abc", "xyz": "test", "merchant_id": "test", "attempts" : {"abc" : "ppp"}}', 1);
+    VALUES ('test_p1', 'merchant_payment', '{"payment_id": "p1", "xyz": "test", "merchant_id": "test", "attempts" : {"a1" : {}}}', 1);
