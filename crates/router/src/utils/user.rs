@@ -8,6 +8,7 @@ use masking::ExposeInterface;
 use totp_rs::{Algorithm, TOTP};
 
 use crate::{
+    consts,
     core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
     services::{
@@ -209,7 +210,7 @@ pub fn generate_default_totp(
         1,
         30,
         secret,
-        Some("Hyperswitch".to_string()),
+        Some(consts::user::TOTP_ISSUER_NAME.to_string()),
         email.expose().expose(),
     )
     .change_context(UserErrors::InternalServerError)

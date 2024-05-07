@@ -1,4 +1,4 @@
-use diesel_models::{enums::TotpStatus, user as storage, user_role::UserRole};
+use diesel_models::{user as storage, user_role::UserRole};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -162,9 +162,9 @@ impl UserInterface for MockDb {
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
             preferred_merchant_id: user_data.preferred_merchant_id,
-            totp_status: TotpStatus::NotSet,
-            totp_secret: None,
-            totp_recovery_codes: None,
+            totp_status: user_data.totp_status,
+            totp_secret: user_data.totp_secret,
+            totp_recovery_codes: user_data.totp_recovery_codes,
             last_password_modified_at: user_data.last_password_modified_at,
         };
         users.push(user.clone());

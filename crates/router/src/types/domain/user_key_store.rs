@@ -1,6 +1,6 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
-    custom_serde, date_time,
+    date_time,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -15,7 +15,6 @@ use crate::{
 pub struct UserKeyStore {
     pub user_id: String,
     pub key: Encryptable<Secret<Vec<u8>>>,
-    #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
 }
 
@@ -23,6 +22,7 @@ pub struct UserKeyStore {
 impl super::behaviour::Conversion for UserKeyStore {
     type DstType = diesel_models::user_key_store::UserKeyStore;
     type NewDstType = diesel_models::user_key_store::UserKeyStoreNew;
+
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::user_key_store::UserKeyStore {
             key: self.key.into(),

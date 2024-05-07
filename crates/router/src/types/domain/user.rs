@@ -1090,13 +1090,15 @@ impl RecoveryCodes {
     }
 
     pub fn get_hashed(&self) -> UserResult<Self> {
-        let hashed_codes = self
-            .0
+        self.0
             .clone()
             .iter()
             .map(|code| password::generate_password_hash(code.clone()))
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()
+            .map(|codes| Self(codes))
+    }
 
-        Ok(Self(hashed_codes))
+    pub fn into_inner(self) -> Vec<Secret<String>> {
+        self.0
     }
 }

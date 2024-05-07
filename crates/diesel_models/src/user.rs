@@ -39,6 +39,9 @@ pub struct UserNew {
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub preferred_merchant_id: Option<String>,
+    pub totp_status: TotpStatus,
+    pub totp_secret: Option<Encryption>,
+    pub totp_recovery_codes: Option<serde_json::Value>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 

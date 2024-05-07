@@ -1640,7 +1640,7 @@ pub async fn begin_totp(
         secret: Some(user_api::TOTPSecret {
             secret: totp.get_secret_base32().into(),
             totp_url: totp.get_url().into(),
-            recovery_codes: recovery_codes.0,
+            recovery_codes: recovery_codes.into_inner(),
         }),
     }))
 }
