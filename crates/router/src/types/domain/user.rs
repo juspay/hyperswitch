@@ -190,7 +190,7 @@ impl UserPassword {
         }
     }
 
-    pub fn new_without_validation(password: Secret<String>) -> UserResult<Self> {
+    pub fn new_password_without_validation(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
         if password.is_empty() {
             Err(UserErrors::PasswordParsingError.into())
@@ -714,7 +714,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: UserPassword::new_without_validation(user.0.password)?,
+            password: UserPassword::new_password_without_validation(user.0.password)?,
             new_merchant,
         })
     }
