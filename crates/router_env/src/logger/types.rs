@@ -407,7 +407,7 @@ pub enum Flow {
     /// Toggles the extended card info feature in profile level
     ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
-    GetExtendedCardInfo
+    GetExtendedCardInfo,
 }
 
 ///
