@@ -314,6 +314,7 @@ where
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
+                            &business_profile,
                         )
                         .await?;
 
@@ -415,6 +416,7 @@ where
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
+                            &business_profile,
                         )
                         .await?;
 
@@ -3320,6 +3322,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
+            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await;
     }
@@ -3377,6 +3380,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
+            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await;
     }
@@ -3400,6 +3404,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorData>,
     mandate_type: Option<api::MandateTransactionType>,
+    is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<ConnectorCallType> {
     match (
         payment_data.payment_intent.setup_future_usage,
@@ -3442,22 +3447,6 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("unable to deserialize connector mandate details")?;
 
-            let profile_id = payment_data
-                .payment_intent
-                .profile_id
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-            let pg_agnostic = state
-                .store
-                .find_config_by_key_unwrap_or(
-                    &format!("pg_agnostic_mandate_{}", profile_id),
-                    Some("false".to_string()),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("The pg_agnostic config was not found in the DB")?;
-
             let mut connector_choice = None;
 
             for connector_data in connectors {
@@ -3468,7 +3457,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
 
                 if is_network_transaction_id_flow(
                     state,
-                    &pg_agnostic.config,
+                    is_connector_agnostic_mit_enabled,
                     connector_data.connector_name,
                     payment_method_info,
                 ) {
@@ -3588,7 +3577,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
 
 pub fn is_network_transaction_id_flow(
     state: &AppState,
-    pg_agnostic: &String,
+    is_connector_agnostic_mit_enabled: Option<bool>,
     connector: enums::Connector,
     payment_method_info: &storage::PaymentMethod,
 ) -> bool {
@@ -3597,7 +3586,7 @@ pub fn is_network_transaction_id_flow(
         .network_transaction_id_supported_connectors
         .connector_list;
 
-    pg_agnostic == "true"
+    is_connector_agnostic_mit_enabled == Some(true)
         && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
         && ntid_supported_connectors.contains(&connector)
         && payment_method_info.network_transaction_id.is_some()
@@ -3827,6 +3816,7 @@ where
                 routing_data,
                 connector_data,
                 mandate_type,
+                business_profile.is_connector_agnostic_mit_enabled,
             )
             .await
         }

@@ -64,8 +64,8 @@ pub async fn save_payment_method<FData>(
     key_store: &domain::MerchantKeyStore,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
-    profile_id: Option<String>,
     billing_name: Option<masking::Secret<String>>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -91,21 +91,7 @@ where
 
             let network_transaction_id =
                 if let Some(network_transaction_id) = network_transaction_id {
-                    let profile_id = profile_id
-                        .as_ref()
-                        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-                    let pg_agnostic = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &format!("pg_agnostic_mandate_{}", profile_id),
-                            Some("false".to_string()),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The pg_agnostic config was not found in the DB")?;
-
-                    if &pg_agnostic.config == "true"
+                    if business_profile.is_connector_agnostic_mit_enabled == Some(true)
                         && save_payment_method_data.request.get_setup_future_usage()
                             == Some(storage_enums::FutureUsage::OffSession)
                     {
