@@ -16,10 +16,20 @@ sources:
       codec: json
 
 transforms:
+  init_sessionizer_vars:
+    type: remap
+    inputs:
+      - kafka_payments
+    source: >-
+      .sessionizer = {
+        "table": "payments",
+        "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
+        "id_type": "merchant_payment"
+      }
   cassandra_get_old_event:
     type: lua
     inputs:
-      - kafka_payments
+      - init_sessionizer_vars
     version: "2"
     hooks:
       init: init
@@ -39,43 +49,26 @@ transforms:
         assert(client:connect())
       end
 
-      function db_get(id, id_type, version)
+      function db_get(table, id, id_type, version)
         version = version or 1
-        local rows = assert(client:execute("SELECT * FROM payments WHERE id = ? and id_type = ?", {
+        local rows = assert(client:execute(string.format("SELECT * FROM %s WHERE id = ? and id_type = ?", table), {
           id,
           id_type
         }))
         return rows
       end
 
-      function copy(obj, seen)
-        if type(obj) ~= 'table' then return obj end
-        if seen and seen[obj] then return seen[obj] end
-        local s = seen or {}
-        local res = setmetatable({}, getmetatable(obj))
-        s[obj] = res
-        for k, v in pairs(obj) do res[copy(k, s)] = copy(v, s) end
-        return res
-      end
-
       function process(event, emit)
-        local json = require "json"
-
-        local old_event = db_get(string.format("%s_%s", event.log.log.merchant_id, event.log.log.payment_id), "merchant_payment")
+        local sessionizer = event.log.sessionizer
+        local old_event = db_get(sessionizer.table, sessionizer.id, sessionizer.id_type)
         if #old_event == 1 then
-          event.log.old_log = json.decode(old_event[1].state)
+          event.log.old_log = old_event[1].state
         end
         emit(event)
       end
 
       function shutdown(emit)
         client:close()
-      end
-
-      function emit_signed_log(emit, event, log, sign)
-        event.log.log = log
-        event.log.sign = sign
-        emit(event)
       end
 
   club_with_old_event:
@@ -99,12 +92,14 @@ transforms:
         null
       }
 
+      .sessionizer.db_event = "{}";
       if is_object(traverse_map) {
         traverse_map = object!(traverse_map);
         path = [];
         for_each(traverse_map) -> |k, v| {
           path = append(path, [k, v])
         }
+        db_log = parse_json(db_log) ?? {};
         log = get(db_log, path) ?? {};
 
         new_log = object(new_log) ?? {};
@@ -112,9 +107,8 @@ transforms:
           log = set!(log, [k], v)
         };
 
-        .db_merchant_id = log.merchant_id
-        .db_payment_id = log.payment_id
         .log = set!(db_log, path, log)
+        .sessionizer.db_event = encode_json(.log)
       }
 
   cassandra_set_new_event:
@@ -142,9 +136,9 @@ transforms:
 
       end
 
-      function db_set(state, id, id_type, version)
+      function db_set(table, state, id, id_type, version)
         version = version or 1
-        local res = assert(client:execute("INSERT INTO payments (id, id_type, state, version) VALUES (?, ?, ?, ?)", {
+        local res = assert(client:execute(string.format("INSERT INTO %s (id, id_type, state, version) VALUES (?, ?, ?, ?)", table), {
           id,
           id_type,
           state,
@@ -154,8 +148,8 @@ transforms:
       end
 
       function process(event, emit)
-        local json = require "json"
-        local new_event_insert = db_set(json.encode(event.log.log), string.format("%s_%s", event.log.db_merchant_id, event.log.db_payment_id), "merchant_payment")
+        local sessionizer = event.log.sessionizer
+        local new_event_insert = db_set(sessionizer.table, sessionizer.db_event, sessionizer.id, sessionizer.id_type)
         emit(event)
       end
 
@@ -170,6 +164,7 @@ transforms:
     source: >-
       events = [];
       if exists(.old_log) {
+        .old_log = parse_json!(.old_log);
         .old_log.sign_flag = -1;
         events = push(events, .old_log);
       };
