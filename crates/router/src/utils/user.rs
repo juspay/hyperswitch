@@ -199,7 +199,7 @@ pub fn generate_default_totp(
 ) -> UserResult<TOTP> {
     let secret = secret
         .map(|sec| totp_rs::Secret::Encoded(sec.expose()))
-        .unwrap_or_else(|| totp_rs::Secret::generate_secret())
+        .unwrap_or_else(totp_rs::Secret::generate_secret)
         .to_bytes()
         .change_context(UserErrors::InternalServerError)?;
 

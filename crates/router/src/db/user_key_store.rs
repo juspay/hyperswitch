@@ -4,6 +4,7 @@ use masking::Secret;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
+use super::KafkaStore;
 use crate::{
     connection,
     core::errors,
@@ -13,8 +14,6 @@ use crate::{
         behaviour::{Conversion, ReverseConversion},
     },
 };
-
-use super::KafkaStore;
 
 #[async_trait::async_trait]
 pub trait UserKeyStoreInterface {

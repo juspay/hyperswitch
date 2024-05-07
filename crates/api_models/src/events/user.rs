@@ -10,13 +10,13 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
-    CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
-    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
-    SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
-    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest, BeginTOTPResponse
+    AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTOTPResponse, ChangePasswordRequest,
+    ConnectAccountRequest, CreateInternalUserRequest, DashboardEntryResponse,
+    ForgotPasswordRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
+    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
+    ResetPasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {

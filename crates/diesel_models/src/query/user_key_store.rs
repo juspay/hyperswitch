@@ -1,10 +1,11 @@
+use diesel::{associations::HasTable, ExpressionMethods};
+
 use super::generics;
 use crate::{
     schema::user_key_store::dsl,
     user_key_store::{UserKeyStore, UserKeyStoreNew},
     PgPooledConn, StorageResult,
 };
-use diesel::{associations::HasTable, ExpressionMethods};
 
 impl UserKeyStoreNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserKeyStore> {

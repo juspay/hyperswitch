@@ -1045,6 +1045,6 @@ impl RecoveryCodes {
             .map(|code| password::generate_password_hash(code.clone()))
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(RecoveryCodes(hashed_codes))
+        Ok(Self(hashed_codes))
     }
 }
