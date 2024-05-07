@@ -1532,6 +1532,7 @@ pub async fn begin_totp(
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: Some(TotpStatus::InProgress),
                 totp_secret: Some(
+                    // TODO: Impl conversion trait for User and move this there
                     domain::types::encrypt::<String, masking::WithType>(
                         totp.get_secret_base32().into(),
                         key_store.key.peek(),
