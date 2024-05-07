@@ -466,6 +466,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub authentication_data: Option<AuthenticationData>,
+    pub charges: Option<types::PaymentCharges>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1511,6 +1512,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
+            charges: None, // TODO: allow charges on mandates?
         }
     }
 }

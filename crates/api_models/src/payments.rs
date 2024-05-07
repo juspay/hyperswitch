@@ -467,6 +467,22 @@ pub struct PaymentsRequest {
 
     /// Details required for recurring payment
     pub recurring_details: Option<RecurringDetails>,
+
+    /// Fee information to be charged on the payment being collected
+    pub charges: Option<PaymentChargeRequest>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub enum PaymentChargeRequest {
+    Stripe(StripeChargeRequest),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct StripeChargeRequest {
+    pub charge_type: api_enums::StripeChargeType,
+    pub fees: String,
+    pub transfer_account_id: String,
+    pub automatic_payment_methods_enabled: Option<bool>,
 }
 
 impl PaymentsRequest {

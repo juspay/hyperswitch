@@ -158,6 +158,40 @@ pub struct PaymentIntentRequest {
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(flatten)]
+    pub charges: Option<IntentCharges>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub enum IntentCharges {
+    Direct(DirectCharges),
+    Destination(DestinationCharges),
+    Custom(CustomCharges),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DirectCharges {
+    pub application_fee_amount: i64,
+    #[serde(rename = "automatic_payment_methods[enabled]")]
+    pub automatic_payment_methods_enabled: bool,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DestinationCharges {
+    pub application_fee_amount: i64,
+    #[serde(rename = "automatic_payment_methods[enabled]")]
+    pub automatic_payment_methods_enabled: bool,
+    #[serde(rename = "transfer_data[destination]")]
+    pub destination_account_id: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct CustomCharges {
+    pub application_fee_amount: i64,
+    #[serde(rename = "automatic_payment_methods[enabled]")]
+    pub automatic_payment_methods_enabled: bool,
+    #[serde(rename = "transfer_group")]
+    pub transfer_group: String,
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -1972,6 +2006,43 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None
         };
 
+        let charges = match &item.request.charges {
+            Some(charges) => match &charges.charge_type {
+                api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
+                    api_enums::StripeChargeType::Direct => {
+                        Some(IntentCharges::Direct(DirectCharges {
+                            application_fee_amount: charges.fees.clone(),
+                            automatic_payment_methods_enabled: charges
+                                .automatic_payment_methods_enabled
+                                .clone()
+                                .unwrap_or(true),
+                        }))
+                    }
+                    api_enums::StripeChargeType::Destination => {
+                        Some(IntentCharges::Destination(DestinationCharges {
+                            application_fee_amount: charges.fees.clone(),
+                            destination_account_id: charges.transfer_account_id.clone(),
+                            automatic_payment_methods_enabled: charges
+                                .automatic_payment_methods_enabled
+                                .clone()
+                                .unwrap_or(true),
+                        }))
+                    }
+                    api_enums::StripeChargeType::Custom => {
+                        Some(IntentCharges::Custom(CustomCharges {
+                            application_fee_amount: charges.fees.clone(),
+                            transfer_group: charges.transfer_account_id.clone(),
+                            automatic_payment_methods_enabled: charges
+                                .automatic_payment_methods_enabled
+                                .clone()
+                                .unwrap_or(true),
+                        }))
+                    }
+                },
+            },
+            None => None,
+        };
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1998,6 +2069,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
+            charges,
         })
     }
 }

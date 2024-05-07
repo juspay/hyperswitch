@@ -7,7 +7,7 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::Maskable;
+use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
@@ -1152,6 +1152,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .map(|customer| customer.clone().into_inner())
             });
 
+        let charges = match payment_data.payment_intent.charges {
+            Some(charges) => charges
+                .peek()
+                .clone()
+                .parse_value("PaymentCharges")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse charges in to PaymentCharges")?,
+            None => None,
+        };
+
         Ok(Self {
             payment_method_data: From::from(
                 payment_method_data.get_required_value("payment_method_data")?,
@@ -1195,6 +1205,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(AuthenticationData::foreign_try_from)
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
+            charges,
         })
     }
 }

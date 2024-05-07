@@ -418,3 +418,11 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
         }
     }
 }
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct PaymentCharges {
+    pub charge_type: api_models::enums::PaymentChargeType,
+    pub fees: i64,
+    pub transfer_account_id: String,
+    pub automatic_payment_methods_enabled: Option<bool>,
+}

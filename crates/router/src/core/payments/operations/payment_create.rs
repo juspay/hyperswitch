@@ -1002,6 +1002,18 @@ impl PaymentCreate {
                 request.capture_method,
             )?;
 
+        let charges = match request.charges {
+            Some(charges) => {
+                let payment_charges = serde_json::to_value(charges)
+                    .map_err(|err| {
+                        logger::warn!("Failed to serialize PaymentChargeRequest - {}", err);
+                        Err(errors::ApiErrorResponse::InternalServerError)
+                    })?;
+                Some(payment_charges)
+            }
+            None => None,
+        };
+
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -1047,6 +1059,7 @@ impl PaymentCreate {
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
+            charges: None,
         })
     }
 

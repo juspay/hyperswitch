@@ -58,6 +58,7 @@ pub struct PaymentIntent {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -111,6 +112,7 @@ pub struct PaymentIntentNew {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,6 +238,7 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentIntentUpdate {
@@ -271,6 +274,7 @@ impl PaymentIntentUpdate {
             session_expiry,
             fingerprint_id,
             request_external_three_ds_authentication,
+            charges,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -308,6 +312,7 @@ impl PaymentIntentUpdate {
             session_expiry: session_expiry.or(source.session_expiry),
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
+            charges: charges.or(source.charges),
             ..source
         }
     }
