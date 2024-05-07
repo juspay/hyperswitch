@@ -167,7 +167,9 @@ pub struct PaymentMethodAuth {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct EligiblePaymentMethods {
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub sdk_eligible_payment_methods: HashSet<String>,
 }
 
