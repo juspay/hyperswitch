@@ -120,6 +120,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
+    pub saved_payment_methods: EligiblePaymentMethods,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -164,6 +165,13 @@ pub struct ForexApi {
 pub struct PaymentMethodAuth {
     pub redis_expiry: i64,
     pub pm_auth_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct EligiblePaymentMethods {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub sdk_eligible_payment_methods: HashSet<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
