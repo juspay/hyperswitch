@@ -184,7 +184,7 @@ impl UserPassword {
         let is_too_short = password.graphemes(true).count() < consts::user::MIN_PASSWORD_LENGTH;
 
         if is_too_short || is_too_long || !is_password_format_valid {
-            Err(UserErrors::PasswordParsingError.into())
+            return Err(UserErrors::PasswordParsingError.into());
         }
         Ok(Self(password.into()))
     }
@@ -192,7 +192,7 @@ impl UserPassword {
     pub fn new_password_without_validation(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
         if password.is_empty() {
-            Err(UserErrors::PasswordParsingError.into())
+            return Err(UserErrors::PasswordParsingError.into());
         }
         Ok(Self(password.into()))
     }
