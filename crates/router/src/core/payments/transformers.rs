@@ -1014,6 +1014,7 @@ pub fn change_order_details_to_new_type(
         requires_shipping: order_details.requires_shipping,
         product_id: order_details.product_id,
         category: order_details.category,
+        sub_category: order_details.sub_category,
         brand: order_details.brand,
         product_type: order_details.product_type,
     }])
