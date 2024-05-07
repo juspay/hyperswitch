@@ -476,4 +476,4 @@ refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
-sdk_eligible_payment_methods = ["card"]
+sdk_eligible_payment_methods = "card"

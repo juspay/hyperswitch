@@ -321,4 +321,4 @@ connectors_with_webhook_source_verification_call = "paypal"         # List of co
 keys = "user-agent"
 
 [saved_payment_methods]
-sdk_eligible_payment_methods = ["card"]
+sdk_eligible_payment_methods = "card"
