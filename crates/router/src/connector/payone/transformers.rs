@@ -15,12 +15,12 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::RouterData,
     core::errors,
     logger,
     types::{
         self,
-        storage::enums::{self as storage_enums, PayoutEntityType},
+        storage::enums as storage_enums,
         transformers::ForeignFrom,
     },
 };
@@ -165,13 +165,14 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for PayonePayoutFulfillRequest {
         match request.payout_type.to_owned() {
             storage_enums::PayoutType::Card => {
                 let amount_of_money: AmountOfMoney = AmountOfMoney {
-                    amount: item.request.amount.clone(),
+                    amount: item.request.amount,
                     currency_code: item.request.destination_currency.to_string(),
                 };
                 let card = Card::try_from(&item.get_payout_method_data()?)?;
 
                 let card_payout_method_specific_input: CardPayoutMethodSpecificInput =
                     CardPayoutMethodSpecificInput {
+                        #[allow(clippy::as_conversions)]
                         payment_product_id: Gateway::try_from(card.get_card_issuer()?)? as i32,
                         card,
                     };
@@ -316,6 +317,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>
                 status: Some(storage_enums::PayoutStatus::foreign_from(response.status)),
                 connector_payout_id: "".to_string(),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker:false
             }),
             ..item.data
         })

@@ -1,8 +1,5 @@
 use masking::Secret;
-use router::{
-    core::utils as core_utils,
-    types::{self, api, domain, storage::enums},
-};
+use router::types::{self, domain, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -16,7 +13,6 @@ impl utils::Connector for PayoneTest {
         types::api::ConnectorData {
             connector: Box::new(&Payone),
             connector_name: types::Connector::DummyConnector1,
-            // Added as Dummy connector as template code is added for future usage
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }
