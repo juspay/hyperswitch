@@ -349,10 +349,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             }),
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {
-                billing_email: _,
-                billing_country: _,
-            }) => Some(Gateway::Klarna),
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {}) => {
+                Some(Gateway::Klarna)
+            }
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -484,15 +483,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::PayLater(ref paylater) => {
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
-                        domain::PayLaterData::KlarnaRedirect { billing_email, .. } => {
-                            billing_email.clone()
+                        domain::PayLaterData::KlarnaRedirect {} => {
+                            item.router_data.get_billing_email()?
                         }
                         domain::PayLaterData::KlarnaSdk { token: _ }
                         | domain::PayLaterData::AffirmRedirect {}
-                        | domain::PayLaterData::AfterpayClearpayRedirect {
-                            billing_email: _,
-                            billing_name: _,
-                        }
+                        | domain::PayLaterData::AfterpayClearpayRedirect {}
                         | domain::PayLaterData::PayBrightRedirect {}
                         | domain::PayLaterData::WalleyRedirect {}
                         | domain::PayLaterData::AlmaRedirect {}

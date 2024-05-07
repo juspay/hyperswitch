@@ -11,14 +11,14 @@ license.workspace = true
 [features]
 default = ["olap", "oltp"]
 oltp = []
-olap = ["data_models/olap"]
-payouts = ["data_models/payouts"]
+olap = ["hyperswitch_domain_models/olap"]
+payouts = ["hyperswitch_domain_models/payouts"]
 
 [dependencies]
 # First Party dependencies
 api_models = { version = "0.1.0", path = "../api_models" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-data_models = { version = "0.1.0", path = "../data_models", default-features = false }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }

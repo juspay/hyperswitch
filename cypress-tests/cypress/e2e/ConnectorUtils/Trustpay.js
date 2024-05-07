@@ -93,7 +93,7 @@ export const connectorDetails = {
     },
     "SaveCardUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",

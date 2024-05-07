@@ -20,11 +20,7 @@ use currency_conversion::{
 };
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
-    dssa::{
-        self, analyzer,
-        graph::{self, Memoization},
-        state_machine, truth,
-    },
+    dssa::{self, analyzer, graph::CgraphExt, state_machine, truth},
     frontend::{
         ast,
         dir::{self, enums as dir_enums, EuclidDirFilter},
@@ -38,7 +34,7 @@ use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 
 struct SeedData<'a> {
-    kgraph: graph::KnowledgeGraph<'a>,
+    cgraph: hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>,
     connectors: Vec<ast::ConnectorChoice>,
 }
 
@@ -98,11 +94,12 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
 
     let mca_graph = kgraph_utils::mca::make_mca_graph(mcas).err_to_js()?;
     let analysis_graph =
-        graph::KnowledgeGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH).err_to_js()?;
+        hyperswitch_constraint_graph::ConstraintGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH)
+            .err_to_js()?;
 
     SEED_DATA
         .set(SeedData {
-            kgraph: analysis_graph,
+            cgraph: analysis_graph,
             connectors,
         })
         .map_err(|_| "Knowledge Graph has been already seeded".to_string())
@@ -138,8 +135,12 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
         // Standalone conjunctive context analysis to ensure the context itself is valid before
         // checking it against merchant's connectors
         seed_data
-            .kgraph
-            .perform_context_analysis(ctx, &mut Memoization::new())
+            .cgraph
+            .perform_context_analysis(
+                ctx,
+                &mut hyperswitch_constraint_graph::Memoization::new(),
+                None,
+            )
             .err_to_js()?;
 
         // Update conjunctive context and run analysis on all of merchant's connectors.
@@ -150,9 +151,11 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 
             let ctx_val = dssa::types::ContextValue::assertion(choice, &dummy_meta);
             ctx.push(ctx_val);
-            let analysis_result = seed_data
-                .kgraph
-                .perform_context_analysis(ctx, &mut Memoization::new());
+            let analysis_result = seed_data.cgraph.perform_context_analysis(
+                ctx,
+                &mut hyperswitch_constraint_graph::Memoization::new(),
+                None,
+            );
             if analysis_result.is_err() {
                 invalid_connectors.insert(conn.clone());
             }
@@ -171,7 +174,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 #[wasm_bindgen(js_name = analyzeProgram)]
 pub fn analyze_program(js_program: JsValue) -> JsResult {
     let program: ast::Program<ConnectorSelection> = serde_wasm_bindgen::from_value(js_program)?;
-    analyzer::analyze(program, SEED_DATA.get().map(|sd| &sd.kgraph)).err_to_js()?;
+    analyzer::analyze(program, SEED_DATA.get().map(|sd| &sd.cgraph)).err_to_js()?;
     Ok(JsValue::NULL)
 }
 

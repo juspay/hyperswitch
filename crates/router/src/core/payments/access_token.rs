@@ -64,14 +64,20 @@ pub async fn add_access_token<
     {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
-        let merchant_connector_id = connector
+
+        // `merchant_connector_id` may not be present in the below cases
+        // - when straight through routing is used without passing the `merchant_connector_id`
+        // - when creds identifier is passed
+        //
+        // In these cases fallback to `connector_name`.
+        // We cannot use multiple merchant connector account in these cases
+        let merchant_connector_id_or_connector_name = connector
             .merchant_connector_id
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing merchant_connector_id in ConnectorData")?;
+            .clone()
+            .unwrap_or(connector.connector_name.to_string());
 
         let old_access_token = store
-            .get_access_token(merchant_id, merchant_connector_id)
+            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -115,7 +121,7 @@ pub async fn add_access_token<
                     if let Err(access_token_set_error) = store
                         .set_access_token(
                             merchant_id,
-                            merchant_connector_id.as_str(),
+                            &merchant_connector_id_or_connector_name,
                             access_token.clone(),
                         )
                         .await

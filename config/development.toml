@@ -474,7 +474,7 @@ payme = { payment_method = "card" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "wise"
+payout_connector_list = "stripe,wise"
 
 [dummy_connector]
 enabled = true
@@ -615,3 +615,6 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+
+[saved_payment_methods]
+sdk_eligible_payment_methods = "card"

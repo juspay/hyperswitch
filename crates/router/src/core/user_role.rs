@@ -170,7 +170,7 @@ pub async fn transfer_org_ownership(
 
 pub async fn accept_invitation(
     state: AppState,
-    user_token: auth::UserWithoutMerchantFromToken,
+    user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::AcceptInvitationRequest,
     _req_state: ReqState,
 ) -> UserResponse<user_api::DashboardEntryResponse> {

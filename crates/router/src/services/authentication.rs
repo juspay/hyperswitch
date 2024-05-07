@@ -4,6 +4,7 @@ use api_models::{
     payments,
 };
 use async_trait::async_trait;
+use common_enums::TokenPurpose;
 use common_utils::date_time;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -64,6 +65,10 @@ pub enum AuthenticationType {
     UserJwt {
         user_id: String,
     },
+    SinglePurposeJWT {
+        user_id: String,
+        purpose: TokenPurpose,
+    },
     MerchantId {
         merchant_id: String,
     },
@@ -101,28 +106,47 @@ impl AuthenticationType {
                 user_id: _,
             }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
-            Self::AdminApiKey | Self::UserJwt { .. } | Self::NoAuth => None,
+            Self::AdminApiKey
+            | Self::UserJwt { .. }
+            | Self::SinglePurposeJWT { .. }
+            | Self::NoAuth => None,
         }
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Clone, Debug)]
-pub struct UserWithoutMerchantFromToken {
+pub struct UserFromSinglePurposeToken {
     pub user_id: String,
+    pub origin: domain::Origin,
 }
 
+#[cfg(feature = "olap")]
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct UserAuthToken {
+pub struct SinglePurposeToken {
     pub user_id: String,
+    pub purpose: TokenPurpose,
+    pub origin: domain::Origin,
     pub exp: u64,
 }
 
 #[cfg(feature = "olap")]
-impl UserAuthToken {
-    pub async fn new_token(user_id: String, settings: &Settings) -> UserResult<String> {
-        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+impl SinglePurposeToken {
+    pub async fn new_token(
+        user_id: String,
+        purpose: TokenPurpose,
+        origin: domain::Origin,
+        settings: &Settings,
+    ) -> UserResult<String> {
+        let exp_duration =
+            std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
-        let token_payload = Self { user_id, exp };
+        let token_payload = Self {
+            user_id,
+            purpose,
+            origin,
+            exp,
+        };
         jwt::generate_jwt(&token_payload, settings).await
     }
 }
@@ -286,12 +310,13 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Debug)]
-pub struct UserWithoutMerchantJWTAuth;
+pub(crate) struct SinglePurposeJWTAuth(pub TokenPurpose);
 
 #[cfg(feature = "olap")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMerchantJWTAuth
+impl<A> AuthenticateAndFetch<UserFromSinglePurposeToken, A> for SinglePurposeJWTAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -299,18 +324,24 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
-        let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
+    ) -> RouterResult<(UserFromSinglePurposeToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
+        if self.0 != payload.purpose {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
         Ok((
-            UserWithoutMerchantFromToken {
+            UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
+                origin: payload.origin.clone(),
             },
-            AuthenticationType::UserJwt {
+            AuthenticationType::SinglePurposeJWT {
                 user_id: payload.user_id,
+                purpose: payload.purpose,
             },
         ))
     }
