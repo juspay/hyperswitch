@@ -63,11 +63,8 @@ pub mod html {
 
     pub fn get_html_body(email_body: EmailBody) -> String {
         match email_body {
-            EmailBody::Verify { link  } => {
-                format!(
-                    include_str!("assets/verify.html"),
-                    link = link,
-                )
+            EmailBody::Verify { link } => {
+                format!(include_str!("assets/verify.html"), link = link,)
             }
             EmailBody::Reset { link, user_name } => {
                 format!(
