@@ -186,7 +186,7 @@ impl AppState {
                                 .await
                                 .expect("Failed to create store"),
                             kafka_client.clone(),
-                            crate::db::kafka_store::TenantID("TenantID".to_string()),
+                            crate::db::kafka_store::TenantID("default".to_string()),
                         )
                         .await,
                     ),
