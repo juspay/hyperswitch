@@ -137,6 +137,7 @@ pub enum RoutableConnectors {
     Helcim,
     Iatapay,
     Klarna,
+    Mifinity,
     Mollie,
     Multisafepay,
     Nexinets,
