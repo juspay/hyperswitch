@@ -151,7 +151,7 @@ impl AdyenTest {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,

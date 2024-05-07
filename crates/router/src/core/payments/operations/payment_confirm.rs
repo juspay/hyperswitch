@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -28,6 +28,7 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
+        self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -587,18 +588,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
-        let authentication = payment_attempt.authentication_id.as_ref().async_map(|authentication_id| async move {
-            state
-                .store
-                .find_authentication_by_merchant_id_authentication_id(
-                    merchant_id.to_string(),
-                    authentication_id.clone(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))
-        }).await
-        .transpose()?;
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
             .as_ref()
@@ -644,7 +633,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: request.frm_metadata.clone(),
-            authentication,
+            authentication: None,
             recurring_details,
             poll_config: None,
         };
@@ -785,117 +774,81 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         business_profile: &storage::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        // if authentication has already happened, then payment_data.authentication will be Some.
-        // We should do post authn call to fetch the authentication data from 3ds connector
-        let authentication = payment_data.authentication.clone();
-        let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
-            == Some(common_enums::AuthenticationType::ThreeDs);
-        let separate_authentication_requested = payment_data
-            .payment_intent
-            .request_external_three_ds_authentication
-            .unwrap_or(false);
-        let connector_supports_separate_authn =
-            authentication::utils::get_connector_name_if_separate_authn_supported(
-                connector_call_type,
-            );
-        logger::info!("is_pre_authn_call {:?}", authentication.is_none());
-        logger::info!(
-            "separate_authentication_requested {:?}",
-            separate_authentication_requested
-        );
-        if let Some(payment_connector) = match connector_supports_separate_authn {
-            Some(payment_connector)
-                if is_authentication_type_3ds && separate_authentication_requested =>
-            {
-                Some(payment_connector)
-            }
-            _ => None,
-        } {
-            let authentication_details: api_models::admin::AuthenticationConnectorDetails =
-                business_profile
-                    .authentication_connector_details
-                    .clone()
-                    .get_required_value("authentication_details")
-                    .attach_printable("authentication_details not configured by the merchant")?
-                    .parse_value("AuthenticationDetails")
-                    .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "Invalid data format found for authentication_details".into(),
-                    })
-                    .attach_printable(
-                        "Error while parsing authentication_details from merchant_account",
-                    )?;
-            let authentication_connector_name = authentication_details
-                .authentication_connectors
-                .first()
-                .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for profile_id {}", business_profile.profile_id) })
-
-                .attach_printable("No authentication_connector found from merchant_account.authentication_details")?
-                .to_string();
-            let profile_id = &business_profile.profile_id;
-            let authentication_connector_mca = helpers::get_merchant_connector_account(
+        let external_authentication_flow =
+            helpers::get_payment_external_authentication_flow_during_confirm(
                 state,
-                &business_profile.merchant_id,
-                None,
                 key_store,
-                profile_id,
-                &authentication_connector_name,
-                None,
+                business_profile,
+                payment_data,
+                connector_call_type,
             )
             .await?;
-            if let Some(authentication) = authentication {
-                // call post authn service
-                authentication::perform_post_authentication(
+        payment_data.authentication = match external_authentication_flow {
+            Some(helpers::PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
+                acquirer_details,
+                card_number,
+                token,
+            }) => {
+                let authentication = authentication::perform_pre_authentication(
                     state,
-                    authentication_connector_name.clone(),
-                    business_profile.clone(),
-                    authentication_connector_mca,
-                    authentication::types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
-                        payment_data,
-                        authentication,
-                        should_continue_confirm_transaction,
-                    },
-                )
-                .await?;
-            } else {
-                let payment_connector_mca = helpers::get_merchant_connector_account(
-                    state,
-                    &business_profile.merchant_id,
-                    None,
                     key_store,
-                    profile_id,
-                    &payment_connector,
-                    None,
+                    card_number,
+                    token,
+                    business_profile,
+                    Some(acquirer_details),
+                    Some(payment_data.payment_attempt.payment_id.clone()),
                 )
                 .await?;
-                // call pre authn service
-                let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
-                    if let api_models::payments::PaymentMethodData::Card(card) = pmd {
-                        Some(card.card_number.clone())
-                    } else {
-                        None
-                    }
-                });
-                // External 3DS authentication is applicable only for cards
-                if let Some(card_number) = card_number {
-                    authentication::perform_pre_authentication(
-                        state,
-                        authentication_connector_name,
-                        authentication::types::PreAuthenthenticationFlowInput::PaymentAuthNFlow {
-                            payment_data,
-                            should_continue_confirm_transaction,
-                            card_number,
-                        },
-                        business_profile,
-                        authentication_connector_mca,
-                        payment_connector_mca,
-                    )
-                    .await?;
+                if authentication.is_separate_authn_required()
+                    || authentication.authentication_status.is_failed()
+                {
+                    *should_continue_confirm_transaction = false;
+                    let default_poll_config = types::PollConfig::default();
+                    let default_config_str = default_poll_config
+                        .encode_to_string_of_json()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while stringifying default poll config")?;
+                    let poll_config = state
+                        .store
+                        .find_config_by_key_unwrap_or(
+                            &types::PollConfig::get_poll_config_key(
+                                authentication.authentication_connector.clone(),
+                            ),
+                            Some(default_config_str),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("The poll config was not found in the DB")?;
+                    let poll_config: types::PollConfig = poll_config
+                        .config
+                        .parse_struct("PollConfig")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while parsing PollConfig")?;
+                    payment_data.poll_config = Some(poll_config)
                 }
+                Some(authentication)
             }
-            Ok(())
-        } else {
-            Ok(())
-        }
+            Some(helpers::PaymentExternalAuthenticationFlow::PostAuthenticationFlow {
+                authentication_id,
+            }) => {
+                let authentication = authentication::perform_post_authentication(
+                    state,
+                    key_store,
+                    business_profile.clone(),
+                    authentication_id.clone(),
+                )
+                .await?;
+                //If authentication is not successful, skip the payment connector flows and mark the payment as failure
+                if authentication.authentication_status
+                    != api_models::enums::AuthenticationStatus::Success
+                {
+                    *should_continue_confirm_transaction = false;
+                }
+                Some(authentication)
+            }
+            None => None,
+        };
+        Ok(())
     }
 
     #[instrument(skip_all)]

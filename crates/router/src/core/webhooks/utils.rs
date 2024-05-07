@@ -124,8 +124,8 @@ pub async fn construct_webhook_router_data<'a>(
 #[inline]
 pub(crate) fn get_idempotent_event_id(
     primary_object_id: &str,
-    event_type: crate::types::storage::enums::EventType,
-    delivery_attempt: crate::types::storage::enums::WebhookDeliveryAttempt,
+    event_type: types::storage::enums::EventType,
+    delivery_attempt: types::storage::enums::WebhookDeliveryAttempt,
 ) -> String {
     use crate::types::storage::enums::WebhookDeliveryAttempt;
 

@@ -7,6 +7,7 @@ use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::AppState,
     services::authentication as auth,
+    utils,
 };
 
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -150,8 +151,9 @@ const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 4] = [
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
     UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
     UserFlow::JWTFlow(JWTFlow::UserInfo),
@@ -234,13 +236,35 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-
                 let user_role = self
                     .user
                     .get_preferred_or_active_user_role_from_db(state)
                     .await
                     .to_not_found_response(UserErrors::InternalServerError)?;
+                utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
+                    .await;
+
                 jwt_flow.generate_jwt(state, self, &user_role).await
+            }
+        }
+    }
+
+    pub async fn get_token_with_user_role(
+        &self,
+        state: &AppState,
+        user_role: &UserRole,
+    ) -> UserResult<Secret<String>> {
+        match self.next_flow {
+            UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(state, self).await,
+            UserFlow::JWTFlow(jwt_flow) => {
+                #[cfg(feature = "email")]
+                {
+                    self.user.get_verification_days_left(state)?;
+                }
+                utils::user_role::set_role_permissions_in_cache_by_user_role(state, user_role)
+                    .await;
+
+                jwt_flow.generate_jwt(state, self, user_role).await
             }
         }
     }
@@ -272,5 +296,17 @@ impl From<JWTFlow> for TokenPurpose {
         match value {
             JWTFlow::UserInfo => Self::UserInfo,
         }
+    }
+}
+
+impl From<SPTFlow> for UserFlow {
+    fn from(value: SPTFlow) -> Self {
+        Self::SPTFlow(value)
+    }
+}
+
+impl From<JWTFlow> for UserFlow {
+    fn from(value: JWTFlow) -> Self {
+        Self::JWTFlow(value)
     }
 }

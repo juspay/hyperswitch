@@ -1720,7 +1720,7 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
 }
 
 fn get_address_info(
-    address: Option<&api_models::payments::Address>,
+    address: Option<&payments::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
         add.address.as_ref().map(
@@ -1783,7 +1783,7 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
     })
 }
 
-fn get_shopper_name(address: Option<&api_models::payments::Address>) -> Option<ShopperName> {
+fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
         first_name: billing.and_then(|a| a.first_name.clone()),
@@ -1791,9 +1791,7 @@ fn get_shopper_name(address: Option<&api_models::payments::Address>) -> Option<S
     })
 }
 
-fn get_country_code(
-    address: Option<&api_models::payments::Address>,
-) -> Option<api_enums::CountryAlpha2> {
+fn get_country_code(address: Option<&payments::Address>) -> Option<api_enums::CountryAlpha2> {
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 

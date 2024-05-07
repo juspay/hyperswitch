@@ -177,8 +177,8 @@ impl Connector {
         matches!(self, Self::Checkout)
     }
     pub fn is_separate_authentication_supported(&self) -> bool {
-        #[cfg(feature = "dummy_connector")]
         match self {
+            #[cfg(feature = "dummy_connector")]
             Self::DummyConnector1
             | Self::DummyConnector2
             | Self::DummyConnector3
@@ -242,66 +242,6 @@ impl Connector {
             | Self::Noon
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi => true,
-        }
-        #[cfg(not(feature = "dummy_connector"))]
-        match self {
-            Self::Aci
-            | Self::Adyen
-            | Self::Airwallex
-            | Self::Authorizedotnet
-            | Self::Bambora
-            | Self::Bankofamerica
-            | Self::Billwerk
-            | Self::Bitpay
-            | Self::Bluesnap
-            | Self::Boku
-            | Self::Braintree
-            | Self::Cashtocode
-            | Self::Coinbase
-            | Self::Cryptopay
-            | Self::Dlocal
-            | Self::Ebanx
-            | Self::Fiserv
-            | Self::Forte
-            | Self::Globalpay
-            | Self::Globepay
-            | Self::Gocardless
-            | Self::Helcim
-            | Self::Iatapay
-            | Self::Klarna
-            | Self::Mollie
-            | Self::Multisafepay
-            | Self::Nexinets
-            | Self::Nmi
-            | Self::Nuvei
-            | Self::Opennode
-            | Self::Payme
-            | Self::Paypal
-            | Self::Payu
-            | Self::Placetopay
-            | Self::Powertranz
-            | Self::Prophetpay
-            | Self::Rapyd
-            | Self::Shift4
-            | Self::Square
-            | Self::Stax
-            | Self::Trustpay
-            | Self::Tsys
-            | Self::Volt
-            | Self::Wise
-            | Self::Worldline
-            | Self::Worldpay
-            | Self::Zen
-            | Self::Zsl
-            | Self::Signifyd
-            | Self::Plaid
-            | Self::Riskified
-            | Self::Threedsecureio
-            | Self::Cybersource
-            | Self::Noon
-            | Self::Netcetera
-            | Self::Stripe => false,
-            Self::Checkout => true,
         }
     }
 }

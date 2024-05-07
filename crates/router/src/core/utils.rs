@@ -564,7 +564,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -654,7 +654,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
         request: submit_evidence_request_data,
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -752,7 +752,7 @@ pub async fn construct_upload_file_router_data<'a>(
             file_type: create_file_request.file_type.clone(),
             file_size: create_file_request.file_size,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -936,7 +936,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing provider file id")?,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -1225,9 +1225,7 @@ pub fn get_incremental_authorization_allowed_value(
     incremental_authorization_allowed: Option<bool>,
     request_incremental_authorization: Option<RequestIncrementalAuthorization>,
 ) -> Option<bool> {
-    if request_incremental_authorization
-        == Some(common_enums::RequestIncrementalAuthorization::False)
-    {
+    if request_incremental_authorization == Some(RequestIncrementalAuthorization::False) {
         Some(false)
     } else {
         incremental_authorization_allowed

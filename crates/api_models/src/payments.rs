@@ -682,7 +682,7 @@ impl PaymentsRequest {
             .as_ref()
             .map(|od| {
                 od.iter()
-                    .map(|order| order.encode_to_value().map(masking::Secret::new))
+                    .map(|order| order.encode_to_value().map(Secret::new))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -1304,9 +1304,7 @@ mod payment_method_data_serde {
         match deserialize_to_inner {
             __Inner::OptionalPaymentMethod(value) => {
                 let parsed_value = serde_json::from_value::<__InnerPaymentMethodData>(value)
-                    .map_err(|serde_json_error| {
-                        serde::de::Error::custom(serde_json_error.to_string())
-                    })?;
+                    .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
 
                 let payment_method_data = if let Some(payment_method_data_value) =
                     parsed_value.payment_method_data
@@ -1321,14 +1319,12 @@ mod payment_method_data_serde {
                                     payment_method_data_value,
                                 )
                                 .map_err(|serde_json_error| {
-                                    serde::de::Error::custom(serde_json_error.to_string())
+                                    de::Error::custom(serde_json_error.to_string())
                                 })?,
                             )
                         }
                     } else {
-                        Err(serde::de::Error::custom(
-                            "Expected a map for payment_method_data",
-                        ))?
+                        Err(de::Error::custom("Expected a map for payment_method_data"))?
                     }
                 } else {
                     None
@@ -1342,7 +1338,7 @@ mod payment_method_data_serde {
             __Inner::RewardString(inner_string) => {
                 let payment_method_data = match inner_string.as_str() {
                     "reward" => PaymentMethodData::Reward,
-                    _ => Err(serde::de::Error::custom("Invalid Variant"))?,
+                    _ => Err(de::Error::custom("Invalid Variant"))?,
                 };
 
                 Ok(Some(PaymentMethodDataRequest {
@@ -2686,8 +2682,8 @@ pub enum PaymentIdType {
     PreprocessingId(String),
 }
 
-impl std::fmt::Display for PaymentIdType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PaymentIdType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PaymentIntentId(payment_id) => {
                 write!(f, "payment_intent_id = \"{payment_id}\"")
