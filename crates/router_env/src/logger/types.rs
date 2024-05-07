@@ -348,8 +348,10 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get details of a user in a merchant account
+    /// Get details of a user
     GetUserDetails,
+    /// Get details of a user role in a merchant account
+    GetUserRoleDetails,
     /// List users for merchant account
     ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
@@ -392,6 +394,8 @@ pub enum Flow {
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// User email flow start
+    UserFromEmail,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -402,6 +406,8 @@ pub enum Flow {
     RetrievePollStatus,
     /// Toggles the extended card info feature in profile level
     ToggleExtendedCardInfo,
+    /// Toggles the extended card info feature in profile level
+    ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
     GetExtendedCardInfo,
 }

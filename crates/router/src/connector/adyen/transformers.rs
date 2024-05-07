@@ -4633,6 +4633,10 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::BankPayout::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
@@ -4670,6 +4674,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                             },
                         )?,
                     },
+                    api_models::payouts::Wallet::Venmo(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Venmo Wallet is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
                 let payout_wallet = PayoutWalletData {

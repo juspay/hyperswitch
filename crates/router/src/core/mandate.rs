@@ -515,6 +515,8 @@ pub trait MandateBehaviour {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
     fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData;
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData>;
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
     fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance>;
 }

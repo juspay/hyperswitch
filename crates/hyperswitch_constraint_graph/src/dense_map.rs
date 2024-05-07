@@ -5,6 +5,24 @@ pub trait EntityId {
     fn with_id(id: usize) -> Self;
 }
 
+macro_rules! impl_entity {
+    ($name:ident) => {
+        impl $crate::dense_map::EntityId for $name {
+            #[inline]
+            fn get_id(&self) -> usize {
+                self.0
+            }
+
+            #[inline]
+            fn with_id(id: usize) -> Self {
+                Self(id)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_entity;
+
 pub struct DenseMap<K, V> {
     data: Vec<V>,
     _marker: PhantomData<K>,

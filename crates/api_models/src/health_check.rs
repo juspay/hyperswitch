@@ -6,6 +6,8 @@ pub struct RouterHealthCheckResponse {
     pub vault: Option<bool>,
     #[cfg(feature = "olap")]
     pub analytics: bool,
+    #[cfg(feature = "olap")]
+    pub opensearch: bool,
     pub outgoing_request: bool,
 }
 
