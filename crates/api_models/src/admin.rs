@@ -1113,7 +1113,7 @@ pub struct ExtendedCardInfoConfig {
     #[schema(value_type = String)]
     pub public_key: Secret<String>,
     /// TTL for extended card info
-    #[schema(default = 900, maximum = 3600, value_type = u16)]
+    #[schema(default = 900, maximum = 7200, value_type = u16)]
     #[serde(default)]
     pub ttl_in_secs: TtlForExtendedCardInfo,
 }
@@ -1137,7 +1137,7 @@ impl<'de> Deserialize<'de> for TtlForExtendedCardInfo {
         // Check if value exceeds the maximum allowed
         if value > consts::MAX_TTL_FOR_EXTENDED_CARD_INFO {
             Err(serde::de::Error::custom(
-                "ttl_in_secs must be less than or equal to 3600 (1hr)",
+                "ttl_in_secs must be less than or equal to 7200 (2hrs)",
             ))
         } else {
             Ok(Self(value))
