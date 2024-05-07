@@ -11658,6 +11658,11 @@
             "description": "Category of the product that is being purchased",
             "nullable": true
           },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
+            "nullable": true
+          },
           "brand": {
             "type": "string",
             "description": "Brand of the product that is being purchased",
@@ -11716,6 +11721,11 @@
           "category": {
             "type": "string",
             "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
             "nullable": true
           },
           "brand": {
