@@ -402,13 +402,14 @@ pub async fn reset_password(
             state.clone(),
             &req,
             payload.into_inner(),
-            |state, user, payload, _| user_core::reset_password_token_only_flow(state,user, payload),
+            |state, user, payload, _| {
+                user_core::reset_password_token_only_flow(state, user, payload)
+            },
             &auth::SinglePurposeJWTAuth(TokenPurpose::ResetPassword),
             api_locking::LockAction::NotApplicable,
         ))
         .await
-    }
-    else{
+    } else {
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
@@ -420,7 +421,6 @@ pub async fn reset_password(
         ))
         .await
     }
-    
 }
 pub async fn invite_multiple_user(
     state: web::Data<AppState>,

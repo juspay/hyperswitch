@@ -428,7 +428,6 @@ pub async fn reset_password_token_only_flow(
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
-
     let token = request.token.expose();
     let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
         .await
@@ -437,15 +436,15 @@ pub async fn reset_password_token_only_flow(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user_from_db: domain::UserFromStorage = state
-    .store
-    .find_user_by_email(
-        &email_token
-            .get_email()
-            .change_context(UserErrors::InternalServerError)?,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?
-    .into();
+        .store
+        .find_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
 
     if user_from_db.get_user_id() != user_token.user_id {
         return Err(UserErrors::LinkInvalid.into());
@@ -455,18 +454,17 @@ pub async fn reset_password_token_only_flow(
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     let user = state
-    .store
-    .update_user_by_email(
-        &email_token
-            .get_email()
-            .change_context(UserErrors::InternalServerError)?,
-        storage_user::UserUpdate::PasswordUpdate {
-            password: Some(hash_password),
-        },
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?;
-
+        .store
+        .update_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+            storage_user::UserUpdate::PasswordUpdate {
+                password: Some(hash_password),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     if let Some(inviter_merchant_id) = email_token.get_merchant_id() {
         let update_status_result = state
@@ -504,22 +502,22 @@ pub async fn reset_password(
         .change_context(UserErrors::LinkInvalid)?;
 
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
-    
+
     let password = domain::UserPassword::new(request.password)?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     let user = state
-    .store
-    .update_user_by_email(
-        &email_token
-            .get_email()
-            .change_context(UserErrors::InternalServerError)?,
-        storage_user::UserUpdate::PasswordUpdate {
-            password: Some(hash_password),
-        },
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?;
+        .store
+        .update_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+            storage_user::UserUpdate::PasswordUpdate {
+                password: Some(hash_password),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     if let Some(inviter_merchant_id) = email_token.get_merchant_id() {
         let update_status_result = state
