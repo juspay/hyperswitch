@@ -14,8 +14,8 @@ use crate::user::{
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
     GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
     InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
-    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
-    SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
     UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
