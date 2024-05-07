@@ -806,6 +806,26 @@ impl UserFromStorage {
         Ok(Some(days_left_for_verification.whole_days()))
     }
 
+    pub fn is_password_rotate_required(&self, state: &AppState) -> UserResult<bool> {
+        let last_password_modified_at =
+            if let Some(last_password_modified_at) = self.0.last_password_modified_at {
+                last_password_modified_at.date()
+            } else {
+                return Ok(true);
+            };
+
+        let password_change_duration =
+            time::Duration::days(state.conf.user.password_validity_in_days.into());
+        let last_date_for_password_rotate = last_password_modified_at
+            .checked_add(password_change_duration)
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let today = common_utils::date_time::now().date();
+        let days_left_for_password_rotate = last_date_for_password_rotate - today;
+
+        Ok(days_left_for_password_rotate.whole_days() < 0)
+    }
+
     pub fn get_preferred_merchant_id(&self) -> Option<String> {
         self.0.preferred_merchant_id.clone()
     }

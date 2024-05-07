@@ -51,6 +51,9 @@ jwt_secret = "secret"
 master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
 recon_admin_api_key = "recon_test_admin"
 
+[user]
+password_validity_in_days = 90
+
 [locker]
 host = ""
 host_rs = ""
