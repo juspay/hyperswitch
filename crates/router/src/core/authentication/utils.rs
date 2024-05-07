@@ -1,3 +1,4 @@
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 
 use crate::{
@@ -10,39 +11,39 @@ use crate::{
     routes::AppState,
     services::{self, execute_connector_processing_step},
     types::{
-        api::{self, ConnectorCallType},
-        authentication::AuthenticationResponseData,
-        storage,
-        transformers::ForeignFrom,
-        RouterData,
+        api, authentication::AuthenticationResponseData, domain, storage,
+        transformers::ForeignFrom, RouterData,
     },
+    utils::OptionExt,
 };
 
-pub fn get_connector_name_if_separate_authn_supported(
-    connector_call_type: &ConnectorCallType,
-) -> Option<String> {
+pub fn get_connector_data_if_separate_authn_supported(
+    connector_call_type: &api::ConnectorCallType,
+) -> Option<api::ConnectorData> {
     match connector_call_type {
-        ConnectorCallType::PreDetermined(connector_data) => {
+        api::ConnectorCallType::PreDetermined(connector_data) => {
             if connector_data
                 .connector_name
                 .is_separate_authentication_supported()
             {
-                Some(connector_data.connector_name.to_string())
+                Some(connector_data.clone())
             } else {
                 None
             }
         }
-        ConnectorCallType::Retryable(connectors) => connectors.first().and_then(|connector_data| {
-            if connector_data
-                .connector_name
-                .is_separate_authentication_supported()
-            {
-                Some(connector_data.connector_name.to_string())
-            } else {
-                None
-            }
-        }),
-        ConnectorCallType::SessionMultiple(_) => None,
+        api::ConnectorCallType::Retryable(connectors) => {
+            connectors.first().and_then(|connector_data| {
+                if connector_data
+                    .connector_name
+                    .is_separate_authentication_supported()
+                {
+                    Some(connector_data.clone())
+                } else {
+                    None
+                }
+            })
+        }
+        api::ConnectorCallType::SessionMultiple(_) => None,
     }
 }
 
@@ -50,7 +51,6 @@ pub async fn update_trackers<F: Clone, Req>(
     state: &AppState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
-    token: Option<String>,
     acquirer_details: Option<super::types::AcquirerDetails>,
 ) -> RouterResult<storage::Authentication> {
     let authentication_update = match router_data.response {
@@ -72,7 +72,6 @@ pub async fn update_trackers<F: Clone, Req>(
                 message_version,
                 connector_metadata,
                 authentication_status: common_enums::AuthenticationStatus::Pending,
-                payment_method_id: token.map(|token| format!("eph_{}", token)),
                 acquirer_bin: acquirer_details
                     .as_ref()
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
@@ -144,6 +143,7 @@ pub async fn create_new_authentication(
     state: &AppState,
     merchant_id: String,
     authentication_connector: String,
+    token: String,
     profile_id: String,
     payment_id: Option<String>,
     merchant_connector_id: String,
@@ -155,7 +155,7 @@ pub async fn create_new_authentication(
         merchant_id,
         authentication_connector,
         connector_authentication_id: None,
-        payment_method_id: "".into(),
+        payment_method_id: format!("eph_{}", token),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
@@ -220,4 +220,54 @@ where
     .await
     .to_payment_failed_response()?;
     Ok(router_data)
+}
+
+pub async fn get_authentication_connector_data(
+    state: &AppState,
+    key_store: &domain::MerchantKeyStore,
+    business_profile: &storage::BusinessProfile,
+) -> RouterResult<(
+    api_models::enums::AuthenticationConnectors,
+    payments::helpers::MerchantConnectorAccountType,
+)> {
+    let authentication_details: api_models::admin::AuthenticationConnectorDetails =
+        business_profile
+            .authentication_connector_details
+            .clone()
+            .get_required_value("authentication_details")
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "authentication_connector_details is not available in business profile"
+                    .into(),
+            })
+            .attach_printable("authentication_connector_details not configured by the merchant")?
+            .parse_value("AuthenticationConnectorDetails")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Error while parsing authentication_connector_details from business_profile",
+            )?;
+    let authentication_connector = authentication_details
+        .authentication_connectors
+        .first()
+        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+            message: format!(
+                "No authentication_connector found for profile_id {}",
+                business_profile.profile_id
+            ),
+        })
+        .attach_printable(
+            "No authentication_connector found from merchant_account.authentication_details",
+        )?
+        .to_owned();
+    let profile_id = &business_profile.profile_id;
+    let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
+        state,
+        &business_profile.merchant_id,
+        None,
+        key_store,
+        profile_id,
+        authentication_connector.to_string().as_str(),
+        None,
+    )
+    .await?;
+    Ok((authentication_connector, authentication_connector_mca))
 }
