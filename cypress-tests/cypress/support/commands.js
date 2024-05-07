@@ -379,7 +379,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
       expect(response.body.amount_capturable).to.equal(0);
       expect(response.body.amount_received).to.equal(amount_to_capture);
       expect(response.body.status).to.equal("partially_captured");
-    } 
+    }
   });
 });
 
