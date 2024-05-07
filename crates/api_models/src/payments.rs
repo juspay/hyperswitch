@@ -2256,7 +2256,7 @@ pub struct BankDebitBilling {
 impl GetAddressFromPaymentMethodData for BankDebitBilling {
     fn get_billing_address(&self) -> Option<Address> {
         let address = if let Some(mut address) = self.address.clone() {
-            address.first_name = self.name.clone();
+            address.first_name = self.name.clone().or(address.first_name);
             Address {
                 address: Some(address),
                 email: self.email.clone(),
