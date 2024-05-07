@@ -118,7 +118,7 @@ pub mod routes {
     pub async fn get_info(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
-        domain: actix_web::web::Path<analytics::AnalyticsDomain>,
+        domain: web::Path<analytics::AnalyticsDomain>,
     ) -> impl Responder {
         let flow = AnalyticsFlow::GetInfo;
         Box::pin(api::server_wrap(
@@ -672,7 +672,7 @@ pub mod routes {
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<GetSearchRequest>,
-        index: actix_web::web::Path<SearchIndex>,
+        index: web::Path<SearchIndex>,
     ) -> impl Responder {
         let flow = AnalyticsFlow::GetSearchResults;
         let indexed_req = GetSearchRequestWithIndex {

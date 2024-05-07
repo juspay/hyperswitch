@@ -190,22 +190,10 @@ pub struct WorldlineRouterData<T> {
     amount: i64,
     router_data: T,
 }
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for WorldlineRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for WorldlineRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -218,7 +206,7 @@ impl
     TryFrom<
         &WorldlineRouterData<
             &types::RouterData<
-                types::api::payments::Authorize,
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
             >,
@@ -230,7 +218,7 @@ impl
     fn try_from(
         item: &WorldlineRouterData<
             &types::RouterData<
-                types::api::payments::Authorize,
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
             >,
@@ -593,7 +581,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 item.response.status,
                 item.response.capture_method,
             )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -645,7 +633,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 item.response.payment.status,
                 item.response.payment.capture_method,
             )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.payment.id.clone(),
                 ),

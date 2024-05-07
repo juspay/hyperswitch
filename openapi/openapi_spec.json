@@ -11658,6 +11658,11 @@
             "description": "Category of the product that is being purchased",
             "nullable": true
           },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
+            "nullable": true
+          },
           "brand": {
             "type": "string",
             "description": "Brand of the product that is being purchased",
@@ -11716,6 +11721,11 @@
           "category": {
             "type": "string",
             "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
             "nullable": true
           },
           "brand": {
@@ -11951,17 +11961,19 @@
               "klarna_redirect": {
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_country"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -12009,18 +12021,16 @@
               "afterpay_clearpay_redirect": {
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_name"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_name": {
                     "type": "string",
-                    "description": "The billing name"
+                    "description": "The billing name",
+                    "nullable": true
                   }
                 }
               }
@@ -12787,7 +12797,12 @@
       "PaymentMethodDataRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object",
@@ -15706,7 +15721,8 @@
           "stripe",
           "wise",
           "paypal",
-          "ebanx"
+          "ebanx",
+          "cybersource"
         ]
       },
       "PayoutCreateRequest": {

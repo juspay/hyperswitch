@@ -59,10 +59,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
-            &[
-                storage_enums::IntentStatus::Failed,
-                storage_enums::IntentStatus::Succeeded,
-            ],
+            &[IntentStatus::Failed, IntentStatus::Succeeded],
             "approve",
         )?;
 

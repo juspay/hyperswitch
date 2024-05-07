@@ -65,12 +65,6 @@ where
     }
 }
 
-// Analytics Framework
-
-pub trait RefundAnalytics {}
-pub trait SdkEventAnalytics {}
-pub trait AuthEventAnalytics {}
-
 #[async_trait::async_trait]
 pub trait AnalyticsDataSource
 where
