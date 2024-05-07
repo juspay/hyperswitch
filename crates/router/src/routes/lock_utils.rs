@@ -168,7 +168,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileRetrieve
             | Flow::BusinessProfileDelete
             | Flow::BusinessProfileList
-            | Flow::ToggleExtendedCardInfo => Self::Business,
+            | Flow::ToggleExtendedCardInfo
+            | Flow::ToggleConnectorAgnosticMit => Self::Business,
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
@@ -219,7 +220,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteUserRole
             | Flow::TransferOrgOwnership
             | Flow::CreateRole
-            | Flow::UpdateRole => Self::UserRole,
+            | Flow::UpdateRole
+            | Flow::UserFromEmail => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding
@@ -229,7 +231,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconTokenRequest
             | Flow::ReconServiceRequest
             | Flow::ReconVerifyToken => Self::Recon,
-            Flow::CreateConnectorAgnosticMandateConfig => Self::Routing,
 
             Flow::RetrievePollStatus => Self::Poll,
         }

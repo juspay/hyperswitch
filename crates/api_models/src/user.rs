@@ -227,7 +227,12 @@ pub struct TokenResponse {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum SignInWithTokenResponse {
+pub enum TokenOrPayloadResponse<T> {
     Token(TokenResponse),
-    SignInResponse(SignInResponse),
+    Payload(T),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserFromEmailRequest {
+    pub token: Secret<String>,
 }

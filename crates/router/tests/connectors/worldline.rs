@@ -82,7 +82,7 @@ impl WorldlineTest {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -232,7 +232,7 @@ async fn should_sync_manual_auth_payment() {
     let sync_response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
                 capture_method: Some(enums::CaptureMethod::Manual),
@@ -265,7 +265,7 @@ async fn should_sync_auto_auth_payment() {
     let sync_response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
                 capture_method: Some(enums::CaptureMethod::Automatic),

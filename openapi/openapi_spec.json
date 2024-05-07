@@ -8726,7 +8726,8 @@
           "card_number",
           "card_exp_month",
           "card_exp_year",
-          "card_holder_name"
+          "card_holder_name",
+          "card_cvc"
         ],
         "properties": {
           "card_number": {
@@ -8748,6 +8749,11 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
           },
           "card_issuer": {
             "type": "string",
@@ -8795,7 +8801,7 @@
             "format": "int32",
             "description": "TTL for extended card info",
             "default": 900,
-            "maximum": 3600,
+            "maximum": 7200,
             "minimum": 0
           }
         }
@@ -11667,6 +11673,11 @@
             "description": "Category of the product that is being purchased",
             "nullable": true
           },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
+            "nullable": true
+          },
           "brand": {
             "type": "string",
             "description": "Brand of the product that is being purchased",
@@ -11725,6 +11736,11 @@
           "category": {
             "type": "string",
             "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
             "nullable": true
           },
           "brand": {
@@ -11960,17 +11976,19 @@
               "klarna_redirect": {
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_country"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -12018,18 +12036,16 @@
               "afterpay_clearpay_redirect": {
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_name"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_name": {
                     "type": "string",
-                    "description": "The billing name"
+                    "description": "The billing name",
+                    "nullable": true
                   }
                 }
               }
@@ -15720,7 +15736,8 @@
           "stripe",
           "wise",
           "paypal",
-          "ebanx"
+          "ebanx",
+          "cybersource"
         ]
       },
       "PayoutCreateRequest": {

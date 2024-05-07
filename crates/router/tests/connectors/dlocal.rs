@@ -13,12 +13,12 @@ use crate::{
 struct DlocalTest;
 impl ConnectorActions for DlocalTest {}
 impl utils::Connector for DlocalTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Dlocal;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Dlocal),
             connector_name: types::Connector::Dlocal,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
@@ -89,7 +89,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -200,7 +200,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -289,7 +289,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("1891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
@@ -310,7 +310,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("1ad2345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -331,7 +331,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("201".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -352,7 +352,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("20001".to_string()),
                     ..utils::CCardType::default().0
                 }),

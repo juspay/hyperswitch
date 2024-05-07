@@ -456,7 +456,7 @@ pub struct MerchantConnectorCreate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -609,7 +609,7 @@ pub struct MerchantConnectorResponse {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -702,7 +702,7 @@ pub struct MerchantConnectorUpdate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
@@ -1109,13 +1109,20 @@ pub struct ExtendedCardInfoChoice {
 
 impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConnectorAgnosticMitChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ConnectorAgnosticMitChoice {}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExtendedCardInfoConfig {
     /// Merchant public key
     #[schema(value_type = String)]
     pub public_key: Secret<String>,
     /// TTL for extended card info
-    #[schema(default = 900, maximum = 3600, value_type = u16)]
+    #[schema(default = 900, maximum = 7200, value_type = u16)]
     #[serde(default)]
     pub ttl_in_secs: TtlForExtendedCardInfo,
 }
@@ -1139,7 +1146,7 @@ impl<'de> Deserialize<'de> for TtlForExtendedCardInfo {
         // Check if value exceeds the maximum allowed
         if value > consts::MAX_TTL_FOR_EXTENDED_CARD_INFO {
             Err(serde::de::Error::custom(
-                "ttl_in_secs must be less than or equal to 3600 (1hr)",
+                "ttl_in_secs must be less than or equal to 7200 (2hrs)",
             ))
         } else {
             Ok(Self(value))

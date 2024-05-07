@@ -14,9 +14,9 @@ use crate::user::{
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
     GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
     InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignInWithTokenResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UpdateUserAccountDetailsRequest,
-    UserMerchantCreate, VerifyEmailRequest,
+    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
+    SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -35,6 +35,12 @@ impl ApiEventMetric for VerifyTokenResponse {
             merchant_id: self.merchant_id.clone(),
             user_id: self.user_email.peek().to_string(),
         })
+    }
+}
+
+impl<T> ApiEventMetric for TokenOrPayloadResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
     }
 }
 
@@ -62,9 +68,10 @@ common_utils::impl_misc_api_event_type!(
     SignInResponse,
     UpdateUserAccountDetailsRequest,
     GetUserDetailsResponse,
-    SignInWithTokenResponse,
     GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponse
+    GetUserRoleDetailsResponse,
+    TokenResponse,
+    UserFromEmailRequest
 );
 
 #[cfg(feature = "dummy_connector")]

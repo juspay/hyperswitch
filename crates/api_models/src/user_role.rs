@@ -99,6 +99,7 @@ pub enum UserStatus {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AcceptInvitationRequest {
     pub merchant_ids: Vec<String>,
+    // TODO: Remove this once the token only api is being used
     pub need_dashboard_entry_response: Option<bool>,
 }
 

@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.07.0
+
+### Features
+
+- **clickhouse:** Init Clickhouse container on startup ([#4365](https://github.com/juspay/hyperswitch/pull/4365)) ([`89e5884`](https://github.com/juspay/hyperswitch/commit/89e5884f9eb341026b09a0d1ab8b836de5ba0c19))
+- **constraint_graph:** Make the constraint graph framework generic and move it into a separate crate ([#3071](https://github.com/juspay/hyperswitch/pull/3071)) ([`a23a365`](https://github.com/juspay/hyperswitch/commit/a23a365cdf3fc2a24f4e2a08996a5683dc4da89a))
+- **payment_methods:** Filter payment methods based on pm client secret ([#4249](https://github.com/juspay/hyperswitch/pull/4249)) ([`575fac6`](https://github.com/juspay/hyperswitch/commit/575fac6f3ef94ef1856a77d778f822c0e97b0e9c))
+- Add decision starter API for email flows ([#4533](https://github.com/juspay/hyperswitch/pull/4533)) ([`1335554`](https://github.com/juspay/hyperswitch/commit/1335554f5193f05ba512d75a8eb9bb8047a65466))
+
+### Refactors
+
+- **paylater:** Use payment_method_data.billing fields instead of payment_method_data ([#4333](https://github.com/juspay/hyperswitch/pull/4333)) ([`b878677`](https://github.com/juspay/hyperswitch/commit/b878677f1572dceb9cd1983c2fd0b3b05ed8a573))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`25cd685`](https://github.com/juspay/hyperswitch/commit/25cd6854f9d9162915e56213b6989eeb1d178b49))
+
+### Build System / Dependencies
+
+- **docker:** Add web client and control center services to docker compose setup ([#4197](https://github.com/juspay/hyperswitch/pull/4197)) ([`b1cfef2`](https://github.com/juspay/hyperswitch/commit/b1cfef257a54b3ebe4f48e56a48a932e2c758dc7))
+
+**Full Changelog:** [`2024.05.06.0...2024.05.07.0`](https://github.com/juspay/hyperswitch/compare/2024.05.06.0...2024.05.07.0)
+
+- - -
+
 ## 2024.05.06.0
 
 ### Features

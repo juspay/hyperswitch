@@ -467,10 +467,6 @@ impl Routing {
                     })),
             )
             .service(
-                web::resource("/business_profile/{business_profile_id}/configs/pg_agnostic_mit")
-                    .route(web::post().to(cloud_routing::upsert_connector_agnostic_mandate_config)),
-            )
-            .service(
                 web::resource("/default")
                     .route(web::get().to(|state, req| {
                         cloud_routing::routing_retrieve_default_config(
@@ -1131,6 +1127,10 @@ impl BusinessProfile {
                     .service(
                         web::resource("/toggle_extended_card_info")
                             .route(web::post().to(toggle_extended_card_info)),
+                    )
+                    .service(
+                        web::resource("/toggle_connector_agnostic_mit")
+                            .route(web::post().to(toggle_connector_agnostic_mit)),
                     ),
             )
     }
@@ -1201,6 +1201,7 @@ impl User {
         #[cfg(feature = "email")]
         {
             route = route
+                .service(web::resource("/from_email").route(web::post().to(user_from_email)))
                 .service(
                     web::resource("/connect_account").route(web::post().to(user_connect_account)),
                 )

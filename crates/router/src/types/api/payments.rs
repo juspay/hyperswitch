@@ -21,20 +21,6 @@ use crate::{
     types::{self, api as api_types},
 };
 
-pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTransactionType>;
-}
-
-impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTransactionType> {
-        match (&self.mandate_data, &self.mandate_id) {
-            (None, None) => None,
-            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
-            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
-        }
-    }
-}
-
 impl super::Router for PaymentsRequest {}
 
 // Core related api layer.
