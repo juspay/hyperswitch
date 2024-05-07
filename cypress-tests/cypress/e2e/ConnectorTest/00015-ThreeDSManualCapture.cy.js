@@ -22,9 +22,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     })
 
     context("Card - ThreeDS Manual Full Capture payment flow test", () => {
-
         context("payment Create and Confirm", () => {
-
             it("create-payment-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
                 cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "manual", globalState);
@@ -89,9 +87,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     });
 
     context("Card - ThreeDS Manual Partial Capture payment flow test - Create and Confirm", () => {
-
         context("payment Create and Payment Confirm", () => {
-
             it("create-payment-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
                 cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "manual", globalState);

@@ -404,6 +404,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
     expect(response.body.status).to.equal("cancelled");
   });
 });
+
 Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
   console.log("syncpaymentID ->" + globalState.get("paymentID"));
   const payment_id = globalState.get("paymentID");
