@@ -40,19 +40,19 @@ pub fn is_correct_password(
     .change_context(UserErrors::InternalServerError)
 }
 
-pub fn get_temp_password() -> String {
+pub fn get_temp_password() -> Secret<String> {
     let uuid_pass = uuid::Uuid::new_v4().to_string();
     let mut rng = rand::thread_rng();
 
     let special_chars: Vec<char> = "!@#$%^&*()-_=+[]{}|;:,.<>?".chars().collect();
-    let special_char: char = *special_chars.choose(&mut rng).unwrap_or(&'@');
+    let special_char = special_chars.choose(&mut rng).unwrap_or(&'@');
 
-    format!(
+    Secret::new(format!(
         "{}{}{}{}{}",
         uuid_pass,
         rng.gen_range('A'..='Z'),
         special_char,
         rng.gen_range('a'..='z'),
         rng.gen_range('0'..='9'),
-    )
+    ))
 }

@@ -185,18 +185,16 @@ impl UserPassword {
 
         if is_too_short || is_too_long || !is_password_format_valid {
             Err(UserErrors::PasswordParsingError.into())
-        } else {
-            Ok(Self(password.into()))
         }
+        Ok(Self(password.into()))
     }
 
     pub fn new_password_without_validation(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
         if password.is_empty() {
             Err(UserErrors::PasswordParsingError.into())
-        } else {
-            Ok(Self(password.into()))
         }
+        Ok(Self(password.into()))
     }
 
     pub fn get_secret(&self) -> Secret<String> {
@@ -670,7 +668,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(password::get_temp_password().into())?;
+        let password = UserPassword::new(password::get_temp_password())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -726,7 +724,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = UserPassword::new(password::get_temp_password().into())?;
+        let password = UserPassword::new(password::get_temp_password())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
