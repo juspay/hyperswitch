@@ -8717,7 +8717,8 @@
           "card_number",
           "card_exp_month",
           "card_exp_year",
-          "card_holder_name"
+          "card_holder_name",
+          "card_cvc"
         ],
         "properties": {
           "card_number": {
@@ -8739,6 +8740,11 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
           },
           "card_issuer": {
             "type": "string",
@@ -8786,7 +8792,7 @@
             "format": "int32",
             "description": "TTL for extended card info",
             "default": 900,
-            "maximum": 3600,
+            "maximum": 7200,
             "minimum": 0
           }
         }
