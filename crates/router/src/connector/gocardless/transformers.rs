@@ -24,22 +24,10 @@ pub struct GocardlessRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for GocardlessRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for GocardlessRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -736,7 +724,7 @@ impl<F>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payments.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: None,
                 mandate_reference: Some(mandate_reference),
                 connector_metadata: None,
@@ -771,7 +759,7 @@ impl<F>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payments.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

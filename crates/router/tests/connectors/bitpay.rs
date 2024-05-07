@@ -10,12 +10,12 @@ use crate::{
 struct BitpayTest;
 impl ConnectorActions for BitpayTest {}
 impl utils::Connector for BitpayTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Bitpay;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Bitpay),
             connector_name: types::Connector::Bitpay,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
@@ -67,7 +67,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::domain::PaymentMethodData::Crypto(domain::CryptoData {
+        payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: None,
         }),
         confirm: true,
@@ -126,7 +126,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "NPf27TDfyU5mhcTCw2oaq4".to_string(),
                 ),
                 ..Default::default()
@@ -145,7 +145,7 @@ async fn should_sync_expired_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "bUsFf4RjQEahjbjGcETRS".to_string(),
                 ),
                 ..Default::default()

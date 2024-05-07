@@ -94,7 +94,7 @@ impl ConnectorCommon for Signifyd {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: crate::consts::NO_ERROR_CODE.to_string(),
+            code: consts::NO_ERROR_CODE.to_string(),
             message: response.messages.join(" &"),
             reason: Some(response.errors.to_string()),
             attempt_status: None,

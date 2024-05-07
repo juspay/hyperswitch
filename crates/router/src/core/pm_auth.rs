@@ -64,7 +64,7 @@ pub async fn create_link_token(
 
     let redis_conn = db
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
@@ -75,7 +75,7 @@ pub async fn create_link_token(
             "Vec<PaymentMethodAuthConnectorChoice>",
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get payment method auth choices from redis")?;
 
     let selected_config = pm_auth_configs
@@ -132,7 +132,7 @@ pub async fn create_link_token(
             &key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_account.merchant_id.clone(),
         })?;
 
@@ -145,7 +145,7 @@ pub async fn create_link_token(
         request: pm_auth_types::LinkTokenRequest {
             client_name: "HyperSwitch".to_string(),
             country_codes: Some(vec![billing_country.ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
+                ApiErrorResponse::MissingRequiredField {
                     field_name: "billing_country",
                 },
             )?]),
@@ -216,8 +216,7 @@ pub async fn exchange_token_core(
 
     let connector_name = config.connector_name.as_str();
 
-    let connector =
-        pm_auth_types::api::PaymentAuthConnectorData::get_connector_by_name(connector_name)?;
+    let connector = PaymentAuthConnectorData::get_connector_by_name(connector_name)?;
 
     let merchant_connector_account = state
         .store
@@ -227,7 +226,7 @@ pub async fn exchange_token_core(
             &key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_account.merchant_id.clone(),
         })?;
 
@@ -405,9 +404,7 @@ async fn store_bank_details_in_payment_methods(
             connector_details: vec![payment_methods::BankAccountConnectorDetails {
                 connector: connector_name.to_string(),
                 mca_id: mca_id.clone(),
-                access_token: payment_methods::BankAccountAccessCreds::AccessToken(
-                    access_token.clone(),
-                ),
+                access_token: BankAccountAccessCreds::AccessToken(access_token.clone()),
                 account_id: creds.account_id,
             }],
         };
@@ -612,7 +609,7 @@ async fn get_selected_config_from_redis(
 ) -> RouterResult<api_models::pm_auth::PaymentMethodAuthConnectorChoice> {
     let redis_conn = db
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
@@ -623,7 +620,7 @@ async fn get_selected_config_from_redis(
             "Vec<PaymentMethodAuthConnectorChoice>",
         )
         .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        .change_context(ApiErrorResponse::GenericNotFoundError {
             message: "payment method auth connector name not found".to_string(),
         })
         .attach_printable("Failed to get payment method auth choices from redis")?;
@@ -651,14 +648,14 @@ pub async fn retrieve_payment_method_from_auth_service(
 ) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 
-    let connector = pm_auth_types::api::PaymentAuthConnectorData::get_connector_by_name(
+    let connector = PaymentAuthConnectorData::get_connector_by_name(
         auth_token.connector_details.connector.as_str(),
     )?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&payment_intent.merchant_id, key_store)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -667,7 +664,7 @@ pub async fn retrieve_payment_method_from_auth_service(
             key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: auth_token.connector_details.mca_id.clone(),
         })
         .attach_printable(
@@ -697,7 +694,7 @@ pub async fn retrieve_payment_method_from_auth_service(
             acc.payment_method_type == auth_token.payment_method_type
                 && acc.payment_method == auth_token.payment_method
         })
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("Bank account details not found")?;
 
     let mut bank_type = None;
@@ -720,7 +717,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     let name = address
         .as_ref()
         .and_then(|addr| addr.first_name.clone().map(|name| name.into_inner()))
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+        .ok_or(ApiErrorResponse::GenericNotFoundError {
             message: "billing_first_name not found".to_string(),
         })
         .attach_printable("billing_first_name not found")?;
