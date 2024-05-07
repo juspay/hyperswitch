@@ -23,6 +23,7 @@ pub struct User {
     pub totp_status: TotpStatus,
     pub totp_secret: Option<Encryption>,
     pub totp_recovery_codes: Option<serde_json::Value>,
+    pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(
@@ -38,6 +39,7 @@ pub struct UserNew {
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub preferred_merchant_id: Option<String>,
+    pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -51,6 +53,7 @@ pub struct UserUpdateInternal {
     totp_status: Option<TotpStatus>,
     totp_secret: Option<Encryption>,
     totp_recovery_codes: Option<serde_json::Value>,
+    last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug)]
@@ -58,7 +61,6 @@ pub enum UserUpdate {
     VerifyUser,
     AccountUpdate {
         name: Option<String>,
-        password: Option<Secret<String>>,
         is_verified: Option<bool>,
         preferred_merchant_id: Option<String>,
     },
@@ -66,6 +68,9 @@ pub enum UserUpdate {
         totp_status: Option<TotpStatus>,
         totp_secret: Option<Encryption>,
         totp_recovery_codes: Option<serde_json::Value>,
+    },
+    PasswordUpdate {
+        password: Option<Secret<String>>,
     },
 }
 
@@ -82,21 +87,22 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_status: None,
                 totp_secret: None,
                 totp_recovery_codes: None,
+                last_password_modified_at: None,
             },
             UserUpdate::AccountUpdate {
                 name,
-                password,
                 is_verified,
                 preferred_merchant_id,
             } => Self {
                 name,
-                password,
+                password: None,
                 is_verified,
                 last_modified_at,
                 preferred_merchant_id,
                 totp_status: None,
                 totp_secret: None,
                 totp_recovery_codes: None,
+                last_password_modified_at: None,
             },
             UserUpdate::TotpUpdate {
                 totp_status,
@@ -111,6 +117,18 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_status,
                 totp_secret,
                 totp_recovery_codes,
+                last_password_modified_at: None,
+            },
+            UserUpdate::PasswordUpdate { password } => Self {
+                name: None,
+                password,
+                is_verified: None,
+                last_modified_at,
+                preferred_merchant_id: None,
+                last_password_modified_at: Some(last_modified_at),
+                totp_status: None,
+                totp_secret: None,
+                totp_recovery_codes: None,
             },
         }
     }

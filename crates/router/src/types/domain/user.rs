@@ -161,11 +161,43 @@ pub struct UserPassword(Secret<String>);
 impl UserPassword {
     pub fn new(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
-        if password.is_empty() {
-            Err(UserErrors::PasswordParsingError.into())
-        } else {
-            Ok(Self(password.into()))
+
+        let mut has_upper_case = false;
+        let mut has_lower_case = false;
+        let mut has_numeric_value = false;
+        let mut has_special_character = false;
+        let mut has_whitespace = false;
+
+        for c in password.chars() {
+            has_upper_case = has_upper_case || c.is_uppercase();
+            has_lower_case = has_lower_case || c.is_lowercase();
+            has_numeric_value = has_numeric_value || c.is_numeric();
+            has_special_character =
+                has_special_character || !(c.is_alphanumeric() && c.is_whitespace());
+            has_whitespace = has_whitespace || c.is_whitespace();
         }
+
+        let is_password_format_valid = has_upper_case
+            && has_lower_case
+            && has_numeric_value
+            && has_special_character
+            && !has_whitespace;
+
+        let is_too_long = password.graphemes(true).count() > consts::user::MAX_PASSWORD_LENGTH;
+        let is_too_short = password.graphemes(true).count() < consts::user::MIN_PASSWORD_LENGTH;
+
+        if is_too_short || is_too_long || !is_password_format_valid {
+            return Err(UserErrors::PasswordParsingError.into());
+        }
+        Ok(Self(password.into()))
+    }
+
+    pub fn new_password_without_validation(password: Secret<String>) -> UserResult<Self> {
+        let password = password.expose();
+        if password.is_empty() {
+            return Err(UserErrors::PasswordParsingError.into());
+        }
+        Ok(Self(password.into()))
     }
 
     pub fn get_secret(&self) -> Secret<String> {
@@ -639,7 +671,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password::get_temp_password())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -683,7 +715,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: UserPassword::new(user.0.password)?,
+            password: UserPassword::new_password_without_validation(user.0.password)?,
             new_merchant,
         })
     }
@@ -695,7 +727,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password::get_temp_password())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -775,6 +807,26 @@ impl UserFromStorage {
 
         let days_left_for_verification = last_date_for_verification - today;
         Ok(Some(days_left_for_verification.whole_days()))
+    }
+
+    pub fn is_password_rotate_required(&self, state: &AppState) -> UserResult<bool> {
+        let last_password_modified_at =
+            if let Some(last_password_modified_at) = self.0.last_password_modified_at {
+                last_password_modified_at.date()
+            } else {
+                return Ok(true);
+            };
+
+        let password_change_duration =
+            time::Duration::days(state.conf.user.password_validity_in_days.into());
+        let last_date_for_password_rotate = last_password_modified_at
+            .checked_add(password_change_duration)
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let today = common_utils::date_time::now().date();
+        let days_left_for_password_rotate = last_date_for_password_rotate - today;
+
+        Ok(days_left_for_password_rotate.whole_days() < 0)
     }
 
     pub fn get_preferred_merchant_id(&self) -> Option<String> {

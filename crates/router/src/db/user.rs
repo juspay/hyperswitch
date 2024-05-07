@@ -165,6 +165,7 @@ impl UserInterface for MockDb {
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
+            last_password_modified_at: user_data.last_password_modified_at,
         };
         users.push(user.clone());
         Ok(user)
@@ -221,12 +222,10 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::AccountUpdate {
                         name,
-                        password,
                         is_verified,
                         preferred_merchant_id,
                     } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        password: password.clone().unwrap_or(user.password.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         preferred_merchant_id: preferred_merchant_id
                             .clone()
@@ -243,6 +242,11 @@ impl UserInterface for MockDb {
                         totp_recovery_codes: totp_recovery_codes
                             .clone()
                             .or(user.totp_recovery_codes.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };
@@ -273,12 +277,10 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::AccountUpdate {
                         name,
-                        password,
                         is_verified,
                         preferred_merchant_id,
                     } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        password: password.clone().unwrap_or(user.password.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         preferred_merchant_id: preferred_merchant_id
                             .clone()
@@ -295,6 +297,11 @@ impl UserInterface for MockDb {
                         totp_recovery_codes: totp_recovery_codes
                             .clone()
                             .or(user.totp_recovery_codes.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };

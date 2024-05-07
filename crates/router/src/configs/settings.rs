@@ -89,6 +89,7 @@ pub struct Settings<S: SecretState> {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub user: UserSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
@@ -390,6 +391,11 @@ pub struct Secrets {
     pub master_enc_key: Secret<String>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct UserSettings {
+    pub password_validity_in_days: u16,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Locker {
@@ -515,6 +521,7 @@ pub struct Connectors {
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub netcetera: ConnectorParams,

@@ -34,6 +34,7 @@ mod globepay;
 mod gocardless;
 mod helcim;
 mod iatapay;
+mod mifinity;
 mod mollie;
 mod multisafepay;
 mod netcetera;

@@ -1206,6 +1206,7 @@ diesel::table! {
         totp_status -> TotpStatus,
         totp_secret -> Nullable<Bytea>,
         totp_recovery_codes -> Nullable<Jsonb>,
+        last_password_modified_at -> Nullable<Timestamp>,
     }
 }
 
