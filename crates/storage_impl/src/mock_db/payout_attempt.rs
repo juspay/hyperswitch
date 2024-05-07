@@ -1,5 +1,6 @@
 use common_utils::errors::CustomResult;
-use data_models::{
+use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::{
     errors::StorageError,
     payouts::{
         payout_attempt::{
@@ -8,7 +9,6 @@ use data_models::{
         payouts::Payouts,
     },
 };
-use diesel_models::enums as storage_enums;
 
 use super::MockDb;
 
@@ -50,7 +50,10 @@ impl PayoutAttemptInterface for MockDb {
         _payouts: &[Payouts],
         _merchant_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<data_models::payouts::payout_attempt::PayoutListFilters, StorageError> {
+    ) -> CustomResult<
+        hyperswitch_domain_models::payouts::payout_attempt::PayoutListFilters,
+        StorageError,
+    > {
         Err(StorageError::MockDbError)?
     }
 }

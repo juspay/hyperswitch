@@ -750,9 +750,7 @@ impl api::IncomingWebhook for Worldpay {
             .parse_struct("WorldpayWebhookTransactionId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            types::api::PaymentIdType::ConnectorTransactionId(
-                body.event_details.transaction_reference,
-            ),
+            api::PaymentIdType::ConnectorTransactionId(body.event_details.transaction_reference),
         ))
     }
 

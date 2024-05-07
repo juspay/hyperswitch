@@ -7,8 +7,6 @@ import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 
-import globalState from "../../utils/State.js";
-
 const connectorDetails = {
   "adyen": adyenConnectorDetails,
   "bankofamerica": bankOfAmericaConnectorDetails,
@@ -34,6 +32,6 @@ function getValueByKey(jsonObject, key) {
   if (data && typeof data === 'object' && key in data) {
     return data[key];
   } else {
-    return null; 
+    return null;
   }
 }
