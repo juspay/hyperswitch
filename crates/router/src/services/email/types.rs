@@ -18,7 +18,6 @@ use crate::{
 pub enum EmailBody {
     Verify {
         link: String,
-        tenant_name: String,
     },
     Reset {
         link: String,
@@ -64,11 +63,10 @@ pub mod html {
 
     pub fn get_html_body(email_body: EmailBody) -> String {
         match email_body {
-            EmailBody::Verify { link, tenant_name } => {
+            EmailBody::Verify { link  } => {
                 format!(
                     include_str!("assets/verify.html"),
                     link = link,
-                    tenantName = tenant_name
                 )
             }
             EmailBody::Reset { link, user_name } => {
@@ -211,7 +209,6 @@ impl EmailData for VerifyEmail {
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
-            tenant_name: String::from(&self.settings.email.tenant_name),
         });
 
         Ok(EmailContents {

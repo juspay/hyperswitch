@@ -256,7 +256,6 @@ aws_region = ""
 base_url = "http://localhost:8080"
 allowed_unverified_days = 1
 active_email_client = "SES"
-tenant_name = "Hyperswitch"
 
 [email.aws_ses]
 email_role_arn = ""
