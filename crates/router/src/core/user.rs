@@ -71,6 +71,26 @@ pub async fn signup_with_merchant_id(
     }))
 }
 
+pub async fn get_user_details(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_api::GetUserDetailsResponse> {
+    let user = user_from_token.get_user_from_db(&state).await?;
+    let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::GetUserDetailsResponse {
+            merchant_id: user_from_token.merchant_id,
+            name: user.get_name(),
+            email: user.get_email(),
+            user_id: user.get_user_id().to_string(),
+            verification_days_left,
+            role_id: user_from_token.role_id,
+            org_id: user_from_token.org_id,
+        },
+    ))
+}
+
 pub async fn signup(
     state: AppState,
     request: user_api::SignUpRequest,
@@ -103,7 +123,7 @@ pub async fn signup(
 pub async fn signin(
     state: AppState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInResponse> {
+) -> UserResponse<user_api::SignInWithTokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_email(&request.email)
@@ -141,6 +161,34 @@ pub async fn signin(
 
     let response = signin_strategy.get_signin_response(&state).await?;
     let token = utils::user::get_token_from_signin_response(&response);
+    auth::cookies::set_cookie_response(
+        user_api::SignInWithTokenResponse::SignInResponse(response),
+        token,
+    )
+}
+
+pub async fn signin_token_only_flow(
+    state: AppState,
+    request: user_api::SignInRequest,
+) -> UserResponse<user_api::SignInWithTokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(&request.email)
+        .await
+        .to_not_found_response(UserErrors::InvalidCredentials)?
+        .into();
+
+    user_from_db.compare_password(request.password)?;
+
+    let next_flow =
+        domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
+
+    let token = next_flow.get_token(&state).await?;
+
+    let response = user_api::SignInWithTokenResponse::Token(user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    });
     auth::cookies::set_cookie_response(response, token)
 }
 
@@ -1001,9 +1049,9 @@ pub async fn list_merchants_for_user(
 pub async fn get_user_details_in_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
-    request: user_api::GetUserDetailsRequest,
+    request: user_api::GetUserRoleDetailsRequest,
     _req_state: ReqState,
-) -> UserResponse<user_api::GetUserDetailsResponse> {
+) -> UserResponse<user_api::GetUserRoleDetailsResponse> {
     let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
@@ -1029,7 +1077,7 @@ pub async fn get_user_details_in_merchant_account(
     .attach_printable("User role exists but the corresponding role doesn't")?;
 
     Ok(ApplicationResponse::Json(
-        user_api::GetUserDetailsResponse {
+        user_api::GetUserRoleDetailsResponse {
             email: required_user.get_email(),
             name: required_user.get_name(),
             role_id: role_info.get_role_id().to_string(),
@@ -1260,4 +1308,39 @@ pub async fn update_user_details(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+#[cfg(feature = "email")]
+pub async fn user_from_email(
+    state: AppState,
+    req: user_api::UserFromEmailRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let token = req.token.expose();
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+
+    auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
+
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let next_flow =
+        domain::NextFlow::from_origin(email_token.get_flow(), user_from_db.clone(), &state).await?;
+
+    let token = next_flow.get_token(&state).await?;
+
+    let response = user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    };
+    auth::cookies::set_cookie_response(response, token)
 }

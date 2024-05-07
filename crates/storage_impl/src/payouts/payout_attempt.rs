@@ -2,16 +2,6 @@ use std::str::FromStr;
 
 use api_models::enums::PayoutConnectors;
 use common_utils::{errors::CustomResult, ext_traits::Encode, fallback_reverse_lookup_not_found};
-use data_models::{
-    errors,
-    payouts::{
-        payout_attempt::{
-            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
-            PayoutListFilters,
-        },
-        payouts::Payouts,
-    },
-};
 use diesel_models::{
     enums::MerchantStorageScheme,
     kv,
@@ -22,6 +12,16 @@ use diesel_models::{
     ReverseLookupNew,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    errors,
+    payouts::{
+        payout_attempt::{
+            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
+            PayoutListFilters,
+        },
+        payouts::Payouts,
+    },
+};
 use redis_interface::HsetnxReply;
 use router_env::{instrument, logger, tracing};
 

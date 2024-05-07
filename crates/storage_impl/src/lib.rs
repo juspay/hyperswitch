@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use data_models::errors::{StorageError, StorageResult};
 use diesel_models as store;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 mod address;
@@ -25,9 +25,9 @@ mod reverse_lookup;
 mod utils;
 
 use common_utils::errors::CustomResult;
-#[cfg(not(feature = "payouts"))]
-use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use database::store::PgPool;
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, SaddReply};
 

@@ -1,5 +1,5 @@
 [package]
-name = "data_models"
+name = "hyperswitch_domain_models"
 description = "Represents the data/domain models used by the business layer"
 version = "0.1.0"
 edition.workspace = true

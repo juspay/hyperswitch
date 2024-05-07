@@ -140,7 +140,10 @@ pub enum AnalysisErrorType {
         negation_metadata: Metadata,
     },
     #[error("Graph analysis error: {0:#?}")]
-    GraphAnalysis(graph::AnalysisError, graph::Memoization),
+    GraphAnalysis(
+        graph::AnalysisError<dir::DirValue>,
+        hyperswitch_constraint_graph::Memoization<dir::DirValue>,
+    ),
     #[error("State machine error")]
     StateMachine(dssa::state_machine::StateMachineError),
     #[error("Unsupported program key '{0}'")]

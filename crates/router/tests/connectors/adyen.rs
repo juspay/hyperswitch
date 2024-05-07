@@ -122,6 +122,8 @@ impl AdyenTest {
                 enums::PayoutType::Wallet => Some(types::api::PayoutMethodData::Wallet(
                     types::api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
                         email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
+                        telephone_number: None,
+                        paypal_id: None,
                     }),
                 )),
             },
