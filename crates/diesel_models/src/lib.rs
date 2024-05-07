@@ -45,6 +45,7 @@ pub mod routing_algorithm;
 pub mod schema;
 pub mod user;
 pub mod user_role;
+pub mod user_key_store;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};
 

@@ -1,4 +1,4 @@
-use diesel_models::{user as storage, user_role::UserRole};
+use diesel_models::{enums::TotpStatus, user as storage, user_role::UserRole};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -162,6 +162,9 @@ impl UserInterface for MockDb {
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
             preferred_merchant_id: user_data.preferred_merchant_id,
+            totp_status: TotpStatus::NotSet,
+            totp_secret: None,
+            totp_recovery_codes: None,
         };
         users.push(user.clone());
         Ok(user)
@@ -230,6 +233,18 @@ impl UserInterface for MockDb {
                             .or(user.preferred_merchant_id.clone()),
                         ..user.to_owned()
                     },
+                    storage::UserUpdate::TotpUpdate {
+                        totp_status,
+                        totp_secret,
+                        totp_recovery_codes,
+                    } => storage::User {
+                        totp_status: totp_status.unwrap_or(user.totp_status),
+                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
+                        totp_recovery_codes: totp_recovery_codes
+                            .clone()
+                            .or(user.totp_recovery_codes.clone()),
+                        ..user.to_owned()
+                    },
                 };
                 user.to_owned()
             })
@@ -268,6 +283,18 @@ impl UserInterface for MockDb {
                         preferred_merchant_id: preferred_merchant_id
                             .clone()
                             .or(user.preferred_merchant_id.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::TotpUpdate {
+                        totp_status,
+                        totp_secret,
+                        totp_recovery_codes,
+                    } => storage::User {
+                        totp_status: totp_status.unwrap_or(user.totp_status),
+                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
+                        totp_recovery_codes: totp_recovery_codes
+                            .clone()
+                            .or(user.totp_recovery_codes.clone()),
                         ..user.to_owned()
                     },
                 };

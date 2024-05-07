@@ -231,8 +231,24 @@ pub enum TokenOrPayloadResponse<T> {
     Token(TokenResponse),
     Payload(T),
 }
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserFromEmailRequest {
     pub token: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct BeginTOTPResponse {
+    pub secret: Option<TOTPSecret>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TOTPSecret {
+    pub secret: Secret<String>,
+    pub totp_url: Secret<String>,
+    pub recovery_codes: Vec<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyTOTPRequest {
+    pub totp: Secret<String>,
 }

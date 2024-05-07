@@ -37,3 +37,4 @@ pub mod role;
 pub mod routing_algorithm;
 pub mod user;
 pub mod user_role;
+pub mod user_key_store;

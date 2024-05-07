@@ -33,6 +33,7 @@ pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_key_store;
 pub mod user_role;
 
 use diesel_models::{
@@ -118,6 +119,7 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + role::RoleInterface
+    + user_key_store::UserKeyStoreInterface
     + authentication::AuthenticationInterface
     + 'static
 {
