@@ -25,8 +25,10 @@ describe("Card - ThreeDS payment flow test", () => {
 
 
   it("create-payment-call-test", () => {
-    let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-    cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "automatic", globalState);
+    let data = getConnectorDetails(globalState.get("connectorId"))["PaymentIntent"];
+    let req_data = data["Request"];
+    let res_data = data["Response"];
+    cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "automatic", globalState);
   });
 
   it("payment_methods-call-test", () => {
@@ -35,9 +37,11 @@ describe("Card - ThreeDS payment flow test", () => {
   });
 
   it("Confirm 3DS", () => {
-    let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
+    let data = getConnectorDetails(globalState.get("connectorId"))["3DS"];
+    let req_data = data["Request"];
+    let res_data = data["Response"];
     cy.task('cli_log', "GLOBAL STATE -> " + JSON.stringify(globalState.data));
-    cy.confirmCallTest(confirmBody, det, true, globalState);
+    cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
   });
 
   it("Handle redirection", () => {

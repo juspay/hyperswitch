@@ -133,14 +133,14 @@ Cypress.Commands.add("createCustomerCallTest", (customerCreateBody, globalState)
   });
 });
 
-Cypress.Commands.add("createPaymentIntentTest", (request, det, authentication_type, capture_method, globalState) => {
-  if (!request || typeof request !== "object" || !det.currency || !authentication_type) {
+Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, authentication_type, capture_method, globalState) => {
+  if (!request || typeof request !== "object" || !req_data.currency || !authentication_type) {
     throw new Error("Invalid parameters provided to createPaymentIntentTest command");
   }
-  request.currency = det.currency;
+  request.currency = req_data.currency;
   request.authentication_type = authentication_type;
   request.capture_method = capture_method;
-  request.setup_future_usage = det.setup_future_usage;
+  request.setup_future_usage = req_data.setup_future_usage;
   request.customer_id = globalState.get("customerId");
   globalState.set("paymentAmount", request.amount);
   cy.request({
@@ -161,7 +161,10 @@ Cypress.Commands.add("createPaymentIntentTest", (request, det, authentication_ty
     globalState.set("clientSecret", clientSecret);
     globalState.set("paymentID", response.body.payment_id);
     cy.log(clientSecret);
-    expect("requires_payment_method").to.equal(response.body.status);
+    for(const key in res_data) {
+      expect(res_data[key]).to.equal(response.body[key]);
+    }
+    expect(res_data.status).to.equal(response.body.status);
     expect(request.amount).to.equal(response.body.amount);
     expect(null).to.equal(response.body.amount_received);
     expect(request.amount).to.equal(response.body.amount_capturable);
@@ -191,12 +194,12 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalState) => {
+Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confirm, globalState) => {
   const paymentIntentID = globalState.get("paymentID");
-  confirmBody.payment_method_data.card = details.card;
+  confirmBody.payment_method_data.card = req_data.card;
   confirmBody.confirm = confirm;
   confirmBody.client_secret = globalState.get("clientSecret");
-  confirmBody.customer_acceptance = details.customer_acceptance;
+  confirmBody.customer_acceptance = req_data.customer_acceptance;
 
   cy.request({
     method: "POST",
@@ -217,7 +220,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalSt
           .to.have.property("redirect_to_url");
         globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       } else if (response.body.authentication_type === "no_three_ds") {
-        expect(details.paymentSuccessfulStatus).to.equal(response.body.status);
+        expect(res_data.status).to.equal(response.body.status);
       } else {
         // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);

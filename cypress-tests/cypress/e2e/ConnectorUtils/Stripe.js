@@ -18,15 +18,28 @@ const successfulThreeDSTestCardDetails = {
 };
 
 export const connectorDetails = {
+    "PaymentIntent": {
+        "Request": {
+            "card": successfulThreeDSTestCardDetails,
+            "currency": "USD",
+            "customer_acceptance": null,
+            "setup_future_usage": "on_session"
+        },
+        "Response": {
+            "status": "requires_payment_method"
+        }
+    },
     "3DS": {
-        "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "customer_acceptance": null,
-        "setup_future_usage": "on_session"
+        "Request": {
+            "card": successfulThreeDSTestCardDetails,
+            "currency": "USD",
+            "customer_acceptance": null,
+            "setup_future_usage": "on_session"
+        },
+        "Response": {
+            "status": "succeeded"
+        }
+        
     },
     "No3DS": {
         "card": successfulTestCardDetails,
