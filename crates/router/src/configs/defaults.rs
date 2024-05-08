@@ -302,6 +302,14 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                enums::Connector::Iatapay,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::new(),
+                                    common: HashMap::new(),
+                                }
+                            ),
+                            (
                                 enums::Connector::Adyen,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -2325,6 +2333,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]                         
                                 enums::Connector::DummyConnector1,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -2372,6 +2381,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector2,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -2419,6 +2429,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector3,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -2466,6 +2477,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector4,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -2513,6 +2525,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector5,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -2560,6 +2573,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector6,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -2607,6 +2621,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector7,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -3055,6 +3070,14 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                enums::Connector::Iatapay,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::new(),
+                                    common: HashMap::new(),
+                                }
+                            ),
+                            (
                                 enums::Connector::Airwallex,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5031,6 +5054,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector1,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5078,6 +5102,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector2,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5125,6 +5150,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector3,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5172,6 +5198,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector4,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5219,6 +5246,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector5,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5266,6 +5294,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector6,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5313,6 +5342,7 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                #[cfg(feature = "dummy_connector")]
                                 enums::Connector::DummyConnector7,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
