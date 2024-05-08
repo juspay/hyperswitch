@@ -1820,56 +1820,42 @@ fn build_shopper_reference(customer_id: &Option<String>, merchant_id: String) ->
         .map(|c_id| format!("{}_{}", merchant_id, c_id))
 }
 
-impl<'a> TryFrom<&domain::BankDebitData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
+    for AdyenPaymentMethod<'a>
+{
     type Error = Error;
-    fn try_from(bank_debit_data: &domain::BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bank_debit_data, item): (&domain::BankDebitData, &types::PaymentsAuthorizeRouterData),
+    ) -> Result<Self, Self::Error> {
         match bank_debit_data {
             domain::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 ..
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
                 AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
-                    owner_name: card_holder_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "card_holder_name",
-                        },
-                    )?,
+                    owner_name: item.get_billing_full_name()?,
                 },
             ))),
-            domain::BankDebitData::SepaBankDebit {
-                iban,
-                bank_account_holder_name,
-                ..
-            } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
-                SepaDirectDebitData {
-                    owner_name: bank_account_holder_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_account_holder_name",
-                        },
-                    )?,
+            domain::BankDebitData::SepaBankDebit { iban, .. } => Ok(
+                AdyenPaymentMethod::SepaDirectDebit(Box::new(SepaDirectDebitData {
+                    owner_name: item.get_billing_full_name()?,
                     iban_number: iban.clone(),
-                },
-            ))),
+                })),
+            ),
             domain::BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
-                bank_account_holder_name,
                 ..
             } => Ok(AdyenPaymentMethod::BacsDirectDebit(Box::new(
                 BacsDirectDebitData {
                     payment_type: PaymentType::BacsDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: sort_code.clone(),
-                    holder_name: bank_account_holder_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_account_holder_name",
-                        },
-                    )?,
+                    holder_name: item.get_billing_full_name()?,
                 },
             ))),
             domain::BankDebitData::BecsBankDebit { .. } => {
@@ -2713,7 +2699,7 @@ impl<'a>
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
+        let payment_method = AdyenPaymentMethod::try_from((bank_debit_data, item.router_data))?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let request = AdyenPaymentRequest {
             amount,

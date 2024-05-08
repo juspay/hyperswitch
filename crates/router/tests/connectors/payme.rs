@@ -60,6 +60,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 email: None,
             }),
             None,
+            None,
         )),
         auth_type: None,
         access_token: None,
