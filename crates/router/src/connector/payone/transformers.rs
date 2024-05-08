@@ -12,6 +12,7 @@ use crate::{
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
+use crate::connector::utils::CardData;
 
 #[cfg(feature = "payouts")]
 use crate::{
