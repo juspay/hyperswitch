@@ -27,6 +27,7 @@
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 
+
 function logRequestId(xRequestId) {
   if (xRequestId) {
     cy.task('cli_log', "x-request-id -> " + xRequestId);

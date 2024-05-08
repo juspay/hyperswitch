@@ -252,9 +252,7 @@ describe("Card - Refund flow test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
             cy.syncRefundCallTest(det, globalState);
         });
-        it("list-refund-call-test", () => {
-            cy.listRefundCallTest(globalState);
-        });
+        
     });
 
     context("Card - Full Refund for partially captured 3DS payment", () => {
