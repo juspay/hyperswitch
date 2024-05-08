@@ -136,6 +136,7 @@ pub struct Frm {
 #[derive(Debug, Deserialize, Clone)]
 pub struct KvConfig {
     pub ttl: u32,
+    pub soft_kill: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

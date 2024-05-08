@@ -31,7 +31,7 @@ use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey, Op, decide_storage_scheme},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
 };
@@ -333,6 +333,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_attempt: PaymentAttemptNew,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Insert).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -468,6 +469,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let key = PartitionKey::MerchantIdPaymentId {
+            merchant_id: &this.merchant_id,
+            payment_id: &this.payment_id,
+        };
+        let field = format!("pa_{}", this.attempt_id);
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Update(key, &field, Some(&this.updated_by))).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -491,7 +498,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 // Check for database presence as well Maybe use a read replica here ?
                 let redis_value = serde_json::to_string(&updated_attempt)
                     .change_context(errors::StorageError::KVError)?;
-                let field = format!("pa_{}", updated_attempt.attempt_id);
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
@@ -586,6 +592,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -643,6 +650,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     storage_scheme,
                 )
         };
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
@@ -695,6 +703,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     storage_scheme,
                 )
         };
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
@@ -742,6 +751,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         connector_txn_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -802,6 +812,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -848,6 +859,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -907,6 +919,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -966,6 +979,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store

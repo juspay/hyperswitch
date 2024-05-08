@@ -71,7 +71,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey, Op, decide_storage_scheme};
 
     use super::PaymentMethodInterface;
     use crate::{
@@ -97,7 +97,7 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -141,7 +141,7 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -197,6 +197,7 @@ mod storage {
             payment_method_new: storage_types::PaymentMethodNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Insert).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -278,6 +279,14 @@ mod storage {
             payment_method_update: storage_types::PaymentMethodUpdate,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
+            let merchant_id = payment_method.merchant_id.clone();
+            let customer_id = payment_method.customer_id.clone();
+            let key = PartitionKey::MerchantIdCustomerId {
+                merchant_id: &merchant_id,
+                customer_id: &customer_id,
+            };
+            let field = format!("payment_method_id_{}", payment_method.payment_method_id);
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Update(key, &field, None)).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -287,14 +296,11 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let merchant_id = payment_method.merchant_id.clone();
-                    let customer_id = payment_method.customer_id.clone();
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id: &merchant_id,
                         customer_id: &customer_id,
                     };
                     let key_str = key.to_string();
-                    let field = format!("payment_method_id_{}", payment_method.payment_method_id);
 
                     let p_update: PaymentMethodUpdateInternal = payment_method_update.into();
                     let updated_payment_method =
