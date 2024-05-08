@@ -41,7 +41,7 @@ impl SPTFlow {
             Self::TOTP => Ok(true),
             // Main email APIs
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
-            Self::VerifyEmail => Ok(user.0.is_verified),
+            Self::VerifyEmail => Ok(!user.0.is_verified),
             // Final Checks
             // TODO: this should be based on last_password_modified_at as a placeholder using false
             Self::ForceSetPassword => Ok(false),
