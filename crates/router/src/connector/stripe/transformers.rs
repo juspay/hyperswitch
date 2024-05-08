@@ -1277,7 +1277,7 @@ fn create_stripe_payment_method(
                         Box::new(AchTransferData {
                             email: billing_address.email.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "email",
+                                    field_name: "billing_address.email",
                                 },
                             )?,
                         }),
@@ -1291,7 +1291,7 @@ fn create_stripe_payment_method(
                             MultibancoTransferData {
                                 email: billing_address.email.ok_or(
                                     errors::ConnectorError::MissingRequiredField {
-                                        field_name: "email",
+                                        field_name: "billing_address.email",
                                     },
                                 )?,
                             },
@@ -1309,7 +1309,7 @@ fn create_stripe_payment_method(
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
                             country: billing_address.country.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "country",
+                                    field_name: "billing_address.country",
                                 },
                             )?,
                         })),
