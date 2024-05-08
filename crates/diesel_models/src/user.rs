@@ -3,7 +3,9 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, enums::TotpStatus, schema::users};
+use crate::{
+    diesel_impl::OptionalDieselArray, encryption::Encryption, enums::TotpStatus, schema::users,
+};
 
 pub mod dashboard_metadata;
 
@@ -22,7 +24,8 @@ pub struct User {
     pub preferred_merchant_id: Option<String>,
     pub totp_status: TotpStatus,
     pub totp_secret: Option<Encryption>,
-    pub totp_recovery_codes: Option<serde_json::Value>,
+    #[diesel(deserialize_as = OptionalDieselArray<Secret<String>>)]
+    pub totp_recovery_codes: Option<Vec<Secret<String>>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
@@ -41,7 +44,7 @@ pub struct UserNew {
     pub preferred_merchant_id: Option<String>,
     pub totp_status: TotpStatus,
     pub totp_secret: Option<Encryption>,
-    pub totp_recovery_codes: Option<serde_json::Value>,
+    pub totp_recovery_codes: Option<Vec<Secret<String>>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
@@ -55,7 +58,7 @@ pub struct UserUpdateInternal {
     preferred_merchant_id: Option<String>,
     totp_status: Option<TotpStatus>,
     totp_secret: Option<Encryption>,
-    totp_recovery_codes: Option<serde_json::Value>,
+    totp_recovery_codes: Option<Vec<Secret<String>>>,
     last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
@@ -70,7 +73,7 @@ pub enum UserUpdate {
     TotpUpdate {
         totp_status: Option<TotpStatus>,
         totp_secret: Option<Encryption>,
-        totp_recovery_codes: Option<serde_json::Value>,
+        totp_recovery_codes: Option<Vec<Secret<String>>>,
     },
     PasswordUpdate {
         password: Option<Secret<String>>,

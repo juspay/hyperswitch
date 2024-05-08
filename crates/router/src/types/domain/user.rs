@@ -6,7 +6,7 @@ use api_models::{
 use common_enums::TokenPurpose;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
-    enums::UserStatus,
+    enums::{UserStatus, TotpStatus},
     organization as diesel_org,
     organization::Organization,
     user as storage_user,
@@ -874,31 +874,40 @@ impl UserFromStorage {
             .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
             .await;
 
-        match key_store_result {
-            Ok(key_store) => Ok(key_store),
-            Err(e) => {
-                if e.current_context().is_db_not_found() {
-                    let key = services::generate_aes256_key()
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable("Unable to generate aes 256 key")?;
+        if let Ok(key_store) = key_store_result {
+            Ok(key_store)
+        } else if key_store_result
+            .as_ref()
+            .map_err(|e| e.current_context().is_db_not_found())
+            .err()
+            .unwrap_or(false)
+        {
+            let key = services::generate_aes256_key()
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to generate aes 256 key")?;
 
-                    let key_store = UserKeyStore {
-                        user_id: self.get_user_id().to_string(),
-                        key: domain_types::encrypt(key.to_vec().into(), master_key)
-                            .await
-                            .change_context(UserErrors::InternalServerError)?,
-                        created_at: common_utils::date_time::now(),
-                    };
-                    state
-                        .store
-                        .insert_user_key_store(key_store, &master_key.to_vec().into())
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                } else {
-                    Err(e.change_context(UserErrors::InternalServerError))
-                }
-            }
+            let key_store = UserKeyStore {
+                user_id: self.get_user_id().to_string(),
+                key: domain_types::encrypt(key.to_vec().into(), master_key)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?,
+                created_at: common_utils::date_time::now(),
+            };
+            state
+                .store
+                .insert_user_key_store(key_store, &master_key.to_vec().into())
+                .await
+                .change_context(UserErrors::InternalServerError)
+        } else {
+            Err(key_store_result
+                .err()
+                .map(|e| e.change_context(UserErrors::InternalServerError))
+                .unwrap_or(UserErrors::InternalServerError.into()))
         }
+    }
+
+    pub fn get_totp_status(&self) -> TotpStatus {
+        self.0.totp_status
     }
 }
 
@@ -1089,13 +1098,12 @@ impl RecoveryCodes {
         Self(recovery_codes)
     }
 
-    pub fn get_hashed(&self) -> UserResult<Self> {
+    pub fn get_hashed(&self) -> UserResult<Vec<Secret<String>>> {
         self.0
-            .clone()
             .iter()
-            .map(|code| password::generate_password_hash(code.clone()))
+            .cloned()
+            .map(password::generate_password_hash)
             .collect::<Result<Vec<_>, _>>()
-            .map(Self)
     }
 
     pub fn into_inner(self) -> Vec<Secret<String>> {

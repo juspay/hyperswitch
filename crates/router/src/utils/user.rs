@@ -206,9 +206,9 @@ pub fn generate_default_totp(
 
     TOTP::new(
         Algorithm::SHA1,
-        6,
-        1,
-        30,
+        consts::user::TOTP_DIGITS,
+        consts::user::TOTP_TOLERANCE,
+        consts::user::TOTP_VALIDITY_DURATION_IN_SECONDS,
         secret,
         Some(consts::user::TOTP_ISSUER_NAME.to_string()),
         email.expose().expose(),

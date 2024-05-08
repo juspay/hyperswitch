@@ -1,5 +1,4 @@
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
-use common_utils::ext_traits::Encode;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -1598,7 +1597,7 @@ pub async fn begin_totp(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if user_from_db.0.totp_status == TotpStatus::Set {
+    if user_from_db.get_totp_status() == TotpStatus::Set {
         return Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
             secret: None,
         }));
@@ -1627,8 +1626,7 @@ pub async fn begin_totp(
                 ),
                 totp_recovery_codes: Some(
                     recovery_codes
-                        .get_hashed()?
-                        .encode_to_value()
+                        .get_hashed()
                         .change_context(UserErrors::InternalServerError)?,
                 ),
             },

@@ -1206,7 +1206,7 @@ diesel::table! {
         preferred_merchant_id -> Nullable<Varchar>,
         totp_status -> TotpStatus,
         totp_secret -> Nullable<Bytea>,
-        totp_recovery_codes -> Nullable<Jsonb>,
+        totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
     }
 }
