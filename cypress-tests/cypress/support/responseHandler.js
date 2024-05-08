@@ -1,18 +1,21 @@
 // ResponseHandler will contain all the response handling functions that can be used across the tests
+import { globalStateSetter } from "./commands";
 
 // pre-defined granular constant expected values
 const validateContentType = function (response) { expect(response.headers["content-type"]).to.include("application/json"); }
-const validateExistenceOfMerchantId = function (merchantId) { expect(merchantId).to.equal(globalState.get("merchant_id")).and.not.empty; }
-const validateCustomerId = function (customerId) { expect(customerId).to.equal(globalState.get("customerId")).and.not.empty; }
-const validateConnectorName = function (connectorName) { expect(connectorName).to.equal(globalState.get("connectorId")).and.not.empty; }
-const validatePaymentId = function (body) { expect(body).to.have.property("payment_id").equal(globalState.get("payment_id")); }
-const valdiateAmount = function (amount) { expect(amount).to.equal(response.body.amount).to.equal(response.body.amount_capturable); }
+const validateExistenceOfMerchantId = function (globalState, merchantId) { expect(merchantId).to.equal(globalState.get("merchant_id")).and.not.empty; }
+const validateCustomerId = function (globalState, customerId) { expect(customerId).to.equal(globalState.get("customerId")).and.not.empty; }
+const validateConnectorName = function (globalState, connectorName) { expect(connectorName).to.equal(globalState.get("connectorId")).and.not.empty; }
+const validatePaymentId = function (globalState, response) { expect(response.body).to.have.property("payment_id").equal(globalState.get("payment_id")); }
+const valdiateAmount = function (amount, response) { expect(amount).to.equal(response.body.amount).to.equal(response.body.amount_capturable); }
 const validateAmountToCapture = function (request, response) { expect(response.body.amount).to.equal(request.amount_to_capture).to.equal(request.amount); }
-const validateExistenceOfClientSecret = function (body) { expect(body).to.have.property("client_secret"); }
-const validateExistenceOfRedirectUrl = function (body) { expect(body).to.have.property("next_action").to.have.property("redirect_url"); }
-const valdiateExistenceOfPaymentMethods = function (body) { expect(body).to.have.property("payment_methods"); };
-const validatePaymentToken = function (paymentToken) { expect(globalState.get("paymentToken")).to.equal(paymentToken); }
-const validateReceivedAmount = function (amount, body) { expect(amount).to.equal(body.amount_received); };
+const validateExistenceOfClientSecret = function (response) { expect(response.body).to.have.property("client_secret"); }
+const validateExistenceOfRedirectUrl = function (response) { expect(response.body).to.have.property("next_action").to.have.property("redirect_to_url"); }
+const valdiateExistenceOfPaymentMethods = function (response) { expect(response.body).to.have.property("payment_methods"); };
+const validatePaymentToken = function (globalState, paymentToken) { expect(globalState.get("paymentToken")).to.equal(paymentToken); }
+const validatePaymentStatus = function (expectedStatus, response) {
+    expect(response.body.status).to.equal(expectedStatus);
+}
 const validateCapturableAmount = function (request, response) {
     if (response.body.status === "succeeded") {
         expect(response.body.amount_capturable).to.equal(0);
@@ -20,22 +23,22 @@ const validateCapturableAmount = function (request, response) {
         expect(response.body.amount_capturable).to.equal(request.amount);
     }
 }
-const validateAmountReceived = function (request, response) {
+const validateReceivedAmount = function (request, response) {
     switch (response.body.status) {
         case "succeeded":
-            expect(response.body.amount_received).to.equal(request.amount);
+            expect(amount).to.equal(response.body.amount_received);
             break;
         case "processing":
-            expect(response.body.amount_received).to.equal(0);
+            expect(0).to.equal(response.body.amount_received);
             break;
         case "partially_captured":
-            expect(response.body.amount_received).to.equal(request.amount_to_capture);
+            expect(request.amount_to_capture).to.equal(response.body.amount_received);
             break;
         default:
             throw new Error(`Unknown status: ${response.body.status}`);
     }
 }
-const validateCaptureMethod = function (capture_method) {
+const validateCaptureMethod = function (capture_method, response) {
     switch (capture_method) {
         case "automatic":
             expect(response.body.capture_method).to.equal("automatic");
@@ -49,7 +52,7 @@ const validateCaptureMethod = function (capture_method) {
             throw new Error(`Unknown capture method: ${capture_method}`);
     }
 };
-const validateResponseStatus = function (status) {
+const validateResponseStatus = function (status, response) {
     switch (status) {
         case "requires_capture":
             expect("requires_capture").to.equal(response.body.status);
@@ -89,12 +92,10 @@ function handleAuthType(response, globalState, setNextActionUrl, details) {
     switch (response.body.authentication_type) {
         case "three_ds":
             if (response.body.capture_method === "automatic" || response.body.capture_method === "manual") {
-                expect(response.body).to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
-
+                validateExistenceOfRedirectUrl(response);
                 if (setNextActionUrl) {
                     let nextActionUrl = response.body.next_action.redirect_to_url;
-                    globalState.set("nextActionUrl", nextActionUrl);
+                    globalStateSetter(globalState, "nextActionUrl", nextActionUrl);
                     cy.log(response.body);
                     cy.log(nextActionUrl);
                 }
@@ -104,41 +105,41 @@ function handleAuthType(response, globalState, setNextActionUrl, details) {
             break;
         case "no_three_ds":
             if (response.body.capture_method === "automatic") {
-                expect(details.paymentSuccessfulStatus).to.equal(response.body.status);
-                expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+                validatePaymentStatus(details.paymentSuccessfulStatus, response);
+                validateCustomerId(globalState, response.body.customer_id);
             } else if (response.body.capture_method === "manual") {
-                expect("requires_capture").to.equal(response.body.status);
-                expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+                validatePaymentStatus("requires_capture", response);
+                validateCustomerId(globalState, response.body.customer_id);
             } else {
-                throw new Error(`Unsupported capture method: ${capture_method}`);
+                throw new Error(`Unsupported capture method: ${response.body.capture_method}`);
             }
             break;
         default:
-            throw new Error(`Unsupported authentication type: ${authentication_type}`);
+            throw new Error(`Unsupported authentication type: ${response.body.authentication_type}`);
     }
 }
 
 export function responseHandler() {
-
+    // To be implemented
 }
 
 module.exports = {
-    validateContentType,
-    validateExistenceOfMerchantId,
-    validateCustomerId,
-    validateConnectorName,
-    validatePaymentId,
+    handleAuthType,
+    logRequestId,
     valdiateAmount,
-    validateCapturableAmount,
     validateAmountToCapture,
-    validateAmountReceived,
+    validateCapturableAmount,
+    validateCaptureMethod,
+    validateConnectorName,
+    validateContentType,
+    validateCustomerId,
     validateExistenceOfClientSecret,
-    validateExistenceOfRedirectUrl,
+    validateExistenceOfMerchantId,
     valdiateExistenceOfPaymentMethods,
+    validateExistenceOfRedirectUrl,
+    validatePaymentId,
+    validatePaymentStatus,
     validatePaymentToken,
     validateReceivedAmount,
-    validateCaptureMethod,
     validateResponseStatus,
-    logRequestId,
-    handleAuthType
 };

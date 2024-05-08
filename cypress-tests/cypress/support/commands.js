@@ -28,7 +28,7 @@
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleAuthType, logRequestId } from "./responseHandler";
 
-export function globalStateSetter(key, value) {
+export function globalStateSetter(globalState, key, value) {
   globalState.set(key, value);
 }
 
