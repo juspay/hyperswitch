@@ -163,6 +163,102 @@ impl
     // Not Implemented (R)
 }
 
+// impl
+//     services::ConnectorIntegrationNew<
+//         types::PaymentFlowData<api::PSync>,
+//         types::PaymentsSyncData,
+//         types::PaymentsResponseData,
+//     > for Aci
+// {
+//     fn get_headers(
+//         &self,
+//         req: &types::PaymentsSyncRouterDataNew,
+//         _connectors: &settings::Connectors,
+//     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+//         let mut header = vec![(
+//             headers::CONTENT_TYPE.to_string(),
+//             types::PaymentsSyncTypeNew::get_content_type(self)
+//                 .to_string()
+//                 .into(),
+//         )];
+//         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+//         header.append(&mut api_key);
+//         Ok(header)
+//     }
+
+//     fn get_content_type(&self) -> &'static str {
+//         self.common_get_content_type()
+//     }
+
+//     fn get_url(
+//         &self,
+//         req: &types::PaymentsSyncRouterDataNew,
+//         connectors: &settings::Connectors,
+//     ) -> CustomResult<String, errors::ConnectorError> {
+//         let auth = aci::AciAuthType::try_from(&req.connector_auth_type)?;
+//         Ok(format!(
+//             "{}{}{}{}{}",
+//             self.base_url(connectors),
+//             "v1/payments/",
+//             req.request
+//                 .connector_transaction_id
+//                 .get_connector_transaction_id()
+//                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+//             "?entityId=",
+//             auth.entity_id.peek()
+//         ))
+//     }
+
+//     fn build_request_new(
+//         &self,
+//         req: &types::PaymentsSyncRouterDataNew,
+//         connectors: &settings::Connectors,
+//     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+//         Ok(Some(
+//             services::RequestBuilder::new()
+//                 .method(services::Method::Get)
+//                 .url(&types::PaymentsSyncTypeNew::get_url(self, req, connectors)?)
+//                 .attach_default_headers()
+//                 .headers(types::PaymentsSyncTypeNew::get_headers(
+//                     self, req, connectors,
+//                 )?)
+//                 .build(),
+//         ))
+//     }
+
+//     fn handle_response_new(
+//         &self,
+//         data: &types::PaymentsSyncRouterDataNew,
+//         event_builder: Option<&mut ConnectorEvent>,
+//         res: types::Response,
+//     ) -> CustomResult<types::PaymentsSyncRouterDataNew, errors::ConnectorError>
+//     where
+//         types::PaymentsSyncData: Clone,
+//         types::PaymentsResponseData: Clone,
+//     {
+//         let response: aci::AciPaymentsResponse =
+//             res.response
+//                 .parse_struct("AciPaymentsResponse")
+//                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+//         event_builder.map(|i| i.set_response_body(&response));
+//         router_env::logger::info!(connector_response=?response);
+//         types::RouterDataNew::try_from(types::ResponseRouterDataNew {
+//             response,
+//             data: data.clone(),
+//             http_code: res.status_code,
+//         })
+//         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+//     }
+
+//     fn get_error_response_new(
+//         &self,
+//         res: types::Response,
+//         event_builder: Option<&mut ConnectorEvent>,
+//     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+//         self.build_error_response(res, event_builder)
+//     }
+// }
+
 impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Aci

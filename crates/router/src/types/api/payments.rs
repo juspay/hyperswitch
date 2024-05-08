@@ -131,86 +131,149 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 
 pub trait PaymentAuthorize:
     api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<Authorize>,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentSync:
     api::ConnectorIntegration<PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<PSync>,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentVoid:
     api::ConnectorIntegration<Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<Void>,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentApprove:
     api::ConnectorIntegration<Approve, types::PaymentsApproveData, types::PaymentsResponseData>
+    + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<Approve>,
+        types::PaymentsApproveData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentReject:
     api::ConnectorIntegration<Reject, types::PaymentsRejectData, types::PaymentsResponseData>
+    + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<Reject>,
+        types::PaymentsRejectData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentCapture:
     api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<Capture>,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentSession:
     api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<Session>,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait MandateSetup:
-    api::ConnectorIntegration<SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>
+    api::ConnectorIntegration<
+        SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<SetupMandate>,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentIncrementalAuthorization:
     api::ConnectorIntegration<
-    IncrementalAuthorization,
-    types::PaymentsIncrementalAuthorizationData,
-    types::PaymentsResponseData,
->
+        IncrementalAuthorization,
+        types::PaymentsIncrementalAuthorizationData,
+        types::PaymentsResponseData,
+    > + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<IncrementalAuthorization>,
+        types::PaymentsIncrementalAuthorizationData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentsCompleteAuthorize:
     api::ConnectorIntegration<
-    CompleteAuthorize,
-    types::CompleteAuthorizeData,
-    types::PaymentsResponseData,
->
+        CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<CompleteAuthorize>,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentToken:
     api::ConnectorIntegration<
-    PaymentMethodToken,
-    types::PaymentMethodTokenizationData,
-    types::PaymentsResponseData,
->
+        PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<PaymentMethodToken>,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait ConnectorCustomer:
     api::ConnectorIntegration<
-    CreateConnectorCustomer,
-    types::ConnectorCustomerData,
-    types::PaymentsResponseData,
->
+        CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<CreateConnectorCustomer>,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    >
 {
 }
 
 pub trait PaymentsPreProcessing:
     api::ConnectorIntegration<
-    PreProcessing,
-    types::PaymentsPreProcessingData,
-    types::PaymentsResponseData,
->
+        PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > + api::ConnectorIntegrationNew<
+        types::PaymentFlowData<PreProcessing>,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    >
 {
 }
 

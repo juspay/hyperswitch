@@ -801,6 +801,72 @@ impl<F, T>
     }
 }
 
+// impl<F, T>
+//     TryFrom<
+//         types::ResponseRouterDataNew<
+//             types::PaymentFlowData<F>,
+//             AciPaymentsResponse,
+//             T,
+//             types::PaymentsResponseData,
+//         >,
+//     > for types::RouterDataNew<types::PaymentFlowData<F>, T, types::PaymentsResponseData>
+// {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(
+//         item: types::ResponseRouterDataNew<
+//             types::PaymentFlowData<F>,
+//             AciPaymentsResponse,
+//             T,
+//             types::PaymentsResponseData,
+//         >,
+//     ) -> Result<Self, Self::Error> {
+//         let redirection_data = item.response.redirect.map(|data| {
+//             let form_fields = std::collections::HashMap::<_, _>::from_iter(
+//                 data.parameters
+//                     .iter()
+//                     .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
+//             );
+
+//             // If method is Get, parameters are appended to URL
+//             // If method is post, we http Post the method to URL
+//             services::RedirectForm::Form {
+//                 endpoint: data.url.to_string(),
+//                 // Handles method for Bank redirects currently.
+//                 // 3DS response have method within preconditions. That would require replacing below line with a function.
+//                 method: data.method.unwrap_or(services::Method::Post),
+//                 form_fields,
+//             }
+//         });
+
+//         let mandate_reference = item
+//             .response
+//             .registration_id
+//             .map(|id| types::MandateReference {
+//                 connector_mandate_id: Some(id.expose()),
+//                 payment_method_id: None,
+//             });
+//         let mut payment_flow_data = item.data.flow_specific_data;
+//         payment_flow_data.status = if redirection_data.is_some() {
+//             enums::AttemptStatus::from(AciPaymentStatus::RedirectShopper)
+//         } else {
+//             enums::AttemptStatus::from(AciPaymentStatus::from_str(&item.response.result.code)?)
+//         };
+//         Ok(Self {
+//             flow_specific_data: payment_flow_data,
+//             response: Ok(types::PaymentsResponseData::TransactionResponse {
+//                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+//                 redirection_data,
+//                 mandate_reference,
+//                 connector_metadata: None,
+//                 network_txn_id: None,
+//                 connector_response_reference_id: Some(item.response.id),
+//                 incremental_authorization_allowed: None,
+//             }),
+//             ..item.data
+//         })
+//     }
+// }
+
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {

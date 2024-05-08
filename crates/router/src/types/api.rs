@@ -47,7 +47,10 @@ use crate::{
         payments::types as payments_types,
     },
     events::connector_api_logs::ConnectorEvent,
-    services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
+    services::{
+        request, ConnectorIntegration, ConnectorIntegrationNew, ConnectorRedirectResponse,
+        ConnectorValidation,
+    },
     types::{self, api::enums as api_enums},
 };
 
@@ -158,6 +161,20 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     fn build_headers(
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        Ok(Vec::new())
+    }
+}
+
+/// Extended trait for connector common to allow functions with generic type
+pub trait ConnectorCommonExtNew<Flow, Req, Resp>:
+    ConnectorCommon + ConnectorIntegrationNew<Flow, Req, Resp>
+{
+    /// common header builder when every request for the connector have same headers
+    fn build_headers(
+        &self,
+        _req: &types::RouterDataNew<Flow, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())

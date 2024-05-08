@@ -5,7 +5,7 @@
 // Is it better to split data types according to business logic instead.
 // For example, customers/address/dispute/mandate is "models".
 // Separation of concerns instead of separation of forms.
-
+use std::ops::Deref;
 pub mod api;
 pub mod authentication;
 pub mod domain;
@@ -58,6 +58,8 @@ pub type PaymentsInitRouterData =
 pub type PaymentsBalanceRouterData =
     RouterData<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsSyncRouterDataNew =
+    RouterDataNew<PaymentFlowData<api::PSync>, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
@@ -149,6 +151,11 @@ pub type PaymentsBalanceType =
     dyn services::ConnectorIntegration<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsSyncTypeNew = dyn services::ConnectorIntegrationNew<
+    PaymentFlowData<api::PSync>,
+    PaymentsSyncData,
+    PaymentsResponseData,
+>;
 pub type PaymentsCaptureType =
     dyn services::ConnectorIntegration<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsSessionType =
@@ -328,6 +335,79 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentFlowData<Flow> {
+    pub flow: PhantomData<Flow>,
+    pub merchant_id: String,
+    pub customer_id: Option<String>,
+    pub connector_customer: Option<String>,
+    pub payment_id: String,
+    pub attempt_id: String,
+    pub status: storage_enums::AttemptStatus,
+    pub payment_method: storage_enums::PaymentMethod,
+    pub description: Option<String>,
+    pub return_url: Option<String>,
+    pub address: PaymentAddress,
+    pub auth_type: storage_enums::AuthenticationType,
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+    pub amount_captured: Option<i64>,
+    pub access_token: Option<AccessToken>,
+    pub session_token: Option<String>,
+    pub reference_id: Option<String>,
+    pub payment_method_token: Option<PaymentMethodToken>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
+    pub preprocessing_id: Option<String>,
+    /// This is the balance amount for gift cards or voucher
+    pub payment_method_balance: Option<PaymentMethodBalance>,
+
+    ///for switching between two different versions of the same connector
+    pub connector_api_version: Option<String>,
+    /// Contains a reference ID that should be sent in the connector request
+    pub connector_request_reference_id: String,
+
+    #[cfg(feature = "payouts")]
+    /// Contains payout method data
+    pub payout_method_data: Option<api::PayoutMethodData>,
+
+    #[cfg(feature = "payouts")]
+    /// Contains payout's quote ID
+    pub quote_id: Option<String>,
+
+    pub test_mode: Option<bool>,
+    pub connector_http_status_code: Option<u16>,
+    pub external_latency: Option<u128>,
+    /// Contains apple pay flow type simplified or manual
+    pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
+
+    pub frm_metadata: Option<serde_json::Value>,
+
+    pub dispute_id: Option<String>,
+    pub refund_id: Option<String>,
+
+    /// This field is used to store various data regarding the response from connector
+    pub connector_response: Option<ConnectorResponseData>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+}
+#[derive(Debug, Clone)]
+pub struct RouterDataNew<FlowSpecificData, Request, Response> {
+    pub flow_specific_data: FlowSpecificData,
+    pub connector_auth_type: ConnectorAuthType,
+    pub connector: String,
+    /// Contains flow-specific data required to construct a request and send it to the connector.
+    pub request: Request,
+
+    /// Contains flow-specific data that the connector responds with.
+    pub response: Result<Response, ErrorResponse>,
+}
+impl<FlowSpecificData, Request, Response> Deref
+    for RouterDataNew<FlowSpecificData, Request, Response>
+{
+    type Target = FlowSpecificData;
+    fn deref(&self) -> &Self::Target {
+        &self.flow_specific_data
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -1211,6 +1291,12 @@ pub struct ConnectorResponse {
 pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub response: R,
     pub data: RouterData<Flow, Request, Response>,
+    pub http_code: u16,
+}
+
+pub struct ResponseRouterDataNew<Flow, R, Request, Response> {
+    pub response: R,
+    pub data: RouterDataNew<Flow, Request, Response>,
     pub http_code: u16,
 }
 

@@ -114,6 +114,245 @@ pub trait Feature<F, T> {
     }
 }
 
+macro_rules! default_imp_for_new_payment_connector_integration {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::Authorize>, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::PSync>, types::PaymentsSyncData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::Void>, types::PaymentsCancelData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::Approve>, types::PaymentsApproveData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::Reject>, types::PaymentsRejectData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::Capture>, types::PaymentsCaptureData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::Session>, types::PaymentsSessionData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<types::PaymentFlowData<api::SetupMandate>, types::SetupMandateRequestData, types::PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<
+                types::PaymentFlowData<api::IncrementalAuthorization>,
+                types::PaymentsIncrementalAuthorizationData,
+                types::PaymentsResponseData,
+            >
+            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<
+            types::PaymentFlowData<api::CompleteAuthorize>,
+                types::CompleteAuthorizeData,
+                types::PaymentsResponseData,
+            >            for $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<
+            types::PaymentFlowData<api::PaymentMethodToken>,
+                types::PaymentMethodTokenizationData,
+                types::PaymentsResponseData,
+            > for   $path::$connector{}
+            impl
+            services::ConnectorIntegrationNew<
+            types::PaymentFlowData<api::CreateConnectorCustomer>,
+                types::ConnectorCustomerData,
+                types::PaymentsResponseData,
+            > for $path::$connector{}
+            impl services::ConnectorIntegrationNew<
+            types::PaymentFlowData<api::PreProcessing>,
+                types::PaymentsPreProcessingData,
+                types::PaymentsResponseData,
+            > for $path::$connector{}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::Authorize>,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::PSync>,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::Void>,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::Approve>,
+        types::PaymentsApproveData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::Reject>,
+        types::PaymentsRejectData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::Capture>,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::Session>,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::SetupMandate>,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::IncrementalAuthorization>,
+        types::PaymentsIncrementalAuthorizationData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::CompleteAuthorize>,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::PaymentMethodToken>,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::CreateConnectorCustomer>,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegrationNew<
+        types::PaymentFlowData<api::PreProcessing>,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_new_payment_connector_integration!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Threedsecureio,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
 macro_rules! default_imp_for_complete_authorize {
     ($($path:ident::$connector:ident),*) => {
         $(
