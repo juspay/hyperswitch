@@ -14,8 +14,8 @@ use crate::user::{
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
     GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
     InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignInWithTokenResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenResponse,
+    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
     UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
@@ -38,6 +38,12 @@ impl ApiEventMetric for VerifyTokenResponse {
     }
 }
 
+impl<T> ApiEventMetric for TokenOrPayloadResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
 common_utils::impl_misc_api_event_type!(
     SignUpRequest,
     SignUpWithMerchantIdRequest,
@@ -54,6 +60,7 @@ common_utils::impl_misc_api_event_type!(
     ConnectAccountRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    RotatePasswordRequest,
     InviteUserRequest,
     ReInviteUserRequest,
     VerifyEmailRequest,
@@ -62,7 +69,6 @@ common_utils::impl_misc_api_event_type!(
     SignInResponse,
     UpdateUserAccountDetailsRequest,
     GetUserDetailsResponse,
-    SignInWithTokenResponse,
     GetUserRoleDetailsRequest,
     GetUserRoleDetailsResponse,
     TokenResponse,

@@ -91,6 +91,11 @@ pub struct ResetPasswordRequest {
     pub password: Secret<String>,
 }
 
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct RotatePasswordRequest {
+    pub password: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct InviteUserRequest {
     pub email: pii::Email,
@@ -227,9 +232,9 @@ pub struct TokenResponse {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum SignInWithTokenResponse {
+pub enum TokenOrPayloadResponse<T> {
     Token(TokenResponse),
-    SignInResponse(SignInResponse),
+    Payload(T),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -64,8 +64,8 @@ pub async fn save_payment_method<FData>(
     key_store: &domain::MerchantKeyStore,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
-    profile_id: Option<String>,
     billing_name: Option<masking::Secret<String>>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -91,21 +91,7 @@ where
 
             let network_transaction_id =
                 if let Some(network_transaction_id) = network_transaction_id {
-                    let profile_id = profile_id
-                        .as_ref()
-                        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-                    let pg_agnostic = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &format!("pg_agnostic_mandate_{}", profile_id),
-                            Some("false".to_string()),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The pg_agnostic config was not found in the DB")?;
-
-                    if &pg_agnostic.config == "true"
+                    if business_profile.is_connector_agnostic_mit_enabled == Some(true)
                         && save_payment_method_data.request.get_setup_future_usage()
                             == Some(storage_enums::FutureUsage::OffSession)
                     {
@@ -219,9 +205,7 @@ where
                 };
 
                 let pm_card_details = resp.card.as_ref().map(|card| {
-                    api::payment_methods::PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
-                        card.clone(),
-                    ))
+                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                 });
 
                 let pm_data_encrypted =
@@ -257,7 +241,7 @@ where
 
                                         match &existing_pm_by_locker_id {
                                             Ok(pm) => {
-                                                payment_method_id = pm.payment_method_id.clone()
+                                                payment_method_id.clone_from(&pm.payment_method_id);
                                             }
                                             Err(_) => {
                                                 payment_method_id =
@@ -365,7 +349,8 @@ where
 
                                             match &existing_pm_by_locker_id {
                                                 Ok(pm) => {
-                                                    payment_method_id = pm.payment_method_id.clone()
+                                                    payment_method_id
+                                                        .clone_from(&pm.payment_method_id);
                                                 }
                                                 Err(_) => {
                                                     payment_method_id =
@@ -578,7 +563,7 @@ async fn skip_saving_card_in_locker(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+    let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
 
     let last4_digits = payment_method_request
         .card
@@ -630,7 +615,7 @@ async fn skip_saving_card_in_locker(
             Ok((pm_resp, None))
         }
         None => {
-            let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+            let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
                 customer_id: Some(customer_id),
@@ -680,7 +665,7 @@ pub async fn save_in_locker(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed"),
         None => {
-            let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+            let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
                 customer_id: Some(customer_id),
@@ -746,18 +731,12 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
                 Err(types::ErrorResponse::default());
 
-            let mut pm_token_router_data = payments::helpers::router_data_type_conversion::<
-                _,
-                api::PaymentMethodToken,
-                _,
-                _,
-                _,
-                _,
-            >(
-                router_data.clone(),
-                pm_token_request_data,
-                pm_token_response_data,
-            );
+            let mut pm_token_router_data =
+                helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
+                    router_data.clone(),
+                    pm_token_request_data,
+                    pm_token_response_data,
+                );
 
             connector_integration
                 .execute_pretasks(&mut pm_token_router_data, state)

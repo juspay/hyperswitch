@@ -608,7 +608,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
@@ -631,7 +631,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
