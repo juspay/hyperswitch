@@ -403,15 +403,13 @@ services:
       - router_net
 
   vector:
-    image: timberio/vector:latest-debian
+    image: lsampras/vector:latest
     ports:
       - "8686:8686"
     networks:
       - router_net
     volumes:
       - ./docker/vector/vector.yaml:/etc/vector/vector.yaml
-      - ./docker/lua/usr-local-lib-lua/:/usr/local/lib/lua/5.4/
-      - ./docker/lua/usr-local-share-lua/:/usr/local/share/lua/5.4/
 
   cassandra:
     image: cassandra:latest
