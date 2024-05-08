@@ -1238,7 +1238,11 @@ impl User {
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
-                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(
+                    web::resource("/invite/accept")
+                        .route(web::post().to(merchant_select))
+                        .route(web::put().to(accept_invitation)),
+                )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
                 .service(
                     web::resource("/transfer_ownership")

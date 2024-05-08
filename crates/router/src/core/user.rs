@@ -774,7 +774,8 @@ async fn handle_new_user_invitation(
         // Will be adding actual usage for this variable later
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
-        let email_contents: Box<dyn EmailData + Send + 'static> = if let Some(true) = is_token_only {
+        let email_contents: Box<dyn EmailData + Send + 'static> = if let Some(true) = is_token_only
+        {
             Box::new(email_types::InviteRegisteredUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
