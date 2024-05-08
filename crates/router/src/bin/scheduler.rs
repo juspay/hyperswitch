@@ -40,7 +40,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
             conf.proxy.clone(),
             services::proxy_bypass_urls(&conf.locker),
         )
-        .change_context(errors::ProcessTrackerError::ConfigurationError)?,
+        .change_context(ProcessTrackerError::ConfigurationError)?,
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
@@ -320,7 +320,7 @@ async fn start_scheduler(
         .conf
         .scheduler
         .clone()
-        .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
+        .ok_or(ProcessTrackerError::ConfigurationError)?;
     scheduler::start_process_tracker(
         state,
         scheduler_flow,

@@ -44,8 +44,7 @@ impl SPTFlow {
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
             Self::VerifyEmail => Ok(user.0.is_verified),
             // Final Checks
-            // TODO: this should be based on last_password_modified_at as a placeholder using false
-            Self::ForceSetPassword => Ok(false),
+            Self::ForceSetPassword => user.is_password_rotate_required(state),
             Self::MerchantSelect => user
                 .get_roles_from_db(state)
                 .await
@@ -159,8 +158,9 @@ const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
+const RESET_PASSWORD_FLOW: [UserFlow; 3] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::ResetPassword),
 ];
 
@@ -286,7 +286,8 @@ impl From<SPTFlow> for TokenPurpose {
             SPTFlow::VerifyEmail => Self::VerifyEmail,
             SPTFlow::AcceptInvitationFromEmail => Self::AcceptInvitationFromEmail,
             SPTFlow::MerchantSelect => Self::AcceptInvite,
-            SPTFlow::ResetPassword | SPTFlow::ForceSetPassword => Self::ResetPassword,
+            SPTFlow::ResetPassword => Self::ResetPassword,
+            SPTFlow::ForceSetPassword => Self::ForceSetPassword,
         }
     }
 }

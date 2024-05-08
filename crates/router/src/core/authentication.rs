@@ -9,7 +9,7 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
-use super::errors::{self, StorageErrorExt};
+use super::errors::StorageErrorExt;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
@@ -23,10 +23,10 @@ pub async fn perform_authentication(
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
-    billing_address: api_models::payments::Address,
-    shipping_address: Option<api_models::payments::Address>,
+    billing_address: payments::Address,
+    shipping_address: Option<payments::Address>,
     browser_details: Option<core_types::BrowserInformation>,
-    business_profile: core_types::storage::BusinessProfile,
+    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<i64>,
     currency: Option<Currency>,
@@ -35,10 +35,10 @@ pub async fn perform_authentication(
     authentication_data: storage::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
-    threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
-) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
+) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
         payment_method_data,
@@ -72,13 +72,13 @@ pub async fn perform_authentication(
             status_code: err.status_code,
             reason: err.reason,
         })?;
-    core_types::api::authentication::AuthenticationResponse::try_from(authentication)
+    api::authentication::AuthenticationResponse::try_from(authentication)
 }
 
 pub async fn perform_post_authentication(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: core_types::storage::BusinessProfile,
+    business_profile: storage::BusinessProfile,
     authentication_id: String,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
@@ -96,7 +96,7 @@ pub async fn perform_post_authentication(
             authentication_id.clone(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
     if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
         let router_data = transformers::construct_post_authentication_router_data(
@@ -119,7 +119,7 @@ pub async fn perform_pre_authentication(
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,
-    business_profile: &core_types::storage::BusinessProfile,
+    business_profile: &storage::BusinessProfile,
     acquirer_details: Option<types::AcquirerDetails>,
     payment_id: Option<String>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
@@ -135,7 +135,7 @@ pub async fn perform_pre_authentication(
         payment_id,
         three_ds_connector_account
             .get_mca_id()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while finding mca_id from merchant_connector_account")?,
     )
     .await?;
