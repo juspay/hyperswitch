@@ -3,6 +3,7 @@ version: "3.8"
 volumes:
   pg_data:
   redisinsight_store:
+  ckh_data:
 
 networks:
   router_net:
@@ -121,6 +122,39 @@ services:
         condition: service_started
     labels:
       logs: "promtail"
+
+### Web Client
+  hyperswitch-web:
+    ports:
+      - "9050:9050"
+      - "9060:9060"
+      - "5252:5252"
+    build:
+      context: ./docker
+      dockerfile: web.Dockerfile
+    environment:
+      - HYPERSWITCH_PUBLISHABLE_KEY=$HYPERSWITCH_PUBLISHABLE_KEY
+      - HYPERSWITCH_SECRET_KEY=$HYPERSWITCH_SECRET_KEY
+      - HYPERSWITCH_SERVER_URL=${HYPERSWITCH_SERVER_URL:-http://hyperswitch-server:8080}
+      - HYPERSWITCH_CLIENT_URL=${HYPERSWITCH_CLIENT_URL:-http://localhost:9050}
+      - SELF_SERVER_URL=${SELF_SERVER_URL:-http://localhost:5252}
+      - SDK_ENV=${SDK_ENV:-local}
+      - ENV_SDK_URL=${ENV_SDK_URL:-http://localhost:9050}
+      - ENV_BACKEND_URL=${ENV_BACKEND_URL:-http://localhost:8080}
+      - ENV_LOGGING_URL=${ENV_LOGGING_URL:-http://localhost:3100}
+    labels:  
+      logs: "promtail"  
+
+  ### Control Center
+  hyperswitch-control-center:
+    image: juspaydotin/hyperswitch-control-center:latest
+    ports:
+      - "9000:9000"
+    environment:
+      - apiBaseUrl=http://localhost:8080
+      - sdkBaseUrl=http://localhost:9050/HyperLoader.js
+    labels:  
+      logs: "promtail" 
 
   ### Clustered Redis setup
   redis-cluster:
@@ -321,12 +355,14 @@ services:
       KAFKA_CLUSTERS_0_JMXPORT: 9997
 
   clickhouse-server:
-    image: clickhouse/clickhouse-server:23.5
+    image: clickhouse/clickhouse-server:24.3
     networks:
       - router_net
     ports:
       - "9000"
       - "8123:8123"
+    volumes:
+      - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
     profiles:
       - analytics
     ulimits:

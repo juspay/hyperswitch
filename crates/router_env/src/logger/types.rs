@@ -210,8 +210,6 @@ pub enum Flow {
     RoutingRetrieveConfig,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
-    /// Update connector agnostic mandate config
-    CreateConnectorAgnosticMandateConfig,
     /// Routing retrieve default config
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
@@ -362,6 +360,8 @@ pub enum Flow {
     ForgotPassword,
     /// Reset password using link
     ResetPassword,
+    /// Force set or force change password
+    RotatePassword,
     /// Invite multiple users
     InviteMultipleUser,
     /// Reinvite user
@@ -406,6 +406,8 @@ pub enum Flow {
     RetrievePollStatus,
     /// Toggles the extended card info feature in profile level
     ToggleExtendedCardInfo,
+    /// Toggles the extended card info feature in profile level
+    ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
     GetExtendedCardInfo,
 }
