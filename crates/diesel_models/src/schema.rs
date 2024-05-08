@@ -195,6 +195,7 @@ diesel::table! {
         is_extended_card_info_enabled -> Nullable<Bool>,
         extended_card_info_config -> Nullable<Jsonb>,
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
+        use_billing_as_payment_method_billing -> Nullable<Bool>,
     }
 }
 

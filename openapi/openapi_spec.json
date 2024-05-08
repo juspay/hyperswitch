@@ -6668,6 +6668,11 @@
               }
             ],
             "nullable": true
+          },
+          "use_billing_as_payment_method_billing": {
+            "type": "boolean",
+            "description": "Whether to use the billing details passed when creating the intent as payment method billing",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -6786,6 +6791,10 @@
                 "$ref": "#/components/schemas/AuthenticationConnectorDetails"
               }
             ],
+            "nullable": true
+          },
+          "use_billing_as_payment_method_billing": {
+            "type": "boolean",
             "nullable": true
           }
         }
