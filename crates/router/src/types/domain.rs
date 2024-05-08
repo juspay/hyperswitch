@@ -9,7 +9,6 @@ pub mod payments;
 pub mod types;
 #[cfg(feature = "olap")]
 pub mod user;
-#[cfg(feature = "olap")]
 pub mod user_key_store;
 
 pub use address::*;
@@ -21,5 +20,4 @@ pub use merchant_key_store::*;
 pub use payments::*;
 #[cfg(feature = "olap")]
 pub use user::*;
-#[cfg(feature = "olap")]
 pub use user_key_store::*;
