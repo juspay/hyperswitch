@@ -614,7 +614,7 @@ pub async fn user_from_email(
 }
 
 pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::TOTPBegin;
+    let flow = Flow::TotpBegin;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),

@@ -4,7 +4,6 @@ use masking::Secret;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
-use super::KafkaStore;
 use crate::{
     connection,
     core::errors,
@@ -118,30 +117,5 @@ impl UserKeyStoreInterface for MockDb {
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
-    }
-}
-
-#[async_trait::async_trait]
-impl UserKeyStoreInterface for KafkaStore {
-    #[instrument(skip_all)]
-    async fn insert_user_key_store(
-        &self,
-        user_key_store: domain::UserKeyStore,
-        key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
-        self.diesel_store
-            .insert_user_key_store(user_key_store, key)
-            .await
-    }
-
-    #[instrument(skip_all)]
-    async fn get_user_key_store_by_user_id(
-        &self,
-        user_id: &str,
-        key: &Secret<Vec<u8>>,
-    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
-        self.diesel_store
-            .get_user_key_store_by_user_id(user_id, key)
-            .await
     }
 }

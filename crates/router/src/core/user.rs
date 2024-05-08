@@ -1590,7 +1590,7 @@ pub async fn user_from_email(
 pub async fn begin_totp(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
-) -> UserResponse<user_api::BeginTOTPResponse> {
+) -> UserResponse<user_api::BeginTotpResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_id(&user_token.user_id)
@@ -1599,7 +1599,7 @@ pub async fn begin_totp(
         .into();
 
     if user_from_db.0.totp_status == TotpStatus::Set {
-        return Ok(ApplicationResponse::Json(user_api::BeginTOTPResponse {
+        return Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
             secret: None,
         }));
     }
@@ -1636,8 +1636,8 @@ pub async fn begin_totp(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    Ok(ApplicationResponse::Json(user_api::BeginTOTPResponse {
-        secret: Some(user_api::TOTPSecret {
+    Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
+        secret: Some(user_api::TotpSecret {
             secret: totp.get_secret_base32().into(),
             totp_url: totp.get_url().into(),
             recovery_codes: recovery_codes.into_inner(),

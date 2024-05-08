@@ -242,12 +242,12 @@ pub struct UserFromEmailRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct BeginTOTPResponse {
-    pub secret: Option<TOTPSecret>,
+pub struct BeginTotpResponse {
+    pub secret: Option<TotpSecret>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct TOTPSecret {
+pub struct TotpSecret {
     pub secret: Secret<String>,
     pub totp_url: Secret<String>,
     pub recovery_codes: Vec<Secret<String>>,

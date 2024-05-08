@@ -10,7 +10,7 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTOTPResponse, ChangePasswordRequest,
+    AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
     ConnectAccountRequest, CreateInternalUserRequest, DashboardEntryResponse,
     ForgotPasswordRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
     GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
@@ -74,7 +74,7 @@ common_utils::impl_misc_api_event_type!(
     GetUserRoleDetailsResponse,
     TokenResponse,
     UserFromEmailRequest,
-    BeginTOTPResponse
+    BeginTotpResponse
 );
 
 #[cfg(feature = "dummy_connector")]

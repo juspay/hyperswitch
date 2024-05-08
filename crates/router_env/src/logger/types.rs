@@ -397,7 +397,7 @@ pub enum Flow {
     /// User email flow start
     UserFromEmail,
     /// Begin TOTP
-    TOTPBegin,
+    TotpBegin,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
