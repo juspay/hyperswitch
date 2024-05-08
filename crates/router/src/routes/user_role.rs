@@ -1,5 +1,8 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::user_role::{self as user_role_api, role as role_api};
+use api_models::{
+    user as user_api,
+    user_role::{self as user_role_api, role as role_api},
+};
 use common_enums::TokenPurpose;
 use router_env::Flow;
 
@@ -206,15 +209,23 @@ pub async fn accept_invitation(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<user_role_api::AcceptInvitationRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::AcceptInvitation;
     let payload = json_payload.into_inner();
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload,
-        user_role_core::accept_invitation,
+        |state, user, req_body, _| async move {
+            if let Some(true) = is_token_only {
+                user_role_core::accept_invitation_token_only_flow(state, user, req_body).await
+            } else {
+                user_role_core::accept_invitation(state, user, req_body).await
+            }
+        },
         &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))

@@ -269,6 +269,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url")
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect(details.paymentSuccessfulStatus).to.equal(response.body.status);
@@ -281,6 +282,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url")
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect("requires_capture").to.equal(response.body.status);
