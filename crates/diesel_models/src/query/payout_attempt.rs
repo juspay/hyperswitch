@@ -11,7 +11,7 @@ use error_stack::{report, ResultExt};
 use super::generics;
 use crate::{
     enums,
-    errors::{self, DatabaseError},
+    errors::DatabaseError,
     payout_attempt::{
         PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate, PayoutAttemptUpdateInternal,
     },
@@ -46,7 +46,7 @@ impl PayoutAttempt {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
             result => result,
@@ -98,7 +98,7 @@ impl PayoutAttempt {
         .first()
         .cloned()
         .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
+            report!(DatabaseError::NotFound).attach_printable("Error while updating payout")
         })
     }
 
@@ -119,7 +119,7 @@ impl PayoutAttempt {
         .first()
         .cloned()
         .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
+            report!(DatabaseError::NotFound).attach_printable("Error while updating payout")
         })
     }
 
@@ -161,7 +161,7 @@ impl PayoutAttempt {
             .distinct()
             .get_results_async::<Option<String>>(conn)
             .await
-            .change_context(errors::DatabaseError::Others)
+            .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
             .into_iter()
             .flatten()

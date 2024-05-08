@@ -1,7 +1,3 @@
-use data_models::{
-    errors::StorageError,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntentNew, PaymentIntent},
-};
 use diesel_models::{
     errors::DatabaseError,
     query::user::sample_data as sample_data_queries,
@@ -9,6 +5,10 @@ use diesel_models::{
     user::sample_data::PaymentAttemptBatchNew,
 };
 use error_stack::{Report, ResultExt};
+use hyperswitch_domain_models::{
+    errors::StorageError,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntentNew, PaymentIntent},
+};
 use storage_impl::DataModelExt;
 
 use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};

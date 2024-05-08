@@ -55,9 +55,7 @@ async fn should_only_authorize_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 300,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -72,7 +70,7 @@ async fn should_only_authorize_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -92,9 +90,7 @@ async fn should_capture_authorized_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 301,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -109,9 +105,7 @@ async fn should_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.clone(),
-                ),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id.clone()),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -137,7 +131,7 @@ async fn should_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::CaptureInitiated,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -156,9 +150,7 @@ async fn should_partially_capture_authorized_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 302,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -173,9 +165,7 @@ async fn should_partially_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.clone(),
-                ),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id.clone()),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -201,7 +191,7 @@ async fn should_partially_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::CaptureInitiated,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -220,9 +210,7 @@ async fn should_sync_authorized_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 303,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -237,7 +225,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -256,9 +244,7 @@ async fn should_void_authorized_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 304,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -273,9 +259,7 @@ async fn should_void_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.clone(),
-                ),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id.clone()),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -307,9 +291,7 @@ async fn should_make_payment() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 310,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -323,9 +305,7 @@ async fn should_make_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::CaptureInitiated,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.clone(),
-                ),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id.clone()),
                 encoded_data: None,
                 capture_method: None,
                 ..Default::default()
@@ -347,9 +327,7 @@ async fn should_sync_auto_captured_payment() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 311,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -364,7 +342,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
@@ -402,7 +380,7 @@ async fn should_fail_payment_for_empty_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("").unwrap(),
                     ..utils::CCardType::default().0
                 }),
@@ -425,7 +403,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -448,7 +426,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -470,7 +448,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -493,9 +471,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 307,
-                payment_method_data: types::domain::PaymentMethodData::Card(
-                    get_payment_method_data(),
-                ),
+                payment_method_data: domain::PaymentMethodData::Card(get_payment_method_data()),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),

@@ -198,7 +198,7 @@ impl UserErrors {
             Self::IpAddressParsingFailed => "Something went wrong",
             Self::InvalidMetadataRequest => "Invalid Metadata Request",
             Self::MerchantIdParsingError => "Invalid Merchant Id",
-            Self::ChangePasswordError => "Old and new password cannot be the same",
+            Self::ChangePasswordError => "Old and new password cannot be same",
             Self::InvalidDeleteOperation => "Delete Operation Not Supported",
             Self::MaxInvitationsError => "Maximum invite count per request exceeded",
             Self::RoleNotFound => "Role Not Found",

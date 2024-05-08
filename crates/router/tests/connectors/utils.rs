@@ -8,7 +8,7 @@ use masking::Secret;
 use router::core::utils as core_utils;
 use router::{
     configs::settings::Settings,
-    core::{errors, errors::ConnectorError, payments},
+    core::{errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
     types::{self, storage::enums, AccessToken, PaymentAddress, RouterData},
@@ -57,7 +57,7 @@ pub struct PaymentInfo {
 impl PaymentInfo {
     pub fn with_default_billing_name() -> Self {
         Self {
-            address: Some(types::PaymentAddress::new(
+            address: Some(PaymentAddress::new(
                 None,
                 None,
                 Some(types::api::Address {
@@ -69,6 +69,7 @@ impl PaymentInfo {
                     phone: None,
                     email: None,
                 }),
+                None,
             )),
             ..Default::default()
         }
@@ -215,7 +216,7 @@ pub trait ConnectorActions: Connector {
             }
             tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
         }
-        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
+        Err(ConnectorError::ProcessingStepFailed(None).into())
     }
 
     async fn capture_payment(
@@ -453,7 +454,7 @@ pub trait ConnectorActions: Connector {
             }
             tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
         }
-        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
+        Err(ConnectorError::ProcessingStepFailed(None).into())
     }
 
     #[cfg(feature = "payouts")]
@@ -503,7 +504,6 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
-            payment_method_id: None,
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -524,7 +524,7 @@ pub trait ConnectorActions: Connector {
                 .unwrap(),
             connector_meta_data: info
                 .clone()
-                .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
+                .and_then(|a| a.connector_meta_data.map(Secret::new)),
             amount_captured: None,
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
@@ -903,7 +903,7 @@ impl Default for CCardType {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: Some(masking::Secret::new("nick_name".into())),
+            nick_name: Some(Secret::new("nick_name".into())),
         })
     }
 }
