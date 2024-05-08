@@ -26,7 +26,7 @@ export default function getConnectorDetails(connectorId) {
   return x;
 }
 
-function getValueByKey(jsonObject, key) {
+export function getValueByKey(jsonObject, key) {
   const data = typeof jsonObject === 'string' ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === 'object' && key in data) {
