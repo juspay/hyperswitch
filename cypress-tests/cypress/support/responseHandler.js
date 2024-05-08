@@ -3,27 +3,35 @@ import { globalStateSetter } from "./commands";
 
 // pre-defined granular constant expected values
 const validateContentType = function (response) { expect(response.headers["content-type"]).to.include("application/json"); }
-const validateExistenceOfMerchantId = function (globalState, merchantId) { expect(merchantId).to.equal(globalState.get("merchant_id")).and.not.empty; }
-const validateCustomerId = function (globalState, customerId) { expect(customerId).to.equal(globalState.get("customerId")).and.not.empty; }
-const validateConnectorName = function (globalState, connectorName) { expect(connectorName).to.equal(globalState.get("connectorId")).and.not.empty; }
-const validatePaymentId = function (globalState, response) { expect(response.body).to.have.property("payment_id").equal(globalState.get("payment_id")); }
-const valdiateAmount = function (amount, response) { expect(amount).to.equal(response.body.amount).to.equal(response.body.amount_capturable); }
-const validateAmountToCapture = function (request, response) { expect(response.body.amount).to.equal(request.amount_to_capture).to.equal(request.amount); }
-const validateExistenceOfClientSecret = function (response) { expect(response.body).to.have.property("client_secret"); }
+const validateExistenceOfMerchantId = function (merchantId, responseMerchantId) { expect(responseMerchantId).to.equal(merchantId).and.not.empty; }
+const validateCustomerId = function (customerId, responseCustomerId) { expect(responseCustomerId).to.equal(customerId).and.not.empty; }
+const validateConnectorName = function (connectorName, connectorNameFromGlobalState) { expect(connectorName).to.equal(connectorNameFromGlobalState).and.not.empty; }
+const validatePaymentId = function (response, paymentId) { expect(response.body).to.have.property("payment_id").equal(paymentId); }
+const validateAmount = function (amount, response) { expect(amount).to.equal(response.body.amount); }
+const validateAmountToCapture = function (amount, amount_to_capture) { expect(amount).to.equal(amount_to_capture); }
+const validateExistenceOfClientSecret = function (body) { expect(body).to.have.property("client_secret"); }
 const validateExistenceOfRedirectUrl = function (response) { expect(response.body).to.have.property("next_action").to.have.property("redirect_to_url"); }
+const validateExistenceOfPMRedirectUrl = function (response) { expect(response.body).to.have.property("redirect_url"); }
 const valdiateExistenceOfPaymentMethods = function (response) { expect(response.body).to.have.property("payment_methods"); };
-const validatePaymentToken = function (globalState, paymentToken) { expect(globalState.get("paymentToken")).to.equal(paymentToken); }
+const validatePaymentToken = function (token, paymentToken) { expect(token).to.equal(paymentToken); }
+const validateExistenceOfStatus = function (response) { expect(response.body).to.have.property("status"); }
+const validateExistenceOfMandateId = function (response) { expect(response.body).to.have.property("mandate_id"); }
+const validateMandateStatus = function (status, expectedStatus) { expect(status).to.equal(expectedStatus); }
+const validateMandateReason = function (reason, expectedReason) { expect(reason).to.equal(expectedReason); }
+const validateArrayResponse = function (data) { expect(data).to.be.an("array").and.not.empty; }
 const validatePaymentStatus = function (expectedStatus, status) {
     expect(status).to.equal(expectedStatus);
 }
 const validateCapturableAmount = function (request, response) {
     if (response.body.status === "succeeded") {
         expect(response.body.amount_capturable).to.equal(0);
+    } else if (response.body.status === "partially_captured") {
+        expect(response.body.amount_capturable).to.equal(0);
     } else {
         expect(response.body.amount_capturable).to.equal(request.amount);
     }
 }
-const validateReceivedAmount = function (request, response) {
+const validateReceivedAmount = function (amount, request, response) {
     switch (response.body.status) {
         case "succeeded":
             expect(amount).to.equal(response.body.amount_received);
@@ -33,6 +41,12 @@ const validateReceivedAmount = function (request, response) {
             break;
         case "partially_captured":
             expect(request.amount_to_capture).to.equal(response.body.amount_received);
+            break;
+        case "requires_payment_method":
+            expect(null).to.equal(response.body.amount_received);
+            break;
+        case "cancelled":
+            expect(amount).to.be.oneOf([0, null]);
             break;
         default:
             throw new Error(`Unknown status: ${response.body.status}`);
@@ -52,28 +66,28 @@ const validateCaptureMethod = function (capture_method, response) {
             throw new Error(`Unknown capture method: ${capture_method}`);
     }
 };
-const validateResponseStatus = function (status, response) {
+const validateResponseStatus = function (status, response_status) {
     switch (status) {
         case "requires_capture":
-            expect("requires_capture").to.equal(response.body.status);
+            expect("requires_capture").to.equal(response_status);
             break;
         case "succeeded":
-            expect("succeeded").to.equal(response.body.status);
+            expect("succeeded").to.equal(response_status);
             break;
         case "processing":
-            expect("processing").to.equal(response.body.status);
+            expect("processing").to.equal(response_status);
             break;
         case "partially_captured":
-            expect("partially_captured").to.equal(response.body.status);
+            expect("partially_captured").to.equal(response_status);
             break;
         case "requires_payment_method":
-            expect("requires_payment_method").to.equal(response.body.status);
+            expect("requires_payment_method").to.equal(response_status);
             break;
         case "requires_confirmation":
-            expect("requires_confirmation").to.equal(response.body.status);
+            expect("requires_confirmation").to.equal(response_status);
             break;
         case "cancelled":
-            expect("cancelled").to.equal(response.body.status);
+            expect("cancelled").to.equal(response_status);
             break;
         default:
             throw new Error(`Unknown status: ${status}`);
@@ -106,10 +120,10 @@ function handleAuthType(response, globalState, setNextActionUrl, details) {
         case "no_three_ds":
             if (response.body.capture_method === "automatic") {
                 validatePaymentStatus(details.paymentSuccessfulStatus, response.body.status);
-                validateCustomerId(globalState, response.body.customer_id);
+                validateCustomerId(globalState.get("customerId"), response.body.customer_id);
             } else if (response.body.capture_method === "manual") {
                 validatePaymentStatus("requires_capture", response.body.status);
-                validateCustomerId(globalState, response.body.customer_id);
+                validateCustomerId(globalState.get("customerId"), response.body.customer_id);
             } else {
                 throw new Error(`Unsupported capture method: ${response.body.capture_method}`);
             }
@@ -126,17 +140,23 @@ export function responseHandler() {
 module.exports = {
     handleAuthType,
     logRequestId,
-    valdiateAmount,
+    validateAmount,
     validateAmountToCapture,
+    validateArrayResponse,
     validateCapturableAmount,
     validateCaptureMethod,
     validateConnectorName,
     validateContentType,
     validateCustomerId,
     validateExistenceOfClientSecret,
+    validateExistenceOfMandateId,
     validateExistenceOfMerchantId,
     valdiateExistenceOfPaymentMethods,
+    validateExistenceOfPMRedirectUrl,
     validateExistenceOfRedirectUrl,
+    validateExistenceOfStatus,
+    validateMandateReason,
+    validateMandateStatus,
     validatePaymentId,
     validatePaymentStatus,
     validatePaymentToken,
