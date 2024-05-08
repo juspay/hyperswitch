@@ -26,6 +26,7 @@ transforms:
         "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
         "id_type": "merchant_payment"
       }
+
   cassandra_get_old_event:
     type: lua
     inputs:
@@ -172,34 +173,107 @@ transforms:
       events = push(events, .log);
       . = events
 
-  # split_events:
-  #   type: remap
-  #   inputs:
-  #     - generate_signed_events
-  #   source: >-
-
-sinks:
-  console:
+  consolidate_events_intents:
+    type: remap
     inputs:
       - generate_signed_events
+    source: >-
+      del(.attempts)
+      # .log_type = "intent";
+
+  consolidate_events_attempts:
+    type: remap
+    inputs:
+      - generate_signed_events
+    source: >-
+      . = if exists(.attempts) {
+        map_values(values(object!(.attempts))) -> |a| {
+          attempt = object!(a);
+          del(attempt.refunds);
+          del(attempt.disputes);
+          attempt.sign_flag = .sign_flag;
+          # attempt.log_type = "attempt";
+          attempt
+        }
+      } else {
+        []
+      }
+
+  consolidate_events_refunds:
+    type: remap
+    inputs:
+      - generate_signed_events
+    source: >-
+      . = if exists(.attempts) {
+        flatten(map_values(values(object!(.attempts))) -> |a| {
+          attempt = object!(a);
+          if exists(attempt.refunds) {
+            map_values(values(object!(attempt.refunds))) -> |r| {
+              refund = object!(r);
+              refund.sign_flag = .sign_flag;
+              # refund.log_type = "refund";
+              refund
+            }
+          } else {
+            []
+          }
+        })
+      } else {
+        []
+      }
+
+  consolidate_events_disputes:
+    type: remap
+    inputs:
+      - generate_signed_events
+    source: >-
+      . = if exists(.attempts) {
+        flatten(map_values(values(object!(.attempts))) -> |a| {
+          attempt = object!(a);
+          if exists(attempt.disputes) {
+            map_values(values(object!(attempt.disputes))) -> |d| {
+              dispute = object!(d);
+              dispute.sign_flag = .sign_flag;
+              # dispute.log_type = "dispute";
+              dispute
+            }
+          } else {
+            []
+          }
+        })
+      } else {
+        []
+      }
+
+sinks:
+  console_intents:
+    inputs:
+      - consolidate_events_intents
     target: stdout
     type: console
     encoding:
       codec: json
 
-  # type Metric =
-  #   | TotalCount
-  #   | CountMatchString { key: string, value: string, alias: string }
-  #   | TotalAmount { amount_key: string }
-  #   | TotalAmountMatchString { amount_key: string, key: string, value: string, alias: string };
+  console_attempts:
+    inputs:
+      - consolidate_events_attempts
+    target: stdout
+    type: console
+    encoding:
+      codec: json
 
-  # metrics = [CountTotal, CountMatchString {"status", "charged"}, TotalAmount {"amount"}, TotalAmountMatchString {"amount", "status", "charged"}];
+  console_refunds:
+    inputs:
+      - consolidate_events_refunds
+    target: stdout
+    type: console
+    encoding:
+      codec: json
 
-  # fn metric_name(metric) {
-  #     match metric {
-  #       TotalCount => "count"
-  #       CountMatchString { key: key, value: value, alias: alias } => alias
-  #       TotalAmount => amount
-  #       TotalAmountMatchString { amount_key: amount_key, key: key, value: value, alias: alias } => alias
-  #     }
-  # }
+  console_disputes:
+    inputs:
+      - consolidate_events_disputes
+    target: stdout
+    type: console
+    encoding:
+      codec: json
