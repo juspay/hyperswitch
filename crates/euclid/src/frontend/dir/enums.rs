@@ -89,6 +89,7 @@ pub enum WalletType {
     TouchNGo,
     Swish,
     Cashapp,
+    Venmo,
 }
 
 #[derive(

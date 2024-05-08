@@ -1,7 +1,7 @@
 use bb8::PooledConnection;
-use data_models::errors::StorageError;
 use diesel::PgConnection;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::StorageError;
 
 use crate::{errors::RedisErrorExt, metrics, DatabaseStore};
 

@@ -231,7 +231,9 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
@@ -264,7 +266,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             Err(types::ErrorResponse::default());
 
         let preprocessing_router_data =
-            payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
                 router_data.clone(),
                 preprocessing_request_data,
                 preprocessing_response_data,
@@ -301,12 +303,11 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             ],
         );
 
-        let authorize_router_data =
-            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                resp.clone(),
-                router_data.request.to_owned(),
-                resp.response,
-            );
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data.request.to_owned(),
+            resp.response,
+        );
 
         Ok(authorize_router_data)
     } else {

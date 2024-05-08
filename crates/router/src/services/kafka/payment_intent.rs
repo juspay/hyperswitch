@@ -1,5 +1,5 @@
-use data_models::payments::PaymentIntent;
 use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]

@@ -81,6 +81,7 @@ impl
                 error_code: self.payment_attempt.error_code.clone(),
                 error_message: self.payment_attempt.error_message.clone(),
                 connector_transaction_id: self.payment_attempt.connector_transaction_id.clone(),
+                connector: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -108,7 +109,7 @@ impl
             connector_api_version: None,
             payment_method_status: None,
             apple_pay_flow: None,
-            frm_metadata: None,
+            frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
             connector_response: None,
