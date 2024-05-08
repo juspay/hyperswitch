@@ -1634,6 +1634,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Payone,
     connector::Paypal,
     connector::Payu,
     connector::Placetopay,
