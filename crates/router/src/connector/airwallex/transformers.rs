@@ -59,20 +59,13 @@ pub struct AirwallexRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for AirwallexRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AirwallexRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),

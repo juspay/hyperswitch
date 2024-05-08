@@ -103,17 +103,17 @@ jobs:
           crate: git-cliff
           version: 1.4.0
 
-      - name: Install convco
+      - name: Install cocogitto
         uses: baptiste0928/cargo-install@v2.2.0
         with:
-          crate: convco
-          version: 0.5.0
+          crate: cocogitto
+          version: 6.1.0
 
       - name: Obtain previous and next tag information
         shell: bash
         run: |
-          PREVIOUS_TAG="v$(convco version --prefix 'v')"
-          NEXT_TAG="v$(convco version --prefix 'v' "--${{ inputs.bump_type }}")"
+          PREVIOUS_TAG="v$(cog --verbose get-version)"
+          NEXT_TAG="$(cog --verbose bump --dry-run "--${{ inputs.bump_type }}")"
 
           echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> $GITHUB_ENV
           echo "NEXT_TAG=${NEXT_TAG}" >> $GITHUB_ENV

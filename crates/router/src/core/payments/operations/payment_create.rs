@@ -31,7 +31,6 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{
@@ -258,7 +257,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .as_ref()
                 .map(|address| address.address_id.clone()),
             attempt_id,
-            profile_id,
+            profile_id.clone(),
             session_expiry,
         )
         .await?;
@@ -277,6 +276,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .map(|address| address.address_id.clone()),
             &payment_method_info,
             merchant_key_store,
+            profile_id,
         )
         .await?;
 
@@ -396,11 +396,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()
+            .and_then(|payment_method_data_from_request| {
+                payment_method_data_from_request
+                    .payment_method_data
+                    .as_ref()
+            })
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data
-                    .payment_method_data
-                    .apply_additional_payment_data(additional_payment_data)
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
 
         let amount = payment_attempt.get_total_amount().into();
@@ -421,6 +424,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
                 payment_method_billing_address.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
             ),
             token_data: None,
             confirm: request.confirm,
@@ -702,7 +706,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         helpers::validate_payment_method_fields_present(request)?;
@@ -722,7 +726,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
                 &request
                     .payment_method_data
                     .as_ref()
-                    .map(|pmd| pmd.payment_method_data.clone()),
+                    .and_then(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
@@ -768,22 +772,34 @@ impl PaymentCreate {
         payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
+        profile_id: String,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
+        let payment_method_data =
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|payment_method_data_request| {
+                    payment_method_data_request.payment_method_data.as_ref()
+                });
+
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-        let status =
-            helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
+        let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
         let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
+            .and_then(|payment_method_data_request| {
+                payment_method_data_request.payment_method_data.as_ref()
+            })
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
-                    &payment_method_data.payment_method_data,
+                    payment_method_data,
                     &*state.store,
+                    &profile_id,
                 )
                 .await
             })
@@ -933,7 +949,7 @@ impl PaymentCreate {
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
         payment_id: &str,
-        merchant_account: &types::domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -944,10 +960,18 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-        let status =
-            helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
+
+        let status = helpers::payment_intent_status_fsm(
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|request_payment_method_data| {
+                    request_payment_method_data.payment_method_data.as_ref()
+                }),
+            request.confirm,
+        );
         let client_secret =
-            crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
+            utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request

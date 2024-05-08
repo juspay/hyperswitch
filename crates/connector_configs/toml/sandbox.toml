@@ -866,6 +866,48 @@ merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
 
+[cybersource_payout]
+[[cybersource_payout.credit]]
+  payment_method_type = "Mastercard"
+[[cybersource_payout.credit]]
+  payment_method_type = "Visa"
+[[cybersource_payout.credit]]
+  payment_method_type = "Interac"
+[[cybersource_payout.credit]]
+  payment_method_type = "AmericanExpress"
+[[cybersource_payout.credit]]
+  payment_method_type = "JCB"
+[[cybersource_payout.credit]]
+  payment_method_type = "DinersClub"
+[[cybersource_payout.credit]]
+  payment_method_type = "Discover"
+[[cybersource_payout.credit]]
+  payment_method_type = "CartesBancaires"
+[[cybersource_payout.credit]]
+  payment_method_type = "UnionPay"
+[[cybersource_payout.debit]]
+  payment_method_type = "Mastercard"
+[[cybersource_payout.debit]]
+  payment_method_type = "Visa"
+[[cybersource_payout.debit]]
+  payment_method_type = "Interac"
+[[cybersource_payout.debit]]
+  payment_method_type = "AmericanExpress"
+[[cybersource_payout.debit]]
+  payment_method_type = "JCB"
+[[cybersource_payout.debit]]
+  payment_method_type = "DinersClub"
+[[cybersource_payout.debit]]
+  payment_method_type = "Discover"
+[[cybersource_payout.debit]]
+  payment_method_type = "CartesBancaires"
+[[cybersource_payout.debit]]
+  payment_method_type = "UnionPay"
+[cybersource_payout.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
+
 [dlocal]
 [[dlocal.credit]]
   payment_method_type = "Mastercard"
@@ -909,6 +951,12 @@ key1="X Trans Key"
 api_secret="Secret Key"
 [dlocal.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[ebanx_payout]
+[[ebanx_payout.bank_transfer]]
+  payment_method_type = "pix"
+[ebanx_payout.connector_auth.HeaderKey]
+api_key = "Integration Key"
 
 [fiserv]
 [[fiserv.credit]]
@@ -1607,6 +1655,14 @@ key1="Client ID"
 [paypal.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[paypal_payout]
+[[paypal.wallet]]
+  payment_method_type = "paypal"
+[[paypal.wallet]]
+  payment_method_type = "venmo"
+[paypal_payout.connector_auth.BodyKey]
+api_key="Client Secret"
+key1="Client ID"
 
 [payu]
 [[payu.credit]]

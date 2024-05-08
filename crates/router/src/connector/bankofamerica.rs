@@ -120,8 +120,7 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let date = OffsetDateTime::now_utc();
         let boa_req = self.get_request_body(req, connectors)?;
         let http_method = self.get_http_method();
