@@ -626,3 +626,21 @@ pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpRes
     ))
     .await
 }
+
+pub async fn totp_verify(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyTotpRequest>,
+) -> HttpResponse {
+    let flow = Flow::TotpVerify;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req_body, _| user_core::verify_totp(state, user, req_body),
+        &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

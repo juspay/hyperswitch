@@ -4,7 +4,7 @@ use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
 use common_enums::TokenPurpose;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::{crypto::Encryptable, errors::CustomResult, pii};
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
     organization as diesel_org,
@@ -908,6 +908,32 @@ impl UserFromStorage {
 
     pub fn get_totp_status(&self) -> TotpStatus {
         self.0.totp_status
+    }
+
+    pub async fn decrypt_and_get_totp_secret(
+        &self,
+        state: &AppState,
+    ) -> UserResult<Option<Secret<String>>> {
+        if self.0.totp_secret.is_none() {
+            return Ok(None);
+        }
+
+        let user_key_store = state
+            .store
+            .get_user_key_store_by_user_id(
+                self.get_user_id(),
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        Ok(domain_types::decrypt::<String, masking::WithType>(
+            self.0.totp_secret.clone(),
+            user_key_store.key.peek(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .map(Encryptable::into_inner))
     }
 }
 
