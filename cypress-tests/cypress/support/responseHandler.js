@@ -13,8 +13,8 @@ const validateExistenceOfClientSecret = function (response) { expect(response.bo
 const validateExistenceOfRedirectUrl = function (response) { expect(response.body).to.have.property("next_action").to.have.property("redirect_to_url"); }
 const valdiateExistenceOfPaymentMethods = function (response) { expect(response.body).to.have.property("payment_methods"); };
 const validatePaymentToken = function (globalState, paymentToken) { expect(globalState.get("paymentToken")).to.equal(paymentToken); }
-const validatePaymentStatus = function (expectedStatus, response) {
-    expect(response.body.status).to.equal(expectedStatus);
+const validatePaymentStatus = function (expectedStatus, status) {
+    expect(status).to.equal(expectedStatus);
 }
 const validateCapturableAmount = function (request, response) {
     if (response.body.status === "succeeded") {
@@ -105,10 +105,10 @@ function handleAuthType(response, globalState, setNextActionUrl, details) {
             break;
         case "no_three_ds":
             if (response.body.capture_method === "automatic") {
-                validatePaymentStatus(details.paymentSuccessfulStatus, response);
+                validatePaymentStatus(details.paymentSuccessfulStatus, response.body.status);
                 validateCustomerId(globalState, response.body.customer_id);
             } else if (response.body.capture_method === "manual") {
-                validatePaymentStatus("requires_capture", response);
+                validatePaymentStatus("requires_capture", response.body.status);
                 validateCustomerId(globalState, response.body.customer_id);
             } else {
                 throw new Error(`Unsupported capture method: ${response.body.capture_method}`);

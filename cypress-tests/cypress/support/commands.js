@@ -434,7 +434,7 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", response.body.payment_id);
     console.log("mit status -> " + response.body.status);
-    handleAuthType(response, globalState, true, requestBody);
+    handleAuthType(response, globalState, true, { paymentSuccessfulStatus: "succeeded" });
   });
 });
 
