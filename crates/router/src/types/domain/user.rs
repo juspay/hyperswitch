@@ -6,7 +6,7 @@ use api_models::{
 use common_enums::TokenPurpose;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
-    enums::UserStatus,
+    enums::{TotpStatus, UserStatus},
     organization as diesel_org,
     organization::Organization,
     user as storage_user,
@@ -15,6 +15,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
+use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -26,7 +27,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    services::{authentication as auth, authentication::UserFromToken, authorization::info},
+    services::{self, authentication as auth, authentication::UserFromToken, authorization::info},
     types::transformers::ForeignFrom,
     utils::{self, user::password},
 };
@@ -34,6 +35,8 @@ use crate::{
 pub mod dashboard_metadata;
 pub mod decision_manager;
 pub use decision_manager::*;
+
+use super::{types as domain_types, UserKeyStore};
 
 #[derive(Clone)]
 pub struct UserName(Secret<String>);
@@ -863,6 +866,49 @@ impl UserFromStorage {
                 )
         }
     }
+
+    pub async fn get_or_create_key_store(&self, state: &AppState) -> UserResult<UserKeyStore> {
+        let master_key = state.store.get_master_key();
+        let key_store_result = state
+            .store
+            .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
+            .await;
+
+        if let Ok(key_store) = key_store_result {
+            Ok(key_store)
+        } else if key_store_result
+            .as_ref()
+            .map_err(|e| e.current_context().is_db_not_found())
+            .err()
+            .unwrap_or(false)
+        {
+            let key = services::generate_aes256_key()
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to generate aes 256 key")?;
+
+            let key_store = UserKeyStore {
+                user_id: self.get_user_id().to_string(),
+                key: domain_types::encrypt(key.to_vec().into(), master_key)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?,
+                created_at: common_utils::date_time::now(),
+            };
+            state
+                .store
+                .insert_user_key_store(key_store, &master_key.to_vec().into())
+                .await
+                .change_context(UserErrors::InternalServerError)
+        } else {
+            Err(key_store_result
+                .err()
+                .map(|e| e.change_context(UserErrors::InternalServerError))
+                .unwrap_or(UserErrors::InternalServerError.into()))
+        }
+    }
+
+    pub fn get_totp_status(&self) -> TotpStatus {
+        self.0.totp_status
+    }
 }
 
 impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
@@ -1028,6 +1074,39 @@ impl RoleName {
     }
 
     pub fn get_role_name(self) -> String {
+        self.0
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct RecoveryCodes(pub Vec<Secret<String>>);
+
+impl RecoveryCodes {
+    pub fn generate_new() -> Self {
+        let mut rand = rand::thread_rng();
+        let recovery_codes = (0..consts::user::RECOVERY_CODES_COUNT)
+            .map(|_| {
+                let code_part_1 =
+                    Alphanumeric.sample_string(&mut rand, consts::user::RECOVERY_CODE_LENGTH / 2);
+                let code_part_2 =
+                    Alphanumeric.sample_string(&mut rand, consts::user::RECOVERY_CODE_LENGTH / 2);
+
+                Secret::new(format!("{}-{}", code_part_1, code_part_2))
+            })
+            .collect::<Vec<_>>();
+
+        Self(recovery_codes)
+    }
+
+    pub fn get_hashed(&self) -> UserResult<Vec<Secret<String>>> {
+        self.0
+            .iter()
+            .cloned()
+            .map(password::generate_password_hash)
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    pub fn into_inner(self) -> Vec<Secret<String>> {
         self.0
     }
 }
