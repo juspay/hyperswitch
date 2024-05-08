@@ -75,7 +75,7 @@ mod storage {
     use futures::future::try_join_all;
     use masking::PeekInterface;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey, Op, decide_storage_scheme};
 
     use super::CustomerInterface;
     use crate::{
@@ -116,7 +116,7 @@ mod storage {
                 .await
                 .map_err(|err| report!(errors::StorageError::from(err)))
             };
-
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Customer>(&self,storage_scheme, Op::Find).await;
             let maybe_customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -184,7 +184,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let key = PartitionKey::MerchantIdCustomerId {
+                merchant_id: merchant_id.as_str(),
+                customer_id: customer_id.as_str(),
+            };
+            let field = format!("cust_{}", customer_id);
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Customer>(&self,storage_scheme, Op::Update(key, &field, (&customer).updated_by.as_ref().map(|x| x.as_str()))).await;
             let updated_object = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -192,7 +197,6 @@ mod storage {
                         merchant_id: merchant_id.as_str(),
                         customer_id: customer_id.as_str(),
                     };
-                    let field = format!("cust_{}", customer_id);
                     let updated_customer =
                         diesel_models::CustomerUpdateInternal::from(customer_update.clone())
                             .apply_changeset(customer.clone());
@@ -250,7 +254,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Customer>(&self,storage_scheme, Op::Find).await;
             let customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -328,7 +332,7 @@ mod storage {
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
-
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Customer>(&self,storage_scheme, Op::Insert).await;
             let create_customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;

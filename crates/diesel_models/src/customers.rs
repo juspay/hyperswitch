@@ -21,6 +21,7 @@ pub struct CustomerNew {
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
+    pub updated_by : Option<String>,
 }
 
 impl From<CustomerNew> for Customer {
@@ -40,6 +41,7 @@ impl From<CustomerNew> for Customer {
             modified_at: customer_new.modified_at,
             address_id: customer_new.address_id,
             default_payment_method_id: None,
+            updated_by : customer_new.updated_by
         }
     }
 }
@@ -61,6 +63,7 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
+    pub updated_by : Option<String>,
 }
 
 #[derive(
@@ -84,6 +87,7 @@ pub struct CustomerUpdateInternal {
     pub connector_customer: Option<serde_json::Value>,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
+    pub updated_by: Option<String>,
 }
 
 impl CustomerUpdateInternal {

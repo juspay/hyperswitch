@@ -6,7 +6,7 @@ use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
-
+use diesel_models::enums::MerchantStorageScheme;
 use crate::{metrics, store::kv::TypedSql, KVRouterStore, UniqueConstraints};
 
 pub trait KvStorePartition {
@@ -234,4 +234,45 @@ where
             metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);
             err
         })
+}
+
+pub enum Op<'a>{
+    Insert,
+    Update(PartitionKey<'a>, &'a str, Option<&'a str>),
+    Find,
+}
+
+pub async fn decide_storage_scheme<'a, T, D> (store : &KVRouterStore<T>, storage_scheme: MerchantStorageScheme, operation: Op<'a>) -> MerchantStorageScheme
+where
+    D : de::DeserializeOwned + serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
+    T : crate::database::store::DatabaseStore,
+{
+    match operation{
+        Op::Insert => if store.soft_kill_mode {
+            MerchantStorageScheme::PostgresOnly
+        } else{
+            storage_scheme
+        },
+        Op::Find => if store.soft_kill_mode {
+            MerchantStorageScheme::RedisKv
+        } else{
+            storage_scheme
+        },
+        Op::Update(partition_key, field, Some(updated_by)) if updated_by == "redis_kv" => if store.soft_kill_mode{
+           match kv_wrapper::<D,_,_>(
+                           store,
+                           KvOperation::<D>::HGet(field),
+                           partition_key,
+                       )
+                       .await      
+            {
+                Ok(_) => MerchantStorageScheme::RedisKv,
+                Err(_) => MerchantStorageScheme::PostgresOnly
+            }
+            
+        } else{
+            storage_scheme
+        },
+        _ => storage_scheme
+    }
 }

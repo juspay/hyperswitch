@@ -69,7 +69,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::SetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey, Op, decide_storage_scheme};
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -91,6 +91,7 @@ mod storage {
             new: ReverseLookupNew,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
+            let storage_scheme = decide_storage_scheme::<_,ReverseLookup>(&self,storage_scheme, Op::Insert).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -150,7 +151,7 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = decide_storage_scheme::<_,ReverseLookup>(&self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {

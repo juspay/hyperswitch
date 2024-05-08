@@ -560,6 +560,7 @@ delay_between_retries_in_milliseconds = 500
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
+soft_kill = false
 
 [frm]
 enabled = true
