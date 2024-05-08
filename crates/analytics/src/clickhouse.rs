@@ -28,6 +28,7 @@ use crate::{
     outgoing_webhook_event::events::OutgoingWebhookLogsResult,
     sdk_events::events::SdkEventsResult,
     types::TableEngine,
+    TenantID,
 };
 
 pub type ClickhouseResult<T> = error_stack::Result<T, ClickhouseError>;
@@ -35,6 +36,7 @@ pub type ClickhouseResult<T> = error_stack::Result<T, ClickhouseError>;
 #[derive(Clone, Debug)]
 pub struct ClickhouseClient {
     pub config: Arc<ClickhouseConfig>,
+    pub tenant_id: TenantID,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

@@ -19,6 +19,8 @@ use sqlx::{
 use storage_impl::config::Database;
 use time::PrimitiveDateTime;
 
+use crate::TenantID;
+
 use super::{
     health_check::HealthCheck,
     query::{Aggregate, ToSql, Window},
@@ -31,6 +33,7 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct SqlxClient {
     pool: Pool<Postgres>,
+    tenant_id: TenantID,
 }
 
 impl Default for SqlxClient {
@@ -44,12 +47,13 @@ impl Default for SqlxClient {
             pool: PgPoolOptions::new()
                 .connect_lazy(&database_url)
                 .expect("SQLX Pool Creation failed"),
+            tenant_id: TenantID::default(),
         }
     }
 }
 
 impl SqlxClient {
-    pub async fn from_conf(conf: &Database) -> Self {
+    pub async fn from_conf(conf: &Database, tenant_id: TenantID) -> Self {
         let password = &conf.password.peek();
         let database_url = format!(
             "postgres://{}:{}@{}:{}/{}",
@@ -61,7 +65,7 @@ impl SqlxClient {
             .acquire_timeout(std::time::Duration::from_secs(conf.connection_timeout))
             .connect_lazy(&database_url)
             .expect("SQLX Pool Creation failed");
-        Self { pool }
+        Self { pool, tenant_id }
     }
 }
 

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
+use analytics::TenantID;
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
@@ -218,8 +219,11 @@ impl AppState {
             };
 
             #[cfg(feature = "olap")]
-            let pool =
-                crate::analytics::AnalyticsProvider::from_conf(conf.analytics.get_inner()).await;
+            let pool = crate::analytics::AnalyticsProvider::from_conf(
+                conf.analytics.get_inner(),
+                TenantID::default(),
+            )
+            .await;
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);

@@ -68,6 +68,14 @@ use self::{
 };
 
 #[derive(Clone, Debug)]
+pub struct TenantID(String);
+impl Default for TenantID {
+    fn default() -> Self {
+        Self(String::from("default"))
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum AnalyticsProvider {
     Sqlx(SqlxClient),
     Clickhouse(ClickhouseClient),
@@ -601,22 +609,27 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(config: &AnalyticsConfig) -> Self {
+    pub async fn from_conf(config: &AnalyticsConfig, tenant_id: TenantID) -> Self {
         match config {
-            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx).await),
+            AnalyticsConfig::Sqlx { sqlx } => {
+                Self::Sqlx(SqlxClient::from_conf(sqlx, tenant_id).await)
+            }
             AnalyticsConfig::Clickhouse { clickhouse } => Self::Clickhouse(ClickhouseClient {
                 config: Arc::new(clickhouse.clone()),
+                tenant_id,
             }),
             AnalyticsConfig::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh(
-                SqlxClient::from_conf(sqlx).await,
+                SqlxClient::from_conf(sqlx, tenant_id.clone()).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
+                    tenant_id,
                 },
             ),
             AnalyticsConfig::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx(
-                SqlxClient::from_conf(sqlx).await,
+                SqlxClient::from_conf(sqlx, tenant_id.clone()).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
+                    tenant_id,
                 },
             ),
         }
