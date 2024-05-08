@@ -1720,7 +1720,7 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
 }
 
 fn get_address_info(
-    address: Option<&api_models::payments::Address>,
+    address: Option<&payments::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
         add.address.as_ref().map(
@@ -1783,7 +1783,7 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
     })
 }
 
-fn get_shopper_name(address: Option<&api_models::payments::Address>) -> Option<ShopperName> {
+fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
         first_name: billing.and_then(|a| a.first_name.clone()),
@@ -1791,9 +1791,7 @@ fn get_shopper_name(address: Option<&api_models::payments::Address>) -> Option<S
     })
 }
 
-fn get_country_code(
-    address: Option<&api_models::payments::Address>,
-) -> Option<api_enums::CountryAlpha2> {
+fn get_country_code(address: Option<&payments::Address>) -> Option<api_enums::CountryAlpha2> {
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
@@ -1822,56 +1820,42 @@ fn build_shopper_reference(customer_id: &Option<String>, merchant_id: String) ->
         .map(|c_id| format!("{}_{}", merchant_id, c_id))
 }
 
-impl<'a> TryFrom<&domain::BankDebitData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
+    for AdyenPaymentMethod<'a>
+{
     type Error = Error;
-    fn try_from(bank_debit_data: &domain::BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bank_debit_data, item): (&domain::BankDebitData, &types::PaymentsAuthorizeRouterData),
+    ) -> Result<Self, Self::Error> {
         match bank_debit_data {
             domain::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 ..
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
                 AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
-                    owner_name: card_holder_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "card_holder_name",
-                        },
-                    )?,
+                    owner_name: item.get_billing_full_name()?,
                 },
             ))),
-            domain::BankDebitData::SepaBankDebit {
-                iban,
-                bank_account_holder_name,
-                ..
-            } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
-                SepaDirectDebitData {
-                    owner_name: bank_account_holder_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_account_holder_name",
-                        },
-                    )?,
+            domain::BankDebitData::SepaBankDebit { iban, .. } => Ok(
+                AdyenPaymentMethod::SepaDirectDebit(Box::new(SepaDirectDebitData {
+                    owner_name: item.get_billing_full_name()?,
                     iban_number: iban.clone(),
-                },
-            ))),
+                })),
+            ),
             domain::BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
-                bank_account_holder_name,
                 ..
             } => Ok(AdyenPaymentMethod::BacsDirectDebit(Box::new(
                 BacsDirectDebitData {
                     payment_type: PaymentType::BacsDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: sort_code.clone(),
-                    holder_name: bank_account_holder_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_account_holder_name",
-                        },
-                    )?,
+                    holder_name: item.get_billing_full_name()?,
                 },
             ))),
             domain::BankDebitData::BecsBankDebit { .. } => {
@@ -2716,7 +2700,7 @@ impl<'a>
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
+        let payment_method = AdyenPaymentMethod::try_from((bank_debit_data, item.router_data))?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let request = AdyenPaymentRequest {
             amount,
@@ -4634,6 +4618,10 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::BankPayout::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
@@ -4671,6 +4659,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                             },
                         )?,
                     },
+                    api_models::payouts::Wallet::Venmo(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Venmo Wallet is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
                 let payout_wallet = PayoutWalletData {
@@ -4769,10 +4763,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
         let status = payout_eligible.map_or(
             {
                 response.result_code.map_or(
-                    response
-                        .response
-                        .map(storage_enums::PayoutStatus::foreign_from),
-                    |rc| Some(storage_enums::PayoutStatus::foreign_from(rc)),
+                    response.response.map(storage_enums::PayoutStatus::from),
+                    |rc| Some(storage_enums::PayoutStatus::from(rc)),
                 )
             },
             |pe| {
@@ -4789,6 +4781,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
                 status,
                 connector_payout_id: response.psp_reference,
                 payout_eligible,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -4796,8 +4789,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<AdyenStatus> for storage_enums::PayoutStatus {
-    fn foreign_from(adyen_status: AdyenStatus) -> Self {
+impl From<AdyenStatus> for storage_enums::PayoutStatus {
+    fn from(adyen_status: AdyenStatus) -> Self {
         match adyen_status {
             AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => Self::Success,
             AdyenStatus::Cancelled | AdyenStatus::PayoutDeclineReceived => Self::Cancelled,

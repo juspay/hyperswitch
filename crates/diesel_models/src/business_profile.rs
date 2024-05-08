@@ -36,6 +36,9 @@ pub struct BusinessProfile {
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
     pub is_extended_card_info_enabled: Option<bool>,
+    pub extended_card_info_config: Option<pii::SecretSerdeValue>,
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
+    pub use_billing_as_payment_method_billing: Option<bool>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -63,6 +66,9 @@ pub struct BusinessProfileNew {
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
     pub is_extended_card_info_enabled: Option<bool>,
+    pub extended_card_info_config: Option<pii::SecretSerdeValue>,
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
+    pub use_billing_as_payment_method_billing: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -87,6 +93,9 @@ pub struct BusinessProfileUpdateInternal {
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
     pub is_extended_card_info_enabled: Option<bool>,
+    pub extended_card_info_config: Option<pii::SecretSerdeValue>,
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
+    pub use_billing_as_payment_method_billing: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -109,9 +118,14 @@ pub enum BusinessProfileUpdate {
         payment_link_config: Option<serde_json::Value>,
         session_expiry: Option<i64>,
         authentication_connector_details: Option<serde_json::Value>,
+        extended_card_info_config: Option<pii::SecretSerdeValue>,
+        use_billing_as_payment_method_billing: Option<bool>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
+    },
+    ConnectorAgnosticMitUpdate {
+        is_connector_agnostic_mit_enabled: Option<bool>,
     },
 }
 
@@ -136,6 +150,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 payment_link_config,
                 session_expiry,
                 authentication_connector_details,
+                extended_card_info_config,
+                use_billing_as_payment_method_billing,
             } => Self {
                 profile_name,
                 modified_at,
@@ -154,12 +170,20 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 payment_link_config,
                 session_expiry,
                 authentication_connector_details,
+                extended_card_info_config,
+                use_billing_as_payment_method_billing,
                 ..Default::default()
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
                 is_extended_card_info_enabled,
+                ..Default::default()
+            },
+            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+                is_connector_agnostic_mit_enabled,
+            } => Self {
+                is_connector_agnostic_mit_enabled,
                 ..Default::default()
             },
         }
@@ -189,7 +213,10 @@ impl From<BusinessProfileNew> for BusinessProfile {
             payment_link_config: new.payment_link_config,
             session_expiry: new.session_expiry,
             authentication_connector_details: new.authentication_connector_details,
+            is_connector_agnostic_mit_enabled: new.is_connector_agnostic_mit_enabled,
             is_extended_card_info_enabled: new.is_extended_card_info_enabled,
+            extended_card_info_config: new.extended_card_info_config,
+            use_billing_as_payment_method_billing: new.use_billing_as_payment_method_billing,
         }
     }
 }
@@ -215,6 +242,9 @@ impl BusinessProfileUpdate {
             session_expiry,
             authentication_connector_details,
             is_extended_card_info_enabled,
+            extended_card_info_config,
+            is_connector_agnostic_mit_enabled,
+            use_billing_as_payment_method_billing,
         } = self.into();
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -237,6 +267,9 @@ impl BusinessProfileUpdate {
             session_expiry,
             authentication_connector_details,
             is_extended_card_info_enabled,
+            is_connector_agnostic_mit_enabled,
+            extended_card_info_config,
+            use_billing_as_payment_method_billing,
             ..source
         }
     }

@@ -1,6 +1,6 @@
 use common_utils::pii;
-use data_models::payouts::{payout_attempt::PayoutAttempt, payouts::Payouts};
 use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::payouts::{payout_attempt::PayoutAttempt, payouts::Payouts};
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]

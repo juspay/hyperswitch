@@ -17,6 +17,8 @@ pub type FrmSaleType =
 pub struct FraudCheckSaleData {
     pub amount: i64,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub currency: Option<common_enums::Currency>,
+    pub email: Option<Email>,
 }
 #[derive(Debug, Clone)]
 pub struct FrmRouterData {
@@ -103,6 +105,8 @@ pub struct FraudCheckTransactionData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub connector_transaction_id: Option<String>,
+    //The name of the payment gateway or financial institution that processed the transaction.
+    pub connector: Option<String>,
 }
 
 pub type FrmFulfillmentRouterData =

@@ -12,10 +12,11 @@ use crate::user::{
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
-    GetUserDetailsRequest, GetUserDetailsResponse, InviteUserRequest, InviteUserResponse,
-    ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest, SendVerifyEmailRequest,
-    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
-    UpdateUserAccountDetailsRequest, UserMerchantCreate, VerifyEmailRequest,
+    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
+    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
+    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -37,6 +38,12 @@ impl ApiEventMetric for VerifyTokenResponse {
     }
 }
 
+impl<T> ApiEventMetric for TokenOrPayloadResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
 common_utils::impl_misc_api_event_type!(
     SignUpRequest,
     SignUpWithMerchantIdRequest,
@@ -53,16 +60,19 @@ common_utils::impl_misc_api_event_type!(
     ConnectAccountRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    RotatePasswordRequest,
     InviteUserRequest,
-    InviteUserResponse,
     ReInviteUserRequest,
     VerifyEmailRequest,
     SendVerifyEmailRequest,
     AcceptInviteFromEmailRequest,
     SignInResponse,
     UpdateUserAccountDetailsRequest,
-    GetUserDetailsRequest,
-    GetUserDetailsResponse
+    GetUserDetailsResponse,
+    GetUserRoleDetailsRequest,
+    GetUserRoleDetailsResponse,
+    TokenResponse,
+    UserFromEmailRequest
 );
 
 #[cfg(feature = "dummy_connector")]

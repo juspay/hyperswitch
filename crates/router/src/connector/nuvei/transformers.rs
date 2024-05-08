@@ -5,8 +5,8 @@ use common_utils::{
     fp_utils,
     pii::{Email, IpAddress},
 };
-use data_models::mandates::MandateDataType;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::MandateDataType;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
