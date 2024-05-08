@@ -28,9 +28,13 @@ use super::{
     },
 };
 
+#[derive(Debug, serde::Deserialize)]
+pub struct TenantID(pub String);
+
 #[derive(Debug, Clone)]
 pub struct SqlxClient {
     pool: Pool<Postgres>,
+    tenant_id: TenantID
 }
 
 impl Default for SqlxClient {
@@ -44,6 +48,7 @@ impl Default for SqlxClient {
             pool: PgPoolOptions::new()
                 .connect_lazy(&database_url)
                 .expect("SQLX Pool Creation failed"),
+            TenantID("default")
         }
     }
 }
