@@ -86,9 +86,7 @@ pub struct PaymentToFrmData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrmConfigsObject {
     pub frm_enabled_pm: Option<PaymentMethod>,
-    pub frm_enabled_pm_type: Option<PaymentMethodType>,
     pub frm_enabled_gateway: Option<api_models::enums::Connector>,
-    pub frm_action: api_enums::FrmAction,
     pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
 }
 

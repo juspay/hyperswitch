@@ -26,7 +26,7 @@ use crate::{
     services::{self, api},
     types::{
         api::{
-            enums::{AttemptStatus, FrmAction, IntentStatus},
+            enums::{AttemptStatus, IntentStatus},
             fraud_check as frm_api, payments as payment_types, Capture, Void,
         },
         domain,
@@ -187,7 +187,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         req_state: ReqState,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
-        frm_configs: FrmConfigsObject,
+        _frm_configs: FrmConfigsObject,
         frm_suggestion: &mut Option<FrmSuggestion>,
         key_store: domain::MerchantKeyStore,
         payment_data: &mut payments::PaymentData<F>,
@@ -195,7 +195,6 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
         if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
-            && matches!(frm_configs.frm_action, FrmAction::CancelTxn)
             && matches!(
                 frm_data.fraud_check.last_step,
                 FraudCheckLastStep::CheckoutOrSale
@@ -244,9 +243,10 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             )
             .await?;
             frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
-        } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
-            && matches!(frm_configs.frm_action, FrmAction::ManualReview)
-        {
+        } else if matches!(
+            frm_data.fraud_check.frm_status,
+            FraudCheckStatus::ManualReview
+        ) {
             *frm_suggestion = Some(FrmSuggestion::FrmManualReview);
         } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Legit)
             && matches!(
