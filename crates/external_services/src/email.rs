@@ -160,4 +160,8 @@ pub enum EmailError {
     /// The expected feature is not implemented
     #[error("Feature not implemented")]
     NotImplemented,
+
+    /// An error occurred when building email content.
+    #[error("Error building email content")]
+    ContentBuildFailure,
 }
