@@ -222,3 +222,7 @@ key1= "Merchant id"
 
 [mifinity]
 api_key="API Key"
+
+
+[gpayments]
+api_key="API Key"

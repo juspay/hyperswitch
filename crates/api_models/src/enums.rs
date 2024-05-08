@@ -95,6 +95,7 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
+    Gpayments,
     Helcim,
     Iatapay,
     Klarna,
@@ -208,6 +209,7 @@ impl Connector {
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
+            | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
             | Self::Klarna
@@ -266,6 +268,7 @@ impl Connector {
 pub enum AuthenticationConnectors {
     Threedsecureio,
     Netcetera,
+    GPayments,
 }
 
 #[cfg(feature = "payouts")]

@@ -36,6 +36,7 @@ pub struct ConnectorAuthentication {
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
     pub gocardless: Option<HeaderKey>,
+    pub gpayments: Option<HeaderKey>,
     pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mifinity: Option<HeaderKey>,

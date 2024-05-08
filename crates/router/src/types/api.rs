@@ -382,7 +382,6 @@ impl ConnectorData {
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
-                enums::Connector::Netcetera => Ok(Box::new(&connector::Netcetera)),
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
@@ -393,7 +392,9 @@ impl ConnectorData {
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
                 | enums::Connector::Riskified
-                | enums::Connector::Threedsecureio => {
+                | enums::Connector::Threedsecureio
+                | enums::Connector::Gpayments
+                | enums::Connector::Netcetera => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
