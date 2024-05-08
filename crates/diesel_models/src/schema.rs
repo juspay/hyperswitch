@@ -195,6 +195,7 @@ diesel::table! {
         is_extended_card_info_enabled -> Nullable<Bool>,
         extended_card_info_config -> Nullable<Jsonb>,
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
+        use_billing_as_payment_method_billing -> Nullable<Bool>,
     }
 }
 
@@ -1191,6 +1192,7 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         preferred_merchant_id -> Nullable<Varchar>,
+        last_password_modified_at -> Nullable<Timestamp>,
     }
 }
 

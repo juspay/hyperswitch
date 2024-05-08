@@ -440,6 +440,7 @@ pub async fn update_business_profile_cascade(
             session_expiry: None,
             authentication_connector_details: None,
             extended_card_info_config: None,
+            use_billing_as_payment_method_billing: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1691,6 +1692,7 @@ pub async fn update_business_profile(
                 field_name: "authentication_connector_details",
             })?,
         extended_card_info_config,
+        use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
     };
 
     let updated_business_profile = db
@@ -1788,6 +1790,10 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
+        // api_enums::Connector::Mifinity => {
+        //     mifinity::transformers::MifinityAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
         | api_enums::Connector::DummyConnector2

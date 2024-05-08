@@ -98,6 +98,7 @@ pub enum Connector {
     Helcim,
     Iatapay,
     Klarna,
+    // Mifinity, Added as template code for future usage
     Mollie,
     Multisafepay,
     Netcetera,
@@ -210,6 +211,7 @@ impl Connector {
             | Self::Helcim
             | Self::Iatapay
             | Self::Klarna
+            // | Self::Mifinity Added as template code for future usage
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
