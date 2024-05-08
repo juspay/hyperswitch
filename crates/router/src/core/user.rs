@@ -765,7 +765,7 @@ async fn handle_new_user_invitation(
         })?;
 
     let is_email_sent;
-    // TODO: Adding this to avoid clippy lints, is_token_only parameter to removed when TOTP flows get stablized
+    // TODO: Adding this to avoid clippy lints, remove this once the token only flow is being used
     let _ = is_token_only;
 
     #[cfg(feature = "email")]
