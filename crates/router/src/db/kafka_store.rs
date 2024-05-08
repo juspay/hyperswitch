@@ -32,7 +32,8 @@ use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
-    user_role::UserRoleInterface, user_key_store::UserKeyStoreInterface,
+    user_key_store::UserKeyStoreInterface,
+    user_role::UserRoleInterface,
 };
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
