@@ -12,7 +12,7 @@ const validateAmountToCapture = function (amount, amount_to_capture) { expect(am
 const validateExistenceOfClientSecret = function (body) { expect(body).to.have.property("client_secret"); }
 const validateExistenceOfRedirectUrl = function (response) { expect(response.body).to.have.property("next_action").to.have.property("redirect_to_url"); }
 const validateExistenceOfPMRedirectUrl = function (response) { expect(response.body).to.have.property("redirect_url"); }
-const valdiateExistenceOfPaymentMethods = function (response) { expect(response.body).to.have.property("payment_methods"); };
+const validateExistenceOfPaymentMethods = function (response) { expect(response.body).to.have.property("payment_methods"); };
 const validatePaymentToken = function (token, paymentToken) { expect(token).to.equal(paymentToken); }
 const validateExistenceOfStatus = function (response) { expect(response.body).to.have.property("status"); }
 const validateExistenceOfMandateId = function (response) { expect(response.body).to.have.property("mandate_id"); }
@@ -151,7 +151,7 @@ module.exports = {
     validateExistenceOfClientSecret,
     validateExistenceOfMandateId,
     validateExistenceOfMerchantId,
-    valdiateExistenceOfPaymentMethods,
+    validateExistenceOfPaymentMethods,
     validateExistenceOfPMRedirectUrl,
     validateExistenceOfRedirectUrl,
     validateExistenceOfStatus,
