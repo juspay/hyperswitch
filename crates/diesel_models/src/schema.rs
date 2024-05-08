@@ -1153,6 +1153,18 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    user_key_store (user_id) {
+        #[max_length = 64]
+        user_id -> Varchar,
+        key -> Bytea,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     user_roles (id) {
         id -> Int4,
         #[max_length = 64]
@@ -1192,6 +1204,9 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         preferred_merchant_id -> Nullable<Varchar>,
+        totp_status -> TotpStatus,
+        totp_secret -> Nullable<Bytea>,
+        totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
     }
 }
@@ -1232,6 +1247,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    user_key_store,
     user_roles,
     users,
 );

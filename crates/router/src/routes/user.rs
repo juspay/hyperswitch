@@ -612,3 +612,17 @@ pub async fn user_from_email(
     ))
     .await
 }
+
+pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::TotpBegin;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::begin_totp(state, user),
+        &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

@@ -32,6 +32,7 @@ use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user_key_store::UserKeyStoreInterface,
     user_role::UserRoleInterface,
 };
 #[cfg(feature = "payouts")]
@@ -2741,5 +2742,28 @@ impl RoleInterface for KafkaStore {
         org_id: &str,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store.list_all_roles(merchant_id, org_id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl UserKeyStoreInterface for KafkaStore {
+    async fn insert_user_key_store(
+        &self,
+        user_key_store: domain::UserKeyStore,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
+        self.diesel_store
+            .insert_user_key_store(user_key_store, key)
+            .await
+    }
+
+    async fn get_user_key_store_by_user_id(
+        &self,
+        user_id: &str,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
+        self.diesel_store
+            .get_user_key_store_by_user_id(user_id, key)
+            .await
     }
 }
