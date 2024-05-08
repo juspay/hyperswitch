@@ -6,7 +6,7 @@ use api_models::{
 use common_enums::TokenPurpose;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
-    enums::{UserStatus, TotpStatus},
+    enums::{TotpStatus, UserStatus},
     organization as diesel_org,
     organization::Organization,
     user as storage_user,
