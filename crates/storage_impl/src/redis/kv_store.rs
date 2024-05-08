@@ -273,6 +273,11 @@ where
         } else{
             storage_scheme
         },
+        Op::Update(_,_,None) => if store.soft_kill_mode {
+            MerchantStorageScheme::PostgresOnly
+        } else{
+            storage_scheme
+        },
         _ => storage_scheme
     }
 }
