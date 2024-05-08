@@ -27,18 +27,13 @@ pub struct ThreedsecureioRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ThreedsecureioRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for ThreedsecureioRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -168,7 +163,7 @@ impl
                 let creq_str = to_string(&creq)
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing creq_str")?;
-                let creq_base64 = base64::Engine::encode(&BASE64_ENGINE, creq_str)
+                let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
                     .trim_end_matches('=')
                     .to_owned();
                 Ok(
@@ -270,7 +265,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             .map(|currency| currency.to_string())
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("missing field currency")?;
-        let purchase_currency: Currency = iso_currency::Currency::from_code(&currency)
+        let purchase_currency: Currency = Currency::from_code(&currency)
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("error while parsing Currency")?;
         let billing_address = request.billing_address.address.clone().ok_or(

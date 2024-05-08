@@ -170,6 +170,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
                 error_code: router_data.request.error_code,
                 error_message: router_data.request.error_message,
                 connector_transaction_id: router_data.request.connector_transaction_id,
+                connector: router_data.request.connector,
             }),
             response: FrmResponse::Transaction(router_data.response),
         }))

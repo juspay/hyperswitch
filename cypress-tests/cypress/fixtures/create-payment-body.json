@@ -4,7 +4,7 @@
   "authentication_type": "three_ds",
   "description": "Joseph First Crypto",
   "email": "hyperswitch_sdk_demo_id@gmail.com",
-  "setup_future_usage":"",
+  "setup_future_usage": "",
   "connector_metadata": {
     "noon": {
       "order_category": "applepay"
