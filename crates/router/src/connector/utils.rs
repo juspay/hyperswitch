@@ -75,6 +75,7 @@ pub trait RouterData {
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn get_billing_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_email(&self) -> Result<Email, Error>;
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -171,7 +172,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .get_payment_method_billing()
             .and_then(|a| a.address.as_ref())
             .and_then(|ad| ad.country)
-            .ok_or_else(missing_field_err("billing.address.country"))
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.country",
+            ))
     }
 
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
@@ -228,6 +231,15 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                     .address
                     .and_then(|billing_address_details| billing_address_details.first_name.clone())
             })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.first_name",
+            ))
+    }
+
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.first_name",
             ))
@@ -1499,19 +1511,6 @@ impl BankRedirectBillingData for domain::BankRedirectBilling {
         self.billing_name
             .clone()
             .ok_or_else(missing_field_err("billing_details.billing_name"))
-    }
-}
-
-pub trait BankDirectDebitBillingData {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
-}
-
-impl BankDirectDebitBillingData for domain::BankDebitBilling {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
-        self.address
-            .as_ref()
-            .and_then(|address| address.country)
-            .ok_or_else(missing_field_err("billing_details.country"))
     }
 }
 

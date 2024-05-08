@@ -360,6 +360,8 @@ pub enum Flow {
     ForgotPassword,
     /// Reset password using link
     ResetPassword,
+    /// Force set or force change password
+    RotatePassword,
     /// Invite multiple users
     InviteMultipleUser,
     /// Reinvite user
