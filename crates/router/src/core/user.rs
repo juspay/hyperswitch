@@ -1254,6 +1254,39 @@ pub async fn list_merchants_for_user(
     ))
 }
 
+pub async fn list_merchants_to_select_for_user(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
+    let user_roles = state
+        .store
+        .list_user_roles_by_user_id(user_token.user_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_accounts = state
+        .store
+        .list_multiple_merchant_accounts(
+            user_roles
+                .iter()
+                .map(|role| role.merchant_id.clone())
+                .collect(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let roles =
+        utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
+
+    Ok(ApplicationResponse::Json(
+        utils::user::get_multiple_merchant_details_with_status(
+            user_roles,
+            merchant_accounts,
+            roles,
+        )?,
+    ))
+}
+
 pub async fn get_user_details_in_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
