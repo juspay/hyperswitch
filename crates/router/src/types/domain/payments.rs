@@ -113,6 +113,12 @@ pub enum WalletData {
     WeChatPayQr(Box<WeChatPayQr>),
     CashappQr(Box<CashappQr>),
     SwishQr(SwishQrData),
+    Mifinity(MifinityData),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MifinityData {
+    pub destination_account_number: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -675,6 +681,11 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::CashappQr(Box::new(CashappQr {}))
             }
             api_models::payments::WalletData::SwishQr(_) => Self::SwishQr(SwishQrData {}),
+            api_models::payments::WalletData::Mifinity(mifinity_data) => {
+                Self::Mifinity(MifinityData {
+                    destination_account_number: mifinity_data.destination_account_number,
+                })
+            }
         }
     }
 }

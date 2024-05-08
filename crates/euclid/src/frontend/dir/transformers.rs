@@ -167,6 +167,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::CardRedirect => {
                 Ok(dirval!(CardRedirectType = CardRedirect))
             }
+            global_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
         }
     }
 }

@@ -1439,6 +1439,7 @@ pub enum PaymentMethodType {
     Seicomart,
     PayEasy,
     LocalBankTransfer,
+    Mifinity,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
