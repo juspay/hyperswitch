@@ -15,13 +15,6 @@ const successfulThreeDSTestCardDetails = {
     "card_cvc": "123"
 };
 
-const paypalDetails ={
-
-        "wallet": {
-            "paypal_redirect": {}
-        }
-}
-
 export const connectorDetails = {
     card_pm:{
         "3DS": {
