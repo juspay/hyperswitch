@@ -751,15 +751,15 @@ pub async fn retrieve_payment_method_from_auth_service(
         .get_required_value("email")?;
 
     let billing_details = BankDebitBilling {
-        name,
-        email,
+        name: Some(name),
+        email: Some(email),
         address: address_details,
     };
 
     let payment_method_data = match &bank_account.account_details {
         pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 account_number: ach.account_number.clone(),
                 routing_number: ach.routing_number.clone(),
                 card_holder_name: None,
@@ -771,7 +771,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         }
         pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => {
             PaymentMethodData::BankDebit(BankDebitData::BacsBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 account_number: bacs.account_number.clone(),
                 sort_code: bacs.sort_code.clone(),
                 bank_account_holder_name: None,
@@ -779,7 +779,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         }
         pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
             PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 iban: sepa.iban.clone(),
                 bank_account_holder_name: None,
             })
