@@ -81,7 +81,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -265,7 +265,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 &request
                     .payment_method_data
                     .as_ref()
-                    .map(|pmd| pmd.payment_method_data.clone()),
+                    .and_then(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &token,
@@ -425,12 +425,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
                 payment_method_billing.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: request.confirm,
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -453,6 +454,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -592,12 +594,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 storage_enums::AttemptStatus::ConfirmationAwaited
             }
         };
+        let profile_id = payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
 
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
+                    .await
             })
             .await
             .as_ref()
@@ -718,8 +728,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_data.mandate_id = payment_data.mandate_id.clone();
-
         Ok((
             payments::is_confirm(self, payment_data.confirm),
             payment_data,
@@ -823,7 +831,9 @@ impl PaymentUpdate {
 
         payment_intent.business_country = request.business_country;
 
-        payment_intent.business_label = request.business_label.clone();
+        payment_intent
+            .business_label
+            .clone_from(&request.business_label);
 
         request
             .description

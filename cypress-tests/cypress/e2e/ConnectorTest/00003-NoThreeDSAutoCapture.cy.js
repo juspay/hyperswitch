@@ -1,8 +1,8 @@
-import createPaymentBody from "../../fixtures/create-payment-body.json";
-import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
 import confirmBody from "../../fixtures/confirm-body.json";
-import getConnectorDetails from "../ConnectorUtils/utils";
+import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
+import createPaymentBody from "../../fixtures/create-payment-body.json";
 import State from "../../utils/State";
+import getConnectorDetails from "../ConnectorUtils/utils";
 
 let globalState;
 
