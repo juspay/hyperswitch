@@ -5165,7 +5165,8 @@
         "type": "string",
         "enum": [
           "threedsecureio",
-          "netcetera"
+          "netcetera",
+          "g_payments"
         ]
       },
       "AuthenticationStatus": {
@@ -7250,6 +7251,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gpayments",
           "helcim",
           "iatapay",
           "klarna",
