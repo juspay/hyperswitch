@@ -1095,7 +1095,7 @@ impl RecoveryCodes {
             .iter()
             .map(|code| password::generate_password_hash(code.clone()))
             .collect::<Result<Vec<_>, _>>()
-            .map(|codes| Self(codes))
+            .map(Self)
     }
 
     pub fn into_inner(self) -> Vec<Secret<String>> {
