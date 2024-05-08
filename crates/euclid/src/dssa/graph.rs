@@ -838,7 +838,7 @@ mod test {
             None::<()>,
         );
         let mut memo = cgraph::Memoization::new();
-        let mut cycle_map = cgraph::CycleCheck::new();
+        let mut cycle_map = CycleCheck::new();
         let _edge_1 = builder
             .make_edge(
                 _node_1,
@@ -894,7 +894,7 @@ mod test {
             None::<()>,
         );
         let mut memo = cgraph::Memoization::new();
-        let mut cycle_map = cgraph::CycleCheck::new();
+        let mut cycle_map = CycleCheck::new();
 
         let _edge_1 = builder
             .make_edge(
@@ -986,7 +986,7 @@ mod test {
         );
 
         let mut memo = cgraph::Memoization::new();
-        let mut cycle_map = cgraph::CycleCheck::new();
+        let mut cycle_map = CycleCheck::new();
 
         let _edge_1 = builder
             .make_edge(

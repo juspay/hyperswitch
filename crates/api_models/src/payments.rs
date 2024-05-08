@@ -682,7 +682,7 @@ impl PaymentsRequest {
             .as_ref()
             .map(|od| {
                 od.iter()
-                    .map(|order| order.encode_to_value().map(masking::Secret::new))
+                    .map(|order| order.encode_to_value().map(Secret::new))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -934,6 +934,10 @@ pub struct ExtendedCardInfo {
     #[schema(value_type = String, example = "John Test")]
     pub card_holder_name: Option<Secret<String>>,
 
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Secret<String>,
+
     /// The name of the issuer of card
     #[schema(example = "chase")]
     pub card_issuer: Option<String>,
@@ -959,6 +963,7 @@ impl From<Card> for ExtendedCardInfo {
             card_exp_month: value.card_exp_month,
             card_exp_year: value.card_exp_year,
             card_holder_name: value.card_holder_name,
+            card_cvc: value.card_cvc,
             card_issuer: value.card_issuer,
             card_network: value.card_network,
             card_type: value.card_type,
@@ -1143,7 +1148,7 @@ pub enum BankDebitData {
     /// Payment Method data for Ach bank debit
     AchBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for ach bank debit payment
         #[schema(value_type = String, example = "000123456789")]
         account_number: Secret<String>,
@@ -1168,7 +1173,7 @@ pub enum BankDebitData {
     },
     SepaBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// International bank account number (iban) for SEPA
         #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
@@ -1178,7 +1183,7 @@ pub enum BankDebitData {
     },
     BecsBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for Becs payment method
         #[schema(value_type = String, example = "000123456")]
         account_number: Secret<String>,
@@ -1191,7 +1196,7 @@ pub enum BankDebitData {
     },
     BacsBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for Bacs payment method
         #[schema(value_type = String, example = "00012345")]
         account_number: Secret<String>,
@@ -1207,11 +1212,12 @@ pub enum BankDebitData {
 impl GetAddressFromPaymentMethodData for BankDebitData {
     fn get_billing_address(&self) -> Option<Address> {
         fn get_billing_address_inner(
-            bank_debit_billing: &BankDebitBilling,
+            bank_debit_billing: Option<&BankDebitBilling>,
             bank_account_holder_name: Option<&Secret<String>>,
         ) -> Option<Address> {
             // We will always have address here
-            let mut address = bank_debit_billing.get_billing_address()?;
+            let mut address = bank_debit_billing
+                .and_then(GetAddressFromPaymentMethodData::get_billing_address)?;
 
             // Prefer `account_holder_name` over `name`
             address.address.as_mut().map(|address| {
@@ -1243,7 +1249,10 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 billing_details,
                 bank_account_holder_name,
                 ..
-            } => get_billing_address_inner(billing_details, bank_account_holder_name.as_ref()),
+            } => get_billing_address_inner(
+                billing_details.as_ref(),
+                bank_account_holder_name.as_ref(),
+            ),
         }
     }
 }
@@ -1304,9 +1313,7 @@ mod payment_method_data_serde {
         match deserialize_to_inner {
             __Inner::OptionalPaymentMethod(value) => {
                 let parsed_value = serde_json::from_value::<__InnerPaymentMethodData>(value)
-                    .map_err(|serde_json_error| {
-                        serde::de::Error::custom(serde_json_error.to_string())
-                    })?;
+                    .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
 
                 let payment_method_data = if let Some(payment_method_data_value) =
                     parsed_value.payment_method_data
@@ -1321,14 +1328,12 @@ mod payment_method_data_serde {
                                     payment_method_data_value,
                                 )
                                 .map_err(|serde_json_error| {
-                                    serde::de::Error::custom(serde_json_error.to_string())
+                                    de::Error::custom(serde_json_error.to_string())
                                 })?,
                             )
                         }
                     } else {
-                        Err(serde::de::Error::custom(
-                            "Expected a map for payment_method_data",
-                        ))?
+                        Err(de::Error::custom("Expected a map for payment_method_data"))?
                     }
                 } else {
                     None
@@ -1342,7 +1347,7 @@ mod payment_method_data_serde {
             __Inner::RewardString(inner_string) => {
                 let payment_method_data = match inner_string.as_str() {
                     "reward" => PaymentMethodData::Reward,
-                    _ => Err(serde::de::Error::custom("Invalid Variant"))?,
+                    _ => Err(de::Error::custom("Invalid Variant"))?,
                 };
 
                 Ok(Some(PaymentMethodDataRequest {
@@ -1446,7 +1451,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
             Self::BankRedirect(_) => None,
-            Self::BankDebit(_) => None,
+            Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
             Self::BankTransfer(_) => None,
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
@@ -2240,11 +2245,11 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 pub struct BankDebitBilling {
     /// The billing name for bank debits
-    #[schema(value_type = String, example = "John Doe")]
-    pub name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub name: Option<Secret<String>>,
     /// The billing email for bank debits
-    #[schema(value_type = String, example = "example@example.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@example.com")]
+    pub email: Option<Email>,
     /// The billing address for bank debits
     pub address: Option<AddressDetails>,
 }
@@ -2252,19 +2257,19 @@ pub struct BankDebitBilling {
 impl GetAddressFromPaymentMethodData for BankDebitBilling {
     fn get_billing_address(&self) -> Option<Address> {
         let address = if let Some(mut address) = self.address.clone() {
-            address.first_name = Some(self.name.clone());
+            address.first_name = self.name.clone().or(address.first_name);
             Address {
                 address: Some(address),
-                email: Some(self.email.clone()),
+                email: self.email.clone(),
                 phone: None,
             }
         } else {
             Address {
                 address: Some(AddressDetails {
-                    first_name: Some(self.name.clone()),
+                    first_name: self.name.clone(),
                     ..AddressDetails::default()
                 }),
-                email: Some(self.email.clone()),
+                email: self.email.clone(),
                 phone: None,
             }
         };
@@ -2686,8 +2691,8 @@ pub enum PaymentIdType {
     PreprocessingId(String),
 }
 
-impl std::fmt::Display for PaymentIdType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PaymentIdType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PaymentIntentId(payment_id) => {
                 write!(f, "payment_intent_id = \"{payment_id}\"")
@@ -4897,14 +4902,14 @@ mod billing_from_payment_method_data {
         let test_first_name = Secret::new(String::from("Chaser"));
 
         let bank_redirect_billing = BankDebitBilling {
-            name: test_first_name.clone(),
+            name: Some(test_first_name.clone()),
             address: None,
-            email: test_email.clone(),
+            email: Some(test_email.clone()),
         };
 
         let ach_bank_debit_payment_method_data =
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                billing_details: bank_redirect_billing,
+                billing_details: Some(bank_redirect_billing),
                 account_number: Secret::new("1234".to_string()),
                 routing_number: Secret::new("1235".to_string()),
                 card_holder_name: None,

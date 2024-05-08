@@ -869,29 +869,25 @@ impl api::IncomingWebhook for Stax {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         match webhook_body.transaction_type {
-            stax::StaxWebhookEventType::Refund => {
-                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
-                ))
-            }
-            stax::StaxWebhookEventType::Unknown => {
+            StaxWebhookEventType::Refund => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
+            )),
+            StaxWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
-            stax::StaxWebhookEventType::PreAuth
-            | stax::StaxWebhookEventType::Capture
-            | stax::StaxWebhookEventType::Charge
-            | stax::StaxWebhookEventType::Void => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(match webhook_body
-                        .transaction_type
-                    {
-                        stax::StaxWebhookEventType::Capture => webhook_body
+            StaxWebhookEventType::PreAuth
+            | StaxWebhookEventType::Capture
+            | StaxWebhookEventType::Charge
+            | StaxWebhookEventType::Void => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    match webhook_body.transaction_type {
+                        StaxWebhookEventType::Capture => webhook_body
                             .auth_id
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                         _ => webhook_body.id,
-                    }),
-                ))
-            }
+                    },
+                ),
+            )),
         }
     }
 

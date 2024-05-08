@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.08.0
+
+### Features
+
+- **FRM:** Add missing fields in Signifyd payment request ([#4554](https://github.com/juspay/hyperswitch/pull/4554)) ([`df2c2ca`](https://github.com/juspay/hyperswitch/commit/df2c2ca22dc4cea986cbbf30850311d3e85000c5))
+- **connector:**
+  - [Cybersource] Add payout flows for Card ([#4511](https://github.com/juspay/hyperswitch/pull/4511)) ([`a72f040`](https://github.com/juspay/hyperswitch/commit/a72f040d9281744bceb928ef2e8d3a26783aae9e))
+  - [MiFinity] add connector template code ([#4447](https://github.com/juspay/hyperswitch/pull/4447)) ([`d974e6e`](https://github.com/juspay/hyperswitch/commit/d974e6e7c2e1e3cd99607183b647c420f4b14d20))
+- **router:** Add an api to enable `connector_agnostic_mit` feature ([#4480](https://github.com/juspay/hyperswitch/pull/4480)) ([`e769abe`](https://github.com/juspay/hyperswitch/commit/e769abe501470185fcca29e0abede0654579da06))
+- **users:**
+  - Create Token only support for pre-login user flow APIs ([#4558](https://github.com/juspay/hyperswitch/pull/4558)) ([`5ec00d9`](https://github.com/juspay/hyperswitch/commit/5ec00d96de49ae0e0f76c5b19e22db11e7db6dd2))
+  - Implement force set and force change password ([#4564](https://github.com/juspay/hyperswitch/pull/4564)) ([`59e79ff`](https://github.com/juspay/hyperswitch/commit/59e79ff205dfc2fded993b7a9130b9953bdd07e2))
+
+### Bug Fixes
+
+- **payment_methods:** Fix deserialization errors for `sdk_eligible_payment_methods` ([#4565](https://github.com/juspay/hyperswitch/pull/4565)) ([`f63a970`](https://github.com/juspay/hyperswitch/commit/f63a97024c755fd30a3403e2146812fe4edb8067))
+- **users:** Add password validations ([#4555](https://github.com/juspay/hyperswitch/pull/4555)) ([`25fe4de`](https://github.com/juspay/hyperswitch/commit/25fe4deb8e9152b37467ac1fea18b3074f0e7624))
+
+### Refactors
+
+- **core:** Refactor authentication core to fetch authentication only within it ([#4138](https://github.com/juspay/hyperswitch/pull/4138)) ([`71a070e`](https://github.com/juspay/hyperswitch/commit/71a070e26989f080031d92a88aa0143836d1ea7b))
+- Remove `configs/pg_agnostic_mit` api as it will not be used ([#4486](https://github.com/juspay/hyperswitch/pull/4486)) ([`99bbc39`](https://github.com/juspay/hyperswitch/commit/99bbc3982fa30f6ffd43334b1fa5da963975fe93))
+- Store `card_cvc` in extended_card_info and extend max ttl ([#4568](https://github.com/juspay/hyperswitch/pull/4568)) ([`1b5b566`](https://github.com/juspay/hyperswitch/commit/1b5b566387da83a2582216e05be4ceb1aa7251be))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.78 clippy lints ([#4545](https://github.com/juspay/hyperswitch/pull/4545)) ([`2216a88`](https://github.com/juspay/hyperswitch/commit/2216a88d25c42ede9862f6d036e7b0586a2e7c28))
+
+**Full Changelog:** [`2024.05.07.0...2024.05.08.0`](https://github.com/juspay/hyperswitch/compare/2024.05.07.0...2024.05.08.0)
+
+- - -
+
 ## 2024.05.07.0
 
 ### Features

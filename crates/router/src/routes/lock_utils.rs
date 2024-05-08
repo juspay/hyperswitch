@@ -203,6 +203,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword
+            | Flow::RotatePassword
             | Flow::InviteMultipleUser
             | Flow::ReInviteUser
             | Flow::UserSignUpWithMerchantId

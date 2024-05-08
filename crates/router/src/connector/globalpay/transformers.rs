@@ -269,7 +269,7 @@ impl<F, T>
             })
             .transpose()?;
         let redirection_data =
-            redirect_url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
+            redirect_url.map(|url| RedirectForm::from((url, services::Method::Get)));
         Ok(Self {
             status,
             response: get_payment_response(status, item.response, redirection_data),
@@ -434,8 +434,8 @@ fn get_mandate_details(item: &types::PaymentsAuthorizeRouterData) -> Result<Mand
             Some(StoredCredential {
                 model: Some(requests::Model::Recurring),
                 sequence: Some(match connector_mandate_id.is_some() {
-                    true => requests::Sequence::Subsequent,
-                    false => requests::Sequence::First,
+                    true => Sequence::Subsequent,
+                    false => Sequence::First,
                 }),
             }),
             connector_mandate_id,
