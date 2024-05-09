@@ -1445,9 +1445,13 @@ pub async fn verify_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
-        .await
-        .map_err(|e| logger::error!(?e));
+    if matches!(user_token.origin, domain::Origin::VerifyEmail)
+        || matches!(user_token.origin, domain::Origin::MagicLink)
+    {
+        let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+            .await
+            .map_err(|e| logger::error!(?e));
+    }
 
     let current_flow =
         domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
