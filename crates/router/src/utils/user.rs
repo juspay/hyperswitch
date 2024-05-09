@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 use api_models::user as user_api;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, pii};
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::ExposeInterface;
+use totp_rs::{Algorithm, TOTP};
 
 use crate::{
+    consts,
     core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
     services::{
@@ -74,7 +76,7 @@ pub async fn generate_jwt_auth_token(
     state: &AppState,
     user: &UserFromStorage,
     user_role: &UserRole,
-) -> UserResult<Secret<String>> {
+) -> UserResult<masking::Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         user_role.merchant_id.clone(),
@@ -83,7 +85,7 @@ pub async fn generate_jwt_auth_token(
         user_role.org_id.clone(),
     )
     .await?;
-    Ok(Secret::new(token))
+    Ok(masking::Secret::new(token))
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
@@ -92,7 +94,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     merchant_id: String,
     org_id: String,
     role_id: String,
-) -> UserResult<Secret<String>> {
+) -> UserResult<masking::Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         merchant_id,
@@ -101,14 +103,14 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
         org_id,
     )
     .await?;
-    Ok(Secret::new(token))
+    Ok(masking::Secret::new(token))
 }
 
 pub fn get_dashboard_entry_response(
     state: &AppState,
     user: UserFromStorage,
     user_role: UserRole,
-    token: Secret<String>,
+    token: masking::Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
     let verification_days_left = get_verification_days_left(state, &user)?;
 
@@ -185,9 +187,31 @@ pub async fn get_user_from_db_by_email(
         .map(UserFromStorage::from)
 }
 
-pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
+pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> masking::Secret<String> {
     match resp {
         user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
         user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
     }
+}
+
+pub fn generate_default_totp(
+    email: pii::Email,
+    secret: Option<masking::Secret<String>>,
+) -> UserResult<TOTP> {
+    let secret = secret
+        .map(|sec| totp_rs::Secret::Encoded(sec.expose()))
+        .unwrap_or_else(totp_rs::Secret::generate_secret)
+        .to_bytes()
+        .change_context(UserErrors::InternalServerError)?;
+
+    TOTP::new(
+        Algorithm::SHA1,
+        consts::user::TOTP_DIGITS,
+        consts::user::TOTP_TOLERANCE,
+        consts::user::TOTP_VALIDITY_DURATION_IN_SECONDS,
+        secret,
+        Some(consts::user::TOTP_ISSUER_NAME.to_string()),
+        email.expose().expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
 }

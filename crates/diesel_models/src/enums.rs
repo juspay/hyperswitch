@@ -18,8 +18,8 @@ pub mod diesel_exports {
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
-        DbTransactionType as TransactionType, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
+        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;
@@ -349,4 +349,27 @@ pub enum DashboardMetadata {
     IsMultipleConfiguration,
     IsChangePasswordRequired,
     OnboardingSurvey,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TotpStatus {
+    Set,
+    InProgress,
+    #[default]
+    NotSet,
 }
