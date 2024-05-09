@@ -60,6 +60,8 @@ impl_misc_api_event_type!(
     RevokeApiKeyResponse,
     ToggleKVResponse,
     ToggleKVRequest,
+    ToggleAllKVRequest,
+    ToggleAllKVResponse,
     MerchantAccountDeleteResponse,
     MerchantAccountUpdate,
     CardInfoResponse,
