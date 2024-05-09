@@ -117,4 +117,4 @@ pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
 pub const DEFAULT_POLL_FREQUENCY: i8 = 5;
 
 // Number of seconds to subtract from access token expiry
-pub(crate) const REDUCE_ACCESS_TOKEN_EXPIRY_TIME: u8 = 30;
+pub(crate) const REDUCE_ACCESS_TOKEN_EXPIRY_TIME: u8 = 15;

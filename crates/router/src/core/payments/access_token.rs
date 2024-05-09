@@ -145,8 +145,9 @@ pub async fn add_access_token<
 
                     // The expiry should be adjusted for network delays from the connector
                     // The access token might not have been expired when request is sent
-                    // But once it reaches the connector, it might expire
+                    // But once it reaches the connector, it might expire because of the network delay
                     // Subtract few seconds from the expiry in order to account for these network delays
+                    // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
                     let modified_access_token_with_expiry = types::AccessToken {
                         expires: access_token
                             .expires
