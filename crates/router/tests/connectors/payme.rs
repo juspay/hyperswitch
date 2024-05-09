@@ -60,6 +60,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 email: None,
             }),
             None,
+            None,
         )),
         auth_type: None,
         access_token: None,
@@ -84,13 +85,14 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             requires_shipping: None,
             product_id: None,
             category: None,
+            sub_category: None,
             brand: None,
             product_type: None,
         }]),
         router_return_url: Some("https://hyperswitch.io".to_string()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
         email: Some(Email::from_str("test@gmail.com").unwrap()),
-        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
             card_cvc: Secret::new("123".to_string()),
             card_exp_month: Secret::new("10".to_string()),
@@ -154,7 +156,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -279,7 +281,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -371,7 +373,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -383,13 +385,14 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                ..utils::PaymentAuthorizeType::default().0
+                ..PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
         )
@@ -409,7 +412,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -421,13 +424,14 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                ..utils::PaymentAuthorizeType::default().0
+                ..PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
         )
@@ -447,7 +451,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2012".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -459,13 +463,14 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                ..utils::PaymentAuthorizeType::default().0
+                ..PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
         )

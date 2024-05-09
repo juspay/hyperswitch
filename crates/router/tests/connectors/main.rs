@@ -34,6 +34,7 @@ mod globepay;
 mod gocardless;
 mod helcim;
 mod iatapay;
+mod mifinity;
 mod mollie;
 mod multisafepay;
 mod netcetera;
@@ -62,6 +63,7 @@ mod trustpay;
 mod tsys;
 mod utils;
 mod volt;
+#[cfg(feature = "payouts")]
 mod wise;
 mod worldline;
 mod worldpay;

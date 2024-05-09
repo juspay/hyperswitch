@@ -78,14 +78,16 @@ impl Default for AnalyticsProvider {
     }
 }
 
-impl ToString for AnalyticsProvider {
-    fn to_string(&self) -> String {
-        String::from(match self {
+impl std::fmt::Display for AnalyticsProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let analytics_provider = match self {
             Self::Clickhouse(_) => "Clickhouse",
             Self::Sqlx(_) => "Sqlx",
             Self::CombinedCkh(_, _) => "CombinedCkh",
             Self::CombinedSqlx(_, _) => "CombinedSqlx",
-        })
+        };
+
+        write!(f, "{}", analytics_provider)
     }
 }
 

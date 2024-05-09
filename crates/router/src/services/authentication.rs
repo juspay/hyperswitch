@@ -876,13 +876,13 @@ impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     }
 }
 
-impl ClientSecretFetch for api_models::payments::PaymentsRetrieveRequest {
+impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
 }
 
-impl ClientSecretFetch for api_models::payments::RetrievePaymentLinkRequest {
+impl ClientSecretFetch for payments::RetrievePaymentLinkRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }

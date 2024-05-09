@@ -66,18 +66,10 @@ pub enum CardRedirectData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum PayLaterData {
-    KlarnaRedirect {
-        billing_email: Email,
-        billing_country: common_enums::CountryAlpha2,
-    },
-    KlarnaSdk {
-        token: String,
-    },
+    KlarnaRedirect {},
+    KlarnaSdk { token: String },
     AffirmRedirect {},
-    AfterpayClearpayRedirect {
-        billing_email: Email,
-        billing_name: Secret<String>,
-    },
+    AfterpayClearpayRedirect {},
     PayBrightRedirect {},
     WalleyRedirect {},
     AlmaRedirect {},
@@ -390,39 +382,23 @@ pub struct CardToken {
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
     AchBankDebit {
-        billing_details: BankDebitBilling,
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<Secret<String>>,
-        bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
-        billing_details: BankDebitBilling,
         iban: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
     },
     BecsBankDebit {
-        billing_details: BankDebitBilling,
         account_number: Secret<String>,
         bsb_number: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
-        billing_details: BankDebitBilling,
         account_number: Secret<String>,
         sort_code: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
     },
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
-pub struct BankDebitBilling {
-    pub name: Secret<String>,
-    pub email: Email,
-    pub address: Option<api_models::payments::AddressDetails>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -713,22 +689,12 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
 impl From<api_models::payments::PayLaterData> for PayLaterData {
     fn from(value: api_models::payments::PayLaterData) -> Self {
         match value {
-            api_models::payments::PayLaterData::KlarnaRedirect {
-                billing_email,
-                billing_country,
-            } => Self::KlarnaRedirect {
-                billing_email,
-                billing_country,
-            },
+            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect {},
             api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
             api_models::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect {},
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect {
-                billing_email,
-                billing_name,
-            } => Self::AfterpayClearpayRedirect {
-                billing_email,
-                billing_name,
-            },
+            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                Self::AfterpayClearpayRedirect {}
+            }
             api_models::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect {},
             api_models::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect {},
             api_models::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect {},
@@ -917,70 +883,37 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
     fn from(value: api_models::payments::BankDebitData) -> Self {
         match value {
             api_models::payments::BankDebitData::AchBankDebit {
-                billing_details,
                 account_number,
                 routing_number,
-                card_holder_name,
-                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
+                ..
             } => Self::AchBankDebit {
-                billing_details: BankDebitBilling {
-                    name: billing_details.name,
-                    email: billing_details.email,
-                    address: billing_details.address,
-                },
                 account_number,
                 routing_number,
-                card_holder_name,
-                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
             },
-            api_models::payments::BankDebitData::SepaBankDebit {
-                billing_details,
-                iban,
-                bank_account_holder_name,
-            } => Self::SepaBankDebit {
-                billing_details: BankDebitBilling {
-                    name: billing_details.name,
-                    email: billing_details.email,
-                    address: billing_details.address,
-                },
-                iban,
-                bank_account_holder_name,
-            },
+            api_models::payments::BankDebitData::SepaBankDebit { iban, .. } => {
+                Self::SepaBankDebit { iban }
+            }
             api_models::payments::BankDebitData::BecsBankDebit {
-                billing_details,
                 account_number,
                 bsb_number,
-                bank_account_holder_name,
+                ..
             } => Self::BecsBankDebit {
-                billing_details: BankDebitBilling {
-                    name: billing_details.name,
-                    email: billing_details.email,
-                    address: billing_details.address,
-                },
                 account_number,
                 bsb_number,
-                bank_account_holder_name,
             },
             api_models::payments::BankDebitData::BacsBankDebit {
-                billing_details,
                 account_number,
                 sort_code,
-                bank_account_holder_name,
+                ..
             } => Self::BacsBankDebit {
-                billing_details: BankDebitBilling {
-                    name: billing_details.name,
-                    email: billing_details.email,
-                    address: billing_details.address,
-                },
                 account_number,
                 sort_code,
-                bank_account_holder_name,
             },
         }
     }

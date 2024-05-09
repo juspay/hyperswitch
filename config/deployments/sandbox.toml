@@ -53,6 +53,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
+mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
@@ -114,6 +115,9 @@ refund_retrieve_tolerance = 100                                         # Fake d
 refund_tolerance = 100                                                  # Fake delay tolerance for dummy connector refund
 refund_ttl = 172800                                                     # Time to live for dummy connector refund in redis
 slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"    # Slack invite url for hyperswitch
+
+[user]
+password_validity_in_days = 90
 
 [frm]
 enabled = true
@@ -334,3 +338,6 @@ connectors_with_webhook_source_verification_call = "paypal"        # List of con
 
 [unmasked_headers]
 keys = "user-agent"
+
+[saved_payment_methods]
+sdk_eligible_payment_methods = "card"

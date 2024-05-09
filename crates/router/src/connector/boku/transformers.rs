@@ -295,7 +295,7 @@ fn get_authorize_response(
     let redirection_data = match response.hosted {
         Some(hosted_value) => Ok(hosted_value
             .redirect_url
-            .map(|url| services::RedirectForm::from((url, services::Method::Get)))),
+            .map(|url| RedirectForm::from((url, services::Method::Get)))),
         None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
             field_name: "redirect_url",
         }),
