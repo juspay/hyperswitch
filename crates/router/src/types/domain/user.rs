@@ -631,7 +631,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
-            last_password_modified_at: value.is_temporary_password.not().then(|| now),
+            last_password_modified_at: value.is_temporary_password.not().then_some(now),
         })
     }
 }
