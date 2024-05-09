@@ -210,7 +210,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VerifyEmail
             | Flow::AcceptInviteFromEmail
             | Flow::VerifyEmailRequest
-            | Flow::UpdateUserAccountDetails => Self::User,
+            | Flow::UpdateUserAccountDetails
+            | Flow::TotpBegin
+            | Flow::TotpVerify => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole
