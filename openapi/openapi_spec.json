@@ -4984,6 +4984,14 @@
           "merchant_identifier": {
             "type": "string",
             "nullable": true
+          },
+          "required_billing_contact_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The required billing contacht fields for connector",
+            "nullable": true
           }
         }
       },
@@ -8991,40 +8999,40 @@
           {
             "type": "string",
             "enum": [
-              "user_address_line1"
+              "user_billing_address_line1"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "user_address_line2"
+              "user_billing_address_line2"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "user_address_city"
+              "user_billing_address_city"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "user_address_pincode"
+              "user_billing_address_pincode"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "user_address_state"
+              "user_billing_address_state"
             ]
           },
           {
             "type": "object",
             "required": [
-              "user_address_country"
+              "user_billing_address_country"
             ],
             "properties": {
-              "user_address_country": {
+              "user_billing_address_country": {
                 "type": "object",
                 "required": [
                   "options"
@@ -17338,6 +17346,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",

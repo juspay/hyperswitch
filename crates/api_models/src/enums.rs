@@ -110,6 +110,7 @@ pub enum Connector {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
+    // Payone, added as template code for future usage
     Paypal,
     Payu,
     Placetopay,
@@ -218,6 +219,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
+            // | Self::Payone  Added as a template code for future usage
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -391,13 +393,11 @@ pub struct UnresolvedResponseReason {
     Clone,
     Debug,
     Eq,
-    PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
-    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -413,16 +413,82 @@ pub enum FieldType {
     UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
     UserCurrency { options: Vec<String> },
     UserBillingName,
-    UserAddressLine1,
-    UserAddressLine2,
-    UserAddressCity,
-    UserAddressPincode,
-    UserAddressState,
-    UserAddressCountry { options: Vec<String> },
+    UserBillingAddressLine1,
+    UserBillingAddressLine2,
+    UserBillingAddressCity,
+    UserBillingAddressPincode,
+    UserBillingAddressState,
+    UserBillingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
     Text,
     DropDown { options: Vec<String> },
+}
+
+impl FieldType {
+    pub fn get_billing_variants() -> Vec<Self> {
+        vec![
+            Self::UserBillingName,
+            Self::UserBillingAddressLine1,
+            Self::UserBillingAddressLine2,
+            Self::UserBillingAddressCity,
+            Self::UserBillingAddressPincode,
+            Self::UserBillingAddressState,
+            Self::UserBillingAddressCountry { options: vec![] },
+        ]
+    }
+}
+
+impl PartialEq for FieldType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::UserCardNumber, Self::UserCardNumber) => true,
+            (Self::UserCardExpiryMonth, Self::UserCardExpiryMonth) => true,
+            (Self::UserCardExpiryYear, Self::UserCardExpiryYear) => true,
+            (Self::UserCardCvc, Self::UserCardCvc) => true,
+            (Self::UserFullName, Self::UserFullName) => true,
+            (Self::UserEmailAddress, Self::UserEmailAddress) => true,
+            (Self::UserPhoneNumber, Self::UserPhoneNumber) => true,
+            (Self::UserCountryCode, Self::UserCountryCode) => true,
+            (
+                Self::UserCountry {
+                    options: options_self,
+                },
+                Self::UserCountry {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            (
+                Self::UserCurrency {
+                    options: options_self,
+                },
+                Self::UserCurrency {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            (Self::UserBillingName, Self::UserBillingName) => true,
+            (Self::UserBillingAddressLine1, Self::UserBillingAddressLine1) => true,
+            (Self::UserBillingAddressLine2, Self::UserBillingAddressLine2) => true,
+            (Self::UserBillingAddressCity, Self::UserBillingAddressCity) => true,
+            (Self::UserBillingAddressPincode, Self::UserBillingAddressPincode) => true,
+            (Self::UserBillingAddressState, Self::UserBillingAddressState) => true,
+            (Self::UserBillingAddressCountry { .. }, Self::UserBillingAddressCountry { .. }) => {
+                true
+            }
+            (Self::UserBlikCode, Self::UserBlikCode) => true,
+            (Self::UserBank, Self::UserBank) => true,
+            (Self::Text, Self::Text) => true,
+            (
+                Self::DropDown {
+                    options: options_self,
+                },
+                Self::DropDown {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            _unused => false,
+        }
+    }
 }
 
 #[derive(

@@ -13,7 +13,11 @@ use crate::{
     headers, logger,
     routes::{self, metrics},
     services,
-    types::{self, api, domain, storage},
+    types::{
+        self,
+        api::{self, enums},
+        domain, storage,
+    },
     utils::OptionExt,
 };
 
@@ -83,6 +87,43 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
+}
+
+fn is_dynamic_fields_required(
+    state: &routes::AppState,
+    payment_method: enums::PaymentMethod,
+    payment_method_type: enums::PaymentMethodType,
+    connector: &types::Connector,
+    required_field_type: Vec<enums::FieldType>,
+) -> Option<bool> {
+    state
+        .conf
+        .required_fields
+        .0
+        .get(&payment_method)
+        .and_then(|pm_type| {
+            pm_type
+                .0
+                .get(&payment_method_type)
+                .and_then(|required_fields_for_connector| {
+                    required_fields_for_connector.fields.get(connector).map(
+                        |required_fields_final| {
+                            required_fields_final
+                                .non_mandate
+                                .iter()
+                                .any(|(_, val)| required_field_type.contains(&val.field_type))
+                                || required_fields_final
+                                    .mandate
+                                    .iter()
+                                    .any(|(_, val)| required_field_type.contains(&val.field_type))
+                                || required_fields_final
+                                    .common
+                                    .iter()
+                                    .any(|(_, val)| required_field_type.contains(&val.field_type))
+                        },
+                    )
+                })
+        })
 }
 
 fn get_applepay_metadata(
@@ -255,6 +296,23 @@ async fn create_applepay_session_token(
             router_data.request.to_owned(),
         )?;
 
+        let billing_variants = enums::FieldType::get_billing_variants();
+
+        let required_billing_contact_fields = is_dynamic_fields_required(
+            state,
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            &connector.connector_name,
+            billing_variants,
+        )
+        .and_then(|is_dynamic_fields_required| {
+            if is_dynamic_fields_required {
+                Some(vec!["postalAddress".to_string()])
+            } else {
+                None
+            }
+        });
+
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
             amount_info,
@@ -262,6 +320,7 @@ async fn create_applepay_session_token(
             router_data.request.to_owned(),
             apple_pay_session_request.merchant_identifier.as_str(),
             merchant_business_country,
+            required_billing_contact_fields,
         )?;
 
         let applepay_session_request = build_apple_pay_session_request(
@@ -362,6 +421,7 @@ fn get_apple_pay_payment_request(
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
     merchant_business_country: Option<api_models::enums::CountryAlpha2>,
+    required_billing_contact_fields: Option<Vec<String>>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
         country_code: merchant_business_country.or(session_data.country).ok_or(
@@ -374,6 +434,7 @@ fn get_apple_pay_payment_request(
         merchant_capabilities: Some(payment_request_data.merchant_capabilities),
         supported_networks: Some(payment_request_data.supported_networks),
         merchant_identifier: Some(merchant_identifier.to_string()),
+        required_billing_contact_fields,
     };
     Ok(applepay_payment_request)
 }
