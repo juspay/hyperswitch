@@ -592,6 +592,8 @@ diesel::table! {
         original_payment_id -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        updated_by -> Nullable<Varchar>
     }
 }
 

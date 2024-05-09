@@ -1,3 +1,4 @@
+use common_enums::MerchantStorageScheme;
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
@@ -22,6 +23,12 @@ pub struct CustomerNew {
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
     pub updated_by : Option<String>,
+}
+
+impl CustomerNew{
+    pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme){
+        self.updated_by = Some(storage_scheme.to_string());
+    }
 }
 
 impl From<CustomerNew> for Customer {
