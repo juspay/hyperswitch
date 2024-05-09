@@ -114,4 +114,4 @@ pub const POLL_ID_TTL: i64 = 900;
 pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
 pub const DEFAULT_POLL_FREQUENCY: i8 = 5;
 
-pub const CONNECTOR_TOKEN_TTL : i64 = 900;
+pub const CONNECTOR_TOKEN_TTL: i64 = 900;
