@@ -2762,11 +2762,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
         item: types::RefundsResponseRouterData<api::RSync, CybersourceRsyncResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            CybersourceRsyncResponse::RsyncApplicationResponse(rsync_reponse) => Ok(Self {
+            CybersourceRsyncResponse::RsyncApplicationResponse(rsync_response) => Ok(Self {
                 response: Ok(types::RefundsResponseData {
-                    connector_refund_id: rsync_reponse.id,
+                    connector_refund_id: rsync_response.id,
                     refund_status: enums::RefundStatus::from(
-                        rsync_reponse.application_information.status,
+                        rsync_response.application_information.status,
                     ),
                 }),
                 ..item.data
