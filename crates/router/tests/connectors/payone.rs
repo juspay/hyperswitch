@@ -12,7 +12,7 @@ impl utils::Connector for PayoneTest {
         use router::connector::Payone;
         types::api::ConnectorData {
             connector: Box::new(&Payone),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }

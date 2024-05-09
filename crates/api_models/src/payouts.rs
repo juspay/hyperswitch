@@ -4,7 +4,7 @@ use common_utils::{
     crypto,
     pii::{self, Email},
 };
-use masking:: Secret;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -181,23 +181,6 @@ pub struct Card {
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
 }
-
-// impl Card {
-//     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::types::ErrorType> {
-//         let binding = self.expiry_year.clone();
-//         let year = binding.peek();
-//         Ok(Secret::new(
-//             year.get(year.len() - 2..)
-//                 .ok_or(errors::types::ErrorType::ConnectorError)?
-//                 .to_string(),
-//         ))
-//     }
-//     pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::types::ErrorType> {
-//         let year = self.get_card_expiry_year_2_digit()?.expose();
-//         let month = self.expiry_month.clone().expose();
-//         Ok(Secret::new(format!("{month}{year}")))
-//     }
-// }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(untagged)]
