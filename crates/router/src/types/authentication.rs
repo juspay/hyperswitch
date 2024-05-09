@@ -125,6 +125,9 @@ pub struct ConnectorPostAuthenticationRequestData {
 pub type PreAuthNRouterData =
     RouterData<api::PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
 
+pub type PreAuthNVersionCallRouterData =
+    RouterData<api::PreAuthenticationVersionCall, PreAuthNRequestData, AuthenticationResponseData>;
+
 pub type ConnectorAuthenticationRouterData =
     RouterData<api::Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>;
 

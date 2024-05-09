@@ -140,12 +140,44 @@ pub async fn perform_pre_authentication(
     )
     .await?;
 
-    let router_data = transformers::construct_pre_authentication_router_data(
-        authentication_connector_name.clone(),
-        card_number,
-        &three_ds_connector_account,
-        business_profile.merchant_id.clone(),
-    )?;
+    let authentication = if state
+        .conf
+        .separate_three_ds_version_call_enabled_connectors
+        .authentication_connector_list
+        .contains(&authentication_connector)
+    {
+        let router_data: core_types::authentication::PreAuthNVersionCallRouterData =
+            transformers::construct_pre_authentication_router_data(
+                authentication_connector_name.clone(),
+                card_number.clone(),
+                &three_ds_connector_account,
+                business_profile.merchant_id.clone(),
+            )?;
+        let router_data = utils::do_auth_connector_call(
+            state,
+            authentication_connector_name.clone(),
+            router_data,
+        )
+        .await?;
+
+        utils::update_trackers(state, router_data, authentication, acquirer_details.clone()).await?
+    } else {
+        authentication
+    };
+
+    // from version call response, we will get to know the maximum supported 3ds version.
+    // If the version is not greater than or equal to 3DS 2.0, We should do the successive pre authentication call.
+    if !authentication.is_separate_authn_required() {
+        return Ok(authentication);
+    }
+
+    let router_data: core_types::authentication::PreAuthNRouterData =
+        transformers::construct_pre_authentication_router_data(
+            authentication_connector_name.clone(),
+            card_number,
+            &three_ds_connector_account,
+            business_profile.merchant_id.clone(),
+        )?;
     let router_data =
         utils::do_auth_connector_call(state, authentication_connector_name, router_data).await?;
 
