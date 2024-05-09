@@ -2761,9 +2761,7 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
-#[derive(
-    Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema, Setter,
-)]
+#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     /// The address city
@@ -4855,23 +4853,6 @@ mod payments_response_api_contract {
 
     #[test]
     fn test_reward_payment_response() {
-        let payment_method_response_with_billing = PaymentMethodDataResponseWithBilling {
-            payment_method_data: Some(PaymentMethodDataResponse::Reward {}),
-            billing: None,
-        };
-
-        let payments_response = TestPaymentsResponse {
-            payment_method_data: Some(payment_method_response_with_billing),
-        };
-
-        let expected_response = r#"{"payment_method_data":"reward"}"#;
-
-        let stringified_payments_response = payments_response.encode_to_string_of_json();
-        assert_eq!(stringified_payments_response.unwrap(), expected_response);
-    }
-
-    #[test]
-    fn test_payment_response_without_payment_method_data() {
         let payment_method_response_with_billing = PaymentMethodDataResponseWithBilling {
             payment_method_data: Some(PaymentMethodDataResponse::Reward {}),
             billing: None,
