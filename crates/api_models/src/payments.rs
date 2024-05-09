@@ -4199,6 +4199,8 @@ pub struct ApplePayPaymentRequest {
     /// The list of supported networks
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
+    /// The required billing contacht fields for connector
+    pub required_billing_contact_fields: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
