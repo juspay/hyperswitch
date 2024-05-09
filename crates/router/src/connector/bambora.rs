@@ -557,10 +557,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/v1/payments/{}{}",
+            "{}/v1/payments/{}/void",
             self.base_url(connectors),
             connector_payment_id,
-            "/void"
         ))
     }
 

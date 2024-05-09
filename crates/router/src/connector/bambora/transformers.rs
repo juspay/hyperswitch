@@ -144,11 +144,12 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                             version: Some(2),
                             auth_required: Some(true),
                         }),
-                        item.router_data
-                            .request
-                            .get_browser_info()?
-                            .ip_address
-                            .map(|ip_address| Secret::new(format!("{ip_address}"))),
+                        Some(
+                            item.router_data
+                                .request
+                                .get_browser_info()?
+                                .get_ip_address()?,
+                        ),
                     ),
                     enums::AuthenticationType::NoThreeDs => (None, None),
                 };
