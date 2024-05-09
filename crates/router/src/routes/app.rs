@@ -198,6 +198,7 @@ impl AppState {
                                 .await
                                 .expect("Failed to create store"),
                             kafka_client.clone(),
+                            crate::db::kafka_store::TenantID("default".to_string()),
                         )
                         .await,
                     ),
@@ -1197,7 +1198,9 @@ impl User {
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            );
+            )
+            .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
+            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)));
 
         #[cfg(feature = "email")]
         {
