@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     connector::utils::{
-        AddressDetailsData, BrowserInformationData, CardData as OtherCardData,
+        self, AddressDetailsData, BrowserInformationData, CardData as OtherCardData,
         PaymentsAuthorizeRequestData, RouterData,
     },
     consts,
