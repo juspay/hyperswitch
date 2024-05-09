@@ -198,6 +198,7 @@ impl AppState {
                                 .await
                                 .expect("Failed to create store"),
                             kafka_client.clone(),
+                            crate::db::kafka_store::TenantID("default".to_string()),
                         )
                         .await,
                     ),
@@ -1180,6 +1181,7 @@ impl User {
             .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
+            .service(web::resource("/rotate_password").route(web::post().to(rotate_password)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
@@ -1196,7 +1198,9 @@ impl User {
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            );
+            )
+            .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
+            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)));
 
         #[cfg(feature = "email")]
         {

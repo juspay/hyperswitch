@@ -8,6 +8,7 @@ use argon2::{
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
+use rand::{seq::SliceRandom, Rng};
 
 use crate::core::errors::UserErrors;
 
@@ -37,4 +38,21 @@ pub fn is_correct_password(
         Err(e) => Err(e),
     }
     .change_context(UserErrors::InternalServerError)
+}
+
+pub fn get_temp_password() -> Secret<String> {
+    let uuid_pass = uuid::Uuid::new_v4().to_string();
+    let mut rng = rand::thread_rng();
+
+    let special_chars: Vec<char> = "!@#$%^&*()-_=+[]{}|;:,.<>?".chars().collect();
+    let special_char = special_chars.choose(&mut rng).unwrap_or(&'@');
+
+    Secret::new(format!(
+        "{}{}{}{}{}",
+        uuid_pass,
+        rng.gen_range('A'..='Z'),
+        special_char,
+        rng.gen_range('a'..='z'),
+        rng.gen_range('0'..='9'),
+    ))
 }

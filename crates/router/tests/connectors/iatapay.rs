@@ -75,6 +75,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 email: None,
             }),
             None,
+            None,
         )),
         access_token: get_access_token(),
         return_url: Some(String::from("https://hyperswitch.io")),

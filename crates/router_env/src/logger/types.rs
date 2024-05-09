@@ -360,6 +360,8 @@ pub enum Flow {
     ForgotPassword,
     /// Reset password using link
     ResetPassword,
+    /// Force set or force change password
+    RotatePassword,
     /// Invite multiple users
     InviteMultipleUser,
     /// Reinvite user
@@ -394,6 +396,10 @@ pub enum Flow {
     UpdateRole,
     /// User email flow start
     UserFromEmail,
+    /// Begin TOTP
+    TotpBegin,
+    /// Verify TOTP
+    TotpVerify,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
