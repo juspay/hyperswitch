@@ -170,8 +170,38 @@ pub async fn transfer_org_ownership(
 
 pub async fn accept_invitation(
     state: AppState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserFromToken,
     req: user_role_api::AcceptInvitationRequest,
+) -> UserResponse<()> {
+    futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
+        state
+            .store
+            .update_user_role_by_user_id_merchant_id(
+                user_token.user_id.as_str(),
+                merchant_id,
+                UserRoleUpdate::UpdateStatus {
+                    status: UserStatus::Active,
+                    modified_by: user_token.user_id.clone(),
+                },
+            )
+            .await
+            .map_err(|e| {
+                logger::error!("Error while accepting invitation {}", e);
+            })
+            .ok()
+    }))
+    .await
+    .into_iter()
+    .reduce(Option::or)
+    .flatten()
+    .ok_or(UserErrors::MerchantIdNotFound.into())
+    .map(|_| ApplicationResponse::StatusOk)
+}
+
+pub async fn merchant_select(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_role_api::MerchantSelectRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
@@ -207,7 +237,6 @@ pub async fn accept_invitation(
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
-
         let response = utils::user::get_dashboard_entry_response(
             &state,
             user_from_db,
@@ -223,10 +252,10 @@ pub async fn accept_invitation(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn accept_invitation_token_only_flow(
+pub async fn merchant_select_token_only_flow(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
-    req: user_role_api::AcceptInvitationRequest,
+    req: user_role_api::MerchantSelectRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
