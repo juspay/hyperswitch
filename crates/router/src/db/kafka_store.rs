@@ -1109,7 +1109,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_attempt(&attempt, None)
+            .log_payment_attempt(&attempt, None, TenantID("default".to_string()))
             .await
         {
             logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)

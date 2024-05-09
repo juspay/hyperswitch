@@ -270,11 +270,12 @@ impl KafkaProducer {
         &self,
         attempt: &PaymentAttempt,
         old_attempt: Option<PaymentAttempt>,
+        tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_attempt {
             self.log_event(&KafkaEvent::old(
                 &KafkaPaymentAttempt::from_storage(&negative_event),
-                TenantID("default".to_string()),
+                tenant_id,
             ))
             .attach_printable_lazy(|| {
                 format!("Failed to add negative attempt event {negative_event:?}")
@@ -282,7 +283,7 @@ impl KafkaProducer {
         };
         self.log_event(&KafkaEvent::new(
             &KafkaPaymentAttempt::from_storage(attempt),
-            TenantID("default".to_string()),
+            tenant_id,
         ))
         .attach_printable_lazy(|| format!("Failed to add positive attempt event {attempt:?}"))
     }
