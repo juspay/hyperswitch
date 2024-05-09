@@ -194,8 +194,8 @@ pub async fn accept_invitation(
     .into_iter()
     .reduce(Option::or)
     .flatten()
-    .ok_or(UserErrors::MerchantIdNotFound)
-    .map(|_| Ok(ApplicationResponse::StatusOk))?
+    .ok_or(UserErrors::MerchantIdNotFound.into())
+    .map(|_| ApplicationResponse::StatusOk)
 }
 
 pub async fn merchant_select(
@@ -226,7 +226,7 @@ pub async fn merchant_select(
     .flatten()
     .ok_or(UserErrors::MerchantIdNotFound)?;
 
-    let set_cookie_response = if let Some(true) = req.need_dashboard_entry_response {
+    if let Some(true) = req.need_dashboard_entry_response {
         let user_from_db = state
             .store
             .find_user_by_id(user_token.user_id.as_str())
@@ -237,43 +237,19 @@ pub async fn merchant_select(
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
-
         let response = utils::user::get_dashboard_entry_response(
             &state,
             user_from_db,
             user_role,
             token.clone(),
         )?;
-
-        auth::cookies::set_cookie_response(
+        return auth::cookies::set_cookie_response(
             user_api::TokenOrPayloadResponse::Payload(response),
             token,
-        )
-    } else {
-        let user_from_db: domain::UserFromStorage = state
-            .store
-            .find_user_by_id(user_token.user_id.as_str())
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into();
+        );
+    }
 
-        let current_flow =
-            domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::MerchantSelect.into())?;
-        let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
-
-        let token = next_flow
-            .get_token_with_user_role(&state, &user_role)
-            .await?;
-
-        let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
-            token: token.clone(),
-            token_type: next_flow.get_flow().into(),
-        });
-
-        auth::cookies::set_cookie_response(response, token)
-    };
-
-    set_cookie_response
+    Ok(ApplicationResponse::StatusOk)
 }
 
 pub async fn merchant_select_token_only_flow(
