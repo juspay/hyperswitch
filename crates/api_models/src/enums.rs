@@ -398,7 +398,6 @@ pub struct UnresolvedResponseReason {
     strum::Display,
     strum::EnumString,
     ToSchema,
-    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -433,15 +432,15 @@ pub enum FieldType {
 }
 
 impl FieldType {
-    pub fn get_billing_variants() -> Vec<FieldType> {
+    pub fn get_billing_variants() -> Vec<Self> {
         vec![
-            FieldType::UserBillingName,
-            FieldType::UserBillingAddressLine1,
-            FieldType::UserBillingAddressLine2,
-            FieldType::UserBillingAddressCity,
-            FieldType::UserBillingAddressPincode,
-            FieldType::UserBillingAddressState,
-            FieldType::UserBillingAddressCountry { options: vec![] },
+            Self::UserBillingName,
+            Self::UserBillingAddressLine1,
+            Self::UserBillingAddressLine2,
+            Self::UserBillingAddressCity,
+            Self::UserBillingAddressPincode,
+            Self::UserBillingAddressState,
+            Self::UserBillingAddressCountry { options: vec![] },
         ]
     }
 }
@@ -449,55 +448,47 @@ impl FieldType {
 impl PartialEq for FieldType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (FieldType::UserCardNumber, FieldType::UserCardNumber) => true,
-            (FieldType::UserCardExpiryMonth, FieldType::UserCardExpiryMonth) => true,
-            (FieldType::UserCardExpiryYear, FieldType::UserCardExpiryYear) => true,
-            (FieldType::UserCardCvc, FieldType::UserCardCvc) => true,
-            (FieldType::UserFullName, FieldType::UserFullName) => true,
-            (FieldType::UserEmailAddress, FieldType::UserEmailAddress) => true,
-            (FieldType::UserPhoneNumber, FieldType::UserPhoneNumber) => true,
-            (FieldType::UserCountryCode, FieldType::UserCountryCode) => true,
+            (Self::UserCardNumber, Self::UserCardNumber) => true,
+            (Self::UserCardExpiryMonth, Self::UserCardExpiryMonth) => true,
+            (Self::UserCardExpiryYear, Self::UserCardExpiryYear) => true,
+            (Self::UserCardCvc, Self::UserCardCvc) => true,
+            (Self::UserFullName, Self::UserFullName) => true,
+            (Self::UserEmailAddress, Self::UserEmailAddress) => true,
+            (Self::UserPhoneNumber, Self::UserPhoneNumber) => true,
+            (Self::UserCountryCode, Self::UserCountryCode) => true,
             (
-                FieldType::UserCountry {
+                Self::UserCountry {
                     options: options_self,
                 },
-                FieldType::UserCountry {
+                Self::UserCountry {
                     options: options_other,
                 },
             ) => options_self.eq(options_other),
             (
-                FieldType::UserCurrency {
+                Self::UserCurrency {
                     options: options_self,
                 },
-                FieldType::UserCurrency {
+                Self::UserCurrency {
                     options: options_other,
                 },
             ) => options_self.eq(options_other),
-            (FieldType::UserBillingName, FieldType::UserBillingName) => true,
-            (FieldType::UserBillingAddressLine1, FieldType::UserBillingAddressLine1) => true,
-            (FieldType::UserBillingAddressLine2, FieldType::UserBillingAddressLine2) => true,
-            (FieldType::UserBillingAddressCity, FieldType::UserBillingAddressCity) => true,
-            (FieldType::UserBillingAddressPincode, FieldType::UserBillingAddressPincode) => true,
-            (FieldType::UserBillingAddressState, FieldType::UserBillingAddressState) => true,
+            (Self::UserBillingName, Self::UserBillingName) => true,
+            (Self::UserBillingAddressLine1, Self::UserBillingAddressLine1) => true,
+            (Self::UserBillingAddressLine2, Self::UserBillingAddressLine2) => true,
+            (Self::UserBillingAddressCity, Self::UserBillingAddressCity) => true,
+            (Self::UserBillingAddressPincode, Self::UserBillingAddressPincode) => true,
+            (Self::UserBillingAddressState, Self::UserBillingAddressState) => true,
+            (Self::UserBillingAddressCountry { .. }, Self::UserBillingAddressCountry { .. }) => {
+                true
+            }
+            (Self::UserBlikCode, Self::UserBlikCode) => true,
+            (Self::UserBank, Self::UserBank) => true,
+            (Self::Text, Self::Text) => true,
             (
-                FieldType::UserBillingAddressCountry { .. },
-                FieldType::UserBillingAddressCountry { .. },
-            ) => true,
-            (FieldType::UserShippingName, FieldType::UserShippingName) => true,
-            (FieldType::UserShippingAddressLine1, FieldType::UserShippingAddressLine1) => true,
-            (FieldType::UserShippingAddressLine2, FieldType::UserShippingAddressLine2) => true,
-            (FieldType::UserShippingAddressCity, FieldType::UserShippingAddressCity) => true,
-            (FieldType::UserShippingAddressPincode, FieldType::UserShippingAddressPincode) => true,
-            (FieldType::UserShippingAddressState, FieldType::UserShippingAddressState) => true,
-            (FieldType::UserShippingAddressCountry, FieldType::UserShippingAddressCountry) => true,
-            (FieldType::UserBlikCode, FieldType::UserBlikCode) => true,
-            (FieldType::UserBank, FieldType::UserBank) => true,
-            (FieldType::Text, FieldType::Text) => true,
-            (
-                FieldType::DropDown {
+                Self::DropDown {
                     options: options_self,
                 },
-                FieldType::DropDown {
+                Self::DropDown {
                     options: options_other,
                 },
             ) => options_self.eq(options_other),
