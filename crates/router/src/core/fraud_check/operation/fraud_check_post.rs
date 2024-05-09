@@ -2,7 +2,7 @@ use api_models::payments::HeaderPayload;
 use async_trait::async_trait;
 use common_enums::{CaptureMethod, FrmSuggestion};
 use common_utils::ext_traits::Encode;
-use data_models::payments::{
+use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate,
 };
 use router_env::{instrument, logger, tracing};
@@ -173,6 +173,8 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             request: FrmRequest::Sale(FraudCheckSaleData {
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
+                currency: router_data.request.currency,
+                email: router_data.request.email,
             }),
             response: FrmResponse::Sale(router_data.response),
         }))
@@ -318,6 +320,8 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             request: FrmRequest::Sale(FraudCheckSaleData {
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
+                currency: router_data.request.currency,
+                email: router_data.request.email,
             }),
             response: FrmResponse::Sale(router_data.response),
         })

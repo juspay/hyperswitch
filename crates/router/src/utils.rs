@@ -23,8 +23,8 @@ pub use common_utils::{
     fp_utils::when,
     validation::validate_email,
 };
-use data_models::payments::PaymentIntent;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
@@ -99,7 +99,7 @@ pub mod error_parser {
     }
 
     pub fn custom_json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> Error {
-        actix_web::error::Error::from(CustomJsonError { err })
+        Error::from(CustomJsonError { err })
     }
 }
 
@@ -565,14 +565,14 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
 pub trait CustomerAddress {
     async fn get_address_update(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],
@@ -584,7 +584,7 @@ pub trait CustomerAddress {
 impl CustomerAddress for api_models::customers::CustomerRequest {
     async fn get_address_update(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
@@ -640,7 +640,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 
     async fn get_domain_address(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],

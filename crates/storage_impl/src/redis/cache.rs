@@ -4,9 +4,9 @@ use common_utils::{
     errors::{self, CustomResult},
     ext_traits::AsyncExt,
 };
-use data_models::errors::StorageError;
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
+use hyperswitch_domain_models::errors::StorageError;
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 use redis_interface::{errors::RedisError, RedisValue};

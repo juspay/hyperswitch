@@ -1,5 +1,4 @@
 use common_utils::errors::CustomResult;
-use data_models::errors;
 use diesel_models::{
     enums as storage_enums, kv,
     reverse_lookup::{
@@ -7,6 +6,7 @@ use diesel_models::{
     },
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors;
 use redis_interface::SetnxReply;
 
 use crate::{

@@ -38,7 +38,6 @@ pub struct Authentication {
     pub challenge_request: Option<String>,
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
-    pub three_ds_server_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
     pub profile_id: String,
     pub payment_id: Option<String>,
@@ -83,7 +82,6 @@ pub struct AuthenticationNew {
     pub challenge_request: Option<String>,
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
-    pub three_dsserver_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
     pub profile_id: String,
     pub payment_id: Option<String>,
@@ -101,7 +99,6 @@ pub enum AuthenticationUpdate {
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         authentication_status: common_enums::AuthenticationStatus,
-        payment_method_id: Option<String>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
     },
@@ -161,7 +158,6 @@ pub struct AuthenticationUpdateInternal {
     pub challenge_request: Option<String>,
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
-    pub three_dsserver_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
 }
 
@@ -192,7 +188,6 @@ impl Default for AuthenticationUpdateInternal {
             challenge_request: Default::default(),
             acs_reference_number: Default::default(),
             acs_trans_id: Default::default(),
-            three_dsserver_trans_id: Default::default(),
             acs_signed_content: Default::default(),
         }
     }
@@ -225,7 +220,6 @@ impl AuthenticationUpdateInternal {
             challenge_request,
             acs_reference_number,
             acs_trans_id,
-            three_dsserver_trans_id,
             acs_signed_content,
         } = self;
         Authentication {
@@ -257,7 +251,6 @@ impl AuthenticationUpdateInternal {
             challenge_request: challenge_request.or(source.challenge_request),
             acs_reference_number: acs_reference_number.or(source.acs_reference_number),
             acs_trans_id: acs_trans_id.or(source.acs_trans_id),
-            three_ds_server_trans_id: three_dsserver_trans_id.or(source.three_ds_server_trans_id),
             acs_signed_content: acs_signed_content.or(source.acs_signed_content),
             ..source
         }
@@ -309,7 +302,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 message_version,
                 connector_metadata,
                 authentication_status,
-                payment_method_id,
                 acquirer_bin,
                 acquirer_merchant_id,
             } => Self {
@@ -321,7 +313,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 message_version: Some(message_version),
                 connector_metadata,
                 authentication_status: Some(authentication_status),
-                payment_method_id,
                 acquirer_bin,
                 acquirer_merchant_id,
                 ..Default::default()

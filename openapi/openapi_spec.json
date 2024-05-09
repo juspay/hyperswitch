@@ -5272,20 +5272,18 @@
       },
       "BankDebitBilling": {
         "type": "object",
-        "required": [
-          "name",
-          "email"
-        ],
         "properties": {
           "name": {
             "type": "string",
             "description": "The billing name for bank debits",
-            "example": "John Doe"
+            "example": "John Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The billing email for bank debits",
-            "example": "example@example.com"
+            "example": "example@example.com",
+            "nullable": true
           },
           "address": {
             "allOf": [
@@ -5309,7 +5307,6 @@
                 "type": "object",
                 "description": "Payment Method data for Ach bank debit",
                 "required": [
-                  "billing_details",
                   "account_number",
                   "routing_number",
                   "card_holder_name",
@@ -5320,7 +5317,12 @@
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "account_number": {
                     "type": "string",
@@ -5365,13 +5367,17 @@
               "sepa_bank_debit": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "iban",
                   "bank_account_holder_name"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "iban": {
                     "type": "string",
@@ -5396,13 +5402,17 @@
               "becs_bank_debit": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "account_number",
                   "bsb_number"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "account_number": {
                     "type": "string",
@@ -5433,14 +5443,18 @@
               "bacs_bank_debit": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "account_number",
                   "sort_code",
                   "bank_account_holder_name"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "account_number": {
                     "type": "string",
@@ -6668,6 +6682,11 @@
               }
             ],
             "nullable": true
+          },
+          "use_billing_as_payment_method_billing": {
+            "type": "boolean",
+            "description": "Whether to use the billing details passed when creating the intent as payment method billing",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -6786,6 +6805,10 @@
                 "$ref": "#/components/schemas/AuthenticationConnectorDetails"
               }
             ],
+            "nullable": true
+          },
+          "use_billing_as_payment_method_billing": {
+            "type": "boolean",
             "nullable": true
           }
         }
@@ -8710,6 +8733,92 @@
           "mandate_active",
           "mandate_revoked"
         ]
+      },
+      "ExtendedCardInfo": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          }
+        }
+      },
+      "ExtendedCardInfoConfig": {
+        "type": "object",
+        "required": [
+          "public_key"
+        ],
+        "properties": {
+          "public_key": {
+            "type": "string",
+            "description": "Merchant public key"
+          },
+          "ttl_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "TTL for extended card info",
+            "default": 900,
+            "maximum": 7200,
+            "minimum": 0
+          }
+        }
       },
       "ExtendedCardInfoResponse": {
         "type": "object",
@@ -11578,6 +11687,11 @@
             "description": "Category of the product that is being purchased",
             "nullable": true
           },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
+            "nullable": true
+          },
           "brand": {
             "type": "string",
             "description": "Brand of the product that is being purchased",
@@ -11636,6 +11750,11 @@
           "category": {
             "type": "string",
             "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "sub_category": {
+            "type": "string",
+            "description": "Sub category of the product that is being purchased",
             "nullable": true
           },
           "brand": {
@@ -11871,17 +11990,19 @@
               "klarna_redirect": {
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_country"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -11929,18 +12050,16 @@
               "afterpay_clearpay_redirect": {
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_name"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_name": {
                     "type": "string",
-                    "description": "The billing name"
+                    "description": "The billing name",
+                    "nullable": true
                   }
                 }
               }
@@ -12707,7 +12826,12 @@
       "PaymentMethodDataRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object",
@@ -15626,7 +15750,8 @@
           "stripe",
           "wise",
           "paypal",
-          "ebanx"
+          "ebanx",
+          "cybersource"
         ]
       },
       "PayoutCreateRequest": {
@@ -17204,6 +17329,7 @@
           "helcim",
           "iatapay",
           "klarna",
+          "mifinity",
           "mollie",
           "multisafepay",
           "nexinets",
@@ -17212,6 +17338,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",
