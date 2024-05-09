@@ -230,7 +230,7 @@ pub async fn merchant_select(
     json_payload: web::Json<user_role_api::MerchantSelectRequest>,
     query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
-    let flow = Flow::AcceptInvitation;
+    let flow = Flow::MerchantSelect;
     let payload = json_payload.into_inner();
     let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
