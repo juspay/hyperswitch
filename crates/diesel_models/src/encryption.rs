@@ -8,7 +8,7 @@ use diesel::{
 use masking::Secret;
 
 #[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
-#[diesel(sql_type = diesel::sql_types::Binary)]
+#[diesel(sql_type = sql_types::Binary)]
 #[repr(transparent)]
 pub struct Encryption {
     inner: Secret<Vec<u8>, EncryptionStrategy>,
@@ -41,7 +41,7 @@ where
     DB: Backend,
     Secret<Vec<u8>, EncryptionStrategy>: FromSql<sql_types::Binary, DB>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         <Secret<Vec<u8>, EncryptionStrategy>>::from_sql(bytes).map(Self::new)
     }
 }

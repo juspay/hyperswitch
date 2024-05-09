@@ -238,6 +238,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::FileNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "File does not exist in our records", None))
             }
+            Self::PollNotFound { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Poll does not exist in our records", None))
+            },
             Self::FileNotAvailable => {
                 AER::NotFound(ApiError::new("HE", 2, "File not available", None))
             }
@@ -297,6 +300,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::InvalidCookie => {
                 AER::BadRequest(ApiError::new("IR", 26, "Invalid Cookie", None))
+            }
+            Self::ExtendedCardInfoNotFound => {
+                AER::NotFound(ApiError::new("IR", 27, "Extended card info does not exist", None))
             }
         }
     }

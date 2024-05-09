@@ -1,12 +1,12 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
 use common_utils::errors::CustomResult;
-use data_models::{
+use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::{
     errors::StorageError,
     payments::payment_attempt::{
         PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
     },
 };
-use diesel_models::enums as storage_enums;
 
 use super::MockDb;
 use crate::DataModelExt;
@@ -26,11 +26,13 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn get_filters_for_payments(
         &self,
-        _pi: &[data_models::payments::PaymentIntent],
+        _pi: &[hyperswitch_domain_models::payments::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<data_models::payments::payment_attempt::PaymentListFilters, StorageError>
-    {
+    ) -> CustomResult<
+        hyperswitch_domain_models::payments::payment_attempt::PaymentListFilters,
+        StorageError,
+    > {
         Err(StorageError::MockDbError)?
     }
 
@@ -42,6 +44,7 @@ impl PaymentAttemptInterface for MockDb {
         _payment_method: Option<Vec<PaymentMethod>>,
         _payment_method_type: Option<Vec<PaymentMethodType>>,
         _authentication_type: Option<Vec<AuthenticationType>>,
+        _merchanat_connector_id: Option<Vec<String>>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         Err(StorageError::MockDbError)?

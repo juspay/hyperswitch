@@ -8,15 +8,15 @@ use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::logger;
 
+#[cfg(feature = "email")]
+use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, AppState},
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
+    types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
-#[cfg(feature = "email")]
-use crate::{services::email::types as email_types, types::domain};
 
 pub async fn set_metadata(
     state: AppState,
@@ -112,6 +112,9 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::IsChangePasswordRequired => {
             Ok(types::MetaData::IsChangePasswordRequired(true))
         }
+        api::SetMetaDataRequest::OnboardingSurvey(req) => {
+            Ok(types::MetaData::OnboardingSurvey(req))
+        }
     }
 }
 
@@ -139,6 +142,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::SetupWoocomWebhook => DBEnum::SetupWoocomWebhook,
         api::GetMetaDataRequest::IsMultipleConfiguration => DBEnum::IsMultipleConfiguration,
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
+        api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
     }
 }
 
@@ -218,6 +222,10 @@ fn into_response(
         DBEnum::IsChangePasswordRequired => Ok(api::GetMetaDataResponse::IsChangePasswordRequired(
             data.is_some(),
         )),
+        DBEnum::OnboardingSurvey => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::OnboardingSurvey(resp))
+        }
     }
 }
 
@@ -548,6 +556,17 @@ async fn insert_metadata(
             )
             .await
         }
+        types::MetaData::OnboardingSurvey(data) => {
+            utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id,
+                user.merchant_id,
+                user.org_id,
+                metadata_key,
+                data,
+            )
+            .await
+        }
     }
 }
 
@@ -690,7 +709,7 @@ pub async fn get_merchant_connector_account_by_name(
     merchant_id: &str,
     connector_name: &str,
     key_store: &MerchantKeyStore,
-) -> UserResult<Option<crate::types::domain::MerchantConnectorAccount>> {
+) -> UserResult<Option<domain::MerchantConnectorAccount>> {
     state
         .store
         .find_merchant_connector_account_by_merchant_id_connector_name(

@@ -2,6 +2,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
@@ -43,6 +44,8 @@ pub mod date_time {
         YYYYMMDDHHmmss,
         /// Format the date in 20191105 format
         YYYYMMDD,
+        /// Format the date in 201911050811 format
+        YYYYMMDDHHmm,
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
@@ -95,6 +98,7 @@ pub mod date_time {
             match format {
                 DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
                 DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
+                DateFormat::YYYYMMDDHHmm => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero]"),
             }
         }
     }

@@ -17,6 +17,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod poll;
 pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
@@ -35,7 +36,7 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -92,7 +93,7 @@ pub trait ConnectorMandateRevoke:
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: data_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }
@@ -351,6 +352,7 @@ impl ConnectorData {
                 enums::Connector::DummyConnector6 => Ok(Box::new(&connector::DummyConnector::<6>)),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector7 => Ok(Box::new(&connector::DummyConnector::<7>)),
+                enums::Connector::Ebanx => Ok(Box::new(&connector::Ebanx)),
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
@@ -359,6 +361,7 @@ impl ConnectorData {
                 enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
+                // enums::Connector::Mifinity => Ok(Box::new(&connector::Mifinity)), Added as template code for future usage
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
                 enums::Connector::Nmi => Ok(Box::new(&connector::Nmi)),
                 enums::Connector::Noon => Ok(Box::new(&connector::Noon)),
@@ -426,6 +429,7 @@ pub trait Payouts:
     + PayoutFulfill
     + PayoutQuote
     + PayoutRecipient
+    + PayoutRecipientAccount
 {
 }
 #[cfg(not(feature = "payouts"))]

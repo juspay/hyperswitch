@@ -1,6 +1,6 @@
 CREATE TABLE dispute_queue (
     `dispute_id` String,
-    `amount` String,
+    `dispute_amount` UInt32,
     `currency` String,
     `dispute_stage` LowCardinality(String),
     `dispute_status` LowCardinality(String),
@@ -23,20 +23,19 @@ CREATE TABLE dispute_queue (
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-dispute-events',
-kafka_group_name = 'hyper-c1',
+kafka_group_name = 'hyper',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
 
-
 CREATE TABLE dispute (
     `dispute_id` String,
-    `amount` String,
+    `dispute_amount` UInt32,
     `currency` String,
     `dispute_stage` LowCardinality(String),
     `dispute_status` LowCardinality(String),
     `payment_id` String,
     `attempt_id` String,
-    `merchant_id` String,
+    `merchant_id` LowCardinality(String),
     `connector_status` String,
     `connector_dispute_id` String,
     `connector_reason` Nullable(String),
@@ -47,26 +46,21 @@ CREATE TABLE dispute (
     `created_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `modified_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `connector` LowCardinality(String),
-    `evidence` String DEFAULT '{}' CODEC(T64, LZ4),
+    `evidence` String DEFAULT '{}',
     `profile_id` Nullable(String),
     `merchant_connector_id` Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
-    `sign_flag` Int8
+    `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX disputeStatusIndex dispute_status TYPE bloom_filter GRANULARITY 1,
     INDEX disputeStageIndex dispute_stage TYPE bloom_filter GRANULARITY 1
-) ENGINE = CollapsingMergeTree(
-    sign_flag
-)
-PARTITION BY toStartOfDay(created_at)
+) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
 ORDER BY
-    (created_at, merchant_id, dispute_id)
-TTL created_at + toIntervalMonth(6)
-;
+    (created_at, merchant_id, dispute_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
-CREATE MATERIALIZED VIEW kafka_parse_dispute TO dispute (
+CREATE MATERIALIZED VIEW dispute_mv TO dispute (
     `dispute_id` String,
-    `amount` String,
+    `dispute_amount` UInt32,
     `currency` String,
     `dispute_stage` LowCardinality(String),
     `dispute_status` LowCardinality(String),
@@ -91,7 +85,7 @@ CREATE MATERIALIZED VIEW kafka_parse_dispute TO dispute (
 ) AS
 SELECT
     dispute_id,
-    amount,
+    dispute_amount,
     currency,
     dispute_stage,
     dispute_status,
@@ -111,7 +105,29 @@ SELECT
     evidence,
     profile_id,
     merchant_connector_id,
-    now() as inserted_at,
+    now() AS inserted_at,
     sign_flag
 FROM
-    dispute_queue;
+    dispute_queue
+WHERE
+    length(_error) = 0;
+
+CREATE MATERIALIZED VIEW dispute_parse_errors (
+    `topic` String,
+    `partition` Int64,
+    `offset` Int64,
+    `raw` String,
+    `error` String
+) ENGINE = MergeTree
+ORDER BY
+    (topic, partition, offset) SETTINGS index_granularity = 8192 AS
+SELECT
+    _topic AS topic,
+    _partition AS partition,
+    _offset AS offset,
+    _raw_message AS raw,
+    _error AS error
+FROM
+    dispute_queue
+WHERE
+    length(_error) > 0;

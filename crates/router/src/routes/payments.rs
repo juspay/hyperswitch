@@ -131,7 +131,7 @@ pub async fn payments_create(
                 req_state,
                 auth.merchant_account,
                 auth.key_store,
-                payment_types::HeaderPayload::default(),
+                HeaderPayload::default(),
                 req,
                 api::AuthFlow::Merchant,
             )
@@ -420,7 +420,7 @@ pub async fn payments_update(
                 req_state,
                 auth.merchant_account,
                 auth.key_store,
-                payment_types::HeaderPayload::default(),
+                HeaderPayload::default(),
                 req,
                 auth_flow,
             )
@@ -471,7 +471,7 @@ pub async fn payments_confirm(
     tracing::Span::current().record("payment_id", &payment_id);
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
-    let header_payload = match payment_types::HeaderPayload::foreign_try_from(req.headers()) {
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => {
             return api::log_and_return_error_response(err);
@@ -922,14 +922,10 @@ pub async fn payments_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payments::apply_filters_on_payments(state, auth.merchant_account, req)
         },
-        auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::PaymentRead),
-            req.headers(),
-        ),
+        &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -948,12 +944,10 @@ pub async fn get_filters_for_payments(
         state,
         &req,
         payload,
-        |state, auth, req, _| payments::get_filters_for_payments(state, auth.merchant_account, req),
-        auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::PaymentRead),
-            req.headers(),
-        ),
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::get_filters_for_payments(state, auth.merchant_account, req)
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -971,12 +965,10 @@ pub async fn get_payment_filters(
         state,
         &req,
         (),
-        |state, auth, _, _| payments::get_payment_filters(state, auth.merchant_account),
-        auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::PaymentRead),
-            req.headers(),
-        ),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payments::get_payment_filters(state, auth.merchant_account)
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -1027,7 +1019,7 @@ pub async fn payments_approve(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
-                payment_types::HeaderPayload::default(),
+                HeaderPayload::default(),
             )
         },
         match env::which() {
@@ -1089,7 +1081,7 @@ pub async fn payments_reject(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
-                payment_types::HeaderPayload::default(),
+                HeaderPayload::default(),
             )
         },
         match env::which() {
@@ -1115,7 +1107,7 @@ async fn authorize_verify_select<Op, Ctx>(
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
-) -> app::core::errors::RouterResponse<api_models::payments::PaymentsResponse>
+) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
 where
     Ctx: PaymentMethodRetrieve,
     Op: Sync
@@ -1365,6 +1357,30 @@ pub async fn post_3ds_payments_authorize(
     .await
 }
 
+/// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
+#[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
+pub async fn retrieve_extended_card_info(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::GetExtendedCardInfo;
+    let payment_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_id,
+        |state, auth, payment_id, _| {
+            payments::get_extended_card_info(state, auth.merchant_account.merchant_id, payment_id)
+        },
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
@@ -1514,8 +1530,10 @@ impl GetLockingInput for payment_types::PaymentsCaptureRequest {
     }
 }
 
+#[cfg(feature = "oltp")]
 struct FPaymentsApproveRequest<'a>(&'a payment_types::PaymentsApproveRequest);
 
+#[cfg(feature = "oltp")]
 impl<'a> GetLockingInput for FPaymentsApproveRequest<'a> {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1532,8 +1550,10 @@ impl<'a> GetLockingInput for FPaymentsApproveRequest<'a> {
     }
 }
 
+#[cfg(feature = "oltp")]
 struct FPaymentsRejectRequest<'a>(&'a payment_types::PaymentsRejectRequest);
 
+#[cfg(feature = "oltp")]
 impl<'a> GetLockingInput for FPaymentsRejectRequest<'a> {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where

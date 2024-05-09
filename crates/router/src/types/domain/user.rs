@@ -3,9 +3,10 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_utils::{errors::CustomResult, pii};
+use common_enums::TokenPurpose;
+use common_utils::{crypto::Encryptable, errors::CustomResult, pii};
 use diesel_models::{
-    enums::UserStatus,
+    enums::{TotpStatus, UserStatus},
     organization as diesel_org,
     organization::Organization,
     user as storage_user,
@@ -14,6 +15,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
+use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -25,12 +27,16 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    services::{authentication as auth, authentication::UserFromToken, authorization::info},
+    services::{self, authentication as auth, authentication::UserFromToken, authorization::info},
     types::transformers::ForeignFrom,
     utils::{self, user::password},
 };
 
 pub mod dashboard_metadata;
+pub mod decision_manager;
+pub use decision_manager::*;
+
+use super::{types as domain_types, UserKeyStore};
 
 #[derive(Clone)]
 pub struct UserName(Secret<String>);
@@ -155,11 +161,43 @@ pub struct UserPassword(Secret<String>);
 impl UserPassword {
     pub fn new(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
-        if password.is_empty() {
-            Err(UserErrors::PasswordParsingError.into())
-        } else {
-            Ok(Self(password.into()))
+
+        let mut has_upper_case = false;
+        let mut has_lower_case = false;
+        let mut has_numeric_value = false;
+        let mut has_special_character = false;
+        let mut has_whitespace = false;
+
+        for c in password.chars() {
+            has_upper_case = has_upper_case || c.is_uppercase();
+            has_lower_case = has_lower_case || c.is_lowercase();
+            has_numeric_value = has_numeric_value || c.is_numeric();
+            has_special_character =
+                has_special_character || !(c.is_alphanumeric() && c.is_whitespace());
+            has_whitespace = has_whitespace || c.is_whitespace();
         }
+
+        let is_password_format_valid = has_upper_case
+            && has_lower_case
+            && has_numeric_value
+            && has_special_character
+            && !has_whitespace;
+
+        let is_too_long = password.graphemes(true).count() > consts::user::MAX_PASSWORD_LENGTH;
+        let is_too_short = password.graphemes(true).count() < consts::user::MIN_PASSWORD_LENGTH;
+
+        if is_too_short || is_too_long || !is_password_format_valid {
+            return Err(UserErrors::PasswordParsingError.into());
+        }
+        Ok(Self(password.into()))
+    }
+
+    pub fn new_password_without_validation(password: Secret<String>) -> UserResult<Self> {
+        let password = password.expose();
+        if password.is_empty() {
+            return Err(UserErrors::PasswordParsingError.into());
+        }
+        Ok(Self(password.into()))
     }
 
     pub fn get_secret(&self) -> Secret<String> {
@@ -515,7 +553,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
         if state
             .store
-            .find_user_by_email(self.get_email().into_inner().expose().expose().as_str())
+            .find_user_by_email(&self.get_email().into_inner())
             .await
             .is_ok()
         {
@@ -633,7 +671,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password::get_temp_password())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -677,7 +715,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: UserPassword::new(user.0.password)?,
+            password: UserPassword::new_password_without_validation(user.0.password)?,
             new_merchant,
         })
     }
@@ -689,7 +727,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password::get_temp_password())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -771,6 +809,26 @@ impl UserFromStorage {
         Ok(Some(days_left_for_verification.whole_days()))
     }
 
+    pub fn is_password_rotate_required(&self, state: &AppState) -> UserResult<bool> {
+        let last_password_modified_at =
+            if let Some(last_password_modified_at) = self.0.last_password_modified_at {
+                last_password_modified_at.date()
+            } else {
+                return Ok(true);
+            };
+
+        let password_change_duration =
+            time::Duration::days(state.conf.user.password_validity_in_days.into());
+        let last_date_for_password_rotate = last_password_modified_at
+            .checked_add(password_change_duration)
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let today = common_utils::date_time::now().date();
+        let days_left_for_password_rotate = last_date_for_password_rotate - today;
+
+        Ok(days_left_for_password_rotate.whole_days() < 0)
+    }
+
     pub fn get_preferred_merchant_id(&self) -> Option<String> {
         self.0.preferred_merchant_id.clone()
     }
@@ -784,6 +842,98 @@ impl UserFromStorage {
             .store
             .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
             .await
+    }
+
+    pub async fn get_preferred_or_active_user_role_from_db(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
+            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
+                .await
+        } else {
+            state
+                .store
+                .list_user_roles_by_user_id(&self.0.user_id)
+                .await?
+                .into_iter()
+                .find(|role| role.status == UserStatus::Active)
+                .ok_or(
+                    errors::StorageError::ValueNotFound(
+                        "No active role found for user".to_string(),
+                    )
+                    .into(),
+                )
+        }
+    }
+
+    pub async fn get_or_create_key_store(&self, state: &AppState) -> UserResult<UserKeyStore> {
+        let master_key = state.store.get_master_key();
+        let key_store_result = state
+            .store
+            .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
+            .await;
+
+        if let Ok(key_store) = key_store_result {
+            Ok(key_store)
+        } else if key_store_result
+            .as_ref()
+            .map_err(|e| e.current_context().is_db_not_found())
+            .err()
+            .unwrap_or(false)
+        {
+            let key = services::generate_aes256_key()
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to generate aes 256 key")?;
+
+            let key_store = UserKeyStore {
+                user_id: self.get_user_id().to_string(),
+                key: domain_types::encrypt(key.to_vec().into(), master_key)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?,
+                created_at: common_utils::date_time::now(),
+            };
+            state
+                .store
+                .insert_user_key_store(key_store, &master_key.to_vec().into())
+                .await
+                .change_context(UserErrors::InternalServerError)
+        } else {
+            Err(key_store_result
+                .err()
+                .map(|e| e.change_context(UserErrors::InternalServerError))
+                .unwrap_or(UserErrors::InternalServerError.into()))
+        }
+    }
+
+    pub fn get_totp_status(&self) -> TotpStatus {
+        self.0.totp_status
+    }
+
+    pub async fn decrypt_and_get_totp_secret(
+        &self,
+        state: &AppState,
+    ) -> UserResult<Option<Secret<String>>> {
+        if self.0.totp_secret.is_none() {
+            return Ok(None);
+        }
+
+        let user_key_store = state
+            .store
+            .get_user_key_store_by_user_id(
+                self.get_user_id(),
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        Ok(domain_types::decrypt::<String, masking::WithType>(
+            self.0.totp_secret.clone(),
+            user_key_store.key.peek(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .map(Encryptable::into_inner))
     }
 }
 
@@ -910,8 +1060,10 @@ impl SignInWithMultipleRolesStrategy {
             user_api::MerchantSelectResponse {
                 name: self.user.get_name(),
                 email: self.user.get_email(),
-                token: auth::UserAuthToken::new_token(
+                token: auth::SinglePurposeToken::new_token(
                     self.user.get_user_id().to_string(),
+                    TokenPurpose::AcceptInvite,
+                    Origin::SignIn,
                     &state.conf,
                 )
                 .await?
@@ -948,6 +1100,39 @@ impl RoleName {
     }
 
     pub fn get_role_name(self) -> String {
+        self.0
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct RecoveryCodes(pub Vec<Secret<String>>);
+
+impl RecoveryCodes {
+    pub fn generate_new() -> Self {
+        let mut rand = rand::thread_rng();
+        let recovery_codes = (0..consts::user::RECOVERY_CODES_COUNT)
+            .map(|_| {
+                let code_part_1 =
+                    Alphanumeric.sample_string(&mut rand, consts::user::RECOVERY_CODE_LENGTH / 2);
+                let code_part_2 =
+                    Alphanumeric.sample_string(&mut rand, consts::user::RECOVERY_CODE_LENGTH / 2);
+
+                Secret::new(format!("{}-{}", code_part_1, code_part_2))
+            })
+            .collect::<Vec<_>>();
+
+        Self(recovery_codes)
+    }
+
+    pub fn get_hashed(&self) -> UserResult<Vec<Secret<String>>> {
+        self.0
+            .iter()
+            .cloned()
+            .map(password::generate_password_hash)
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    pub fn into_inner(self) -> Vec<Secret<String>> {
         self.0
     }
 }

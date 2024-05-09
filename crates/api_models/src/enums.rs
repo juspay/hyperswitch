@@ -89,7 +89,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
-    // Ebanx,
+    Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -98,6 +98,7 @@ pub enum Connector {
     Helcim,
     Iatapay,
     Klarna,
+    // Mifinity, Added as template code for future usage
     Mollie,
     Multisafepay,
     Netcetera,
@@ -135,6 +136,29 @@ pub enum Connector {
 }
 
 impl Connector {
+    #[cfg(feature = "payouts")]
+    pub fn supports_instant_payout(&self, payout_method: PayoutType) -> bool {
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, PayoutType::Wallet) | (_, PayoutType::Card)
+        )
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_create_recipient(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (_, PayoutType::Bank))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_payout_eligibility(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (_, PayoutType::Card))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_payout(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (Self::Paypal, _))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_vendor_disburse_account_create_for_payout(&self) -> bool {
+        matches!(self, Self::Stripe)
+    }
     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
@@ -154,8 +178,8 @@ impl Connector {
         matches!(self, Self::Checkout)
     }
     pub fn is_separate_authentication_supported(&self) -> bool {
-        #[cfg(feature = "dummy_connector")]
         match self {
+            #[cfg(feature = "dummy_connector")]
             Self::DummyConnector1
             | Self::DummyConnector2
             | Self::DummyConnector3
@@ -178,6 +202,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Dlocal
+            | Self::Ebanx
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay
@@ -186,10 +211,10 @@ impl Connector {
             | Self::Helcim
             | Self::Iatapay
             | Self::Klarna
+            // | Self::Mifinity Added as template code for future usage
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
-            | Self::Nmi
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
@@ -218,66 +243,7 @@ impl Connector {
             | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout => true,
-        }
-        #[cfg(not(feature = "dummy_connector"))]
-        match self {
-            Self::Aci
-            | Self::Adyen
-            | Self::Airwallex
-            | Self::Authorizedotnet
-            | Self::Bambora
-            | Self::Bankofamerica
-            | Self::Billwerk
-            | Self::Bitpay
-            | Self::Bluesnap
-            | Self::Boku
-            | Self::Braintree
-            | Self::Cashtocode
-            | Self::Coinbase
-            | Self::Cryptopay
-            | Self::Dlocal
-            | Self::Fiserv
-            | Self::Forte
-            | Self::Globalpay
-            | Self::Globepay
-            | Self::Gocardless
-            | Self::Helcim
-            | Self::Iatapay
-            | Self::Klarna
-            | Self::Mollie
-            | Self::Multisafepay
-            | Self::Nexinets
-            | Self::Nmi
-            | Self::Nuvei
-            | Self::Opennode
-            | Self::Payme
-            | Self::Paypal
-            | Self::Payu
-            | Self::Placetopay
-            | Self::Powertranz
-            | Self::Prophetpay
-            | Self::Rapyd
-            | Self::Shift4
-            | Self::Square
-            | Self::Stax
-            | Self::Trustpay
-            | Self::Tsys
-            | Self::Volt
-            | Self::Wise
-            | Self::Worldline
-            | Self::Worldpay
-            | Self::Zen
-            | Self::Zsl
-            | Self::Signifyd
-            | Self::Plaid
-            | Self::Riskified
-            | Self::Threedsecureio
-            | Self::Cybersource
-            | Self::Noon
-            | Self::Netcetera
-            | Self::Stripe => false,
-            Self::Checkout => true,
+            Self::Checkout | Self::Nmi => true,
         }
     }
 }
@@ -320,7 +286,11 @@ pub enum AuthenticationConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectors {
     Adyen,
+    Stripe,
     Wise,
+    Paypal,
+    Ebanx,
+    Cybersource,
 }
 
 #[cfg(feature = "payouts")]
@@ -328,7 +298,11 @@ impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Paypal => Self::Paypal,
+            PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -338,7 +312,11 @@ impl From<PayoutConnectors> for Connector {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Paypal => Self::Paypal,
+            PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -349,7 +327,11 @@ impl TryFrom<Connector> for PayoutConnectors {
     fn try_from(value: Connector) -> Result<Self, Self::Error> {
         match value {
             Connector::Adyen => Ok(Self::Adyen),
+            Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
+            Connector::Paypal => Ok(Self::Paypal),
+            Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Cybersource => Ok(Self::Cybersource),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }

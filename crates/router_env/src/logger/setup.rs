@@ -265,7 +265,7 @@ fn setup_tracing_pipeline(
         .with_exporter(get_opentelemetry_exporter(config))
         .with_batch_config(batch_config)
         .with_trace_config(trace_config)
-        .install_batch(opentelemetry::runtime::TokioCurrentThread)
+        .install_batch(runtime::TokioCurrentThread)
         .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer));
 
     if config.ignore_errors {
