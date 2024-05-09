@@ -8999,6 +8999,58 @@
           {
             "type": "string",
             "enum": [
+              "user_billing_address_line1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_address_line2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_address_state"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_billing_address_country"
+            ],
+            "properties": {
+              "user_billing_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_address_line1"
             ]
           },
