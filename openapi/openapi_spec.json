@@ -5166,7 +5166,7 @@
         "enum": [
           "threedsecureio",
           "netcetera",
-          "g_payments"
+          "gpayments"
         ]
       },
       "AuthenticationStatus": {
