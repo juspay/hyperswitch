@@ -147,7 +147,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
         item: BamboraRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
+            api_models::payments::PaymentMethodData::Card(req_card) => {
                 let (three_ds, customer_ip) = match item.router_data.auth_type {
                     enums::AuthenticationType::ThreeDs => (
                         Some(ThreeDSecure {
@@ -184,19 +184,19 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                     term_url: item.router_data.request.complete_authorize_url.clone(),
                 })
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -475,6 +475,7 @@ impl<F>
                             serde_json::to_value(BamboraMeta {
                                 three_d_session_data: response.three_d_session_data.expose(),
                             })
+                            .into_report()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
                         network_txn_id: None,
