@@ -122,7 +122,7 @@ impl ConnectorCommon for Iatapay {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: Some(consts::CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
-                attempt_status: Some(common_enums::AttemptStatus::Failure),
+                attempt_status: None,
                 connector_transaction_id: None,
             }
         } else {
