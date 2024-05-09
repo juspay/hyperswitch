@@ -1915,6 +1915,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             klarna::transformers::KlarnaAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Mifinity => {
+            mifinity::transformers::MifinityAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Mollie => {
             mollie::transformers::MollieAuthType::try_from(val)?;
             Ok(())

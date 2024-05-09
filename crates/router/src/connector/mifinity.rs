@@ -94,7 +94,7 @@ impl ConnectorCommon for Mifinity {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth.key.expose().into_masked(),
         )])
     }
 
@@ -113,9 +113,17 @@ impl ConnectorCommon for Mifinity {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response
+                .errors
+                .iter()
+                .map(|error| error.error_code.clone())
+                .collect(),
+            message: response
+                .errors
+                .iter()
+                .map(|error| error.message.clone())
+                .collect(),
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -251,7 +259,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
-
+    //https://demo.mifinity.com/api/gateway/payment-status/{validationKey}
+    //{{api.url}}/payments/{{api.payment_id}}
     fn get_url(
         &self,
         _req: &types::PaymentsSyncRouterData,
@@ -392,21 +401,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 {
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refunds".to_string(),
+            connector: "Mifinity".to_string(),
+        }
+        .into())
     }
 }
 

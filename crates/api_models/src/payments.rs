@@ -18,6 +18,7 @@ use serde::{
     ser::Serializer,
     Deserialize, Deserializer, Serialize,
 };
+// use time::{Date, PrimitiveDateTime};
 use time::PrimitiveDateTime;
 use url::Url;
 use utoipa::ToSchema;
@@ -2497,31 +2498,8 @@ pub struct SwishQrData {}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
     pub destination_account_number: Secret<String>,
+    pub dob: String,
 }
-
-// #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-// pub struct MifinityBillingDetails {
-//     /// The client first name
-//     #[schema(value_type = String)]
-//     pub first_name: Secret<String>,
-//     /// The client last name
-//     #[schema(value_type = String)]
-//     pub last_name: Secret<String>,
-//     /// The client's phone number
-//     #[schema(value_type = Option<String>, max_length = 10, example = "3141592653")]
-//     pub phone_number: Secret<String>,
-//     // The client country code
-//     #[schema(value_type = CountryAlpha2, example = "US")]
-//     pub country_code: String,
-//     // The client's country
-//     #[schema(value_type = CountryAlpha2, example = "US")]
-//     pub country: api_enums::CountryAlpha2,
-//     /// The client email
-//     #[schema(value_type = String)]
-//     pub email: Email,
-//     // The client'd date of birth
-//     pub dob : Date,
-// }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
