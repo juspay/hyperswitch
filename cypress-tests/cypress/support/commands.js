@@ -353,7 +353,7 @@ Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody, det, globalState) 
     });
 });
 
-Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, paymentSuccessfulStatus, globalState) => {
+Cypress.Commands.add("captureCallTest", (requestBody, req_data, res_data, amount_to_capture, globalState) => {
   const payment_id = globalState.get("paymentID");
   requestBody.amount_to_capture = amount_to_capture;
   let amount = globalState.get("paymentAmount");
@@ -370,22 +370,8 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.payment_id).to.equal(payment_id);
-    if (amount_to_capture == amount && response.body.status == "succeeded") {
-      expect(response.body.amount).to.equal(amount_to_capture);
-      expect(response.body.amount_capturable).to.equal(0);
-      expect(response.body.amount_received).to.equal(amount);
-      expect(response.body.status).to.equal(paymentSuccessfulStatus);
-    } else if (response.body.status == "processing") {
-      expect(response.body.amount).to.equal(amount);
-      expect(response.body.amount_capturable).to.equal(amount);
-      expect(response.body.amount_received).to.equal(0);
-      expect(response.body.status).to.equal(paymentSuccessfulStatus);
-    }
-    else {
-      expect(response.body.amount).to.equal(amount);
-      expect(response.body.amount_capturable).to.equal(0);
-      expect(response.body.amount_received).to.equal(amount_to_capture);
-      expect(response.body.status).to.equal("partially_captured");
+    for(const key in res_data) {
+      expect(res_data[key]).to.equal(response.body[key]);
     }
   });
 });

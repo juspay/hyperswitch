@@ -20,7 +20,7 @@ const successfulThreeDSTestCardDetails = {
 export const connectorDetails = {
     "PaymentIntent": {
         "Request": {
-            "card": successfulThreeDSTestCardDetails,
+            "card": successfulTestCardDetails,
             "currency": "USD",
             "customer_acceptance": null,
             "setup_future_usage": "on_session"
@@ -45,6 +45,17 @@ export const connectorDetails = {
         "Request": {
             "card": successfulTestCardDetails,
             "currency": "USD",
+            "customer_acceptance": null,
+            "setup_future_usage": "on_session"
+        },
+        "Response": {
+            "status": "succeeded"
+        }
+    },
+    "Capture": {
+        "Request": {
+            "card": successfulTestCardDetails,
+            "currency": "USD",
             "paymentSuccessfulStatus": "succeeded",
             "paymentSyncStatus": "succeeded",
             "refundStatus": "succeeded",
@@ -53,7 +64,30 @@ export const connectorDetails = {
             "setup_future_usage": "on_session"
         },
         "Response": {
-            "status": "succeeded"
+            "status": "succeeded",
+            "amount": 6500,
+            "amount_capturable": 0,
+            "amount_received": 6500,
+
+        }
+    },
+    "PartialCapture": {
+        "Request": {
+            "card": successfulTestCardDetails,
+            "currency": "USD",
+            "paymentSuccessfulStatus": "succeeded",
+            "paymentSyncStatus": "succeeded",
+            "refundStatus": "succeeded",
+            "refundSyncStatus": "succeeded",
+            "customer_acceptance": null,
+            "setup_future_usage": "on_session"
+        },
+        "Response": {
+            "status": "partially_captured",
+            "amount": 6500,
+            "amount_capturable": 0,
+            "amount_received": 100,
+
         }
     },
     "MandateSingleUse3DS": {

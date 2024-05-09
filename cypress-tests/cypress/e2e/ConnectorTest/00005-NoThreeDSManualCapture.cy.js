@@ -27,8 +27,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         context("payment Create and Confirm", () => {
 
             it("create-payment-call-test", () => {
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["PaymentIntent"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "no_three_ds", "manual", globalState);
             });
 
             it("payment_methods-call-test", () => {
@@ -37,9 +39,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
             it("confirm-call-test", () => {
                 console.log("confirm -> " + globalState.get("connectorId"));
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                console.log("det -> " + det.card);
-                cy.confirmCallTest(confirmBody, det, true, globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                console.log("det -> " + data.card);
+                cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -47,9 +51,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             });
 
             it("capture-call-test", () => {
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                console.log("det -> " + det.card);
-                cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["Capture"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                console.log("det -> " + data.card);
+                cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -61,9 +67,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         context("Payment Create+Confirm", () => {
             it("create+confirm-payment-call-test", () => {
                 console.log("confirm -> " + globalState.get("connectorId"));
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                console.log("det -> " + det.card);
-                cy.createConfirmPaymentTest(createConfirmPaymentBody, det, "no_three_ds", "manual", globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["PaymentIntent"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                console.log("det -> " + data.card);
+                cy.createConfirmPaymentTest(createConfirmPaymentBody, req_data, res_data, "no_three_ds", "manual", globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -71,9 +79,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             });
 
             it("capture-call-test", () => {
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                console.log("det -> " + det.card);
-                cy.captureCallTest(captureBody, 6540, det.paymentSuccessfulStatus, globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["Capture"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                console.log("det -> " + data.card);
+                cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -89,8 +99,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         context("payment Create and Payment Confirm", () => {
 
             it("create-payment-call-test", () => {
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["PaymentIntent"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "no_three_ds", "manual", globalState);
             });
 
             it("payment_methods-call-test", () => {
@@ -99,9 +111,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
             it("confirm-call-test", () => {
                 console.log("confirm -> " + globalState.get("connectorId"));
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                console.log("det -> " + det.card);
-                cy.confirmCallTest(confirmBody, det, true, globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                console.log("det -> " + data.card);
+                cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -109,8 +123,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             });
 
             it("capture-call-test", () => {
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                cy.captureCallTest(captureBody, 100, det.paymentSuccessfulStatus, globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["PartialCapture"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -121,9 +137,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         context("payment + Confirm", () => {
             it("create+confirm-payment-call-test", () => {
                 console.log("confirm -> " + globalState.get("connectorId"));
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                console.log("det -> " + det.card);
-                cy.createConfirmPaymentTest(createConfirmPaymentBody, det, "no_three_ds", "manual", globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                console.log("det -> " + data.card);
+                cy.createConfirmPaymentTest(createConfirmPaymentBody, req_data, res_data, "no_three_ds", "manual", globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -131,9 +149,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             });
 
             it("capture-call-test", () => {
-                let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                console.log("det -> " + det.card);
-                cy.captureCallTest(captureBody, 5000, det.paymentSuccessfulStatus, globalState);
+                let data = getConnectorDetails(globalState.get("connectorId"))["PartialCapture"];
+                let req_data = data["Request"];
+                let res_data = data["Response"];
+                console.log("det -> " + data.card);
+                cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
