@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.03.1-hotfix2
+
+### Bug Fixes
+
+- **connector:** [BOA/CYBS] make rsync status optional ([#4599](https://github.com/juspay/hyperswitch/pull/4599)) ([`ab6c7bd`](https://github.com/juspay/hyperswitch/commit/ab6c7bd3b67da9697598204b3bb7184aa4d88f3e))
+
+- - -
+
 ## 2024.05.03.1-hotfix1
 
 ### Bug Fixes
