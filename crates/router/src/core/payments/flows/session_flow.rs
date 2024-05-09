@@ -87,7 +87,7 @@ fn is_dynamic_fields_required(
     payment_method: enums::PaymentMethod,
     payment_method_type: enums::PaymentMethodType,
     connector: &types::Connector,
-    required_field_type: enums::FieldType,
+    required_field_type: Vec<enums::FieldType>,
 ) -> Option<bool> {
     state
         .conf
@@ -104,15 +104,15 @@ fn is_dynamic_fields_required(
                             required_fields_final
                                 .non_mandate
                                 .iter()
-                                .any(|(_, val)| val.field_type == required_field_type)
+                                .any(|(_, val)| required_field_type.contains(&val.field_type))
                                 || required_fields_final
                                     .mandate
                                     .iter()
-                                    .any(|(_, val)| val.field_type == required_field_type)
+                                    .any(|(_, val)| required_field_type.contains(&val.field_type))
                                 || required_fields_final
                                     .common
                                     .iter()
-                                    .any(|(_, val)| val.field_type == required_field_type)
+                                    .any(|(_, val)| required_field_type.contains(&val.field_type))
                         },
                     )
                 })
@@ -288,12 +288,14 @@ async fn create_applepay_session_token(
             router_data.request.to_owned(),
         )?;
 
+        let billing_variants = enums::FieldType::get_billing_variants();
+
         let required_billing_contact_fields = is_dynamic_fields_required(
             state,
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
             &connector.connector_name,
-            enums::FieldType::UserBillingName,
+            billing_variants,
         )
         .and_then(|is_dynamic_fields_required| {
             if is_dynamic_fields_required {

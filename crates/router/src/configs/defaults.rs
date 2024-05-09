@@ -581,7 +581,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -590,7 +590,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
-                                                    field_type: enums::FieldType::UserAddressState,
+                                                    field_type: enums::FieldType::UserBillingAddressState,
                                                     value: None,
                                                 }
                                             ),
@@ -599,7 +599,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -608,7 +608,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -621,7 +621,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -846,7 +846,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -855,7 +855,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -864,7 +864,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
-                                                    field_type: enums::FieldType::UserAddressState,
+                                                    field_type: enums::FieldType::UserBillingAddressState,
                                                     value: None,
                                                 }
                                             ),
@@ -873,7 +873,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -882,7 +882,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -959,7 +959,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -1194,7 +1194,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -1203,7 +1203,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -1351,7 +1351,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -1360,7 +1360,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line2".to_string(),
                                                     display_name: "line2".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine2,
+                                                    field_type: enums::FieldType::UserBillingAddressLine2,
                                                     value: None,
                                                 }
                                             ),
@@ -1369,7 +1369,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -1378,7 +1378,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -1387,7 +1387,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -1511,7 +1511,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "billing_zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -2106,7 +2106,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -2115,7 +2115,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -2124,7 +2124,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -2133,7 +2133,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -2239,7 +2239,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.country".to_string(),
                                                 display_name: "country".to_string(),
-                                                field_type: enums::FieldType::UserAddressCountry{
+                                                field_type: enums::FieldType::UserBillingAddressCountry{
                                                     options: vec![
                                                         "ALL".to_string(),
                                                     ]
@@ -2684,7 +2684,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -2693,7 +2693,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
-                                                    field_type: enums::FieldType::UserAddressState,
+                                                    field_type: enums::FieldType::UserBillingAddressState,
                                                     value: None,
                                                 }
                                             ),
@@ -2702,7 +2702,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -2711,7 +2711,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -2724,7 +2724,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -2948,7 +2948,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -2957,7 +2957,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -2966,7 +2966,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
-                                                    field_type: enums::FieldType::UserAddressState,
+                                                    field_type: enums::FieldType::UserBillingAddressState,
                                                     value: None,
                                                 }
                                             ),
@@ -2975,7 +2975,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -2984,7 +2984,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -3062,7 +3062,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -3297,7 +3297,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -3306,7 +3306,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -3454,7 +3454,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -3463,7 +3463,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line2".to_string(),
                                                     display_name: "line2".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine2,
+                                                    field_type: enums::FieldType::UserBillingAddressLine2,
                                                     value: None,
                                                 }
                                             ),
@@ -3472,7 +3472,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -3481,7 +3481,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -3490,7 +3490,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -3614,7 +3614,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "billing_zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -4209,7 +4209,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -4218,7 +4218,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -4227,7 +4227,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -4236,7 +4236,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -4342,7 +4342,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.country".to_string(),
                                                 display_name: "country".to_string(),
-                                                field_type: enums::FieldType::UserAddressCountry{
+                                                field_type: enums::FieldType::UserBillingAddressCountry{
                                                     options: vec![
                                                         "ALL".to_string(),
                                                     ]
@@ -4640,7 +4640,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.country".to_string(),
                                                 display_name: "country".to_string(),
-                                                field_type: enums::FieldType::UserAddressCountry {
+                                                field_type: enums::FieldType::UserBillingAddressCountry {
                                                     options: vec![
                                                             "DE".to_string(),
                                                         ]
@@ -4696,7 +4696,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "DE".to_string(),
                                                         ]
@@ -4782,7 +4782,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -4791,7 +4791,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -4800,7 +4800,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -4809,7 +4809,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry {
+                                                    field_type: enums::FieldType::UserBillingAddressCountry {
                                                         options: vec![
                                                                 "DE".to_string(),
                                                             ]
@@ -4939,7 +4939,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "NL".to_string(),
                                                         ]
@@ -5050,7 +5050,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -5059,7 +5059,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -5068,7 +5068,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -5077,7 +5077,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "NL".to_string(),
                                                         ]
@@ -5146,7 +5146,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.country".to_string(),
                                                 display_name: "country".to_string(),
-                                                field_type: enums::FieldType::UserAddressCountry {
+                                                field_type: enums::FieldType::UserBillingAddressCountry {
                                                     options: vec![
                                                             "AT".to_string(),
                                                             "BE".to_string(),
@@ -5215,7 +5215,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ES".to_string(),
                                                             "GB".to_string(),
@@ -5343,7 +5343,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -5352,7 +5352,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -5361,7 +5361,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -5370,7 +5370,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry {
+                                                    field_type: enums::FieldType::UserBillingAddressCountry {
                                                         options: vec![
                                                                 "ES".to_string(),
                                                                 "GB".to_string(),
@@ -5469,7 +5469,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry {
+                                                    field_type: enums::FieldType::UserBillingAddressCountry {
                                                         options: vec![
                                                             "AT".to_string(),
                                                         ]
@@ -5538,7 +5538,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -5547,7 +5547,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -5556,7 +5556,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -5565,7 +5565,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "AT".to_string(),
                                                         ]
@@ -5622,7 +5622,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "AT".to_string(),
                                                         ]
@@ -5715,7 +5715,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    field_type: enums::FieldType::UserBillingAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -5724,7 +5724,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.city".to_string(),
                                                     display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    field_type: enums::FieldType::UserBillingAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -5733,7 +5733,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.zip".to_string(),
                                                     display_name: "zip".to_string(),
-                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    field_type: enums::FieldType::UserBillingAddressPincode,
                                                     value: None,
                                                 }
                                             ),
@@ -5742,7 +5742,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "ALL".to_string(),
                                                         ]
@@ -5811,7 +5811,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.city".to_string(),
                                                         display_name: "city".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCity,
+                                                        field_type: enums::FieldType::UserBillingAddressCity,
                                                         value: None,
                                                     }
                                                 ),
@@ -5820,7 +5820,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
-                                                        field_type: enums::FieldType::UserAddressState,
+                                                        field_type: enums::FieldType::UserBillingAddressState,
                                                         value: None,
                                                     }
                                                 ),
@@ -5829,7 +5829,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
-                                                        field_type: enums::FieldType::UserAddressPincode,
+                                                        field_type: enums::FieldType::UserBillingAddressPincode,
                                                         value: None,
                                                     }
                                                 ),
@@ -5838,7 +5838,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.country".to_string(),
                                                         display_name: "country".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCountry{
+                                                        field_type: enums::FieldType::UserBillingAddressCountry{
                                                             options: vec![
                                                                 "ALL".to_string(),
                                                             ]
@@ -5851,7 +5851,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserBillingAddressLine1,
                                                         value: None,
                                                     }
                                                 ),
@@ -5898,7 +5898,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.city".to_string(),
                                                         display_name: "city".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCity,
+                                                        field_type: enums::FieldType::UserBillingAddressCity,
                                                         value: None,
                                                     }
                                                 ),
@@ -5907,7 +5907,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
-                                                        field_type: enums::FieldType::UserAddressState,
+                                                        field_type: enums::FieldType::UserBillingAddressState,
                                                         value: None,
                                                     }
                                                 ),
@@ -5916,7 +5916,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
-                                                        field_type: enums::FieldType::UserAddressPincode,
+                                                        field_type: enums::FieldType::UserBillingAddressPincode,
                                                         value: None,
                                                     }
                                                 ),
@@ -5925,7 +5925,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.country".to_string(),
                                                         display_name: "country".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCountry{
+                                                        field_type: enums::FieldType::UserBillingAddressCountry{
                                                             options: vec![
                                                                 "ALL".to_string(),
                                                             ]
@@ -5938,7 +5938,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserBillingAddressLine1,
                                                         value: None,
                                                     }
                                                 ),
@@ -6000,7 +6000,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.city".to_string(),
                                                         display_name: "city".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCity,
+                                                        field_type: enums::FieldType::UserBillingAddressCity,
                                                         value: None,
                                                     }
                                                 ),
@@ -6009,7 +6009,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
-                                                        field_type: enums::FieldType::UserAddressState,
+                                                        field_type: enums::FieldType::UserBillingAddressState,
                                                         value: None,
                                                     }
                                                 ),
@@ -6018,7 +6018,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
-                                                        field_type: enums::FieldType::UserAddressPincode,
+                                                        field_type: enums::FieldType::UserBillingAddressPincode,
                                                         value: None,
                                                     }
                                                 ),
@@ -6027,7 +6027,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.country".to_string(),
                                                         display_name: "country".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCountry{
+                                                        field_type: enums::FieldType::UserBillingAddressCountry{
                                                             options: vec![
                                                                 "ALL".to_string(),
                                                             ]
@@ -6040,7 +6040,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserBillingAddressLine1,
                                                         value: None,
                                                     }
                                                 ),
@@ -6133,7 +6133,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.city".to_string(),
                                                 display_name: "city".to_string(),
-                                                field_type: enums::FieldType::UserAddressCity,
+                                                field_type: enums::FieldType::UserBillingAddressCity,
                                                 value: None,
                                             }
                                         ),
@@ -6142,7 +6142,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.state".to_string(),
                                                 display_name: "state".to_string(),
-                                                field_type: enums::FieldType::UserAddressState,
+                                                field_type: enums::FieldType::UserBillingAddressState,
                                                 value: None,
                                             }
                                         ),
@@ -6151,7 +6151,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.zip".to_string(),
                                                 display_name: "zip".to_string(),
-                                                field_type: enums::FieldType::UserAddressPincode,
+                                                field_type: enums::FieldType::UserBillingAddressPincode,
                                                 value: None,
                                             }
                                         ),
@@ -6160,7 +6160,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.country".to_string(),
                                                 display_name: "country".to_string(),
-                                                field_type: enums::FieldType::UserAddressCountry{
+                                                field_type: enums::FieldType::UserBillingAddressCountry{
                                                     options: vec![
                                                         "ALL".to_string(),
                                                     ]
@@ -6173,7 +6173,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.line1".to_string(),
                                                 display_name: "line1".to_string(),
-                                                field_type: enums::FieldType::UserAddressLine1,
+                                                field_type: enums::FieldType::UserBillingAddressLine1,
                                                 value: None,
                                             }
                                         ),
@@ -6182,7 +6182,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.line2".to_string(),
                                                 display_name: "line2".to_string(),
-                                                field_type: enums::FieldType::UserAddressLine2,
+                                                field_type: enums::FieldType::UserBillingAddressLine2,
                                                 value: None,
                                             }
                                         )]),
@@ -6227,7 +6227,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.city".to_string(),
                                                         display_name: "city".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCity,
+                                                        field_type: enums::FieldType::UserBillingAddressCity,
                                                         value: None,
                                                     }
                                                 ),
@@ -6236,7 +6236,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
-                                                        field_type: enums::FieldType::UserAddressState,
+                                                        field_type: enums::FieldType::UserBillingAddressState,
                                                         value: None,
                                                     }
                                                 ),
@@ -6245,7 +6245,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
-                                                        field_type: enums::FieldType::UserAddressPincode,
+                                                        field_type: enums::FieldType::UserBillingAddressPincode,
                                                         value: None,
                                                     }
                                                 ),
@@ -6254,7 +6254,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.country".to_string(),
                                                         display_name: "country".to_string(),
-                                                        field_type: enums::FieldType::UserAddressCountry{
+                                                        field_type: enums::FieldType::UserBillingAddressCountry{
                                                             options: vec![
                                                                 "ALL".to_string(),
                                                             ]
@@ -6267,7 +6267,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserBillingAddressLine1,
                                                         value: None,
                                                     }
                                                 ),
@@ -6389,7 +6389,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                 required_field: "payment_method_data.pay_later.klarna.billing_country".to_string(),
                                                 display_name: "billing_country".to_string(),
-                                                field_type: enums::FieldType::UserAddressCountry{
+                                                field_type: enums::FieldType::UserBillingAddressCountry{
                                                     options: vec![
                                                         "ALL".to_string(),
                                                     ]
@@ -6610,7 +6610,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                    field_type: enums::FieldType::UserBillingAddressCountry{
                                                         options: vec![
                                                             "CN".to_string(),
                                                         ]

@@ -391,7 +391,6 @@ pub struct UnresolvedResponseReason {
     Clone,
     Debug,
     Eq,
-    PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -413,6 +412,12 @@ pub enum FieldType {
     UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
     UserCurrency { options: Vec<String> },
     UserBillingName,
+    UserBillingAddressLine1,
+    UserBillingAddressLine2,
+    UserBillingAddressCity,
+    UserBillingAddressPincode,
+    UserBillingAddressState,
+    UserBillingAddressCountry { options: Vec<String> },
     UserAddressLine1,
     UserAddressLine2,
     UserAddressCity,
@@ -423,6 +428,81 @@ pub enum FieldType {
     UserBank,
     Text,
     DropDown { options: Vec<String> },
+}
+
+impl FieldType {
+    pub fn get_billing_variants() -> Vec<FieldType> {
+        vec![
+            FieldType::UserBillingName,
+            FieldType::UserBillingAddressLine1,
+            FieldType::UserBillingAddressLine2,
+            FieldType::UserBillingAddressCity,
+            FieldType::UserBillingAddressPincode,
+            FieldType::UserBillingAddressState,
+            FieldType::UserBillingAddressCountry { options: vec![] },
+        ]
+    }
+
+}
+
+impl PartialEq for FieldType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (FieldType::UserCardNumber, FieldType::UserCardNumber) => true,
+            (FieldType::UserCardExpiryMonth, FieldType::UserCardExpiryMonth) => true,
+            (FieldType::UserCardExpiryYear, FieldType::UserCardExpiryYear) => true,
+            (FieldType::UserCardCvc, FieldType::UserCardCvc) => true,
+            (FieldType::UserFullName, FieldType::UserFullName) => true,
+            (FieldType::UserEmailAddress, FieldType::UserEmailAddress) => true,
+            (FieldType::UserPhoneNumber, FieldType::UserPhoneNumber) => true,
+            (FieldType::UserCountryCode, FieldType::UserCountryCode) => true,
+            (
+                FieldType::UserCountry {
+                    options: options_self,
+                },
+                FieldType::UserCountry {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            (
+                FieldType::UserCurrency {
+                    options: options_self,
+                },
+                FieldType::UserCurrency {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            (FieldType::UserBillingName, FieldType::UserBillingName) => true,
+            (FieldType::UserBillingAddressLine1, FieldType::UserBillingAddressLine1) => true,
+            (FieldType::UserBillingAddressLine2, FieldType::UserBillingAddressLine2) => true,
+            (FieldType::UserBillingAddressCity, FieldType::UserBillingAddressCity) => true,
+            (FieldType::UserBillingAddressPincode, FieldType::UserBillingAddressPincode) => true,
+            (FieldType::UserBillingAddressState, FieldType::UserBillingAddressState) => true,
+            (
+                FieldType::UserBillingAddressCountry { .. },
+                FieldType::UserBillingAddressCountry { .. },
+            ) => true,
+            (FieldType::UserShippingName, FieldType::UserShippingName) => true,
+            (FieldType::UserShippingAddressLine1, FieldType::UserShippingAddressLine1) => true,
+            (FieldType::UserShippingAddressLine2, FieldType::UserShippingAddressLine2) => true,
+            (FieldType::UserShippingAddressCity, FieldType::UserShippingAddressCity) => true,
+            (FieldType::UserShippingAddressPincode, FieldType::UserShippingAddressPincode) => true,
+            (FieldType::UserShippingAddressState, FieldType::UserShippingAddressState) => true,
+            (FieldType::UserShippingAddressCountry, FieldType::UserShippingAddressCountry) => true,
+            (FieldType::UserBlikCode, FieldType::UserBlikCode) => true,
+            (FieldType::UserBank, FieldType::UserBank) => true,
+            (FieldType::Text, FieldType::Text) => true,
+            (
+                FieldType::DropDown {
+                    options: options_self,
+                },
+                FieldType::DropDown {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            _unused => false,
+        }
+    }
 }
 
 #[derive(
