@@ -17,7 +17,7 @@ use crate::user::{
     ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse,
     SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse,
     TokenResponse, UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest,
+    VerifyEmailRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -74,7 +74,8 @@ common_utils::impl_misc_api_event_type!(
     GetUserRoleDetailsResponse,
     TokenResponse,
     UserFromEmailRequest,
-    BeginTotpResponse
+    BeginTotpResponse,
+    VerifyTotpRequest
 );
 
 #[cfg(feature = "dummy_connector")]

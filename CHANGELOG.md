@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.09.0
+
+### Features
+
+- **business_profile:** Feature add a config to use `billing` as `payment_method_billing` ([#4557](https://github.com/juspay/hyperswitch/pull/4557)) ([`3e1c7eb`](https://github.com/juspay/hyperswitch/commit/3e1c7eba49de3110a2d71cea8e0540c7182d2058))
+- **connector-configs:** [Cashtocode] add CNY currency for evoucher ([#4578](https://github.com/juspay/hyperswitch/pull/4578)) ([`c47cac8`](https://github.com/juspay/hyperswitch/commit/c47cac815792df865e416d5ffc6c46faf6662053))
+- **users:** Create `user_key_store` table and `begin_totp` API ([#4577](https://github.com/juspay/hyperswitch/pull/4577)) ([`a97016f`](https://github.com/juspay/hyperswitch/commit/a97016fea41c3b74149d8eaa5c0271ec1347bc39))
+
+### Bug Fixes
+
+- **connector:** [BOA/CYBS] make rsync status optional ([#4570](https://github.com/juspay/hyperswitch/pull/4570)) ([`339da8b`](https://github.com/juspay/hyperswitch/commit/339da8b0c9a1e388b65ff5d82a162e758c85ec6b))
+- **core:** Drop three_dsserver_trans_id from authentication table ([#4587](https://github.com/juspay/hyperswitch/pull/4587)) ([`ec3b60e`](https://github.com/juspay/hyperswitch/commit/ec3b60e37c0b178c3e5e3fe79db88f83fd195722))
+- **users:** Correct the condition for `verify_email` flow in decision manger ([#4580](https://github.com/juspay/hyperswitch/pull/4580)) ([`3db5b82`](https://github.com/juspay/hyperswitch/commit/3db5b82d0de45130695e1a47b9e71473020fd84d))
+
+### Refactors
+
+- **bank-debit:** Remove billingdetails from bankdebit pmd ([#4371](https://github.com/juspay/hyperswitch/pull/4371)) ([`625b531`](https://github.com/juspay/hyperswitch/commit/625b53182e20b50fde5def338e122a43457da0f2))
+- **db:** Add TenantId field to the KafkaStore struct ([#4512](https://github.com/juspay/hyperswitch/pull/4512)) ([`dca15ae`](https://github.com/juspay/hyperswitch/commit/dca15aeeb501a499fd7334d5cc68b8053757cad4))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`d85f245`](https://github.com/juspay/hyperswitch/commit/d85f245182875dcc59d8355cd07c91bfaaf08e1a))
+
+**Full Changelog:** [`2024.05.08.0...2024.05.09.0`](https://github.com/juspay/hyperswitch/compare/2024.05.08.0...2024.05.09.0)
+
+- - -
+
 ## 2024.05.08.0
 
 ### Features
