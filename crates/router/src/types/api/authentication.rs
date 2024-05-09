@@ -50,7 +50,7 @@ impl TryFrom<storage::Authentication> for AuthenticationResponse {
             challenge_request: authentication.challenge_request,
             acs_reference_number: authentication.acs_reference_number,
             acs_trans_id: authentication.acs_trans_id,
-            three_dsserver_trans_id: authentication.three_ds_server_trans_id,
+            three_dsserver_trans_id: authentication.threeds_server_transaction_id,
             acs_signed_content: authentication.acs_signed_content,
         })
     }

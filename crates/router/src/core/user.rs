@@ -1,9 +1,13 @@
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
-use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
+use diesel_models::{
+    enums::{TotpStatus, UserStatus},
+    user as storage_user,
+    user_role::UserRoleNew,
+};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "email")]
 use router_env::env;
 use router_env::logger;
@@ -1580,4 +1584,123 @@ pub async fn user_from_email(
         token_type: next_flow.get_flow().into(),
     };
     auth::cookies::set_cookie_response(response, token)
+}
+
+pub async fn begin_totp(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+) -> UserResponse<user_api::BeginTotpResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_totp_status() == TotpStatus::Set {
+        return Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
+            secret: None,
+        }));
+    }
+
+    let totp = utils::user::generate_default_totp(user_from_db.get_email(), None)?;
+    let recovery_codes = domain::RecoveryCodes::generate_new();
+
+    let key_store = user_from_db.get_or_create_key_store(&state).await?;
+
+    state
+        .store
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: Some(TotpStatus::InProgress),
+                totp_secret: Some(
+                    // TODO: Impl conversion trait for User and move this there
+                    domain::types::encrypt::<String, masking::WithType>(
+                        totp.get_secret_base32().into(),
+                        key_store.key.peek(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .into(),
+                ),
+                totp_recovery_codes: Some(
+                    recovery_codes
+                        .get_hashed()
+                        .change_context(UserErrors::InternalServerError)?,
+                ),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
+        secret: Some(user_api::TotpSecret {
+            secret: totp.get_secret_base32().into(),
+            totp_url: totp.get_url().into(),
+            recovery_codes: recovery_codes.into_inner(),
+        }),
+    }))
+}
+
+pub async fn verify_totp(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::VerifyTotpRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if let Some(user_totp) = req.totp {
+        if user_from_db.get_totp_status() == TotpStatus::NotSet {
+            return Err(UserErrors::TotpNotSetup.into());
+        }
+
+        let user_totp_secret = user_from_db
+            .decrypt_and_get_totp_secret(&state)
+            .await?
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let totp =
+            utils::user::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
+
+        if totp
+            .generate_current()
+            .change_context(UserErrors::InternalServerError)?
+            != user_totp.expose()
+        {
+            return Err(UserErrors::InvalidTotp.into());
+        }
+
+        if user_from_db.get_totp_status() == TotpStatus::InProgress {
+            state
+                .store
+                .update_user_by_user_id(
+                    user_from_db.get_user_id(),
+                    storage_user::UserUpdate::TotpUpdate {
+                        totp_status: Some(TotpStatus::Set),
+                        totp_secret: None,
+                        totp_recovery_codes: None,
+                    },
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+        }
+    }
+
+    let current_flow = domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::TOTP.into())?;
+    let next_flow = current_flow.next(user_from_db, &state).await?;
+    let token = next_flow.get_token(&state).await?;
+
+    auth::cookies::set_cookie_response(
+        user_api::TokenResponse {
+            token: token.clone(),
+            token_type: next_flow.get_flow().into(),
+        },
+        token,
+    )
 }
