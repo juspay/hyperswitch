@@ -398,26 +398,9 @@ merchant_secret="Source verification key"
   payment_method_type = "CartesBancaires"
 [[bambora.debit]]
   payment_method_type = "UnionPay"
-[[bambora.wallet]]
-  payment_method_type = "apple_pay"
-[[bambora.wallet]]
-  payment_method_type = "paypal"
 [bambora.connector_auth.BodyKey]
 api_key="Passcode"
 key1="Merchant Id"
-[bambora.connector_webhook_details]
-merchant_secret="Source verification key"
-[bambora.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="Domain"
-initiative_context="Domain Name"
-[bambora.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
 
 [bankofamerica]
 [[bankofamerica.credit]]

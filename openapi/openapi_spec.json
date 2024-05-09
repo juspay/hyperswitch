@@ -8163,6 +8163,14 @@
             "type": "boolean",
             "description": "Indicates if the payment method has been set to default or not",
             "example": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17339,6 +17347,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",

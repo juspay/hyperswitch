@@ -1794,6 +1794,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         //     mifinity::transformers::MifinityAuthType::try_from(val)?;
         //     Ok(())
         // } Added as template code for future usage
+        // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
         | api_enums::Connector::DummyConnector2
