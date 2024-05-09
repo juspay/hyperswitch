@@ -6,22 +6,27 @@ import getConnectorDetails from "../ConnectorUtils/utils";
 let globalState;
 
 describe("Card - Sync payment flow test", () => {
-
   before("seed global state", () => {
-
-    cy.task('getGlobalState').then((state) => {
+    cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       console.log("seeding globalState -> " + JSON.stringify(globalState));
-    })
-  })
+    });
+  });
 
   after("flush global state", () => {
     console.log("flushing globalState -> " + JSON.stringify(globalState));
-    cy.task('setGlobalState', globalState.data);
-  })
+    cy.task("setGlobalState", globalState.data);
+  });
+
   it("create-payment-call-test", () => {
     let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-    cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
+    cy.createPaymentIntentTest(
+      createPaymentBody,
+      det,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
   });
 
   it("payment_methods-call-test", () => {
@@ -38,5 +43,4 @@ describe("Card - Sync payment flow test", () => {
   it("retrieve-payment-call-test", () => {
     cy.retrievePaymentCallTest(globalState);
   });
-
 });

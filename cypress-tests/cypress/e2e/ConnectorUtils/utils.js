@@ -8,18 +8,15 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 
 const connectorDetails = {
-  "adyen": adyenConnectorDetails,
-  "bankofamerica": bankOfAmericaConnectorDetails,
-  "bluesnap": bluesnapConnectorDetails,
-  "cybersource": cybersourceConnectorDetails,
-  "nmi": nmiConnectorDetails,
-  "paypal": paypalConnectorDetails,
-  "stripe": stripeConnectorDetails,
-  "trustpay": trustpayConnectorDetails
-
-
-}
-
+  adyen: adyenConnectorDetails,
+  bankofamerica: bankOfAmericaConnectorDetails,
+  bluesnap: bluesnapConnectorDetails,
+  cybersource: cybersourceConnectorDetails,
+  nmi: nmiConnectorDetails,
+  paypal: paypalConnectorDetails,
+  stripe: stripeConnectorDetails,
+  trustpay: trustpayConnectorDetails,
+};
 
 export default function getConnectorDetails(connectorId) {
   let x = getValueByKey(connectorDetails, connectorId);
@@ -27,9 +24,10 @@ export default function getConnectorDetails(connectorId) {
 }
 
 export function getValueByKey(jsonObject, key) {
-  const data = typeof jsonObject === 'string' ? JSON.parse(jsonObject) : jsonObject;
+  const data =
+    typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
-  if (data && typeof data === 'object' && key in data) {
+  if (data && typeof data === "object" && key in data) {
     return data[key];
   } else {
     return null;
