@@ -76,7 +76,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
 
 #[derive(Clone)]
