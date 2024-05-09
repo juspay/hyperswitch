@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## v1.107.2
+
+### Bug Fixes
+
+- **connector:** [BAMBORA] Audit Fixes for Bambora ([#4611](https://github.com/juspay/hyperswitch/pull/4611)) ([`ba15a9d`](https://github.com/juspay/hyperswitch/commit/ba15a9dccac7643f5bbe95daad5fba5ca51cd6cb))
+
+**Full Changelog:** [`v1.107.1...v1.107.2`](https://github.com/juspay/hyperswitch/compare/v1.107.1...v1.107.2)
+
 ## 1.107.1 (2024-05-06)
 
 ### Bug Fixes
