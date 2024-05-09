@@ -4,7 +4,10 @@ use api_models::{
     analytics::refunds::RefundType,
     enums::{DisputeStage, DisputeStatus},
 };
-use common_utils::errors::{CustomResult, ParsingError};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    types::TenantID,
+};
 use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
 };
@@ -19,8 +22,6 @@ use sqlx::{
 use storage_impl::config::Database;
 use time::PrimitiveDateTime;
 
-use crate::TenantID;
-
 use super::{
     health_check::HealthCheck,
     query::{Aggregate, ToSql, Window},
@@ -33,6 +34,7 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct SqlxClient {
     pool: Pool<Postgres>,
+    #[allow(unused)]
     tenant_id: TenantID,
 }
 

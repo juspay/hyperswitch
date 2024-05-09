@@ -18,7 +18,7 @@ pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::TenantID};
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
@@ -66,14 +66,6 @@ use self::{
     sqlx::SqlxClient,
     types::MetricsError,
 };
-
-#[derive(Clone, Debug)]
-pub struct TenantID(String);
-impl Default for TenantID {
-    fn default() -> Self {
-        Self(String::from("default"))
-    }
-}
 
 #[derive(Clone, Debug)]
 pub enum AnalyticsProvider {

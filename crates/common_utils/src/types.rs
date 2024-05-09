@@ -212,3 +212,13 @@ where
         <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
     }
 }
+
+/// This struct represnts the Tenant Id and stores it in a String
+#[derive(Clone, Debug)]
+pub struct TenantID(#[allow(unused)] String);
+
+impl Default for TenantID {
+    fn default() -> Self {
+        Self(String::from("default"))
+    }
+}

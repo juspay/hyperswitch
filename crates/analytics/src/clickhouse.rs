@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use actix_web::http::StatusCode;
-use common_utils::errors::ParsingError;
+use common_utils::{errors::ParsingError, types::TenantID};
 use error_stack::{report, Report, ResultExt};
 use router_env::logger;
 use time::PrimitiveDateTime;
@@ -28,7 +28,6 @@ use crate::{
     outgoing_webhook_event::events::OutgoingWebhookLogsResult,
     sdk_events::events::SdkEventsResult,
     types::TableEngine,
-    TenantID,
 };
 
 pub type ClickhouseResult<T> = error_stack::Result<T, ClickhouseError>;
