@@ -16,6 +16,7 @@ const successfulThreeDSTestCardDetails = {
 };
 
 export const connectorDetails = {
+card_pm:{
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency": "USD",
@@ -109,5 +110,5 @@ export const connectorDetails = {
             }
         },
     },
-
+}  
 }; 

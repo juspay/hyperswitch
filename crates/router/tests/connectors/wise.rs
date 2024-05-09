@@ -68,6 +68,7 @@ impl WiseTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             payout_method_data: Some(api::PayoutMethodData::Bank(api::payouts::BankPayout::Bacs(
                 api::BacsBankTransfer {

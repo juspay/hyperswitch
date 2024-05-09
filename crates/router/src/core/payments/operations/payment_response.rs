@@ -95,6 +95,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     {
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
+        let payment_method_billing_address = payment_data.address.get_payment_method_billing();
 
         let connector_name = payment_data
             .payment_attempt
@@ -125,6 +126,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Some(resp.request.amount),
             Some(resp.request.currency),
             billing_name.clone(),
+            payment_method_billing_address,
             business_profile,
         ));
 
@@ -178,6 +180,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let currency = resp.request.currency;
             let payment_method_type = resp.request.payment_method_type;
             let storage_scheme = merchant_account.clone().storage_scheme;
+            let payment_method_billing_address = payment_method_billing_address.cloned();
 
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
@@ -196,6 +199,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         Some(amount),
                         Some(currency),
                         billing_name,
+                        payment_method_billing_address.as_ref(),
                         &business_profile,
                     ))
                     .await;
@@ -599,6 +603,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .get_payment_method_billing()
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
+
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let connector_name = payment_data
@@ -625,6 +630,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 resp.request.amount,
                 Some(resp.request.currency),
                 billing_name,
+                None,
                 business_profile,
             ))
             .await?;

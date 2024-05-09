@@ -198,6 +198,7 @@ impl AppState {
                                 .await
                                 .expect("Failed to create store"),
                             kafka_client.clone(),
+                            crate::db::kafka_store::TenantID("default".to_string()),
                         )
                         .await,
                     ),
@@ -1191,13 +1192,20 @@ impl User {
             // TODO: Remove this endpoint once migration to /merchants/list is done
             .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
+            // The route is utilized to select an invitation from a list of merchants in an intermediate state
+            .service(
+                web::resource("/merchants_select/list")
+                    .route(web::get().to(list_merchants_for_user_with_spt)),
+            )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            );
+            )
+            .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
+            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)));
 
         #[cfg(feature = "email")]
         {
@@ -1238,7 +1246,11 @@ impl User {
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
-                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(
+                    web::resource("/invite/accept")
+                        .route(web::post().to(merchant_select))
+                        .route(web::put().to(accept_invitation)),
+                )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
                 .service(
                     web::resource("/transfer_ownership")

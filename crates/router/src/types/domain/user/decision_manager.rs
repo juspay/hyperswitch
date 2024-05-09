@@ -42,7 +42,7 @@ impl SPTFlow {
             Self::TOTP => Ok(true),
             // Main email APIs
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
-            Self::VerifyEmail => Ok(user.0.is_verified),
+            Self::VerifyEmail => Ok(!user.0.is_verified),
             // Final Checks
             Self::ForceSetPassword => user.is_password_rotate_required(state),
             Self::MerchantSelect => user
