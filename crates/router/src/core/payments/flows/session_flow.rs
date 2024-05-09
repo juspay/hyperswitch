@@ -105,6 +105,14 @@ fn is_dynamic_fields_required(
                                 .non_mandate
                                 .iter()
                                 .any(|(_, val)| val.field_type == required_field_type)
+                                || required_fields_final
+                                    .mandate
+                                    .iter()
+                                    .any(|(_, val)| val.field_type == required_field_type)
+                                || required_fields_final
+                                    .common
+                                    .iter()
+                                    .any(|(_, val)| val.field_type == required_field_type)
                         },
                     )
                 })
