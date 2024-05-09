@@ -324,7 +324,7 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
-pub async fn list_merchants_to_select_for_user(
+pub async fn list_merchants_for_user_with_spt(
     state: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {
@@ -334,7 +334,7 @@ pub async fn list_merchants_to_select_for_user(
         state,
         &req,
         (),
-        |state, user, _, _| user_core::list_merchants_to_select_for_user(state, user),
+        |state, user, _, _| user_core::list_merchants_for_user(state, user),
         &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))

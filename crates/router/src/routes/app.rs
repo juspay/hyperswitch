@@ -1192,10 +1192,10 @@ impl User {
             // TODO: Remove this endpoint once migration to /merchants/list is done
             .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
-            // The route is utilized to select an invitation from a list of merchants in an intermediate state and takes single pupose JWT auth
+            // The route is utilized to select an invitation from a list of merchants in an intermediate state
             .service(
                 web::resource("/merchants_select/list")
-                    .route(web::get().to(list_merchants_to_select_for_user)),
+                    .route(web::get().to(list_merchants_for_user_with_spt)),
             )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
