@@ -393,7 +393,7 @@ impl ConnectorData {
                 | enums::Connector::Plaid
                 | enums::Connector::Riskified
                 | enums::Connector::Threedsecureio
-                | enums::Connector::Gpayments
+                // | enums::Connector::Gpayments  Added as template code for future usage
                 | enums::Connector::Netcetera => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
