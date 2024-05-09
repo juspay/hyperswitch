@@ -328,11 +328,12 @@ mod storage {
         ) -> CustomResult<domain::Customer, errors::StorageError> {
             let customer_id = customer_data.customer_id.clone();
             let merchant_id = customer_data.merchant_id.clone();
-            let new_customer = customer_data
+            let mut new_customer = customer_data
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
             let storage_scheme = decide_storage_scheme::<_,diesel_models::Customer>(&self,storage_scheme, Op::Insert).await;
+            new_customer.update_storage_scheme(storage_scheme);
             let create_customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -556,11 +557,11 @@ mod storage {
             &self,
             customer_data: domain::Customer,
             key_store: &domain::MerchantKeyStore,
-            _storage_scheme: MerchantStorageScheme,
+            storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::Customer, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             customer_data
-                .construct_new()
+                .construct_new(storage_scheme)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
