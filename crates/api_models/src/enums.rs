@@ -442,7 +442,6 @@ impl FieldType {
             FieldType::UserBillingAddressCountry { options: vec![] },
         ]
     }
-
 }
 
 impl PartialEq for FieldType {
