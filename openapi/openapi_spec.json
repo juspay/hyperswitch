@@ -4984,6 +4984,14 @@
           "merchant_identifier": {
             "type": "string",
             "nullable": true
+          },
+          "required_billing_contact_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The required billing contacht fields for connector",
+            "nullable": true
           }
         }
       },
