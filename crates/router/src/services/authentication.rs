@@ -216,6 +216,7 @@ impl GetUserIdFromAuth for UserFromToken {
     }
 }
 
+#[cfg(feature = "olap")]
 impl GetUserIdFromAuth for UserFromSinglePurposeToken {
     fn get_user_id(&self) -> String {
         self.user_id.clone()
