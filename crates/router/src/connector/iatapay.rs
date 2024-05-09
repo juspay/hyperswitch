@@ -116,22 +116,33 @@ impl ConnectorCommon for Iatapay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: iatapay::IatapayErrorResponse = res
-            .response
-            .parse_struct("IatapayErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_error_message = if res.response.is_empty() && res.status_code == 401 {
+            ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: Some(consts::CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
+                attempt_status: None,
+                connector_transaction_id: None,
+            }
+        } else {
+            let response: iatapay::IatapayErrorResponse = res
+                .response
+                .parse_struct("IatapayErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+            event_builder.map(|i| i.set_error_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            ErrorResponse {
+                status_code: res.status_code,
+                code: response.error,
+                message: response.message,
+                reason: response.reason,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }
+        };
+        Ok(response_error_message)
     }
 }
 
@@ -245,8 +256,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error,
-            message: response.path,
+            code: response.error.clone(),
+            message: response.path.unwrap_or(response.error),
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
