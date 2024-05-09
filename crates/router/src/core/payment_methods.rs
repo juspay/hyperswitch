@@ -291,7 +291,8 @@ pub async fn initiate_pm_collect_link(
         expiry: pm_collect_link.expiry,
         link: pm_collect_link.url,
         return_url: pm_collect_link.return_url,
-        config: pm_collect_link.link_data.config,
+        ui_config: pm_collect_link.link_data.ui_config,
+        enabled_payment_methods: pm_collect_link.link_data.enabled_payment_methods,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -355,7 +356,7 @@ pub async fn render_pm_collect_link(
                 let expired_link_data = services::GenericExpiredLinkData {
                     title: "Payment collect link has expired".to_string(),
                     message: "This payment collect link has expired.".to_string(),
-                    theme: link_data.config.theme,
+                    theme: link_data.ui_config.theme,
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks::ExpiredLink(expired_link_data),
@@ -383,26 +384,6 @@ pub async fn render_pm_collect_link(
                         pm_collect_link.primary_reference
                     ))?;
 
-                let mut enabled_payment_methods = vec![];
-                let cards = payment_methods::EnabledPaymentMethod {
-                    payment_method: enums::PaymentMethod::Card,
-                    payment_method_types: [
-                        enums::PaymentMethodType::Debit,
-                        enums::PaymentMethodType::Credit,
-                    ]
-                    .to_vec(),
-                };
-                let bank_transfer = payment_methods::EnabledPaymentMethod {
-                    payment_method: enums::PaymentMethod::BankTransfer,
-                    payment_method_types: [
-                        enums::PaymentMethodType::Ach,
-                        enums::PaymentMethodType::Bacs,
-                    ]
-                    .to_vec(),
-                };
-                enabled_payment_methods.push(cards);
-                enabled_payment_methods.push(bank_transfer);
-
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
                     pub_key: merchant_account
                         .publishable_key
@@ -415,8 +396,8 @@ pub async fn render_pm_collect_link(
                     customer_id: customer.customer_id,
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
-                    config: link_data.config,
-                    enabled_payment_methods,
+                    ui_config: link_data.ui_config,
+                    enabled_payment_methods: link_data.enabled_payment_methods,
                 };
 
                 let serialized_css_content = "".to_string();
@@ -443,7 +424,7 @@ pub async fn render_pm_collect_link(
                 customer_id: link_data.customer_id,
                 session_expiry: pm_collect_link.expiry,
                 return_url: pm_collect_link.return_url,
-                config: link_data.config,
+                ui_config: link_data.ui_config,
                 status,
             };
 

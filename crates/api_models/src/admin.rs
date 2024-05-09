@@ -1056,11 +1056,18 @@ pub struct BusinessProfileUpdate {
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MerchantCollectLinkConfig {
+    /// Custom domain name to be used for hosting collect links
     pub domain_name: Option<String>,
+
+    /// Collect UI config
     #[serde(flatten)]
-    pub config: CollectLinkConfigRequest,
+    pub ui_config: api_enums::CollectLinkConfig,
+
+    /// List of payment methods shown on collect UI
+    #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

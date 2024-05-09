@@ -1,5 +1,5 @@
 use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
-use common_utils::ext_traits::OptionExt;
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use diesel_models::{enums::CollectLinkConfig, generic_link::PaymentMethodCollectLinkData};
 use error_stack::ResultExt;
 use masking::Secret;
@@ -64,56 +64,62 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     // Create client secret
     let client_secret = utils::generate_id(consts::ID_LENGTH, "pm_collect_link_secret");
 
-    // Fetch SDK host
-    let sdk_host = state
-        .conf
-        .generic_link
-        .payment_method_collect
-        .sdk_url
-        .clone();
-
-    let requested_config = &req.config;
-    let merchant_config: admin::MerchantCollectLinkConfig = merchant_account
+    // Fetch all configs
+    let default_config = &state.conf.generic_link.payment_method_collect;
+    let merchant_config = merchant_account
         .pm_collect_link_config
         .clone()
-        .parse_value("MerchantCollectLinkConfig")
+        .map(|config| {
+            config.parse_value::<admin::MerchantCollectLinkConfig>("MerchantCollectLinkConfig")
+        })
+        .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "pm_collect_link_config in merchant_account",
         })?;
+    let ui_config = &req.ui_config;
+
+    let fallback_ui_config = match &merchant_account.pm_collect_link_config {
+        Some(config) => {
+            config
+                .clone()
+                .parse_value::<admin::MerchantCollectLinkConfig>("MerchantCollectLinkConfig")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "pm_collect_link_config in merchant_account",
+                })?
+                .ui_config
+        }
+        None => default_config.ui_config.clone(),
+    };
+
+    // Form data to be injected in HTML
+    let sdk_host = default_config.sdk_url.clone();
 
     let domain = merchant_config
-        .domain_name
+        .clone()
+        .and_then(|c| c.domain_name.clone())
         .unwrap_or_else(|| state.conf.server.base_url.clone());
 
-    let theme = requested_config
-        .as_ref()
-        .and_then(|config| config.theme.clone())
-        .or_else(|| merchant_config.config.theme.clone())
-        .unwrap_or_else(|| common_utils::consts::DEFAULT_PM_COLLECT_LINK_THEME.to_string());
+    let (collector_name, logo, theme) = match ui_config {
+        Some(config) => (
+            config.collector_name.clone(),
+            config.logo.clone(),
+            config.theme.clone(),
+        ),
+        None => (
+            fallback_ui_config.collector_name.clone(),
+            fallback_ui_config.logo.clone(),
+            fallback_ui_config.theme.clone(),
+        ),
+    };
 
-    let logo = requested_config
-        .as_ref()
-        .and_then(|config| config.logo.clone())
-        .or_else(|| merchant_config.config.logo.clone())
-        .unwrap_or_else(|| common_utils::consts::DEFAULT_PM_COLLECT_LINK_LOGO.to_string());
+    let session_expiry = match req.session_expiry {
+        Some(expiry) => expiry,
+        None => default_config.expiry,
+    };
 
-    let collector_name = requested_config
-        .as_ref()
-        .and_then(|config| config.collector_name.clone())
-        .or_else(|| merchant_config.config.collector_name.clone())
-        .map_or(
-            merchant_account
-                .merchant_name
-                .clone()
-                .get_required_value("merchant_name")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "collector_name",
-                })?
-                .get_inner()
-                .clone(),
-            |c| c,
-        )
-        .clone();
+    let link = Secret::new(format!(
+        "{domain}/payment_methods/collect/{merchant_id}/{pm_collect_link_id}"
+    ));
 
     let pm_collect_link_config = CollectLinkConfig {
         theme,
@@ -121,17 +127,20 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         collector_name,
     };
 
+    let enabled_payment_methods = match (&req.enabled_payment_methods, &merchant_config) {
+        (Some(enabled_payment_methods), _) => enabled_payment_methods.clone(),
+        (None, Some(config)) => config.enabled_payment_methods.clone(),
+        _ => default_config.enabled_payment_methods.clone(),
+    };
+
     Ok(PaymentMethodCollectLinkData {
         pm_collect_link_id: pm_collect_link_id.clone(),
         customer_id,
-        link: Secret::new(format!(
-            "{domain}/payment_methods/collect/{merchant_id}/{pm_collect_link_id}"
-        )),
+        link,
         sdk_host,
         client_secret: Secret::new(client_secret),
-        session_expiry: req
-            .session_expiry
-            .unwrap_or(common_utils::consts::DEFAULT_PM_COLLECT_LINK_EXPIRY),
-        config: pm_collect_link_config,
+        session_expiry,
+        ui_config: pm_collect_link_config,
+        enabled_payment_methods,
     })
 }

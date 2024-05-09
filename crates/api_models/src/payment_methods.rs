@@ -960,19 +960,24 @@ pub struct PaymentMethodCollectLinkRequest {
     pub pm_collect_link_id: Option<String>,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_92dnwed8s32bV9D8Snbiasd8v")]
+    #[schema(value_type = String, example = "cus_92dnwed8s32bV9D8Snbiasd8v")]
     pub customer_id: String,
 
     #[serde(flatten)]
-    pub config: Option<admin::CollectLinkConfigRequest>,
+    pub ui_config: Option<api_enums::CollectLinkConfig>,
 
     /// Will be used to expire client secret after certain amount of time to be supplied in seconds
     /// (900) for 15 mins
-    #[schema(example = 900)]
+    #[schema(value_type = Option<u32>, example = 900)]
     pub session_expiry: Option<u32>,
 
     /// Redirect to this URL post completion
+    #[schema(value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status")]
     pub return_url: Option<String>,
+
+    /// List of payment methods shown on collect UI
+    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Option<Vec<api_enums::EnabledPaymentMethod>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -991,20 +996,20 @@ pub struct PaymentMethodCollectLinkResponse {
     pub expiry: time::PrimitiveDateTime,
 
     /// URL to the form's link generated for collecting payment method details.
-    #[schema(
-        value_type = String, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1"
-    )]
+    #[schema(value_type = String, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1")]
     pub link: masking::Secret<String>,
 
     /// Redirect to this URL post completion
-    #[schema(
-    value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status"
-)]
+    #[schema(value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status")]
     pub return_url: Option<String>,
 
     /// Collect link config used
     #[serde(flatten)]
-    pub config: api_enums::CollectLinkConfig,
+    pub ui_config: api_enums::CollectLinkConfig,
+
+    /// List of payment methods shown on collect UI
+    #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1028,14 +1033,8 @@ pub struct PaymentMethodCollectLinkDetails {
     pub session_expiry: time::PrimitiveDateTime,
     pub return_url: Option<String>,
     #[serde(flatten)]
-    pub config: api_enums::CollectLinkConfig,
-    pub enabled_payment_methods: Vec<EnabledPaymentMethod>,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct EnabledPaymentMethod {
-    pub payment_method: api_enums::PaymentMethod,
-    pub payment_method_types: Vec<api_enums::PaymentMethodType>,
+    pub ui_config: api_enums::CollectLinkConfig,
+    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -1047,7 +1046,7 @@ pub struct PaymentMethodCollectLinkStatusDetails {
     pub return_url: Option<String>,
     pub status: api_enums::PaymentMethodCollectStatus,
     #[serde(flatten)]
-    pub config: api_enums::CollectLinkConfig,
+    pub ui_config: api_enums::CollectLinkConfig,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

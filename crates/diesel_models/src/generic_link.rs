@@ -82,7 +82,7 @@ impl Default for GenericLinkNew {
             merchant_id: String::default(),
             created_at: Some(now),
             last_modified_at: Some(now),
-            expiry: now + Duration::seconds(consts::DEFAULT_PM_COLLECT_LINK_EXPIRY.into()),
+            expiry: now + Duration::seconds(consts::DEFAULT_SESSION_EXPIRY.into()),
             link_data: serde_json::Value::default(),
             link_status: common_enums::GenericLinkStatus::default().to_string(),
             link_type: common_enums::GenericLinkType::default(),
@@ -133,5 +133,6 @@ pub struct PaymentMethodCollectLinkData {
     pub client_secret: Secret<String>,
     pub session_expiry: u32,
     #[serde(flatten)]
-    pub config: storage_enums::CollectLinkConfig,
+    pub ui_config: storage_enums::CollectLinkConfig,
+    pub enabled_payment_methods: Vec<storage_enums::EnabledPaymentMethod>,
 }

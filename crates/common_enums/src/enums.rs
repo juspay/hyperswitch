@@ -2775,9 +2775,15 @@ pub enum PaymentMethodCollectStatus {
     Submitted,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CollectLinkConfig {
     pub theme: String,
     pub logo: String,
     pub collector_name: masking::Secret<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct EnabledPaymentMethod {
+    pub payment_method: PaymentMethod,
+    pub payment_method_types: Vec<PaymentMethodType>,
 }

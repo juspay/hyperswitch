@@ -5,7 +5,10 @@ use std::{
 
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
-use api_models::{enums, payment_methods::RequiredFieldInfo};
+use api_models::{
+    enums,
+    payment_methods::{self, RequiredFieldInfo},
+};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
@@ -147,6 +150,9 @@ pub struct GenericLink {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodCollectConfig {
     pub sdk_url: String,
+    pub expiry: u32,
+    pub ui_config: enums::CollectLinkConfig,
+    pub enabled_payment_methods: Vec<enums::EnabledPaymentMethod>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
