@@ -72,7 +72,7 @@ pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
 
 // This should be one day, but it is causing issue while checking token in blacklist.
 // TODO: This should be fixed in future.
-pub const SINGLE_PURPOSE_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 day
+pub const SINGLE_PURPOSE_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
 
 pub const JWT_TOKEN_COOKIE_NAME: &str = "login_token";
 
