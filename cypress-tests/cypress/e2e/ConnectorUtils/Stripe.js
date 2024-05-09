@@ -42,14 +42,19 @@ export const connectorDetails = {
         
     },
     "No3DS": {
-        "card": successfulTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "customer_acceptance": null,
-        "setup_future_usage": "on_session"
+        "Request": {
+            "card": successfulTestCardDetails,
+            "currency": "USD",
+            "paymentSuccessfulStatus": "succeeded",
+            "paymentSyncStatus": "succeeded",
+            "refundStatus": "succeeded",
+            "refundSyncStatus": "succeeded",
+            "customer_acceptance": null,
+            "setup_future_usage": "on_session"
+        },
+        "Response": {
+            "status": "succeeded"
+        }
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,

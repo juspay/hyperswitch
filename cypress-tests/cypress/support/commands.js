@@ -220,7 +220,9 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
           .to.have.property("redirect_to_url");
         globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       } else if (response.body.authentication_type === "no_three_ds") {
-        expect(res_data.status).to.equal(response.body.status);
+        for(const key in res_data) {
+          expect(res_data[key]).to.equal(response.body[key]);
+        }
       } else {
         // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);
@@ -244,13 +246,13 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
   });
 });
 
-Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, details, authentication_type, capture_method, globalState) => {
-  createConfirmPaymentBody.payment_method_data.card = details.card;
+Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_data, res_data, authentication_type, capture_method, globalState) => {
+  createConfirmPaymentBody.payment_method_data.card = req_data.card;
   createConfirmPaymentBody.authentication_type = authentication_type;
-  createConfirmPaymentBody.currency = details.currency;
+  createConfirmPaymentBody.currency = req_data.currency;
   createConfirmPaymentBody.capture_method = capture_method;
-  createConfirmPaymentBody.customer_acceptance = details.customer_acceptance;
-  createConfirmPaymentBody.setup_future_usage = details.setup_future_usage;
+  createConfirmPaymentBody.customer_acceptance = req_data.customer_acceptance;
+  createConfirmPaymentBody.setup_future_usage = req_data.setup_future_usage;
   createConfirmPaymentBody.customer_id = globalState.get("customerId");
 
   cy.request({
@@ -275,7 +277,9 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
           globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
-        expect(details.paymentSuccessfulStatus).to.equal(response.body.status);
+        for(const key in res_data) {
+          expect(res_data[key]).to.equal(response.body[key]);
+        }
       } else {
         // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);

@@ -24,8 +24,10 @@ describe("Card - NoThreeDS payment flow test", () => {
   context("Card-NoThreeDS payment flow test Create and confirm", () => {
 
     it("create-payment-call-test", () => {
-      let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-      cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
+      let data = getConnectorDetails(globalState.get("connectorId"))["PaymentIntent"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "no_three_ds", "automatic", globalState);
     });
 
     it("payment_methods-call-test", () => {
@@ -33,8 +35,10 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-      cy.confirmCallTest(confirmBody, det, true, globalState);
+      let data = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -47,8 +51,10 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     it("create+confirm-payment-call-test", () => {
       console.log("confirm -> " + globalState.get("connectorId"));
-      let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-      cy.createConfirmPaymentTest(createConfirmPaymentBody, det, "no_three_ds", "automatic", globalState);
+      let data = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createConfirmPaymentTest(createConfirmPaymentBody, req_data, res_data, "no_three_ds", "automatic", globalState);
     });
 
     it("retrieve-payment-call-test", () => {
