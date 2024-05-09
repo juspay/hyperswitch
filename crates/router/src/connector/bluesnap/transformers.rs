@@ -539,6 +539,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             supported_networks: Some(payment_request_data.supported_networks),
                             merchant_identifier: Some(session_token_data.merchant_identifier),
                             required_billing_contact_fields: None,
+                            required_shipping_contact_fields: None,
                         }),
                         connector: "bluesnap".to_string(),
                         delayed_session_token: false,

@@ -4201,6 +4201,8 @@ pub struct ApplePayPaymentRequest {
     pub merchant_identifier: Option<String>,
     /// The required billing contacht fields for connector
     pub required_billing_contact_fields: Option<Vec<String>>,
+    /// The required shipping contacht fields for connector
+    pub required_shipping_contact_fields: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]

@@ -551,6 +551,7 @@ impl<F>
                                     supported_networks: None,
                                     merchant_identifier: None,
                                     required_billing_contact_fields: None,
+                                    required_shipping_contact_fields: None,
                                 },
                             ),
                             connector: "payme".to_string(),

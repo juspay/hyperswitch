@@ -419,6 +419,13 @@ pub enum FieldType {
     UserBillingAddressPincode,
     UserBillingAddressState,
     UserBillingAddressCountry { options: Vec<String> },
+    UserShippingName,
+    UserShippingAddressLine1,
+    UserShippingAddressLine2,
+    UserShippingAddressCity,
+    UserShippingAddressPincode,
+    UserShippingAddressState,
+    UserShippingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
     Text,
@@ -435,6 +442,17 @@ impl FieldType {
             Self::UserBillingAddressPincode,
             Self::UserBillingAddressState,
             Self::UserBillingAddressCountry { options: vec![] },
+        ]
+    }
+    pub fn get_shipping_variants() -> Vec<Self> {
+        vec![
+            Self::UserShippingName,
+            Self::UserShippingAddressLine1,
+            Self::UserShippingAddressLine2,
+            Self::UserShippingAddressCity,
+            Self::UserShippingAddressPincode,
+            Self::UserShippingAddressState,
+            Self::UserShippingAddressCountry { options: vec![] },
         ]
     }
 }
@@ -473,6 +491,15 @@ impl PartialEq for FieldType {
             (Self::UserBillingAddressPincode, Self::UserBillingAddressPincode) => true,
             (Self::UserBillingAddressState, Self::UserBillingAddressState) => true,
             (Self::UserBillingAddressCountry { .. }, Self::UserBillingAddressCountry { .. }) => {
+                true
+            }
+            (Self::UserShippingName, Self::UserShippingName) => true,
+            (Self::UserShippingAddressLine1, Self::UserShippingAddressLine1) => true,
+            (Self::UserShippingAddressLine2, Self::UserShippingAddressLine2) => true,
+            (Self::UserShippingAddressCity, Self::UserShippingAddressCity) => true,
+            (Self::UserShippingAddressPincode, Self::UserShippingAddressPincode) => true,
+            (Self::UserShippingAddressState, Self::UserShippingAddressState) => true,
+            (Self::UserShippingAddressCountry { .. }, Self::UserShippingAddressCountry { .. }) => {
                 true
             }
             (Self::UserBlikCode, Self::UserBlikCode) => true,
