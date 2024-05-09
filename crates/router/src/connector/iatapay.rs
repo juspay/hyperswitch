@@ -124,14 +124,24 @@ impl ConnectorCommon for Iatapay {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response {
+            transformers::IatapayErrorResponse::ErrorResponse(error_response) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error_response.error,
+                message: error_response.message,
+                reason: error_response.reason,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+            transformers::IatapayErrorResponse::BlankErrorResponse(_) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: Some(common_enums::AttemptStatus::Failure),
+                connector_transaction_id: None,
+            }),
+        }
     }
 }
 
@@ -246,7 +256,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error,
-            message: response.path,
+            message: response.path.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,

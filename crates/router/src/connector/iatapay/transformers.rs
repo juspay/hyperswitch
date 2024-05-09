@@ -493,17 +493,28 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct IatapayErrorResponse {
+#[serde[untagged]]
+pub enum IatapayErrorResponse {
+    ErrorResponse(ErrorResponse),
+    BlankErrorResponse(BlankErrorResponse)
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ErrorResponse {
     pub status: u16,
     pub error: String,
     pub message: String,
     pub reason: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BlankErrorResponse {}
+
+
 #[derive(Deserialize, Debug, Serialize)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
-    pub path: String,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
