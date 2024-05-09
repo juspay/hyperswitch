@@ -733,7 +733,9 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             email: user.0.email.clone().try_into()?,
             password: UserPassword::new_password_without_validation(user.0.password)?,
             new_merchant,
-            is_temporary_password: false,
+            // This is true because we are not creating a user with this request. And if it is set
+            // to false, last_password_modified_at will be overwritten if this user is inserted.
+            is_temporary_password: true,
         })
     }
 }
