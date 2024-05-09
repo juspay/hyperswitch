@@ -526,7 +526,7 @@ async fn publish_and_redact_merchant_account_cache(
 #[cfg(feature = "accounts_cache")]
 async fn publish_and_redact_all_merchant_account_cache(
     store: &dyn super::StorageInterface,
-    merchant_accounts: &Vec<storage::MerchantAccount>,
+    merchant_accounts: &[storage::MerchantAccount],
 ) -> CustomResult<(), errors::StorageError> {
     let merchant_ids = merchant_accounts.iter().map(|m| m.merchant_id.clone());
     let publishable_keys = merchant_accounts
