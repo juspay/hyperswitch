@@ -7,6 +7,8 @@ use diesel_models::{
     user_role::UserRoleNew,
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "email")]
+use external_services::email::EmailData;
 use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "email")]
 use router_env::env;
@@ -570,6 +572,7 @@ pub async fn invite_multiple_user(
     user_from_token: auth::UserFromToken,
     requests: Vec<user_api::InviteUserRequest>,
     req_state: ReqState,
+    is_token_only: Option<bool>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
         return Err(report!(UserErrors::MaxInvitationsError))
@@ -577,7 +580,8 @@ pub async fn invite_multiple_user(
     }
 
     let responses = futures::future::join_all(requests.iter().map(|request| async {
-        match handle_invitation(&state, &user_from_token, request, &req_state).await {
+        match handle_invitation(&state, &user_from_token, request, &req_state, is_token_only).await
+        {
             Ok(response) => response,
             Err(error) => InviteMultipleUserResponse {
                 email: request.email.clone(),
@@ -597,6 +601,7 @@ async fn handle_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: &ReqState,
+    is_token_only: Option<bool>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
@@ -635,7 +640,14 @@ async fn handle_invitation(
         .err()
         .unwrap_or(false)
     {
-        handle_new_user_invitation(state, user_from_token, request, req_state.clone()).await
+        handle_new_user_invitation(
+            state,
+            user_from_token,
+            request,
+            req_state.clone(),
+            is_token_only,
+        )
+        .await
     } else {
         Err(UserErrors::InternalServerError.into())
     }
@@ -718,6 +730,7 @@ async fn handle_new_user_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: ReqState,
+    is_token_only: Option<bool>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -756,25 +769,36 @@ async fn handle_new_user_invitation(
         })?;
 
     let is_email_sent;
+    // TODO: Adding this to avoid clippy lints, remove this once the token only flow is being used
+    let _ = is_token_only;
+
     #[cfg(feature = "email")]
     {
         // TODO: Adding this to avoid clippy lints
         // Will be adding actual usage for this variable later
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
-        let email_contents = email_types::InviteUser {
-            recipient_email: invitee_email,
-            user_name: domain::UserName::new(new_user.get_name())?,
-            settings: state.conf.clone(),
-            subject: "You have been invited to join Hyperswitch Community!",
-            merchant_id: user_from_token.merchant_id.clone(),
+        let email_contents: Box<dyn EmailData + Send + 'static> = if let Some(true) = is_token_only
+        {
+            Box::new(email_types::InviteRegisteredUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(new_user.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id.clone(),
+            })
+        } else {
+            Box::new(email_types::InviteUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(new_user.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id.clone(),
+            })
         };
         let send_email_result = state
             .email_client
-            .compose_and_send_email(
-                Box::new(email_contents),
-                state.conf.proxy.https_url.as_ref(),
-            )
+            .compose_and_send_email(email_contents, state.conf.proxy.https_url.as_ref())
             .await;
         logger::info!(?send_email_result);
         is_email_sent = send_email_result.is_ok();
@@ -1203,11 +1227,11 @@ pub async fn create_merchant_account(
 
 pub async fn list_merchants_for_user(
     state: AppState,
-    user_from_token: auth::UserFromToken,
+    user_from_token: Box<dyn auth::GetUserIdFromAuth>,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_token.user_id.as_str())
+        .list_user_roles_by_user_id(user_from_token.get_user_id().as_str())
         .await
         .change_context(UserErrors::InternalServerError)?;
 
