@@ -13,7 +13,7 @@ use crate::{
     headers, logger,
     routes::{self, metrics},
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
     utils::OptionExt,
 };
 
@@ -55,6 +55,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -64,8 +65,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
                 connector.connector_name.to_string(),
             )],
         );
-        self.decide_flow(state, connector, Some(true), call_connector_action)
-            .await
+        self.decide_flow(
+            state,
+            connector,
+            Some(true),
+            call_connector_action,
+            business_profile,
+        )
+        .await
     }
 
     async fn add_access_token<'a>(
@@ -136,6 +143,7 @@ async fn create_applepay_session_token(
     state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
@@ -511,11 +519,12 @@ impl types::PaymentsSessionRouterData {
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => create_gpay_session_token(state, self, connector),
             api::GetToken::ApplePayMetadata => {
-                create_applepay_session_token(state, self, connector).await
+                create_applepay_session_token(state, self, connector, business_profile).await
             }
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedConnectorIntegration<
