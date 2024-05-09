@@ -268,7 +268,7 @@ impl Connector {
 pub enum AuthenticationConnectors {
     Threedsecureio,
     Netcetera,
-    GPayments,
+    Gpayments,
 }
 
 #[cfg(feature = "payouts")]

@@ -237,7 +237,7 @@ impl ConnectorConfig {
         match connector {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
-            AuthenticationConnectors::GPayments => Ok(connector_data.gpayments),
+            AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
         }
     }
 
