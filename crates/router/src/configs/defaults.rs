@@ -3186,7 +3186,8 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Bankofamerica,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::from(
+                                    non_mandate: HashMap::new(),
+                                    common: HashMap::from(
                                         [
                                             (
                                                 "payment_method_data.card.card_number".to_string(),
@@ -3302,7 +3303,6 @@ impl Default for super::settings::RequiredFields {
                                             ),
                                         ]
                                     ),
-                                    common: HashMap::new(),
                                 }
                             ),
                             (
@@ -3591,7 +3591,8 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Cybersource,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::from(
+                                    non_mandate:HashMap::new(),
+                                    common: HashMap::from(
                                         [
                                             (
                                                 "payment_method_data.card.card_number".to_string(),
@@ -3707,7 +3708,6 @@ impl Default for super::settings::RequiredFields {
                                             )
                                         ]
                                     ),
-                                    common:HashMap::new(),
                                 }
                             ),
                             (
