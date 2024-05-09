@@ -4844,6 +4844,7 @@ mod payments_request_api_contract {
 
 #[cfg(test)]
 mod payments_response_api_contract {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[derive(Debug, serde::Serialize)]
