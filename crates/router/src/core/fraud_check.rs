@@ -429,6 +429,9 @@ where
             } else if matches!(
                 frm_configs.frm_preferred_flow_type,
                 api_enums::FrmPreferredFlowTypes::Post
+            ) && !matches!(
+                frm_data.fraud_check.frm_status,
+                FraudCheckStatus::TransactionFailure // Incase of TransactionFailure frm status(No frm decision is taken by frm processor), if capture method is automatic we should not change it to manual.
             ) {
                 *should_continue_capture = false;
                 Some(frm_data.to_owned())
