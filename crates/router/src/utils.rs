@@ -185,7 +185,7 @@ impl QrImage {
         let image_data_source = format!(
             "{},{}",
             consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes.get_ref().get_ref())
+            consts::BASE64_ENGINE.encode(image_bytes.buffer())
         );
         Ok(Self {
             data: image_data_source,
