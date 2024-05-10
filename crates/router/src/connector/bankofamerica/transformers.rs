@@ -2610,7 +2610,9 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
             BankofamericaRefundStatus::Succeeded | BankofamericaRefundStatus::Transmitted => {
                 Self::Success
             }
-            BankofamericaRefundStatus::Failed | BankofamericaRefundStatus::Voided => Self::Failure,
+            BankofamericaRefundStatus::Cancelled
+            | BankofamericaRefundStatus::Failed
+            | BankofamericaRefundStatus::Voided => Self::Failure,
             BankofamericaRefundStatus::Pending => Self::Pending,
         }
     }
@@ -2648,6 +2650,7 @@ pub enum BankofamericaRefundStatus {
     Failed,
     Pending,
     Voided,
+    Cancelled,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

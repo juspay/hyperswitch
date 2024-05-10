@@ -2703,7 +2703,9 @@ impl From<CybersourceRefundStatus> for enums::RefundStatus {
             CybersourceRefundStatus::Succeeded | CybersourceRefundStatus::Transmitted => {
                 Self::Success
             }
-            CybersourceRefundStatus::Failed | CybersourceRefundStatus::Voided => Self::Failure,
+            CybersourceRefundStatus::Cancelled
+            | CybersourceRefundStatus::Failed
+            | CybersourceRefundStatus::Voided => Self::Failure,
             CybersourceRefundStatus::Pending => Self::Pending,
         }
     }
@@ -2717,6 +2719,7 @@ pub enum CybersourceRefundStatus {
     Failed,
     Pending,
     Voided,
+    Cancelled,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
