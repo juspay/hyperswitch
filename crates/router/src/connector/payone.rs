@@ -175,15 +175,24 @@ impl ConnectorCommon for Payone {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let error = response.errors.first().unwrap();
-        Ok(ErrorResponse {
-            status_code: error.http_status_code,
-            code: error.code.clone(),
-            message: error.message.clone(),
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response.errors.first() {
+            Some(error) => Ok(ErrorResponse {
+                status_code: error.http_status_code,
+                code: error.code.clone(),
+                message: error.message.clone(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+            None => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+        }
     }
 }
 impl ConnectorValidation for Payone {}
