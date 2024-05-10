@@ -308,24 +308,21 @@ async fn create_applepay_session_token(
             if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
                 let shipping_variants = enums::FieldType::get_shipping_variants();
 
-                is_dynamic_fields_required(
-                    state,
+                if is_dynamic_fields_required(
+                    &state.conf.required_fields,
                     enums::PaymentMethod::Wallet,
                     enums::PaymentMethodType::ApplePay,
                     &connector.connector_name,
                     shipping_variants,
-                )
-                .and_then(|required_shippiing_contact_fields| {
-                    if required_shippiing_contact_fields {
-                        Some(vec![
-                            "postalAddress".to_string(),
-                            "phone".to_string(),
-                            "email".to_string(),
-                        ])
-                    } else {
-                        None
-                    }
-                })
+                ) {
+                    Some(vec![
+                        "postalAddress".to_string(),
+                        "phone".to_string(),
+                        "email".to_string(),
+                    ])
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -596,14 +593,14 @@ fn create_gpay_session_token(
                 let shipping_variants = enums::FieldType::get_shipping_variants();
 
                 is_dynamic_fields_required(
-                    state,
+                    &state.conf.required_fields,
                     enums::PaymentMethod::Wallet,
                     enums::PaymentMethodType::GooglePay,
                     &connector.connector_name,
                     shipping_variants,
                 )
             } else {
-                None
+                false
             };
 
         Ok(types::PaymentsSessionRouterData {
@@ -620,13 +617,11 @@ fn create_gpay_session_token(
                             },
                             delayed_session_token: false,
                             secrets: None,
-                            shipping_address_required: required_shipping_contact_fields
-                                .unwrap_or(false),
-                            email_required: required_shipping_contact_fields.unwrap_or(false),
+                            shipping_address_required: required_shipping_contact_fields,
+                            email_required: required_shipping_contact_fields,
                             shipping_address_parameters:
                                 api_models::payments::GpayShippingAddressParameters {
-                                    phone_number_required: required_shipping_contact_fields
-                                        .unwrap_or(false),
+                                    phone_number_required: required_shipping_contact_fields,
                                 },
                         },
                     ),
