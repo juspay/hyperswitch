@@ -1282,6 +1282,12 @@ pub fn get_google_pay_session<F, T>(
                             .collect(),
                         transaction_info: google_pay_init_result.transaction_info.into(),
                         secrets: Some((*secrets).clone().into()),
+                        shipping_address_required: false,
+                        email_required: false,
+                        shipping_address_parameters:
+                            api_models::payments::GpayShippingAddressParameters {
+                                phone_number_required: false,
+                            },
                     },
                 ),
             ))),

@@ -507,6 +507,7 @@ fn create_gpay_session_token(
     state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
@@ -558,6 +559,21 @@ fn create_gpay_session_token(
                 })?,
         };
 
+        let required_shipping_contact_fields =
+            if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
+                let shipping_variants = enums::FieldType::get_shipping_variants();
+
+                is_dynamic_fields_required(
+                    state,
+                    enums::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::GooglePay,
+                    &connector.connector_name,
+                    shipping_variants,
+                )
+            } else {
+                None
+            };
+
         Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: payment_types::SessionToken::GooglePay(Box::new(
@@ -572,6 +588,14 @@ fn create_gpay_session_token(
                             },
                             delayed_session_token: false,
                             secrets: None,
+                            shipping_address_required: required_shipping_contact_fields
+                                .unwrap_or(false),
+                            email_required: required_shipping_contact_fields.unwrap_or(false),
+                            shipping_address_parameters:
+                                api_models::payments::GpayShippingAddressParameters {
+                                    phone_number_required: required_shipping_contact_fields
+                                        .unwrap_or(false),
+                                },
                         },
                     ),
                 )),
@@ -612,7 +636,9 @@ impl types::PaymentsSessionRouterData {
         business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         match connector.get_token {
-            api::GetToken::GpayMetadata => create_gpay_session_token(state, self, connector),
+            api::GetToken::GpayMetadata => {
+                create_gpay_session_token(state, self, connector, business_profile)
+            }
             api::GetToken::ApplePayMetadata => {
                 create_applepay_session_token(state, self, connector, business_profile).await
             }
