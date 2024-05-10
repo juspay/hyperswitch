@@ -2541,7 +2541,6 @@ where
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<storage::Authentication>,
-    pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
 }

@@ -453,7 +453,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            frm_metadata: request.frm_metadata.clone(),
             recurring_details,
             poll_config: None,
         };

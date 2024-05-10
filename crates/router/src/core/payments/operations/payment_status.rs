@@ -489,7 +489,6 @@ async fn get_tracker_for_sync<
         incremental_authorization_details: None,
         authorizations,
         authentication,
-        frm_metadata: None,
         recurring_details: None,
         poll_config: None,
     };

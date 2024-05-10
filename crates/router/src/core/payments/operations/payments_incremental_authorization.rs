@@ -153,7 +153,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }),
             authorizations: vec![],
             authentication: None,
-            frm_metadata: None,
             recurring_details: None,
             poll_config: None,
         };

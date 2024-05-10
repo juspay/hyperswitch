@@ -334,13 +334,13 @@ where
 
     let payment_to_frm_data = PaymentToFrmData {
         amount: payment_data.amount,
-        payment_intent: payment_data.payment_intent,
+        payment_intent: payment_data.payment_intent.clone(),
         payment_attempt: payment_data.payment_attempt,
         merchant_account: merchant_account.to_owned(),
         address: payment_data.address.clone(),
         connector_details: frm_connector_details.clone(),
         order_details,
-        frm_metadata: payment_data.frm_metadata.clone(),
+        frm_metadata: payment_data.payment_intent.frm_metadata,
     };
 
     let fraud_check_operation: operation::BoxedFraudCheckOperation<F> =
