@@ -4992,6 +4992,14 @@
             },
             "description": "The required billing contacht fields for connector",
             "nullable": true
+          },
+          "required_shipping_contact_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The required shipping contacht fields for connector",
+            "nullable": true
           }
         }
       },
@@ -6694,6 +6702,11 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A a boolen value to indicate if cusomter shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },
@@ -9033,6 +9046,64 @@
             ],
             "properties": {
               "user_billing_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_state"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_shipping_address_country"
+            ],
+            "properties": {
+              "user_shipping_address_country": {
                 "type": "object",
                 "required": [
                   "options"
