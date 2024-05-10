@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.03.1-hotfix3
+
+### Bug Fixes
+
+- **connector:** [BOA/CYBS] add cancelled status to refund response ([#4623](https://github.com/juspay/hyperswitch/pull/4623)) ([`c5783bf`](https://github.com/juspay/hyperswitch/commit/c5783bfbc95ecb72cbf03cd650cb216c7e4de4ea))
+
+- - -
+
 ## 2024.05.03.1-hotfix2
 
 ### Bug Fixes
