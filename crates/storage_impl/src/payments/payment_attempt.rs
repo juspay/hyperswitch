@@ -410,6 +410,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .payment_method_billing_address_id
                         .clone(),
                     fingerprint_id: payment_attempt.fingerprint_id.clone(),
+                    charge_id: payment_attempt.charge_id.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1164,6 +1165,7 @@ impl DataModelExt for PaymentAttempt {
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
+            charge_id: self.charge_id,
         }
     }
 
@@ -1228,6 +1230,7 @@ impl DataModelExt for PaymentAttempt {
                 .map(MandateDetails::from_storage_model),
             payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
+            charge_id: storage_model.charge_id,
         }
     }
 }
@@ -1290,6 +1293,7 @@ impl DataModelExt for PaymentAttemptNew {
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
+            charge_id: self.charge_id,
         }
     }
 
@@ -1352,6 +1356,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .map(MandateDetails::from_storage_model),
             payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
+            charge_id: storage_model.charge_id,
         }
     }
 }
@@ -1647,12 +1652,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 encoded_data,
                 connector_transaction_id,
                 connector,
+                charge_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
                 connector,
+                charge_id,
                 updated_by,
             },
             Self::IncrementalAuthorizationAmountUpdate {
@@ -1966,12 +1973,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 encoded_data,
                 connector_transaction_id,
                 connector,
+                charge_id,
                 updated_by,
             } => Self::ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
                 connector,
+                charge_id,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {

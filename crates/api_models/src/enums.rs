@@ -567,5 +567,4 @@ pub enum StripeChargeType {
     #[default]
     Direct,
     Destination,
-    Custom,
 }

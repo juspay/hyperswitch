@@ -143,9 +143,11 @@ pub struct PaymentIntentRequest {
     pub description: Option<String>,
     #[serde(flatten)]
     pub shipping: Option<StripeShippingAddress>,
+    // #[serde(flatten)]
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub billing: StripeBillingAddress,
     #[serde(flatten)]
-    pub billing: StripeBillingAddress,
-    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
     #[serde(flatten)]
@@ -167,7 +169,6 @@ pub struct PaymentIntentRequest {
 pub enum IntentCharges {
     Direct(DirectCharges),
     Destination(DestinationCharges),
-    Custom(CustomCharges),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -186,16 +187,6 @@ pub struct DestinationCharges {
     pub automatic_payment_methods_enabled: bool,
     #[serde(rename = "transfer_data[destination]")]
     pub destination_account_id: String,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub struct CustomCharges {
-    pub application_fee_amount: i64,
-    #[serde(skip_serializing_if = "is_false")]
-    #[serde(rename = "automatic_payment_methods[enabled]")]
-    pub automatic_payment_methods_enabled: bool,
-    #[serde(rename = "transfer_group")]
-    pub transfer_group: String,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -2035,16 +2026,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 automatic_payment_methods_enabled: auto_pm_enabled,
                             }))
                         }
-                        api_enums::StripeChargeType::Custom => {
-                            Some(IntentCharges::Custom(CustomCharges {
-                                application_fee_amount: charges.fees.clone(),
-                                transfer_group: charges.transfer_account_id.clone(),
-                                automatic_payment_methods_enabled: auto_pm_enabled,
-                            }))
-                        }
                     },
                 };
-                (charges, item.connector_customer.to_owned().map(Secret::new), auto_pm_enabled)
+                (charges, None, auto_pm_enabled)
             }
             None => (
                 None,
@@ -2073,11 +2057,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             confirm: true, // Stripe requires confirm to be true if return URL is present
             description: item.description.clone(),
             shipping: shipping_address,
-            billing: billing_address,
+            // billing: None,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
-            payment_data,
+            payment_data: None,
             payment_method_options,
-            payment_method,
+            payment_method: Some("pm_card_visa".to_string()),
             customer,
             setup_mandate_details,
             off_session: item.request.off_session,
@@ -2597,6 +2581,10 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
+            let charge_id = item.response.latest_charge.map(|charge| match charge {
+                StripeChargeEnum::ChargeId(charge_id) => charge_id,
+                StripeChargeEnum::ChargeObject(charge) => charge.id,
+            });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2605,6 +2593,7 @@ impl<F, T>
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id,
             })
         };
 
@@ -2780,6 +2769,10 @@ impl<F, T>
                     }),
                 _ => None,
             };
+            let charge_id = item.response.latest_charge.map(|charge| match charge {
+                StripeChargeEnum::ChargeId(charge_id) => charge_id,
+                StripeChargeEnum::ChargeObject(charge) => charge.id,
+            });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2788,6 +2781,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
+                charge_id,
             })
         };
 
@@ -2852,7 +2846,6 @@ impl<F, T>
                     }),
                 _ => None,
             };
-
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2861,6 +2854,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         };
 
@@ -3499,6 +3493,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: Some(item.response.id),
             })
         };
 

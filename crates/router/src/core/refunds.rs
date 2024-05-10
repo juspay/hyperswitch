@@ -637,6 +637,11 @@ pub async fn validate_and_create_refund(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
 
+    let (revert_platform_fee, revert_transfer) = match req.charges {
+        Some(charge) => (charge.revert_platform_fee, charge.revert_transfer),
+        None => (None, None),
+    };
+
     let refund_create_req = storage::RefundNew::default()
         .set_refund_id(refund_id.to_string())
         .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
@@ -658,6 +663,8 @@ pub async fn validate_and_create_refund(
         .set_refund_reason(req.reason)
         .set_profile_id(payment_intent.profile_id.clone())
         .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
+        .set_revert_platform_fee(revert_platform_fee)
+        .set_revert_transfer(revert_transfer)
         .to_owned();
 
     let refund = match db
@@ -785,6 +792,10 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             updated_at: Some(refund.updated_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
+            charges: Some(api::RefundCharges {
+                revert_platform_fee: refund.revert_platform_fee,
+                revert_transfer: refund.revert_transfer,
+            }),
         }
     }
 }

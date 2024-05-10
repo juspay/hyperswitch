@@ -48,6 +48,18 @@ pub struct RefundRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Charge specific fields for controlling the revert of funds from either platform or connected account
+    #[schema(value_type = Option<RefundCharges>)]
+    pub charges: Option<RefundCharges>,
+}
+
+#[derive(Clone, Default, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
+pub struct RefundCharges {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revert_platform_fee: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revert_transfer: Option<bool>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -132,6 +144,10 @@ pub struct RefundResponse {
     pub profile_id: Option<String>,
     /// The merchant_connector_id of the processor through which this payment went through
     pub merchant_connector_id: Option<String>,
+    /// Charge specific fields for controlling the revert of funds from either platform or connected account
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<RefundCharges>)]
+    pub charges: Option<RefundCharges>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

@@ -39,6 +39,8 @@ pub struct Refund {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub revert_platform_fee: Option<bool>,
+    pub revert_transfer: Option<bool>,
 }
 
 #[derive(
@@ -81,6 +83,8 @@ pub struct RefundNew {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub revert_platform_fee: Option<bool>,
+    pub revert_transfer: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -275,7 +279,9 @@ mod tests {
     "refund_error_code": null,
     "profile_id": null,
     "updated_by": "admin",
-    "merchant_connector_id": null
+    "merchant_connector_id": null,
+    "revert_platform_fee": null,
+    "revert_transfer": null
 }"#;
         let deserialized = serde_json::from_str::<super::Refund>(serialized_refund);
 

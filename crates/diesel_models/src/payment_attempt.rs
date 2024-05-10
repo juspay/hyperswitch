@@ -70,6 +70,7 @@ pub struct PaymentAttempt {
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
+    pub charge_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -150,6 +151,7 @@ pub struct PaymentAttemptNew {
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
+    pub charge_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -327,6 +329,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
+        charge_id: Option<String>,
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
@@ -387,6 +390,7 @@ pub struct PaymentAttemptUpdateInternal {
     authentication_id: Option<String>,
     fingerprint_id: Option<String>,
     payment_method_billing_address_id: Option<String>,
+    charge_id: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -452,6 +456,7 @@ impl PaymentAttemptUpdate {
             authentication_id,
             payment_method_billing_address_id,
             fingerprint_id,
+            charge_id,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -500,6 +505,7 @@ impl PaymentAttemptUpdate {
             payment_method_billing_address_id: payment_method_billing_address_id
                 .or(source.payment_method_billing_address_id),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
+            charge_id: charge_id.or(source.charge_id),
             ..source
         }
     }
@@ -822,12 +828,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 connector,
                 updated_by,
+                charge_id,
             } => Self {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
                 connector: connector.map(Some),
                 updated_by,
+                charge_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
