@@ -20,7 +20,7 @@ impl utils::Connector for CryptopayTest {
         }
     }
 
-    fn get_auth_token(&self) -> types::ConnectorAuthType {
+    fn get_auth_token(&self) -> hyperswitch_domain_models::router_data::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .cryptopay

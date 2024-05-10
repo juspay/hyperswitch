@@ -15,7 +15,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct VerifyConnectorData {
     pub connector: &'static (dyn types::api::Connector + Sync),
-    pub connector_auth: types::ConnectorAuthType,
+    pub connector_auth: hyperswitch_domain_models::router_data::ConnectorAuthType,
     pub card_details: domain::Card,
 }
 
@@ -58,7 +58,7 @@ impl VerifyConnectorData {
     fn get_router_data<F, R1, R2>(
         &self,
         request_data: R1,
-        access_token: Option<types::AccessToken>,
+        access_token: Option<hyperswitch_domain_models::router_data::AccessToken>,
     ) -> hyperswitch_domain_models::router_data::RouterData<F, R1, R2> {
         let attempt_id =
             common_utils::generate_id_with_default_len(consts::VERIFY_CONNECTOR_ID_PREFIX);
@@ -150,7 +150,10 @@ pub trait VerifyConnector {
     async fn get_access_token(
         _state: &AppState,
         _connector_data: VerifyConnectorData,
-    ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
+    ) -> errors::CustomResult<
+        Option<hyperswitch_domain_models::router_data::AccessToken>,
+        errors::ApiErrorResponse,
+    > {
         // AccessToken is None for the connectors without the AccessToken Flow.
         // If a connector has that, then it should override this implementation.
         Ok(None)
@@ -175,7 +178,7 @@ pub trait VerifyConnector {
     async fn handle_access_token_error_response<F, R1, R2>(
         connector: &(dyn types::api::Connector + Sync),
         error_response: types::Response,
-    ) -> errors::RouterResult<Option<types::AccessToken>>
+    ) -> errors::RouterResult<Option<hyperswitch_domain_models::router_data::AccessToken>>
     where
         dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {

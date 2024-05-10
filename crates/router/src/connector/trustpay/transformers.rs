@@ -59,10 +59,12 @@ pub struct TrustpayAuthType {
     pub(super) secret_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for TrustpayAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -982,16 +984,33 @@ pub struct TrustpayAccessTokenErrorResponse {
     pub result_info: ResultInfo,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            TrustpayAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        hyperswitch_domain_models::router_data::AccessToken,
+    >
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>,
+        item: types::ResponseRouterData<
+            F,
+            TrustpayAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
     ) -> Result<Self, Self::Error> {
         match (item.response.access_token, item.response.expires_in) {
             (Some(access_token), Some(expires_in)) => Ok(Self {
-                response: Ok(types::AccessToken {
+                response: Ok(hyperswitch_domain_models::router_data::AccessToken {
                     token: access_token,
                     expires: expires_in,
                 }),

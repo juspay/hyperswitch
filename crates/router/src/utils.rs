@@ -24,7 +24,7 @@ pub use common_utils::{
     validation::validate_email,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::PaymentIntent;
+use hyperswitch_domain_models::{payments::PaymentIntent, router_data};
 use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
@@ -490,7 +490,7 @@ pub async fn get_mca_from_object_reference_id(
 pub fn handle_json_response_deserialization_failure(
     res: types::Response,
     connector: String,
-) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+) -> CustomResult<router_data::ErrorResponse, errors::ConnectorError> {
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
         1,
@@ -508,7 +508,7 @@ pub fn handle_json_response_deserialization_failure(
         Err(error_msg) => {
             logger::error!(deserialization_error=?error_msg);
             logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
-            Ok(types::ErrorResponse {
+            Ok(router_data::ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),

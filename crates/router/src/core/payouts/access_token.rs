@@ -77,8 +77,10 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
                     "Could not create access token request, invalid connector account credentials",
                 )?;
 
-                let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
-                    Err(types::ErrorResponse::default());
+                let refresh_token_response_data: Result<
+                    hyperswitch_domain_models::router_data::AccessToken,
+                    types::ErrorResponse,
+                > = Err(types::ErrorResponse::default());
                 let refresh_token_router_data = payments::helpers::router_data_type_conversion::<
                     _,
                     api_types::AccessTokenAuth,
@@ -138,14 +140,15 @@ pub async fn refresh_connector_auth(
     router_data: &hyperswitch_domain_models::router_data::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
-        types::AccessToken,
+        hyperswitch_domain_models::router_data::AccessToken,
     >,
-) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
+) -> RouterResult<Result<hyperswitch_domain_models::router_data::AccessToken, types::ErrorResponse>>
+{
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
-        types::AccessToken,
+        hyperswitch_domain_models::router_data::AccessToken,
     > = connector.connector.get_connector_integration();
 
     let access_token_router_data_result = services::execute_connector_processing_step(

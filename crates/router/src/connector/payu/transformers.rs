@@ -140,11 +140,16 @@ pub struct PayuAuthType {
     pub(super) merchant_pos_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PayuAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_pos_id: key1.to_owned(),
             }),
@@ -296,15 +301,32 @@ pub struct PayuAuthUpdateResponse {
     pub grant_type: String,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            PayuAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        hyperswitch_domain_models::router_data::AccessToken,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>,
+        item: types::ResponseRouterData<
+            F,
+            PayuAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),

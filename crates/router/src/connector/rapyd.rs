@@ -83,7 +83,7 @@ impl ConnectorCommon for Rapyd {
 
     fn get_auth_header(
         &self,
-        _auth_type: &types::ConnectorAuthType,
+        _auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
@@ -154,7 +154,7 @@ impl
     services::ConnectorIntegration<
         api::AccessTokenAuth,
         types::AccessTokenRequestData,
-        types::AccessToken,
+        hyperswitch_domain_models::router_data::AccessToken,
     > for Rapyd
 {
 }

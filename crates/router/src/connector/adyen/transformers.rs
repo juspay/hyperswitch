@@ -1507,16 +1507,21 @@ impl<'a> TryFrom<&common_enums::BankNames> for AdyenBankNames<'a> {
     }
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for AdyenAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_account: key1.to_owned(),
                 review_key: None,
             }),
-            types::ConnectorAuthType::SignatureKey {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,

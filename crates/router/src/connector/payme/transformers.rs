@@ -704,10 +704,16 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
                 let pm_token = item.get_payment_method_token()?;
                 let buyer_key = match pm_token {
-                    types::PaymentMethodToken::Token(token) => token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                        unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
-                    )?,
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => {
+                        token
+                    }
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                        _,
+                    ) => Err(unimplemented_payment_method!(
+                        "Apple Pay",
+                        "Simplified",
+                        "Payme"
+                    ))?,
                 };
                 Ok(Self {
                     buyer_email,
@@ -782,16 +788,21 @@ pub struct PaymeAuthType {
     pub(super) payme_merchant_id: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PaymeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 seller_payme_id: api_key.to_owned(),
                 payme_public_key: key1.to_owned(),
                 payme_merchant_id: None,
             }),
-            types::ConnectorAuthType::SignatureKey {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -896,9 +907,11 @@ impl<F, T>
         item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.buyer_key.clone().expose(),
-            )),
+            payment_method_token: Some(
+                hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
+                    item.response.buyer_key.clone().expose(),
+                ),
+            ),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key.expose(),
             }),

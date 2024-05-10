@@ -43,11 +43,16 @@ pub struct BillwerkAuthType {
     pub(super) public_api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BillwerkAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BillwerkAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_api_key: key1.to_owned(),
             }),
@@ -195,7 +200,9 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
             .into());
         };
         let source = match item.router_data.get_payment_method_token()? {
-            types::PaymentMethodToken::Token(pm_token) => Ok(Secret::new(pm_token)),
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(pm_token) => {
+                Ok(Secret::new(pm_token))
+            }
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
             }),

@@ -527,10 +527,14 @@ pub struct Shift4AuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for Shift4AuthType {
     type Error = Error;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
+    fn try_from(
+        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } =
+            item
+        {
             Ok(Self {
                 api_key: api_key.to_owned(),
             })

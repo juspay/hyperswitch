@@ -26,7 +26,7 @@ impl Connector for AirwallexTest {
         }
     }
 
-    fn get_auth_token(&self) -> types::ConnectorAuthType {
+    fn get_auth_token(&self) -> hyperswitch_domain_models::router_data::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .airwallex
@@ -42,10 +42,12 @@ impl Connector for AirwallexTest {
 
 fn get_access_token() -> Option<AccessToken> {
     match CONNECTOR.get_auth_token() {
-        types::ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
-            token: api_key,
-            expires: key1.peek().parse::<i64>().unwrap(),
-        }),
+        hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey { api_key, key1 } => {
+            Some(AccessToken {
+                token: api_key,
+                expires: key1.peek().parse::<i64>().unwrap(),
+            })
+        }
         _ => None,
     }
 }

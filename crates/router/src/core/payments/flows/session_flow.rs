@@ -504,8 +504,18 @@ fn log_session_response_if_error(
         .map(|res| res.as_ref().map_err(|error| logger::error!(?error)));
 }
 
-impl types::PaymentsSessionRouterData {
-    pub async fn decide_flow<'a, 'b>(
+pub trait RouterDataSession {
+    fn decide_flow<'a, 'b>(
+        &'b self,
+        state: &'a routes::AppState,
+        connector: &api::ConnectorData,
+        _confirm: Option<bool>,
+        call_connector_action: payments::CallConnectorAction,
+    ) -> RouterResult<Self>;
+}
+
+impl RouterDataSession for types::PaymentsSessionRouterData {
+    async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,

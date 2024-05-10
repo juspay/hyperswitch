@@ -158,10 +158,16 @@ pub struct BamboraAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BamboraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+            api_key,
+            key1,
+        } = auth_type
+        {
             let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
             let auth_header = format!("Passcode {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {

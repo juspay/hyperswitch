@@ -198,10 +198,12 @@ pub struct BraintreeAuthType {
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(
+        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key: public_key,
             key1: merchant_id,
             api_secret: private_key,

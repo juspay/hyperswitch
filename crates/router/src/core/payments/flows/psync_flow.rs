@@ -152,8 +152,23 @@ impl Feature<api::PSync, types::PaymentsSyncData>
     }
 }
 
-impl
-    hyperswitch_domain_models::router_data::RouterData<
+pub trait RouterDataPSync {
+    fn execute_connector_processing_step_for_each_capture(
+        &self,
+        _state: &AppState,
+        _pending_connector_capture_id_list: Vec<String>,
+        _call_connector_action: payments::CallConnectorAction,
+        _connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> RouterResult<Self>;
+}
+
+impl RouterDataPSync
+    for hyperswitch_domain_models::router_data::RouterData<
         api::PSync,
         types::PaymentsSyncData,
         types::PaymentsResponseData,

@@ -33,10 +33,12 @@ pub struct BankOfAmericaAuthType {
     pub(super) api_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BankOfAmericaAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BankOfAmericaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -955,10 +957,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         domain::WalletData::ApplePay(apple_pay_data) => {
                             match item.router_data.payment_method_token.clone() {
                                 Some(payment_method_token) => match payment_method_token {
-                                    types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                         Self::try_from((item, decrypt_data, apple_pay_data))
                                     }
-                                    types::PaymentMethodToken::Token(_) => {
+                                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(_) => {
                                         Err(unimplemented_payment_method!(
                                             "Apple Pay",
                                             "Manual",
@@ -2500,14 +2502,12 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
         });
         let payment_information = match item.payment_method_token.clone() {
             Some(payment_method_token) => match payment_method_token {
-                types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                    PaymentInformation::try_from(&decrypt_data)?
-                }
-                types::PaymentMethodToken::Token(_) => Err(unimplemented_payment_method!(
-                    "Apple Pay",
-                    "Manual",
-                    "Bank Of America"
-                ))?,
+                hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    decrypt_data,
+                ) => PaymentInformation::try_from(&decrypt_data)?,
+                hyperswitch_domain_models::router_data::PaymentMethodToken::Token(_) => Err(
+                    unimplemented_payment_method!("Apple Pay", "Manual", "Bank Of America"),
+                )?,
             },
             None => PaymentInformation::from(&apple_pay_data),
         };

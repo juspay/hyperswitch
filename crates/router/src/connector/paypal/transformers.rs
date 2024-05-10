@@ -766,15 +766,32 @@ pub struct PaypalAuthUpdateResponse {
     pub expires_in: i64,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, types::AccessToken>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            PaypalAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        hyperswitch_domain_models::router_data::AccessToken,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, types::AccessToken>,
+        item: types::ResponseRouterData<
+            F,
+            PaypalAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -858,13 +875,16 @@ impl TryFrom<&ConnectorAuthType> for PaypalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::AuthWithDetails(
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self::AuthWithDetails(
                 PaypalConnectorCredentials::StandardIntegration(StandardFlowCredentials {
                     client_id: key1.to_owned(),
                     client_secret: api_key.to_owned(),
                 }),
             )),
-            types::ConnectorAuthType::SignatureKey {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -875,7 +895,9 @@ impl TryFrom<&ConnectorAuthType> for PaypalAuthType {
                     payer_id: api_secret.to_owned(),
                 }),
             )),
-            types::ConnectorAuthType::TemporaryAuth => Ok(Self::TemporaryAuth),
+            hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth => {
+                Ok(Self::TemporaryAuth)
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }

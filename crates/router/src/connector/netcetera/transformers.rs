@@ -193,11 +193,13 @@ pub struct NetceteraAuthType {
     pub(super) private_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for NetceteraAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for NetceteraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type.to_owned() {
-            types::ConnectorAuthType::CertificateAuth {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::CertificateAuth {
                 certificate,
                 private_key,
             } => Ok(Self {

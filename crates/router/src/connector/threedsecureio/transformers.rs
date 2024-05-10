@@ -231,13 +231,19 @@ pub struct ThreedsecureioAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType>
+    for ThreedsecureioAuthType
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
+            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
+                Ok(Self {
+                    api_key: api_key.to_owned(),
+                })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }

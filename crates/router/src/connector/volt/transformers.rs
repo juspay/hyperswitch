@@ -194,15 +194,32 @@ pub struct VoltAuthUpdateResponse {
     pub refresh_token: Secret<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            VoltAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        hyperswitch_domain_models::router_data::AccessToken,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>,
+        item: types::ResponseRouterData<
+            F,
+            VoltAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -218,11 +235,13 @@ pub struct VoltAuthType {
     pub(super) client_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for VoltAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::MultiAuthKey {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,

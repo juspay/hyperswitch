@@ -117,7 +117,7 @@ impl ConnectorCommon for Fiserv {
     }
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = fiserv::FiservAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -187,8 +187,12 @@ impl ConnectorValidation for Fiserv {
 
 impl api::ConnectorAccessToken for Fiserv {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Fiserv
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Fiserv
 {
     // Not Implemented (R)
 }

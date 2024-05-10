@@ -336,10 +336,10 @@ fn get_error_response<T>(
 //     pub(super) merchant_id: Secret<String>,
 // }
 
-// impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
+// impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BraintreeAuthType {
 //     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-//         if let types::ConnectorAuthType::SignatureKey {
+//     fn try_from(item: &hyperswitch_domain_models::router_data::ConnectorAuthType) -> Result<Self, Self::Error> {
+//         if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
 //             api_key: public_key,
 //             key1: merchant_id,
 //             api_secret: private_key,
@@ -1356,8 +1356,8 @@ impl
             variables: VariablePaymentInput {
                 input: PaymentInput {
                     payment_method_id: match item.router_data.get_payment_method_token()? {
-                        types::PaymentMethodToken::Token(token) => token.into(),
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token.into(),
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
                         )?,
                     },
@@ -1437,12 +1437,10 @@ fn get_braintree_redirect_form(
             .client_token
             .expose(),
         card_token: match payment_method_token {
-            types::PaymentMethodToken::Token(token) => token,
-            types::PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
-                "Apple Pay",
-                "Simplified",
-                "Braintree"
-            ))?,
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
+            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
+            )?,
         },
         bin: match card_details {
             domain::PaymentMethodData::Card(card_details) => {

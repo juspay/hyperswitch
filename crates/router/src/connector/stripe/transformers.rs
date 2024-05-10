@@ -46,10 +46,14 @@ pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for StripeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
+    fn try_from(
+        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } =
+            item
+        {
             Ok(Self {
                 api_key: api_key.to_owned(),
             })
@@ -1534,26 +1538,28 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
     ) -> Result<Self, Self::Error> {
         match wallet_data {
             domain::WalletData::ApplePay(applepay_data) => {
-                let mut apple_pay_decrypt_data =
-                    if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
-                        payment_method_token
-                    {
-                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
-                        let exp_month = decrypt_data.get_expiry_month()?;
+                let mut apple_pay_decrypt_data = if let Some(
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                        decrypt_data,
+                    ),
+                ) = payment_method_token
+                {
+                    let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                    let exp_month = decrypt_data.get_expiry_month()?;
 
-                        Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
-                            Box::new(StripeApplePayPredecrypt {
-                                number: decrypt_data.clone().application_primary_account_number,
-                                exp_year: expiry_year_4_digit,
-                                exp_month,
-                                eci: decrypt_data.payment_data.eci_indicator,
-                                cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
-                                tokenization_method: "apple_pay".to_string(),
-                            }),
-                        )))
-                    } else {
-                        None
-                    };
+                    Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
+                        Box::new(StripeApplePayPredecrypt {
+                            number: decrypt_data.clone().application_primary_account_number,
+                            exp_year: expiry_year_4_digit,
+                            exp_month,
+                            eci: decrypt_data.payment_data.eci_indicator,
+                            cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                            tokenization_method: "apple_pay".to_string(),
+                        }),
+                    )))
+                } else {
+                    None
+                };
 
                 if apple_pay_decrypt_data.is_none() {
                     apple_pay_decrypt_data =
@@ -1918,10 +1924,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     })?;
 
                 let payment_method_token = match payment_method_token {
-                    types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                        unimplemented_payment_method!("Apple Pay", "Simplified", "Stripe"),
-                    )?,
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
+                        payment_method_token,
+                    ) => payment_method_token,
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                        _,
+                    ) => Err(unimplemented_payment_method!(
+                        "Apple Pay",
+                        "Simplified",
+                        "Stripe"
+                    ))?,
                 };
                 Some(StripePaymentMethodData::Wallet(
                     StripeWallet::ApplepayPayment(ApplepayPayment {

@@ -123,7 +123,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 domain::WalletData::ApplePay(apple_pay_data) => {
                     match item.payment_method_token.clone() {
                         Some(payment_method_token) => match payment_method_token {
-                            types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                 let expiration_month = decrypt_data.get_expiry_month()?;
                                 let expiration_year = decrypt_data.get_four_digit_expiry_year()?;
                                 (
@@ -141,7 +141,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                     Some(PaymentSolution::ApplePay),
                                 )
                             }
-                            types::PaymentMethodToken::Token(_) => Err(
+                            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(_) => Err(
                                 unimplemented_payment_method!("Apple Pay", "Manual", "Cybersource"),
                             )?,
                         },
@@ -1075,10 +1075,10 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                         domain::WalletData::ApplePay(apple_pay_data) => {
                             match item.router_data.payment_method_token.clone() {
                                 Some(payment_method_token) => match payment_method_token {
-                                    types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                         Self::try_from((item, decrypt_data, apple_pay_data))
                                     }
-                                    types::PaymentMethodToken::Token(_) => {
+                                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(_) => {
                                         Err(unimplemented_payment_method!(
                                             "Apple Pay",
                                             "Manual",
@@ -1463,10 +1463,12 @@ pub struct CybersourceAuthType {
     pub(super) api_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for CybersourceAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,

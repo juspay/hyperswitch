@@ -29,6 +29,7 @@ use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     router_data::RouterData,
 };
+use hyperwitch_domain_models::router_data::ErrorResponse;
 use masking::Secret;
 use serde::Serialize;
 
@@ -270,61 +271,61 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum AdditionalPaymentMethodConnectorResponse {
-    Card {
-        /// Details regarding the authentication details of the connector, if this is a 3ds payment.
-        authentication_data: Option<serde_json::Value>,
-        /// Various payment checks that are done for a payment
-        payment_checks: Option<serde_json::Value>,
-    },
-}
+// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// pub enum AdditionalPaymentMethodConnectorResponse {
+//     Card {
+//         /// Details regarding the authentication details of the connector, if this is a 3ds payment.
+//         authentication_data: Option<serde_json::Value>,
+//         /// Various payment checks that are done for a payment
+//         payment_checks: Option<serde_json::Value>,
+//     },
+// }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ConnectorResponseData {
-    pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
-}
+// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// pub struct ConnectorResponseData {
+//     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+// }
 
-impl ConnectorResponseData {
-    pub fn with_additional_payment_method_data(
-        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
-    ) -> Self {
-        Self {
-            additional_payment_method_data: Some(additional_payment_method_data),
-        }
-    }
-}
+// impl ConnectorResponseData {
+//     pub fn with_additional_payment_method_data(
+//         additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
+//     ) -> Self {
+//         Self {
+//             additional_payment_method_data: Some(additional_payment_method_data),
+//         }
+//     }
+// }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-pub enum PaymentMethodToken {
-    Token(String),
-    ApplePayDecrypt(Box<ApplePayPredecryptData>),
-}
+// #[derive(Debug, Clone, serde::Deserialize)]
+// pub enum PaymentMethodToken {
+//     Token(String),
+//     ApplePayDecrypt(Box<ApplePayPredecryptData>),
+// }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayPredecryptData {
-    pub application_primary_account_number: Secret<String>,
-    pub application_expiration_date: String,
-    pub currency_code: String,
-    pub transaction_amount: i64,
-    pub device_manufacturer_identifier: Secret<String>,
-    pub payment_data_type: Secret<String>,
-    pub payment_data: ApplePayCryptogramData,
-}
+// #[derive(Debug, Clone, serde::Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct ApplePayPredecryptData {
+//     pub application_primary_account_number: Secret<String>,
+//     pub application_expiration_date: String,
+//     pub currency_code: String,
+//     pub transaction_amount: i64,
+//     pub device_manufacturer_identifier: Secret<String>,
+//     pub payment_data_type: Secret<String>,
+//     pub payment_data: ApplePayCryptogramData,
+// }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayCryptogramData {
-    pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: Option<String>,
-}
+// #[derive(Debug, Clone, serde::Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct ApplePayCryptogramData {
+//     pub online_payment_cryptogram: Secret<String>,
+//     pub eci_indicator: Option<String>,
+// }
 
-#[derive(Debug, Clone)]
-pub struct PaymentMethodBalance {
-    pub amount: i64,
-    pub currency: storage_enums::Currency,
-}
+// #[derive(Debug, Clone)]
+// pub struct PaymentMethodBalance {
+//     pub amount: i64,
+//     pub currency: storage_enums::Currency,
+// }
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
@@ -816,11 +817,11 @@ pub struct AddAccessTokenResult {
     pub connector_supports_access_token: bool,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-pub struct AccessToken {
-    pub token: Secret<String>,
-    pub expires: i64,
-}
+// #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+// pub struct AccessToken {
+//     pub token: Secret<String>,
+//     pub expires: i64,
+// }
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct MandateReference {
@@ -1166,38 +1167,38 @@ pub struct MandateRevokeResponseData {
 }
 
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "auth_type")]
-pub enum ConnectorAuthType {
-    TemporaryAuth,
-    HeaderKey {
-        api_key: Secret<String>,
-    },
-    BodyKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-    },
-    SignatureKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        api_secret: Secret<String>,
-    },
-    MultiAuthKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        api_secret: Secret<String>,
-        key2: Secret<String>,
-    },
-    CurrencyAuthKey {
-        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
-    },
-    CertificateAuth {
-        certificate: Secret<String>,
-        private_key: Secret<String>,
-    },
-    #[default]
-    NoKey,
-}
+// #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+// #[serde(tag = "auth_type")]
+// pub enum ConnectorAuthType {
+//     TemporaryAuth,
+//     HeaderKey {
+//         api_key: Secret<String>,
+//     },
+//     BodyKey {
+//         api_key: Secret<String>,
+//         key1: Secret<String>,
+//     },
+//     SignatureKey {
+//         api_key: Secret<String>,
+//         key1: Secret<String>,
+//         api_secret: Secret<String>,
+//     },
+//     MultiAuthKey {
+//         api_key: Secret<String>,
+//         key1: Secret<String>,
+//         api_secret: Secret<String>,
+//         key2: Secret<String>,
+//     },
+//     CurrencyAuthKey {
+//         auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
+//     },
+//     CertificateAuth {
+//         certificate: Secret<String>,
+//         private_key: Secret<String>,
+//     },
+//     #[default]
+//     NoKey,
+// }
 
 impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
     fn from(value: api_models::admin::ConnectorAuthType) -> Self {
@@ -1297,15 +1298,15 @@ pub struct Response {
     pub status_code: u16,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct ErrorResponse {
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub status_code: u16,
-    pub attempt_status: Option<storage_enums::AttemptStatus>,
-    pub connector_transaction_id: Option<String>,
-}
+// #[derive(Clone, Debug, serde::Serialize)]
+// pub struct ErrorResponse {
+//     pub code: String,
+//     pub message: String,
+//     pub reason: Option<String>,
+//     pub status_code: u16,
+//     pub attempt_status: Option<storage_enums::AttemptStatus>,
+//     pub connector_transaction_id: Option<String>,
+// }
 
 impl ErrorResponse {
     pub fn get_not_implemented() -> Self {

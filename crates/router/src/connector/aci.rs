@@ -45,7 +45,7 @@ impl ConnectorCommon for Aci {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = aci::AciAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -124,7 +124,7 @@ impl
     services::ConnectorIntegration<
         api::AccessTokenAuth,
         types::AccessTokenRequestData,
-        types::AccessToken,
+        hyperswitch_domain_models::router_data::AccessToken,
     > for Aci
 {
     // Not Implemented (R)

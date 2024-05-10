@@ -103,8 +103,12 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 {
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Tsys
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Tsys
 {
 }
 

@@ -1182,7 +1182,7 @@ pub struct NuveiPaymentRequestData {
     pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
-    pub connector_auth_type: types::ConnectorAuthType,
+    pub connector_auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
     pub session_token: Secret<String>,
     pub capture_method: Option<diesel_models::enums::CaptureMethod>,
 }
@@ -1254,10 +1254,12 @@ pub struct NuveiAuthType {
     pub(super) merchant_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for NuveiAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for NuveiAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,

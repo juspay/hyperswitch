@@ -138,10 +138,11 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
 ) -> RouterResult<hyperswitch_domain_models::router_data::RouterData<F, Req, Res>> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
-    let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
+        merchant_connector_account
+            .get_connector_account_details()
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
     Ok(hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id,

@@ -53,10 +53,16 @@ pub struct AciAuthType {
     pub entity_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for AciAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
+    fn try_from(
+        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+            api_key,
+            key1,
+        } = item
+        {
             Ok(Self {
                 api_key: api_key.to_owned(),
                 entity_id: key1.to_owned(),

@@ -751,10 +751,16 @@ pub struct BluesnapAuthType {
     pub(super) key1: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BluesnapAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+            api_key,
+            key1,
+        } = auth_type
+        {
             Ok(Self {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),

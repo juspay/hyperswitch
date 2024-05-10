@@ -66,7 +66,7 @@ pub async fn construct_webhook_router_data<'a>(
     connector_wh_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
-    let auth_type: types::ConnectorAuthType =
+    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account.clone())
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")

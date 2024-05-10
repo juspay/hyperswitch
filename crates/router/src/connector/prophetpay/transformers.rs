@@ -50,11 +50,13 @@ pub struct ProphetpayAuthType {
     pub(super) profile_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ProphetpayAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for ProphetpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,

@@ -80,8 +80,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
-                        types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     }),
@@ -99,8 +99,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
-                        types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     }),
@@ -133,13 +133,17 @@ pub struct StaxAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for StaxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
+            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
+                Ok(Self {
+                    api_key: api_key.to_owned(),
+                })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }

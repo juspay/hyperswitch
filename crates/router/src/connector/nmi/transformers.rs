@@ -42,11 +42,16 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     type Error = Error;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-                public_key: None,
-            }),
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
+                Ok(Self {
+                    api_key: api_key.to_owned(),
+                    public_key: None,
+                })
+            }
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_key: Some(key1.to_owned()),
             }),

@@ -73,7 +73,7 @@ where
 }
 
 fn get_globlepay_query_params(
-    connector_auth_type: &types::ConnectorAuthType,
+    connector_auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
 ) -> CustomResult<String, errors::ConnectorError> {
     let auth_type = globepay::GlobepayAuthType::try_from(connector_auth_type)?;
     let time = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000).to_string();
@@ -93,7 +93,7 @@ fn get_globlepay_query_params(
 }
 
 fn get_partner_code(
-    connector_auth_type: &types::ConnectorAuthType,
+    connector_auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
 ) -> CustomResult<String, errors::ConnectorError> {
     let auth_type = globepay::GlobepayAuthType::try_from(connector_auth_type)?;
     Ok(auth_type.partner_code.expose())
@@ -143,8 +143,12 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 {
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Globepay
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Globepay
 {
 }
 

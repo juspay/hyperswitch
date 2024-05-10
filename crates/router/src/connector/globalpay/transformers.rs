@@ -121,11 +121,16 @@ pub struct GlobalpayAuthType {
     pub key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for GlobalpayAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 app_id: key1.to_owned(),
                 key: api_key.to_owned(),
             }),
@@ -134,7 +139,9 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     }
 }
 
-impl TryFrom<GlobalpayRefreshTokenResponse> for types::AccessToken {
+impl TryFrom<GlobalpayRefreshTokenResponse>
+    for hyperswitch_domain_models::router_data::AccessToken
+{
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn try_from(item: GlobalpayRefreshTokenResponse) -> Result<Self, Self::Error> {
@@ -308,15 +315,31 @@ impl
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            GlobalpayRefreshTokenResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        hyperswitch_domain_models::router_data::AccessToken,
+    >
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>,
+        item: types::ResponseRouterData<
+            F,
+            GlobalpayRefreshTokenResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
                 token: item.response.token,
                 expires: item.response.seconds_to_expire,
             }),

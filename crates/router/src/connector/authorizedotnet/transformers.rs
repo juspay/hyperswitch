@@ -78,11 +78,19 @@ pub struct AuthorizedotnetAuthType {
     transaction_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AuthorizedotnetAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType>
+    for AuthorizedotnetAuthType
+{
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+            api_key,
+            key1,
+        } = auth_type
+        {
             Ok(Self {
                 name: api_key.to_owned(),
                 transaction_key: key1.to_owned(),

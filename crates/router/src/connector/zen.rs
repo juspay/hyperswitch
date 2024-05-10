@@ -93,7 +93,7 @@ impl ConnectorCommon for Zen {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = zen::ZenAuthType::try_from(auth_type)?;
         Ok(vec![(
@@ -162,8 +162,12 @@ impl
     // Not Implemented (R)
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Zen
 {
 }
 

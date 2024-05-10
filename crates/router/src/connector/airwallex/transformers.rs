@@ -18,11 +18,17 @@ pub struct AirwallexAuthType {
     pub x_client_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for AirwallexAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+            api_key,
+            key1,
+        } = auth_type
+        {
             Ok(Self {
                 x_api_key: api_key.clone(),
                 x_client_id: key1.clone(),
@@ -266,16 +272,33 @@ pub struct AirwallexAuthUpdateResponse {
     token: Secret<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            AirwallexAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        hyperswitch_domain_models::router_data::AccessToken,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>,
+        item: types::ResponseRouterData<
+            F,
+            AirwallexAuthUpdateResponse,
+            T,
+            hyperswitch_domain_models::router_data::AccessToken,
+        >,
     ) -> Result<Self, Self::Error> {
         let expires = (item.response.expires_at - common_utils::date_time::now()).whole_seconds();
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
                 token: item.response.token,
                 expires,
             }),

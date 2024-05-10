@@ -92,11 +92,16 @@ pub struct GlobepayAuthType {
     pub(super) credential_code: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for GlobepayAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for GlobepayAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 partner_code: api_key.to_owned(),
                 credential_code: key1.to_owned(),
             }),

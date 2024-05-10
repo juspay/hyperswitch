@@ -159,8 +159,12 @@ impl
 
 impl api::ConnectorAccessToken for Airwallex {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Airwallex
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Airwallex
 {
     fn get_url(
         &self,

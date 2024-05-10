@@ -107,8 +107,12 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     // Not Implemented (R)
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Authorizedotnet
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Authorizedotnet
 {
     // Not Implemented (R)
 }

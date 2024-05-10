@@ -507,8 +507,8 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
         }?;
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
-            types::PaymentMethodToken::Token(token) => Ok(token),
-            types::PaymentMethodToken::ApplePayDecrypt(_) => {
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => Ok(token),
+            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -675,13 +675,17 @@ pub struct GocardlessAuthType {
     pub(super) access_token: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for GocardlessAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for GocardlessAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                access_token: api_key.to_owned(),
-            }),
+            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
+                Ok(Self {
+                    access_token: api_key.to_owned(),
+                })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }

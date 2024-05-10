@@ -22,7 +22,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         storage::enums,
-        ErrorResponse, Response,
+        Response,
     },
     utils::BytesExt,
 };
@@ -62,7 +62,7 @@ impl ConnectorCommon for Multisafepay {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = multisafepay::MultisafepayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -164,8 +164,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
 impl api::ConnectorAccessToken for Multisafepay {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Multisafepay
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Multisafepay
 {
 }
 

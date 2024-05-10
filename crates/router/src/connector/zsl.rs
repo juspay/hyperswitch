@@ -281,8 +281,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Zsl
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Zsl
 {
     fn build_request(
         &self,
@@ -424,7 +428,9 @@ impl api::IncomingWebhook for Zsl {
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_account_details = merchant_connector_account
             .connector_account_details
-            .parse_value::<types::ConnectorAuthType>("ConnectorAuthType")
+            .parse_value::<hyperswitch_domain_models::router_data::ConnectorAuthType>(
+                "ConnectorAuthType",
+            )
             .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let auth_type = zsl::ZslAuthType::try_from(&connector_account_details)?;
         let key = auth_type.api_key.expose();

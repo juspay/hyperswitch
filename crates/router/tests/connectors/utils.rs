@@ -20,7 +20,7 @@ use wiremock::{Mock, MockServer};
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
 
-    fn get_auth_token(&self) -> types::ConnectorAuthType;
+    fn get_auth_token(&self) -> hyperswitch_domain_models::router_data::ConnectorAuthType;
 
     fn get_name(&self) -> String;
 
@@ -528,9 +528,10 @@ pub trait ConnectorActions: Connector {
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: info
-                .clone()
-                .and_then(|a| a.payment_method_token.map(types::PaymentMethodToken::Token)),
+            payment_method_token: info.clone().and_then(|a| {
+                a.payment_method_token
+                    .map(hyperswitch_domain_models::router_data::PaymentMethodToken::Token)
+            }),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
 
@@ -1084,17 +1085,21 @@ pub fn get_connector_metadata(
     }
 }
 
-pub fn to_connector_auth_type(auth_type: ConnectorAuthType) -> types::ConnectorAuthType {
+pub fn to_connector_auth_type(
+    auth_type: ConnectorAuthType,
+) -> hyperswitch_domain_models::router_data::ConnectorAuthType {
     match auth_type {
-        ConnectorAuthType::HeaderKey { api_key } => types::ConnectorAuthType::HeaderKey { api_key },
+        ConnectorAuthType::HeaderKey { api_key } => {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key }
+        }
         ConnectorAuthType::BodyKey { api_key, key1 } => {
-            types::ConnectorAuthType::BodyKey { api_key, key1 }
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey { api_key, key1 }
         }
         ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
-        } => types::ConnectorAuthType::SignatureKey {
+        } => hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -1104,12 +1109,12 @@ pub fn to_connector_auth_type(auth_type: ConnectorAuthType) -> types::ConnectorA
             key1,
             api_secret,
             key2,
-        } => types::ConnectorAuthType::MultiAuthKey {
+        } => hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey {
             api_key,
             key1,
             api_secret,
             key2,
         },
-        _ => types::ConnectorAuthType::NoKey,
+        _ => hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey,
     }
 }

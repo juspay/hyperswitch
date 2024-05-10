@@ -131,12 +131,14 @@ where
                     .to_owned()
                     .get_required_value("payment_token")?;
                 let token = match tokens {
-                    types::PaymentMethodToken::Token(connector_token) => connector_token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ApiErrorResponse::NotSupported {
-                            message: "Apple Pay Decrypt token is not supported".to_string(),
-                        })?
-                    }
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
+                        connector_token,
+                    ) => connector_token,
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                        _,
+                    ) => Err(errors::ApiErrorResponse::NotSupported {
+                        message: "Apple Pay Decrypt token is not supported".to_string(),
+                    })?,
                 };
                 Some((connector_name, token))
             } else {

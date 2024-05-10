@@ -267,10 +267,12 @@ pub struct CheckoutThreeDS {
     version: Option<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for CheckoutAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             api_secret,
             key1,
@@ -306,8 +308,8 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 domain::WalletData::GooglePay(_) => Ok(PaymentSource::Wallets(WalletSource {
                     source_type: CheckoutSourceTypes::Token,
                     token: match item.router_data.get_payment_method_token()? {
-                        types::PaymentMethodToken::Token(token) => token.into(),
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token.into(),
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
                         )?,
                     },
@@ -315,13 +317,13 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 domain::WalletData::ApplePay(_) => {
                     let payment_method_token = item.router_data.get_payment_method_token()?;
                     match payment_method_token {
-                        types::PaymentMethodToken::Token(apple_pay_payment_token) => {
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
                                 token: apple_pay_payment_token.into(),
                             }))
                         }
-                        types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             let exp_month = decrypt_data.get_expiry_month()?;
                             let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
                             Ok(PaymentSource::ApplePayPredecrypt(Box::new(

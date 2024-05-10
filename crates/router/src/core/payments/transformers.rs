@@ -58,11 +58,12 @@ where
 
     let test_mode = merchant_connector_account.is_test_mode_on();
 
-    let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
+        merchant_connector_account
+            .get_connector_account_details()
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     payment_method = payment_data
         .payment_attempt
@@ -159,7 +160,9 @@ where
         session_token: None,
         reference_id: None,
         payment_method_status: payment_data.payment_method_info.map(|info| info.status),
-        payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
+        payment_method_token: payment_data
+            .pm_token
+            .map(hyperswitch_domain_models::router_data::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(

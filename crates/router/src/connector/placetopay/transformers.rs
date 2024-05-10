@@ -165,9 +165,11 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PlacetopayAuth {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         let placetopay_auth = PlacetopayAuthType::try_from(auth_type)?;
         let nonce_bytes = utils::generate_random_bytes(16);
         let now = date_time::date_as_yyyymmddthhmmssmmmz()
@@ -188,11 +190,17 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
     }
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PlacetopayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+            api_key,
+            key1,
+        } = auth_type
+        {
             Ok(Self {
                 login: api_key.to_owned(),
                 tran_key: key1.to_owned(),

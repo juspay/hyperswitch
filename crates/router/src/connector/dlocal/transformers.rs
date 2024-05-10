@@ -256,10 +256,12 @@ pub struct DlocalAuthType {
     pub(super) secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for DlocalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,

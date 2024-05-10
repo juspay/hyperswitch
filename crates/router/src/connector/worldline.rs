@@ -163,8 +163,12 @@ impl ConnectorValidation for Worldline {
 
 impl api::ConnectorAccessToken for Worldline {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Worldline
 {
 }
 

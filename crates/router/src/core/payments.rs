@@ -1515,18 +1515,20 @@ where
 
         logger::debug!(?apple_pay_predecrypt);
 
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
-            Box::new(apple_pay_predecrypt),
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(Box::new(
+                apple_pay_predecrypt,
+            )),
+        );
     }
 
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
     if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
-            payment_method_token,
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(payment_method_token),
+        );
     };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(

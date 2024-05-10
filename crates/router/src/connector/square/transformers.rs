@@ -262,8 +262,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                 Ok(Self {
                     idempotency_key: Secret::new(item.attempt_id.clone()),
                     source_id: Secret::new(match pm_token {
-                        types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
                         )?,
                     }),
@@ -305,23 +305,31 @@ pub struct SquareAuthType {
     pub(super) key1: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for SquareAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1, .. } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+                ..
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),
             }),
-            types::ConnectorAuthType::HeaderKey { .. }
-            | types::ConnectorAuthType::SignatureKey { .. }
-            | types::ConnectorAuthType::MultiAuthKey { .. }
-            | types::ConnectorAuthType::CurrencyAuthKey { .. }
-            | types::ConnectorAuthType::TemporaryAuth { .. }
-            | types::ConnectorAuthType::NoKey { .. }
-            | types::ConnectorAuthType::CertificateAuth { .. } => {
-                Err(errors::ConnectorError::FailedToObtainAuthType.into())
+            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { .. }
+            | hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey { .. }
+            | hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey { .. }
+            | hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
+                ..
             }
+            | hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth { .. }
+            | hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey { .. }
+            | hyperswitch_domain_models::router_data::ConnectorAuthType::CertificateAuth {
+                ..
+            } => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }

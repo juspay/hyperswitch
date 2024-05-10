@@ -176,8 +176,8 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                 billing_address: get_billing_details(item.router_data)?,
                                 shipping_address: get_shipping_details(item.router_data)?,
                                 card_token: Some(Secret::new(match pm_token {
-                                    types::PaymentMethodToken::Token(token) => token,
-                                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
+                                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => {
                                         Err(unimplemented_payment_method!(
                                             "Apple Pay",
                                             "Simplified",
@@ -463,15 +463,22 @@ pub struct MollieAuthType {
     pub(super) profile_token: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for MollieAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-                profile_token: None,
-            }),
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
+                Ok(Self {
+                    api_key: api_key.to_owned(),
+                    profile_token: None,
+                })
+            }
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 profile_token: Some(key1.to_owned()),
             }),
@@ -496,9 +503,11 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
-            payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.card_token.clone().expose(),
-            )),
+            payment_method_token: Some(
+                hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
+                    item.response.card_token.clone().expose(),
+                ),
+            ),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),
             }),

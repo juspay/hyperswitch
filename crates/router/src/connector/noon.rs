@@ -82,7 +82,7 @@ where
 }
 
 fn get_auth_header(
-    auth_type: &types::ConnectorAuthType,
+    auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     connectors: &settings::Connectors,
     test_mode: Option<bool>,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
@@ -191,8 +191,12 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Noon
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Noon
 {
 }
 

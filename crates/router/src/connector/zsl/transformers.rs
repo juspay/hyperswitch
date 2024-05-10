@@ -57,11 +57,16 @@ pub struct ZslAuthType {
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ZslAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for ZslAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_id: key1.clone(),
             }),

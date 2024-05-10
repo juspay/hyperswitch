@@ -488,8 +488,12 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Cybersource
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Cybersource
 {
     // Not Implemented (R)
 }

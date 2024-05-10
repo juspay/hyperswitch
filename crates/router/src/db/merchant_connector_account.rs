@@ -10,7 +10,6 @@ use crate::{
     connection,
     core::errors::{self, CustomResult},
     types::{
-        self,
         domain::{
             self,
             behaviour::{Conversion, ReverseConversion},
@@ -25,13 +24,16 @@ pub trait ConnectorAccessToken {
         &self,
         merchant_id: &str,
         merchant_connector_id_or_connector_name: &str,
-    ) -> CustomResult<Option<types::AccessToken>, errors::StorageError>;
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_data::AccessToken>,
+        errors::StorageError,
+    >;
 
     async fn set_access_token(
         &self,
         merchant_id: &str,
         merchant_connector_id_or_connector_name: &str,
-        access_token: types::AccessToken,
+        access_token: hyperswitch_domain_models::router_data::AccessToken,
     ) -> CustomResult<(), errors::StorageError>;
 }
 
@@ -42,7 +44,10 @@ impl ConnectorAccessToken for Store {
         &self,
         merchant_id: &str,
         merchant_connector_id_or_connector_name: &str,
-    ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_data::AccessToken>,
+        errors::StorageError,
+    > {
         //TODO: Handle race condition
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
@@ -60,7 +65,11 @@ impl ConnectorAccessToken for Store {
             .attach_printable("DB error when getting access token")?;
 
         let access_token = maybe_token
-            .map(|token| token.parse_struct::<types::AccessToken>("AccessToken"))
+            .map(|token| {
+                token.parse_struct::<hyperswitch_domain_models::router_data::AccessToken>(
+                    "AccessToken",
+                )
+            })
             .transpose()
             .change_context(errors::StorageError::DeserializationFailed)?;
 
@@ -72,7 +81,7 @@ impl ConnectorAccessToken for Store {
         &self,
         merchant_id: &str,
         merchant_connector_id_or_connector_name: &str,
-        access_token: types::AccessToken,
+        access_token: hyperswitch_domain_models::router_data::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         let key = common_utils::access_token::create_access_token_key(
             merchant_id,
@@ -95,7 +104,10 @@ impl ConnectorAccessToken for MockDb {
         &self,
         _merchant_id: &str,
         _merchant_connector_id_or_connector_name: &str,
-    ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_data::AccessToken>,
+        errors::StorageError,
+    > {
         Ok(None)
     }
 
@@ -103,7 +115,7 @@ impl ConnectorAccessToken for MockDb {
         &self,
         _merchant_id: &str,
         _merchant_connector_id_or_connector_name: &str,
-        _access_token: types::AccessToken,
+        _access_token: hyperswitch_domain_models::router_data::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         Ok(())
     }

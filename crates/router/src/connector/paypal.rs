@@ -327,8 +327,12 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 {
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Paypal
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Paypal
 {
     fn get_url(
         &self,

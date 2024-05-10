@@ -30,7 +30,7 @@ pub struct CashtocodePaymentsRequest {
 }
 
 fn get_mid(
-    connector_auth_type: &types::ConnectorAuthType,
+    connector_auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     payment_method_type: Option<enums::PaymentMethodType>,
     currency: enums::Currency,
 ) -> Result<Secret<String>, errors::ConnectorError> {
@@ -95,12 +95,16 @@ pub struct CashtocodeAuth {
     pub merchant_id_evoucher: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for CashtocodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>; // Assuming ErrorStack is the appropriate error type
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
+                auth_key_map,
+            } => {
                 let transformed_auths = auth_key_map
                     .iter()
                     .map(|(currency, identity_auth_key)| {
@@ -124,13 +128,26 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     }
 }
 
-impl TryFrom<(&types::ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
+impl
+    TryFrom<(
+        &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        &enums::Currency,
+    )> for CashtocodeAuth
+{
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(value: (&types::ConnectorAuthType, &enums::Currency)) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (
+            &hyperswitch_domain_models::router_data::ConnectorAuthType,
+            &enums::Currency,
+        ),
+    ) -> Result<Self, Self::Error> {
         let (auth_type, currency) = value;
 
-        if let types::ConnectorAuthType::CurrencyAuthKey { auth_key_map } = auth_type {
+        if let hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
+            auth_key_map,
+        } = auth_type
+        {
             if let Some(identity_auth_key) = auth_key_map.get(currency) {
                 let cashtocode_auth: Self = identity_auth_key
                     .to_owned()

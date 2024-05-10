@@ -237,11 +237,16 @@ pub struct PowertranzAuthType {
     pub(super) power_tranz_password: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PowertranzAuthType {
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PowertranzAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
                 power_tranz_id: key1.to_owned(),
                 power_tranz_password: api_key.to_owned(),
             }),

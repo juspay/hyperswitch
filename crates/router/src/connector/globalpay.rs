@@ -86,7 +86,7 @@ impl ConnectorCommon for Globalpay {
 
     fn get_auth_header(
         &self,
-        _auth_type: &types::ConnectorAuthType,
+        _auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
@@ -232,8 +232,12 @@ impl
 
 impl api::ConnectorAccessToken for Globalpay {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Globalpay
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        hyperswitch_domain_models::router_data::AccessToken,
+    > for Globalpay
 {
     fn get_headers(
         &self,

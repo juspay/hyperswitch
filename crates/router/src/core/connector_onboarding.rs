@@ -5,7 +5,6 @@ use crate::{
     core::errors::{ApiErrorResponse, RouterResponse, RouterResult},
     routes::app::ReqState,
     services::{authentication as auth, ApplicationResponse},
-    types as oss_types,
     utils::connector_onboarding as utils,
     AppState,
 };
@@ -14,7 +13,9 @@ pub mod paypal;
 
 #[async_trait::async_trait]
 pub trait AccessToken {
-    async fn access_token(state: &AppState) -> RouterResult<oss_types::AccessToken>;
+    async fn access_token(
+        state: &AppState,
+    ) -> RouterResult<hyperswitch_domain_models::router_data::AccessToken>;
 }
 
 pub async fn get_action_url(
@@ -79,11 +80,12 @@ pub async fn sync_onboarding_status(
             )) = status
             {
                 let connector_onboarding_conf = state.conf.connector_onboarding.get_inner();
-                let auth_details = oss_types::ConnectorAuthType::SignatureKey {
-                    api_key: connector_onboarding_conf.paypal.client_secret.clone(),
-                    key1: connector_onboarding_conf.paypal.client_id.clone(),
-                    api_secret: Secret::new(paypal_onboarding_data.payer_id.clone()),
-                };
+                let auth_details =
+                    hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+                        api_key: connector_onboarding_conf.paypal.client_secret.clone(),
+                        key1: connector_onboarding_conf.paypal.client_id.clone(),
+                        api_secret: Secret::new(paypal_onboarding_data.payer_id.clone()),
+                    };
                 let update_mca_data = paypal::update_mca(
                     &state,
                     user_from_token.merchant_id,
