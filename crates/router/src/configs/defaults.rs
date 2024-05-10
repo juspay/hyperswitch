@@ -3835,7 +3835,7 @@ impl Default for super::settings::RequiredFields {
                                         ]
                                     ),
                                 }
-                            ),                            
+                            ),
                             #[cfg(feature = "dummy_connector")]
                             (
                                 enums::Connector::DummyConnector2,
