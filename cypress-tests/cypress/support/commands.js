@@ -786,17 +786,18 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
       cy.get('body').within(() => {
         cy.get('#email').click().type("sb-rxfpa21951657@personal.example.com");
         cy.get('#btnNext').click();
+        cy.wait(10000);
         cy.get('input[type="password"]').type("dwW]2j@M");
-        cy.get('#btnLogin').click();
-        cy.visit('https://www.sandbox.paypal.com', () => {
-          cy.get('#payment-submit-btn').click();
-        });
+        cy.get('#btnLogin').should("be.enabled").click();
+        cy.get("#payment-submit-btn").should("be.visible");
+        cy.get('#payment-submit-btn').should("be.enabled").click();
       });
     }
-  
+
     // Handling redirection
     if (redirection_url.host.endsWith(expected_url.host)) {
       // No CORS workaround needed
+      cy.wait(15000);
       cy.window().its('location.origin').should('eq', expected_url.origin);
     } else {
       // Workaround for CORS to allow cross-origin iframe
