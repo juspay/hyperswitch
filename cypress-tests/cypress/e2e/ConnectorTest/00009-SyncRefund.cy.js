@@ -22,8 +22,10 @@ describe("Card - Sync Refund flow test", () => {
     })
 
     it("create-payment-call-test", () => {
-        let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DS"];
-        cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "no_three_ds", "automatic", globalState);
     });
 
     it("payment_methods-call-test", () => {
@@ -32,9 +34,11 @@ describe("Card - Sync Refund flow test", () => {
 
     it("confirm-call-test", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
-        let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DS"];
-        console.log("det -> " + det.card);
-        cy.confirmCallTest(confirmBody, det, true, globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DS"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        console.log("det -> " + data.card);
+        cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -42,13 +46,17 @@ describe("Card - Sync Refund flow test", () => {
     });
 
     it("refund-call-test", () => {
-        let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DS"];
-        cy.refundCallTest(refundBody, 6500, det, globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.refundCallTest(refundBody, req_data, res_data, 6500, globalState);
     });
 
     it("sync-refund-call-test", () => {
-        let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DS"];
-        cy.syncRefundCallTest(det, globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.syncRefundCallTest(req_data, res_data, globalState);
     });
 
 });
