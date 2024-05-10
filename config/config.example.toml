@@ -194,6 +194,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
+mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
@@ -207,6 +208,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
+payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
@@ -259,7 +261,8 @@ stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,ba
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
+wallets = ["klarna",
+    "mifinity", "braintree", "applepay"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "adyen",
@@ -344,6 +347,9 @@ active_email_client = "SES"          # The currently active email client
 [email.aws_ses]
 email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
+
+[user]
+password_validity_in_days = 90        # Number of days after which password should be updated
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -615,4 +621,4 @@ refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
-sdk_eligible_payment_methods = ["card"]
+sdk_eligible_payment_methods = "card"

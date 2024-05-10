@@ -16,18 +16,13 @@ pub struct NetceteraRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for NetceteraRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for NetceteraRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -552,7 +547,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             seller_info: None,
             results_response_notification_url: Some(request.webhook_url),
         };
-        let browser_information = request.browser_details.map(netcetera_types::Browser::from);
+        let browser_information = match request.device_channel {
+            api_models::payments::DeviceChannel::Browser => {
+                request.browser_details.map(netcetera_types::Browser::from)
+            }
+            api_models::payments::DeviceChannel::App => None,
+        };
         let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
         let device_render_options = match request.device_channel {
             api_models::payments::DeviceChannel::App => {

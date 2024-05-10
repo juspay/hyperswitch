@@ -217,7 +217,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         partition_key: redis::kv_store::PartitionKey<'_>,
     ) -> error_stack::Result<(), RedisError>
     where
-        R: crate::redis::kv_store::KvStorePartition,
+        R: redis::kv_store::KvStorePartition,
     {
         let global_id = format!("{}", partition_key);
         let request_id = self.request_id.clone().unwrap_or_default();

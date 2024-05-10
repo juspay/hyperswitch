@@ -70,7 +70,9 @@ pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
 
-pub const SINGLE_PURPOSE_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
+// This should be one day, but it is causing issue while checking token in blacklist.
+// TODO: This should be fixed in future.
+pub const SINGLE_PURPOSE_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
 
 pub const JWT_TOKEN_COOKIE_NAME: &str = "login_token";
 

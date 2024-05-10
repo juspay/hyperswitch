@@ -98,12 +98,11 @@ impl DashboardRequestPayload {
         if let Some(payment_methods_enabled) = request.payment_methods_enabled.clone() {
             for payload in payment_methods_enabled {
                 match payload.payment_method {
-                    api_models::enums::PaymentMethod::Card => {
+                    PaymentMethod::Card => {
                         if let Some(card_provider) = payload.card_provider {
-                            let payment_type = api_models::enums::PaymentMethodType::from_str(
-                                &payload.payment_method_type,
-                            )
-                            .map_err(|_| "Invalid key received".to_string());
+                            let payment_type =
+                                PaymentMethodType::from_str(&payload.payment_method_type)
+                                    .map_err(|_| "Invalid key received".to_string());
 
                             if let Ok(payment_type) = payment_type {
                                 for method in card_provider {
@@ -124,17 +123,17 @@ impl DashboardRequestPayload {
                         }
                     }
 
-                    api_models::enums::PaymentMethod::Wallet
-                    | api_models::enums::PaymentMethod::BankRedirect
-                    | api_models::enums::PaymentMethod::PayLater
-                    | api_models::enums::PaymentMethod::BankTransfer
-                    | api_models::enums::PaymentMethod::Crypto
-                    | api_models::enums::PaymentMethod::BankDebit
-                    | api_models::enums::PaymentMethod::Reward
-                    | api_models::enums::PaymentMethod::Upi
-                    | api_models::enums::PaymentMethod::Voucher
-                    | api_models::enums::PaymentMethod::GiftCard
-                    | api_models::enums::PaymentMethod::CardRedirect => {
+                    PaymentMethod::Wallet
+                    | PaymentMethod::BankRedirect
+                    | PaymentMethod::PayLater
+                    | PaymentMethod::BankTransfer
+                    | PaymentMethod::Crypto
+                    | PaymentMethod::BankDebit
+                    | PaymentMethod::Reward
+                    | PaymentMethod::Upi
+                    | PaymentMethod::Voucher
+                    | PaymentMethod::GiftCard
+                    | PaymentMethod::CardRedirect => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(
                                 request.connector,
@@ -154,7 +153,7 @@ impl DashboardRequestPayload {
             }
             if !card_payment_method_types.is_empty() {
                 let card = PaymentMethodsEnabled {
-                    payment_method: api_models::enums::PaymentMethod::Card,
+                    payment_method: PaymentMethod::Card,
                     payment_method_types: Some(card_payment_method_types),
                 };
                 payment_method_enabled.push(card);
