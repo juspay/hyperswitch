@@ -5,8 +5,8 @@ use common_utils::{
     fp_utils,
     pii::{Email, IpAddress},
 };
-use data_models::mandates::MandateDataType;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::MandateDataType;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -663,10 +663,11 @@ impl<F>
             ),
             (AlternativePaymentMethodType::Sofort, _) | (AlternativePaymentMethodType::Eps, _) => {
                 let address = item.get_billing_address()?;
+                let first_name = address.get_first_name()?;
                 (
                     Some(BillingAddress {
-                        first_name: Some(address.get_first_name()?.clone()),
-                        last_name: Some(address.get_last_name()?.clone()),
+                        first_name: Some(first_name.clone()),
+                        last_name: Some(address.get_last_name().unwrap_or(first_name).clone()),
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
@@ -678,10 +679,13 @@ impl<F>
                 Some(domain::BankRedirectData::Ideal { bank_name, .. }),
             ) => {
                 let address = item.get_billing_address()?;
+                let first_name = address.get_first_name()?.clone();
                 (
                     Some(BillingAddress {
-                        first_name: Some(address.get_first_name()?.clone()),
-                        last_name: Some(address.get_last_name()?.clone()),
+                        first_name: Some(first_name.clone()),
+                        last_name: Some(
+                            address.get_last_name().ok().unwrap_or(&first_name).clone(),
+                        ),
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
@@ -715,6 +719,7 @@ fn get_pay_later_info<F>(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
+    let first_name = address.get_first_name()?;
     let payment_method = payment_method_type;
     Ok(NuveiPaymentsRequest {
         payment_option: PaymentOption {
@@ -724,8 +729,8 @@ fn get_pay_later_info<F>(
             }),
             billing_address: Some(BillingAddress {
                 email: item.request.get_email()?,
-                first_name: Some(address.get_first_name()?.to_owned()),
-                last_name: Some(address.get_last_name()?.to_owned()),
+                first_name: Some(first_name.clone()),
+                last_name: Some(address.get_last_name().unwrap_or(first_name).clone()),
                 country: address.get_country()?.to_owned(),
             }),
             ..Default::default()
@@ -905,12 +910,15 @@ fn get_card_info<F>(
         .and_then(|billing_details| billing_details.address.as_ref());
 
     let billing_address = match address {
-        Some(address) => Some(BillingAddress {
-            first_name: Some(address.get_first_name()?.clone()),
-            last_name: Some(address.get_last_name()?.clone()),
-            email: item.request.get_email()?,
-            country: item.get_billing_country()?,
-        }),
+        Some(address) => {
+            let first_name = address.get_first_name()?.clone();
+            Some(BillingAddress {
+                first_name: Some(first_name.clone()),
+                last_name: Some(address.get_last_name().ok().unwrap_or(&first_name).clone()),
+                email: item.request.get_email()?,
+                country: item.get_billing_country()?,
+            })
+        }
         None => None,
     };
     let (is_rebilling, additional_params, user_token_id) =

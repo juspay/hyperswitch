@@ -42,11 +42,11 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     type Error = Error;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_key: None,
             }),
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_key: Some(key1.to_owned()),
             }),
@@ -61,20 +61,13 @@ pub struct NmiRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for NmiRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for NmiRouterData<T> {
     type Error = Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -116,14 +109,18 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let (ccnumber, ccexp, cvv) = get_card_details(item.request.payment_method_data.clone())?;
         let billing_details = item.get_billing_address()?;
+        let first_name = billing_details.get_first_name()?;
 
         Ok(Self {
             security_key: auth_type.api_key,
             ccnumber,
             ccexp,
             cvv,
-            first_name: billing_details.get_first_name()?.to_owned(),
-            last_name: billing_details.get_last_name()?.to_owned(),
+            first_name: first_name.clone(),
+            last_name: billing_details
+                .get_last_name()
+                .unwrap_or(first_name)
+                .clone(),
             address1: billing_details.line1.clone(),
             address2: billing_details.line2.clone(),
             city: billing_details.city.clone(),
@@ -460,7 +457,8 @@ impl NmiMerchantDefinedField {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentMethod {
-    Card(Box<CardData>),
+    CardNonThreeDs(Box<CardData>),
+    CardThreeDs(Box<CardThreeDsData>),
     GPay(Box<GooglePayData>),
     ApplePay(Box<ApplePayData>),
 }
@@ -470,6 +468,19 @@ pub struct CardData {
     ccnumber: CardNumber,
     ccexp: Secret<String>,
     cvv: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CardThreeDsData {
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
+    email: Option<Email>,
+    cardholder_auth: Option<String>,
+    cavv: Option<String>,
+    eci: Option<String>,
+    cvv: Secret<String>,
+    three_ds_version: Option<String>,
+    directory_server_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -493,8 +504,10 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
         };
         let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
         let amount = item.amount;
-        let payment_method =
-            PaymentMethod::try_from(&item.router_data.request.payment_method_data)?;
+        let payment_method = PaymentMethod::try_from((
+            &item.router_data.request.payment_method_data,
+            Some(item.router_data),
+        ))?;
 
         Ok(Self {
             transaction_type,
@@ -513,11 +526,30 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
     }
 }
 
-impl TryFrom<&domain::PaymentMethodData> for PaymentMethod {
+impl
+    TryFrom<(
+        &domain::PaymentMethodData,
+        Option<&types::PaymentsAuthorizeRouterData>,
+    )> for PaymentMethod
+{
     type Error = Error;
-    fn try_from(payment_method_data: &domain::PaymentMethodData) -> Result<Self, Self::Error> {
-        match &payment_method_data {
-            domain::PaymentMethodData::Card(ref card) => Ok(Self::try_from(card)?),
+    fn try_from(
+        item: (
+            &domain::PaymentMethodData,
+            Option<&types::PaymentsAuthorizeRouterData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (payment_method_data, router_data) = item;
+        match payment_method_data {
+            domain::PaymentMethodData::Card(ref card) => match router_data {
+                Some(data) => match data.auth_type {
+                    common_enums::AuthenticationType::NoThreeDs => Ok(Self::try_from(card)?),
+                    common_enums::AuthenticationType::ThreeDs => {
+                        Ok(Self::try_from((card, &data.request))?)
+                    }
+                },
+                None => Ok(Self::try_from(card)?),
+            },
             domain::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
                 domain::WalletData::GooglePay(ref googlepay_data) => Ok(Self::from(googlepay_data)),
                 domain::WalletData::ApplePay(ref applepay_data) => Ok(Self::from(applepay_data)),
@@ -571,6 +603,34 @@ impl TryFrom<&domain::PaymentMethodData> for PaymentMethod {
     }
 }
 
+impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for PaymentMethod {
+    type Error = Error;
+    fn try_from(
+        val: (&domain::payments::Card, &types::PaymentsAuthorizeData),
+    ) -> Result<Self, Self::Error> {
+        let (card_data, item) = val;
+        let auth_data = &item.get_authentication_data()?;
+        let ccexp = utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
+            card_data,
+            "".to_string(),
+        )?;
+
+        let card_3ds_details = CardThreeDsData {
+            ccnumber: card_data.card_number.clone(),
+            ccexp,
+            cvv: card_data.card_cvc.clone(),
+            email: item.email.clone(),
+            cavv: Some(auth_data.cavv.clone()),
+            eci: auth_data.eci.clone(),
+            cardholder_auth: None,
+            three_ds_version: Some(auth_data.message_version.clone()),
+            directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
+        };
+
+        Ok(Self::CardThreeDs(Box::new(card_3ds_details)))
+    }
+}
+
 impl TryFrom<&domain::payments::Card> for PaymentMethod {
     type Error = Error;
     fn try_from(card: &domain::payments::Card) -> Result<Self, Self::Error> {
@@ -583,7 +643,7 @@ impl TryFrom<&domain::payments::Card> for PaymentMethod {
             ccexp,
             cvv: card.card_cvc.clone(),
         };
-        Ok(Self::Card(Box::new(card)))
+        Ok(Self::CardNonThreeDs(Box::new(card)))
     }
 }
 
@@ -609,7 +669,7 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-        let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
+        let payment_method = PaymentMethod::try_from((&item.request.payment_method_data, None))?;
         Ok(Self {
             transaction_type: TransactionType::Validate,
             security_key: auth_type.api_key,

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::enums::{AttemptStatus, FrmSuggestion, IntentStatus};
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
@@ -13,7 +13,7 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{helpers, operations, PaymentData},
     },
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -59,10 +59,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
-            &[
-                storage_enums::IntentStatus::Failed,
-                storage_enums::IntentStatus::Succeeded,
-            ],
+            &[IntentStatus::Failed, IntentStatus::Succeeded],
             "approve",
         )?;
 
@@ -153,6 +150,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
                 payment_method_billing.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,
             payment_method_data: None,
@@ -178,6 +176,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_metadata: None,
             authentication: None,
             recurring_details: None,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -200,12 +199,13 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
+        _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
-        _frm_suggestion: Option<FrmSuggestion>,
+        frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
@@ -214,7 +214,12 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
+        if matches!(frm_suggestion, Some(FrmSuggestion::FrmAuthorizeTransaction)) {
+            payment_data.payment_intent.status = IntentStatus::RequiresCapture; // In Approve flow, payment which has payment_capture_method "manual" and attempt status as "Unresolved",
+            payment_data.payment_attempt.status = AttemptStatus::Authorized; // We shouldn't call the connector instead we need to update the payment attempt and payment intent.
+        }
         let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
+            status: payment_data.payment_intent.status,
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
             updated_by: storage_scheme.to_string(),
         };
@@ -223,6 +228,17 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .update_payment_intent(
                 payment_data.payment_intent,
                 intent_status_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        db.store
+            .update_payment_attempt_with_attempt_id(
+                payment_data.payment_attempt.clone(),
+                storage::PaymentAttemptUpdate::StatusUpdate {
+                    status: payment_data.payment_attempt.status,
+                    updated_by: storage_scheme.to_string(),
+                },
                 storage_scheme,
             )
             .await

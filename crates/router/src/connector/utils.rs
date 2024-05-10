@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "payouts")]
+use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments::{self, OrderDetailsWithAmount},
@@ -10,9 +12,9 @@ use common_utils::{
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
-use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -25,7 +27,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::{PaymentData, RecurringMandatePaymentData},
+        payments::{types::AuthenticationData, PaymentData, RecurringMandatePaymentData},
     },
     pii::PeekInterface,
     types::{
@@ -72,6 +74,10 @@ pub trait RouterData {
     fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
+    fn get_billing_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_email(&self) -> Result<Email, Error>;
+    fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -166,7 +172,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .get_payment_method_billing()
             .and_then(|a| a.address.as_ref())
             .and_then(|ad| ad.country)
-            .ok_or_else(missing_field_err("billing.address.country"))
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.country",
+            ))
     }
 
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
@@ -212,6 +220,45 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.session_token
             .clone()
             .ok_or_else(missing_field_err("session_token"))
+    }
+
+    fn get_billing_first_name(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.first_name.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.first_name",
+            ))
+    }
+
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.first_name",
+            ))
+    }
+
+    fn get_billing_email(&self) -> Result<Email, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.email.clone())
+            .ok_or_else(missing_field_err("payment_method_data.billing.email"))
+    }
+
+    fn get_billing_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.clone().phone)
+            .map(|phone_details| phone_details.get_number_with_country_code())
+            .transpose()?
+            .ok_or_else(missing_field_err("payment_method_data.billing.phone"))
     }
 
     fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
@@ -328,10 +375,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 
     fn is_three_ds(&self) -> bool {
-        matches!(
-            self.auth_type,
-            diesel_models::enums::AuthenticationType::ThreeDs
-        )
+        matches!(self.auth_type, enums::AuthenticationType::ThreeDs)
     }
 
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
@@ -395,8 +439,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -410,12 +454,12 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
     }
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_amount(&self) -> Result<i64, Error> {
@@ -423,8 +467,8 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -516,7 +560,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
@@ -525,6 +569,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
+    fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -542,8 +587,8 @@ impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationDa
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -583,9 +628,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_ids,
-                )) => connector_mandate_ids.connector_mandate_id.clone(),
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.connector_mandate_id.clone()
+                }
                 _ => None,
             })
     }
@@ -617,7 +662,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
@@ -671,6 +716,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 | serde_json::Value::Array(_) => None,
                 serde_json::Value::Object(_) => Some(meta_data),
             })
+    }
+
+    fn get_authentication_data(&self) -> Result<AuthenticationData, Error> {
+        self.authentication_data
+            .clone()
+            .ok_or_else(missing_field_err("authentication_data"))
     }
 }
 
@@ -755,8 +806,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -789,8 +840,8 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -806,9 +857,69 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
     }
 }
 
+#[cfg(feature = "payouts")]
+pub trait CustomerDetails {
+    fn get_customer_id(&self) -> Result<String, errors::ConnectorError>;
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
+}
+
+#[cfg(feature = "payouts")]
+impl CustomerDetails for types::CustomerDetails {
+    fn get_customer_id(&self) -> Result<String, errors::ConnectorError> {
+        self.customer_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            })
+    }
+
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_name",
+            })
+    }
+
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError> {
+        self.email
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_email",
+            })
+    }
+
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.phone
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone",
+            })
+    }
+
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
+        self.phone_country_code
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone_country_code",
+            })
+    }
+}
+
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
@@ -817,7 +928,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
     }
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_cancellation_reason(&self) -> Result<String, Error> {
@@ -855,6 +966,32 @@ impl RefundsRequestData for types::RefundsData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error>;
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error>;
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutsData for types::PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("transfer_id"))
+    }
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error> {
+        self.customer_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_details"))
+    }
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error> {
+        self.vendor_details
+            .clone()
+            .ok_or_else(missing_field_err("vendor_details"))
     }
 }
 
@@ -948,6 +1085,80 @@ pub trait CardData {
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl CardData for payouts::Card {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.expiry_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.card_number.peek())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.expiry_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.expiry_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.expiry_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.expiry_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.expiry_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
 }
 
 impl CardData for domain::Card {
@@ -1145,6 +1356,8 @@ pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
+    fn extract_country_code(&self) -> Result<String, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -1152,6 +1365,10 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.country_code
             .clone()
             .ok_or_else(missing_field_err("billing.phone.country_code"))
+    }
+    fn extract_country_code(&self) -> Result<String, Error> {
+        self.get_country_code()
+            .map(|cc| cc.trim_start_matches('+').to_string())
     }
     fn get_number(&self) -> Result<Secret<String>, Error> {
         self.number
@@ -1162,6 +1379,16 @@ impl PhoneDetailsData for api::PhoneDetails {
         let number = self.get_number()?;
         let country_code = self.get_country_code()?;
         Ok(Secret::new(format!("{}{}", country_code, number.peek())))
+    }
+    fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self.get_number()?;
+        let country_code = self.get_country_code()?;
+        let number_without_plus = country_code.trim_start_matches('+');
+        Ok(Secret::new(format!(
+            "{}#{}",
+            number_without_plus,
+            number.peek()
+        )))
     }
 }
 
@@ -1177,6 +1404,7 @@ pub trait AddressDetailsData {
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1194,7 +1422,12 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_full_name(&self) -> Result<Secret<String>, Error> {
         let first_name = self.get_first_name()?.peek().to_owned();
-        let last_name = self.get_last_name()?.peek().to_owned();
+        let last_name = self
+            .get_last_name()
+            .ok()
+            .cloned()
+            .unwrap_or(Secret::new("".to_string()));
+        let last_name = last_name.peek();
         let full_name = format!("{} {}", first_name, last_name).trim().to_string();
         Ok(Secret::new(full_name))
     }
@@ -1255,6 +1488,18 @@ impl AddressDetailsData for api::AddressDetails {
             _ => Ok(state.clone()),
         }
     }
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
+        self.state
+            .as_ref()
+            .map(|state| {
+                if state.peek().len() == 2 {
+                    Ok(state.to_owned())
+                } else {
+                    self.to_state_code()
+                }
+            })
+            .transpose()
+    }
 }
 
 pub trait BankRedirectBillingData {
@@ -1266,19 +1511,6 @@ impl BankRedirectBillingData for domain::BankRedirectBilling {
         self.billing_name
             .clone()
             .ok_or_else(missing_field_err("billing_details.billing_name"))
-    }
-}
-
-pub trait BankDirectDebitBillingData {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
-}
-
-impl BankDirectDebitBillingData for domain::BankDebitBilling {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
-        self.address
-            .as_ref()
-            .and_then(|address| address.country)
-            .ok_or_else(missing_field_err("billing_details.country"))
     }
 }
 
@@ -1304,7 +1536,7 @@ impl MandateData for payments::MandateAmountData {
 
 pub trait RecurringMandateData {
     fn get_original_payment_amount(&self) -> Result<i64, Error>;
-    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
 }
 
 impl RecurringMandateData for RecurringMandatePaymentData {
@@ -1312,7 +1544,7 @@ impl RecurringMandateData for RecurringMandatePaymentData {
         self.original_payment_authorized_amount
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
-    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error> {
         self.original_payment_authorized_currency
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
@@ -1322,7 +1554,7 @@ pub trait MandateReferenceData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
 
-impl MandateReferenceData for api_models::payments::ConnectorMandateReferenceId {
+impl MandateReferenceData for payments::ConnectorMandateReferenceId {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.connector_mandate_id
             .clone()
@@ -1409,7 +1641,7 @@ pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
 
 pub fn to_currency_base_unit_from_optional_amount(
     amount: Option<i64>,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     match amount {
         Some(a) => to_currency_base_unit(a, currency),
@@ -1421,25 +1653,25 @@ pub fn to_currency_base_unit_from_optional_amount(
 }
 
 pub fn get_amount_as_string(
-    currency_unit: &types::api::CurrencyUnit,
+    currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Minor => amount.to_string(),
-        types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+        api::CurrencyUnit::Minor => amount.to_string(),
+        api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)
 }
 
 pub fn get_amount_as_f64(
-    currency_unit: &types::api::CurrencyUnit,
+    currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
-        types::api::CurrencyUnit::Minor => u32::try_from(amount)
+        api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
+        api::CurrencyUnit::Minor => u32::try_from(amount)
             .change_context(errors::ConnectorError::ParsingFailed)?
             .into(),
     };
@@ -1448,7 +1680,7 @@ pub fn get_amount_as_f64(
 
 pub fn to_currency_base_unit(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
@@ -1457,7 +1689,7 @@ pub fn to_currency_base_unit(
 
 pub fn to_currency_lower_unit(
     amount: String,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_lower_unit(amount)
@@ -1485,7 +1717,7 @@ pub fn construct_not_supported_error_report(
 
 pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
@@ -1494,7 +1726,7 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
 
 pub fn to_currency_base_unit_asf64(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)
@@ -1972,6 +2204,19 @@ impl
             attempt_status,
             connector_transaction_id,
         }
+    }
+}
+
+pub fn get_card_details(
+    payment_method_data: domain::PaymentMethodData,
+    connector_name: &'static str,
+) -> Result<domain::payments::Card, errors::ConnectorError> {
+    match payment_method_data {
+        domain::PaymentMethodData::Card(details) => Ok(details),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: connector_name,
+        })?,
     }
 }
 

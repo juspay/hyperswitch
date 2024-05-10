@@ -11,7 +11,7 @@ export const setApiKey = (requestBody, apiKey) => {
 };
 
 export const generateRandomString = (prefix = "cypress_merchant_GHAction_") => {
-  const uuidPart = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+  const uuidPart = "xxxxxxxx";
 
   const randomString = uuidPart.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;

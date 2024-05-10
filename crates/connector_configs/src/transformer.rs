@@ -98,12 +98,11 @@ impl DashboardRequestPayload {
         if let Some(payment_methods_enabled) = request.payment_methods_enabled.clone() {
             for payload in payment_methods_enabled {
                 match payload.payment_method {
-                    api_models::enums::PaymentMethod::Card => {
+                    PaymentMethod::Card => {
                         if let Some(card_provider) = payload.card_provider {
-                            let payment_type = api_models::enums::PaymentMethodType::from_str(
-                                &payload.payment_method_type,
-                            )
-                            .map_err(|_| "Invalid key received".to_string());
+                            let payment_type =
+                                PaymentMethodType::from_str(&payload.payment_method_type)
+                                    .map_err(|_| "Invalid key received".to_string());
 
                             if let Ok(payment_type) = payment_type {
                                 for method in card_provider {
@@ -114,8 +113,8 @@ impl DashboardRequestPayload {
                                         maximum_amount: Some(68607706),
                                         recurring_enabled: true,
                                         installment_payment_enabled: false,
-                                        accepted_currencies: None,
-                                        accepted_countries: None,
+                                        accepted_currencies: method.accepted_currencies,
+                                        accepted_countries: method.accepted_countries,
                                         payment_experience: None,
                                     };
                                     card_payment_method_types.push(data)
@@ -124,17 +123,17 @@ impl DashboardRequestPayload {
                         }
                     }
 
-                    api_models::enums::PaymentMethod::Wallet
-                    | api_models::enums::PaymentMethod::BankRedirect
-                    | api_models::enums::PaymentMethod::PayLater
-                    | api_models::enums::PaymentMethod::BankTransfer
-                    | api_models::enums::PaymentMethod::Crypto
-                    | api_models::enums::PaymentMethod::BankDebit
-                    | api_models::enums::PaymentMethod::Reward
-                    | api_models::enums::PaymentMethod::Upi
-                    | api_models::enums::PaymentMethod::Voucher
-                    | api_models::enums::PaymentMethod::GiftCard
-                    | api_models::enums::PaymentMethod::CardRedirect => {
+                    PaymentMethod::Wallet
+                    | PaymentMethod::BankRedirect
+                    | PaymentMethod::PayLater
+                    | PaymentMethod::BankTransfer
+                    | PaymentMethod::Crypto
+                    | PaymentMethod::BankDebit
+                    | PaymentMethod::Reward
+                    | PaymentMethod::Upi
+                    | PaymentMethod::Voucher
+                    | PaymentMethod::GiftCard
+                    | PaymentMethod::CardRedirect => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(
                                 request.connector,
@@ -154,7 +153,7 @@ impl DashboardRequestPayload {
             }
             if !card_payment_method_types.is_empty() {
                 let card = PaymentMethodsEnabled {
-                    payment_method: api_models::enums::PaymentMethod::Card,
+                    payment_method: PaymentMethod::Card,
                     payment_method_types: Some(card_payment_method_types),
                 };
                 payment_method_enabled.push(card);
@@ -192,6 +191,9 @@ impl DashboardRequestPayload {
             merchant_name: None,
             acquirer_bin: None,
             acquirer_merchant_id: None,
+            three_ds_requestor_name: None,
+            three_ds_requestor_id: None,
+            pull_mechanism_for_external_3ds_enabled: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -211,6 +213,10 @@ impl DashboardRequestPayload {
         let merchant_name = meta_data.merchant_name;
         let acquirer_bin = meta_data.acquirer_bin;
         let acquirer_merchant_id = meta_data.acquirer_merchant_id;
+        let three_ds_requestor_name = meta_data.three_ds_requestor_name;
+        let three_ds_requestor_id = meta_data.three_ds_requestor_id;
+        let pull_mechanism_for_external_3ds_enabled =
+            meta_data.pull_mechanism_for_external_3ds_enabled;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -227,6 +233,9 @@ impl DashboardRequestPayload {
             merchant_name,
             acquirer_bin,
             acquirer_merchant_id,
+            three_ds_requestor_name,
+            three_ds_requestor_id,
+            pull_mechanism_for_external_3ds_enabled,
         })
     }
 

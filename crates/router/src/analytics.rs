@@ -6,6 +6,7 @@ pub mod routes {
         api_event::api_events_core, connector_events::connector_events_core,
         errors::AnalyticsError, lambda_utils::invoke_lambda,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
+        AnalyticsFlow,
     };
     use api_models::analytics::{
         search::{
@@ -17,7 +18,6 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
-    use router_env::AnalyticsFlow;
 
     use crate::{
         core::api_locking,
@@ -114,7 +114,7 @@ pub mod routes {
     pub async fn get_info(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
-        domain: actix_web::web::Path<analytics::AnalyticsDomain>,
+        domain: web::Path<analytics::AnalyticsDomain>,
     ) -> impl Responder {
         let flow = AnalyticsFlow::GetInfo;
         Box::pin(api::server_wrap(
@@ -614,9 +614,9 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::search::msearch_results(
+                    &state.opensearch_client,
                     req,
                     &auth.merchant_account.merchant_id,
-                    state.conf.opensearch.clone(),
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -631,7 +631,7 @@ pub mod routes {
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<GetSearchRequest>,
-        index: actix_web::web::Path<SearchIndex>,
+        index: web::Path<SearchIndex>,
     ) -> impl Responder {
         let flow = AnalyticsFlow::GetSearchResults;
         let indexed_req = GetSearchRequestWithIndex {
@@ -645,9 +645,9 @@ pub mod routes {
             indexed_req,
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::search::search_results(
+                    &state.opensearch_client,
                     req,
                     &auth.merchant_account.merchant_id,
-                    state.conf.opensearch.clone(),
                 )
                 .await
                 .map(ApplicationResponse::Json)

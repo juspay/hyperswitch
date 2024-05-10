@@ -113,6 +113,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods list flow.
     PaymentMethodsList,
+    /// Payment method save flow
+    PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// List Customers for a merchant
@@ -151,6 +153,8 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    // Payments filters flow
+    PaymentsFilters,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -206,8 +210,6 @@ pub enum Flow {
     RoutingRetrieveConfig,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
-    /// Update connector agnostic mandate config
-    CreateConnectorAgnosticMandateConfig,
     /// Routing retrieve default config
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
@@ -298,8 +300,6 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
-    /// User Sign In without invite checks
-    UserSignInWithoutInviteChecks,
     /// User Sign In
     UserSignIn,
     /// User connect account
@@ -346,8 +346,10 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get details of a user in a merchant account
+    /// Get details of a user
     GetUserDetails,
+    /// Get details of a user role in a merchant account
+    GetUserRoleDetails,
     /// List users for merchant account
     ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
@@ -358,8 +360,8 @@ pub enum Flow {
     ForgotPassword,
     /// Reset password using link
     ResetPassword,
-    /// Invite users
-    InviteUser,
+    /// Force set or force change password
+    RotatePassword,
     /// Invite multiple users
     InviteMultipleUser,
     /// Reinvite user
@@ -376,8 +378,6 @@ pub enum Flow {
     SyncOnboardingStatus,
     /// Reset tracking id
     ResetTrackingId,
-    /// Verify email token without invite checks
-    VerifyEmailWithoutInviteChecks,
     /// Verify email Token
     VerifyEmail,
     /// Send verify email
@@ -386,6 +386,8 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Select merchant from invitations
+    MerchantSelect,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -394,12 +396,26 @@ pub enum Flow {
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// User email flow start
+    UserFromEmail,
+    /// Begin TOTP
+    TotpBegin,
+    /// Verify TOTP
+    TotpVerify,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
     WebhookEventDeliveryAttemptList,
     /// Manually retry the delivery for a webhook event
     WebhookEventDeliveryRetry,
+    /// Retrieve status of the Poll
+    RetrievePollStatus,
+    /// Toggles the extended card info feature in profile level
+    ToggleExtendedCardInfo,
+    /// Toggles the extended card info feature in profile level
+    ToggleConnectorAgnosticMit,
+    /// Get the extended card info associated to a payment_id
+    GetExtendedCardInfo,
 }
 
 ///

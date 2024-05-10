@@ -128,7 +128,7 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Dlocal,
-    // Ebanx,
+    Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -137,6 +137,7 @@ pub enum RoutableConnectors {
     Helcim,
     Iatapay,
     Klarna,
+    Mifinity,
     Mollie,
     Multisafepay,
     Nexinets,
@@ -147,6 +148,7 @@ pub enum RoutableConnectors {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
+    Payone,
     Paypal,
     Payu,
     Placetopay,
@@ -1035,6 +1037,16 @@ impl Currency {
             | Self::ZMW => false,
         }
     }
+
+    pub fn number_of_digits_after_decimal_point(self) -> u8 {
+        if self.is_zero_decimal_currency() {
+            0
+        } else if self.is_three_decimal_currency() {
+            3
+        } else {
+            2
+        }
+    }
 }
 
 #[derive(
@@ -1153,6 +1165,7 @@ pub enum MerchantStorageScheme {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -1251,6 +1264,8 @@ pub enum PaymentMethodStatus {
     /// Indicates that the payment method is awaiting some data or action before it can be marked
     /// as 'active'.
     Processing,
+    /// Indicates that the payment method is awaiting some data before changing state to active
+    AwaitingData,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
@@ -1416,6 +1431,7 @@ pub enum PaymentMethodType {
     Twint,
     UpiCollect,
     Vipps,
+    Venmo,
     Walley,
     WeChatPay,
     SevenEleven,
@@ -2100,6 +2116,7 @@ pub enum PayoutStatus {
     RequiresCreation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
+    RequiresVendorAccountCreation,
 }
 
 #[derive(
@@ -2236,7 +2253,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
-    FrmAutoRefund,
+    FrmAuthorizeTransaction, // When manual capture payment which was marked fraud and held, when approved needs to be authorized.
 }
 
 #[derive(
@@ -2690,4 +2707,19 @@ pub enum BankType {
 pub enum BankHolderType {
     Personal,
     Business,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TokenPurpose {
+    #[serde(rename = "totp")]
+    #[strum(serialize = "totp")]
+    TOTP,
+    VerifyEmail,
+    AcceptInvitationFromEmail,
+    ForceSetPassword,
+    ResetPassword,
+    AcceptInvite,
+    UserInfo,
 }
