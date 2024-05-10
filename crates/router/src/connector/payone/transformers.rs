@@ -13,7 +13,6 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 use crate::connector::utils::CardData;
-
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::RouterData,
@@ -53,21 +52,15 @@ impl<T>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
-    pub timestamp: Option<String>,
-    pub errors: Option<Vec<SubError>>,
-    pub status: Option<i32>,
-    pub error: Option<String>,
-    pub error_description: Option<String>,
-    pub message: Option<String>,
-    pub path: Option<String>,
+    pub errors: Vec<SubError>,
+    pub error_id: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SubError {
     pub code: String,
     pub message: String,
-    pub path: Option<String>,
-    pub field: Option<String>,
+    pub http_status_code: u16,
 }
 
 // Auth Struct
@@ -236,13 +229,13 @@ impl TryFrom<&PayoutMethodData> for Card {
         }
     }
 }
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PayoneErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-}
+// #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+// pub struct PayoneErrorResponse {
+//     pub status_code: u16,
+//     pub code: String,
+//     pub message: String,
+//     pub reason: Option<String>,
+// }
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
