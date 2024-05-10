@@ -386,6 +386,8 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Select merchant from invitations
+    MerchantSelect,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -396,6 +398,10 @@ pub enum Flow {
     UpdateRole,
     /// User email flow start
     UserFromEmail,
+    /// Begin TOTP
+    TotpBegin,
+    /// Verify TOTP
+    TotpVerify,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
