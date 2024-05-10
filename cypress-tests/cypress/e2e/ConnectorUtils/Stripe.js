@@ -18,6 +18,7 @@ const successfulThreeDSTestCardDetails = {
 };
 
 export const connectorDetails = {
+card_pm:{
     "PaymentIntent": {
         "Request": {
             "card": successfulTestCardDetails,
@@ -163,4 +164,5 @@ export const connectorDetails = {
             }
         },
     },
+}
 };
