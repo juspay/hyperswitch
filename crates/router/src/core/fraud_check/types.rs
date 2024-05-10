@@ -5,7 +5,7 @@ use api_models::{
     refunds::RefundResponse,
 };
 use common_enums::FrmSuggestion;
-use common_utils::pii::Email;
+use common_utils::pii::{Email, SecretSerdeValue};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use masking::Serialize;
 use serde::Deserialize;
@@ -56,7 +56,7 @@ pub struct FrmData {
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub refund: Option<RefundResponse>,
-    pub frm_metadata: Option<serde_json::Value>,
+    pub frm_metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug)]
@@ -80,7 +80,7 @@ pub struct PaymentToFrmData {
     pub address: PaymentAddress,
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-    pub frm_metadata: Option<serde_json::Value>,
+    pub frm_metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

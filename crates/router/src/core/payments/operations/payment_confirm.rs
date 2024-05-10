@@ -396,6 +396,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .attach_printable("Error converting feature_metadata to Value")?
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
+        payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.request_incremental_authorization = request
             .request_incremental_authorization
             .map(|request_incremental_authorization| {
@@ -1072,6 +1073,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let authorized_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -1165,6 +1167,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_statement_descriptor_suffix = statement_descriptor_suffix.clone();
         let m_order_details = order_details.clone();
         let m_metadata = metadata.clone();
+        let m_frm_metadata = frm_metadata.clone();
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
@@ -1194,6 +1197,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         fingerprint_id: None,
                         session_expiry,
                         request_external_three_ds_authentication: None,
+                        frm_metadata: m_frm_metadata,
                     },
                     storage_scheme,
                 )

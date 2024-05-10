@@ -255,6 +255,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .attach_printable("Error converting feature_metadata to Value")?
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
+        payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
@@ -693,6 +694,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
 
         payment_data.payment_intent = state
@@ -722,6 +724,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     request_external_three_ds_authentication: payment_data
                         .payment_intent
                         .request_external_three_ds_authentication,
+                    frm_metadata,
                 },
                 storage_scheme,
             )

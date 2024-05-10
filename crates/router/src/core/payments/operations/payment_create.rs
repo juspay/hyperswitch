@@ -1047,6 +1047,7 @@ impl PaymentCreate {
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
+            frm_metadata: request.frm_metadata.clone(),
         })
     }
 
