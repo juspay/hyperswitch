@@ -65,6 +65,7 @@ pub async fn save_payment_method<FData>(
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
     billing_name: Option<masking::Secret<String>>,
+    payment_method_billing_address: Option<&api::Address>,
     business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
@@ -209,9 +210,12 @@ where
                 });
 
                 let pm_data_encrypted =
-                    payment_methods::cards::create_encrypted_payment_method_data(
+                    payment_methods::cards::create_encrypted_data(key_store, pm_card_details).await;
+
+                let encrypted_payment_method_billing_address =
+                    payment_methods::cards::create_encrypted_data(
                         key_store,
-                        pm_card_details,
+                        payment_method_billing_address,
                     )
                     .await;
 
@@ -315,6 +319,7 @@ where
                                             None,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
+                                            encrypted_payment_method_billing_address,
                                         )
                                         .await
                                     } else {
@@ -404,6 +409,7 @@ where
                                                 connector_mandate_details,
                                                 network_transaction_id,
                                                 merchant_account.storage_scheme,
+                                                encrypted_payment_method_billing_address,
                                             )
                                             .await
                                         } else {
@@ -486,7 +492,7 @@ where
                                     ))
                                 });
                                 let pm_data_encrypted =
-                                    payment_methods::cards::create_encrypted_payment_method_data(
+                                    payment_methods::cards::create_encrypted_data(
                                         key_store,
                                         updated_pmd,
                                     )
@@ -535,6 +541,7 @@ where
                             None,
                             network_transaction_id,
                             merchant_account.storage_scheme,
+                            encrypted_payment_method_billing_address,
                         )
                         .await?;
                     }

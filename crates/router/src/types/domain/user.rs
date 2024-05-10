@@ -1,4 +1,8 @@
-use std::{collections::HashSet, ops, str::FromStr};
+use std::{
+    collections::HashSet,
+    ops::{self, Not},
+    str::FromStr,
+};
 
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
@@ -172,8 +176,7 @@ impl UserPassword {
             has_upper_case = has_upper_case || c.is_uppercase();
             has_lower_case = has_lower_case || c.is_lowercase();
             has_numeric_value = has_numeric_value || c.is_numeric();
-            has_special_character =
-                has_special_character || !(c.is_alphanumeric() && c.is_whitespace());
+            has_special_character = has_special_character || !c.is_alphanumeric();
             has_whitespace = has_whitespace || c.is_whitespace();
         }
 
@@ -510,6 +513,7 @@ pub struct NewUser {
     email: UserEmail,
     password: UserPassword,
     new_merchant: NewUserMerchant,
+    is_temporary_password: bool,
 }
 
 impl NewUser {
@@ -614,12 +618,20 @@ impl TryFrom<NewUser> for storage_user::UserNew {
 
     fn try_from(value: NewUser) -> UserResult<Self> {
         let hashed_password = password::generate_password_hash(value.password.get_secret())?;
+        let now = common_utils::date_time::now();
         Ok(Self {
             user_id: value.get_user_id(),
             name: value.get_name(),
             email: value.get_email().into_inner(),
             password: hashed_password,
-            ..Default::default()
+            is_verified: false,
+            created_at: Some(now),
+            last_modified_at: Some(now),
+            preferred_merchant_id: None,
+            totp_status: TotpStatus::NotSet,
+            totp_secret: None,
+            totp_recovery_codes: None,
+            last_password_modified_at: value.is_temporary_password.not().then_some(now),
         })
     }
 }
@@ -640,6 +652,7 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
             password,
             user_id,
             new_merchant,
+            is_temporary_password: false,
         })
     }
 }
@@ -660,6 +673,7 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
             email,
             password,
             new_merchant,
+            is_temporary_password: false,
         })
     }
 }
@@ -680,6 +694,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
             email,
             password,
             new_merchant,
+            is_temporary_password: true,
         })
     }
 }
@@ -700,6 +715,7 @@ impl TryFrom<user_api::CreateInternalUserRequest> for NewUser {
             email,
             password,
             new_merchant,
+            is_temporary_password: false,
         })
     }
 }
@@ -717,6 +733,9 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             email: user.0.email.clone().try_into()?,
             password: UserPassword::new_password_without_validation(user.0.password)?,
             new_merchant,
+            // This is true because we are not creating a user with this request. And if it is set
+            // to false, last_password_modified_at will be overwritten if this user is inserted.
+            is_temporary_password: true,
         })
     }
 }
@@ -736,6 +755,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
             email,
             password,
             new_merchant,
+            is_temporary_password: true,
         })
     }
 }
