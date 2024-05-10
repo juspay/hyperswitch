@@ -121,12 +121,12 @@ impl AddressInterface for KafkaStore {
 
     async fn update_address_for_payments(
         &self,
-        this: domain::Address,
+        this: domain::PaymentAddress,
         address: domain::AddressUpdate,
         payment_id: String,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .update_address_for_payments(this, address, payment_id, key_store, storage_scheme)
             .await
@@ -135,10 +135,10 @@ impl AddressInterface for KafkaStore {
     async fn insert_address_for_payments(
         &self,
         payment_id: &str,
-        address: domain::Address,
+        address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .insert_address_for_payments(payment_id, address, key_store, storage_scheme)
             .await
@@ -151,7 +151,7 @@ impl AddressInterface for KafkaStore {
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .find_address_by_merchant_id_payment_id_address_id(
                 merchant_id,
@@ -165,7 +165,7 @@ impl AddressInterface for KafkaStore {
 
     async fn insert_address_for_customers(
         &self,
-        address: domain::Address,
+        address: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         self.diesel_store

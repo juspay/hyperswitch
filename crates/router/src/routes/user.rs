@@ -324,6 +324,23 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
+pub async fn list_merchants_for_user_with_spt(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::UserMerchantAccountList;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user, _, _| user_core::list_merchants_for_user(state, user),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn get_user_role_details(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -435,14 +452,18 @@ pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::InviteMultipleUser;
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
-        user_core::invite_multiple_user,
+        |state, user, payload, req_state| {
+            user_core::invite_multiple_user(state, user, payload, req_state, is_token_only)
+        },
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
