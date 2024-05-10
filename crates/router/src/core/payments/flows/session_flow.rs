@@ -11,7 +11,7 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     headers, logger,
-    routes::{self, metrics},
+    routes::{self, app::settings, metrics},
     services,
     types::{
         self,
@@ -83,15 +83,13 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 }
 
 fn is_dynamic_fields_required(
-    state: &routes::AppState,
+    required_fields: &settings::RequiredFields,
     payment_method: enums::PaymentMethod,
     payment_method_type: enums::PaymentMethodType,
     connector: &types::Connector,
     required_field_type: Vec<enums::FieldType>,
-) -> Option<bool> {
-    state
-        .conf
-        .required_fields
+) -> bool {
+    required_fields
         .0
         .get(&payment_method)
         .and_then(|pm_type| pm_type.0.get(&payment_method_type))
@@ -112,6 +110,7 @@ fn is_dynamic_fields_required(
                     .iter()
                     .any(|(_, val)| required_field_type.contains(&val.field_type))
         })
+        .unwrap_or(false)
 }
 
 fn get_applepay_metadata(
@@ -285,20 +284,17 @@ async fn create_applepay_session_token(
 
         let billing_variants = enums::FieldType::get_billing_variants();
 
-        let required_billing_contact_fields = is_dynamic_fields_required(
-            state,
+        let required_billing_contact_fields = if is_dynamic_fields_required(
+            &state.conf.required_fields,
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
             &connector.connector_name,
             billing_variants,
-        )
-        .and_then(|is_dynamic_fields_required| {
-            if is_dynamic_fields_required {
-                Some(vec!["postalAddress".to_string()])
-            } else {
-                None
-            }
-        });
+        ) {
+            Some(vec!["postalAddress".to_string()])
+        } else {
+            None
+        };
 
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
@@ -502,16 +498,16 @@ fn create_gpay_session_token(
         let billing_variants = enums::FieldType::get_billing_variants();
 
         let is_billing_details_required = is_dynamic_fields_required(
-            state,
+            &state.conf.required_fields,
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::GooglePay,
             &connector.connector_name,
             billing_variants,
         );
 
-        let billing_address_parameters = if is_billing_details_required == Some(true) {
+        let billing_address_parameters = if is_billing_details_required {
             Some(payment_types::GpayBillingAddressParameters {
-                phone_number_required: is_billing_details_required.unwrap_or(false),
+                phone_number_required: is_billing_details_required,
                 format: "FULL".to_string(),
             })
         } else {
@@ -532,9 +528,7 @@ fn create_gpay_session_token(
                         allowed_card_networks: allowed_payment_methods
                             .parameters
                             .allowed_card_networks,
-                        billing_address_required: is_billing_details_required
-                            .clone()
-                            .map(|billing_details| billing_details),
+                        billing_address_required: Some(is_billing_details_required),
                         billing_address_parameters: billing_address_parameters.clone(),
                     },
                     tokenization_specification: allowed_payment_methods.tokenization_specification,

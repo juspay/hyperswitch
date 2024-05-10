@@ -413,12 +413,12 @@ pub enum FieldType {
     UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
     UserCurrency { options: Vec<String> },
     UserBillingName,
-    UserBillingAddressLine1,
-    UserBillingAddressLine2,
-    UserBillingAddressCity,
-    UserBillingAddressPincode,
-    UserBillingAddressState,
-    UserBillingAddressCountry { options: Vec<String> },
+    UserAddressLine1,
+    UserAddressLine2,
+    UserAddressCity,
+    UserAddressPincode,
+    UserAddressState,
+    UserAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
     Text,
@@ -429,16 +429,17 @@ impl FieldType {
     pub fn get_billing_variants() -> Vec<Self> {
         vec![
             Self::UserBillingName,
-            Self::UserBillingAddressLine1,
-            Self::UserBillingAddressLine2,
-            Self::UserBillingAddressCity,
-            Self::UserBillingAddressPincode,
-            Self::UserBillingAddressState,
-            Self::UserBillingAddressCountry { options: vec![] },
+            Self::UserAddressLine1,
+            Self::UserAddressLine2,
+            Self::UserAddressCity,
+            Self::UserAddressPincode,
+            Self::UserAddressState,
+            Self::UserAddressCountry { options: vec![] },
         ]
     }
 }
 
+/// This implementatiobn is to ingore the inner value of UserAddressCountry enum while comparing
 impl PartialEq for FieldType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -467,14 +468,12 @@ impl PartialEq for FieldType {
                 },
             ) => options_self.eq(options_other),
             (Self::UserBillingName, Self::UserBillingName) => true,
-            (Self::UserBillingAddressLine1, Self::UserBillingAddressLine1) => true,
-            (Self::UserBillingAddressLine2, Self::UserBillingAddressLine2) => true,
-            (Self::UserBillingAddressCity, Self::UserBillingAddressCity) => true,
-            (Self::UserBillingAddressPincode, Self::UserBillingAddressPincode) => true,
-            (Self::UserBillingAddressState, Self::UserBillingAddressState) => true,
-            (Self::UserBillingAddressCountry { .. }, Self::UserBillingAddressCountry { .. }) => {
-                true
-            }
+            (Self::UserAddressLine1, Self::UserAddressLine1) => true,
+            (Self::UserAddressLine2, Self::UserAddressLine2) => true,
+            (Self::UserAddressCity, Self::UserAddressCity) => true,
+            (Self::UserAddressPincode, Self::UserAddressPincode) => true,
+            (Self::UserAddressState, Self::UserAddressState) => true,
+            (Self::UserAddressCountry { .. }, Self::UserAddressCountry { .. }) => true,
             (Self::UserBlikCode, Self::UserBlikCode) => true,
             (Self::UserBank, Self::UserBank) => true,
             (Self::Text, Self::Text) => true,
