@@ -552,7 +552,7 @@ mod tests {
     "authorization_count": null,
     "session_expiry": null,
     "fingerprint_id": null,
-    "frm_metada": null
+    "frm_metadata": null
 }"#;
         let deserialized_payment_intent =
             serde_json::from_str::<super::PaymentIntent>(serialized_payment_intent);
