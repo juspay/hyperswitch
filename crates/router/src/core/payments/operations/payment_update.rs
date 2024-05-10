@@ -97,11 +97,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-        payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
         payment_intent.order_details = request
             .get_order_details_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -351,16 +346,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 (Box::new(self), amount)
             };
 
-        payment_intent.status = match request.payment_method_data.as_ref() {
-            Some(_) => {
-                if request.confirm.unwrap_or(false) {
-                    payment_intent.status
-                } else {
-                    storage_enums::IntentStatus::RequiresConfirmation
-                }
+        payment_intent.status = if request
+            .payment_method_data
+            .as_ref()
+            .is_some_and(|payment_method_data| payment_method_data.payment_method_data.is_some())
+        {
+            if request.confirm.unwrap_or(false) {
+                payment_intent.status
+            } else {
+                storage_enums::IntentStatus::RequiresConfirmation
             }
-            None => storage_enums::IntentStatus::RequiresPaymentMethod,
+        } else {
+            storage_enums::IntentStatus::RequiresPaymentMethod
         };
+
         payment_intent.request_external_three_ds_authentication = request
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
