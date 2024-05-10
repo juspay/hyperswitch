@@ -2742,9 +2742,16 @@ pub struct RsyncApplicationInformation {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CybersourceRsyncResponse {
+pub struct CybersourceRsyncApplicationResponse {
     id: String,
     application_information: RsyncApplicationInformation,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum CybersourceRsyncResponse {
+    RsyncApplicationResponse(Box<CybersourceRsyncApplicationResponse>),
+    ErrorInformation(CybersourceErrorInformationResponse),
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncResponse>>
@@ -2754,15 +2761,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, CybersourceRsyncResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(
-                    item.response.application_information.status,
-                ),
+        match item.response {
+            CybersourceRsyncResponse::RsyncApplicationResponse(rsync_reponse) => Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: rsync_reponse.id,
+                    refund_status: enums::RefundStatus::from(
+                        rsync_reponse.application_information.status,
+                    ),
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            CybersourceRsyncResponse::ErrorInformation(error_response) => Ok(Self {
+                status: item.data.status,
+                response: Ok(types::RefundsResponseData {
+                    refund_status: common_enums::RefundStatus::Pending,
+                    connector_refund_id: error_response.id.clone(),
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
