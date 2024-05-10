@@ -9360,6 +9360,9 @@
         "type": "object",
         "required": [
           "merchant_info",
+          "shipping_address_required",
+          "email_required",
+          "shipping_address_parameters",
           "allowed_payment_methods",
           "transaction_info",
           "delayed_session_token",
@@ -9369,6 +9372,17 @@
         "properties": {
           "merchant_info": {
             "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "shipping_address_required": {
+            "type": "boolean",
+            "description": "Is shipping address required"
+          },
+          "email_required": {
+            "type": "boolean",
+            "description": "Is email required"
+          },
+          "shipping_address_parameters": {
+            "$ref": "#/components/schemas/GpayShippingAddressParameters"
           },
           "allowed_payment_methods": {
             "type": "array",
@@ -9519,6 +9533,18 @@
             "$ref": "#/components/schemas/GooglePaySessionResponse"
           }
         ]
+      },
+      "GpayShippingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is shipping phone number required"
+          }
+        }
       },
       "GpayTokenParameters": {
         "type": "object",
