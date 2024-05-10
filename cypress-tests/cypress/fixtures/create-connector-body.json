@@ -52,7 +52,21 @@
           "installment_payment_enabled": true
         }
       ]
+    },
+    {
+        "payment_method": "wallet",
+        "payment_method_types": [
+            {
+                "payment_method_type": "paypal",
+                "payment_experience": "redirect_to_url",
+                "minimum_amount": 1,
+                "maximum_amount": 68607706,
+                "recurring_enabled": false,
+                "installment_payment_enabled": false
+            }
+        ]
     }
+
   ],
   "metadata": {
     "city": "NY",

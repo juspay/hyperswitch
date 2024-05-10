@@ -15,6 +15,13 @@ const successfulThreeDSTestCardDetails = {
     "card_cvc": "123"
 };
 
+const paypalDetails ={
+
+    "wallet": {
+        "paypal_redirect": {}
+    }
+}
+
 export const connectorDetails = {
     card_pm:{
         "3DS": {
@@ -100,7 +107,20 @@ export const connectorDetails = {
                 }
             },
         },
+    
     },
+    wallet_pm:{
+        paypal:{
+            "payment_method": "wallet",
+            "payment_method_type": "paypal",
+            "payment_method_data": paypalDetails,
+            "currency": "USD",
+            "paymentSuccessfulStatus": "requires_customer_action",
+            "paymentSyncStatus": "processing",
+            "customer_acceptance":null,
+            "setup_future_usage": "on_session",
+        }
+    }
 };
 
 

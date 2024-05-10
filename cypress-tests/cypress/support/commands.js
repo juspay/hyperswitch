@@ -736,3 +736,98 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
   });
 
   
+  Cypress.Commands.add("paypalConfirmCallTest", (confirmBody, details, globalState) => {
+    const paymentIntentID = globalState.get("paymentID");
+    confirmBody.payment_method_data = details.payment_method_data;
+    confirmBody.payment_method = details.payment_method;
+    confirmBody.payment_method_type = details.payment_method_type;
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.customer_acceptance = details.customer_acceptance;
+
+    cy.request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+        headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("publishableKey"),
+        },
+        body: confirmBody,
+    }).then((response) => {
+        const xRequestId = response.headers['x-request-id'];
+        if (xRequestId) {
+            cy.task('cli_log', "x-request-id ->> " + xRequestId);
+        } else {
+            cy.task('cli_log', "x-request-id is not available in the response headers");
+        }
+        expect(response.headers["content-type"]).to.include("application/json");
+        console.log(response.body);
+        globalState.set("paymentID", paymentIntentID);
+        if (response.body.capture_method === "automatic") {
+            if (response.body.authentication_type === "three_ds") {
+                expect(response.body).to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
+            }
+        }
+    });
+});
+
+
+  Cypress.Commands.add("handlePaypalRedirection", (globalState, expected_redirection) => {
+    let expected_url = new URL(expected_redirection);
+    let redirection_url = new URL(globalState.get("nextActionUrl"));
+  
+    // Visit the redirection URL
+    cy.visit(redirection_url.href, { failOnStatusCode: false });
+  
+    // Check if the connector is PayPal
+    if (globalState.get("connectorId") === "paypal") {
+      // If connector is PayPal, perform PayPal interaction
+      cy.get('body').within(() => {
+        cy.get('#email').click().type("sb-rxfpa21951657@personal.example.com");
+        cy.get('#btnNext').click();
+        cy.get('input[type="password"]').type("dwW]2j@M");
+        cy.get('#btnLogin').click();
+        cy.visit('https://www.sandbox.paypal.com', () => {
+          cy.get('#payment-submit-btn').click();
+        });
+      });
+    }
+  
+    // Handling redirection
+    if (redirection_url.host.endsWith(expected_url.host)) {
+      // No CORS workaround needed
+      cy.window().its('location.origin').should('eq', expected_url.origin);
+    } else {
+      // Workaround for CORS to allow cross-origin iframe
+      cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin} }, ({expected_url}) => {
+        cy.window().its('location.origin').should('eq', expected_url);
+      });
+    }
+  
+    // Wait for redirection and return to Cypress test page
+    cy.url().should('eq', Cypress.config().baseUrl);
+  });
+
+  Cypress.Commands.add("handleGpayRedirection", () => {
+    cy.visit('https://hyperswitch-demo-store.netlify.app/?isTestingMode=true');
+    
+    cy.get('body').within(() => {
+      cy.get('button').contains('Update API Keys').click();
+      cy.get('select').should('be.visible').and('be.enabled');
+      cy.get('option').should('have.length.above', 0);
+      cy.get('select').select('merchant_1707300224 (sandbox)').should('have.value', 'merchant_1707300224');
+      cy.get('button').contains('Done').click();
+      cy.get('button').contains('Change/Edit Values').click();
+     cy.get('button').contains('text').click();
+    cy.wait(3000);
+      //Modify the text content of the span element
+    cy.get('span.ͼr').contains('hyperswitch_sdk_demo_id').scrollIntoView().should('be.visible')
+  .then(span => {
+   const modifiedText = span.text().replace('hyperswitch_sdk_demo_id', 'cypress_customer');
+   span.text(modifiedText);
+   cy.wait(10000);
+   cy.get('button').contains('Done').click();
+  })
+  })
+  });
