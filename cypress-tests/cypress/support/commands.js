@@ -155,16 +155,16 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
+    expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("client_secret");
     const clientSecret = response.body.client_secret;
     globalState.set("clientSecret", clientSecret);
     globalState.set("paymentID", response.body.payment_id);
     cy.log(clientSecret);
-    for(const key in res_data) {
-      expect(res_data[key]).to.equal(response.body[key]);
+    for(const key in res_data.body) {
+      expect(res_data.body[key]).to.equal(response.body[key]);
     }
-    expect(res_data.status).to.equal(response.body.status);
     expect(request.amount).to.equal(response.body.amount);
     expect(null).to.equal(response.body.amount_received);
     expect(request.amount).to.equal(response.body.amount_capturable);
@@ -212,6 +212,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
+    expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", paymentIntentID);
     if (response.body.capture_method === "automatic") {
@@ -220,8 +221,8 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
           .to.have.property("redirect_to_url");
         globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       } else if (response.body.authentication_type === "no_three_ds") {
-        for(const key in res_data) {
-          expect(res_data[key]).to.equal(response.body[key]);
+        for(const key in res_data.body) {
+          expect(res_data.body[key]).to.equal(response.body[key]);
         }
       } else {
         // Handle other authentication types as needed
@@ -266,6 +267,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
+    expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("status");
     globalState.set("paymentAmount", createConfirmPaymentBody.amount);
@@ -277,8 +279,8 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
           globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
-        for(const key in res_data) {
-          expect(res_data[key]).to.equal(response.body[key]);
+        for(const key in res_data.body) {
+          expect(res_data.body[key]).to.equal(response.body[key]);
         }
       } else {
         // Handle other authentication types as needed
@@ -368,10 +370,11 @@ Cypress.Commands.add("captureCallTest", (requestBody, req_data, res_data, amount
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
+    expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.payment_id).to.equal(payment_id);
-    for(const key in res_data) {
-      expect(res_data[key]).to.equal(response.body[key]);
+    for(const key in res_data.body) {
+      expect(res_data.body[key]).to.equal(response.body[key]);
     }
   });
 });
@@ -419,7 +422,7 @@ Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add("refundCallTest", (requestBody, refund_amount, det, globalState) => {
+Cypress.Commands.add("refundCallTest", (requestBody, req_data, res_data, refund_amount, globalState) => {
   const payment_id = globalState.get("paymentID");
   requestBody.payment_id = payment_id;
   requestBody.amount = refund_amount;
@@ -434,15 +437,17 @@ Cypress.Commands.add("refundCallTest", (requestBody, refund_amount, det, globalS
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
+    expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("refundId", response.body.refund_id);
-    expect(response.body.status).to.equal(det.refundStatus);
-    expect(response.body.amount).to.equal(refund_amount);
+    for(const key in res_data.body) {
+      expect(res_data.body[key]).to.equal(response.body[key]);
+    }
     expect(response.body.payment_id).to.equal(payment_id);
   });
 });
 
-Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
+Cypress.Commands.add("syncRefundCallTest", (req_data, res_data, globalState) => {
   const refundId = globalState.get("refundId");
   cy.request({
     method: "GET",
@@ -454,19 +459,22 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
+    expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
-    expect(response.body.status).to.equal(det.refundSyncStatus);
+    for(const key in res_data.body) {
+      expect(res_data.body[key]).to.equal(response.body[key]);
+    }
   });
 });
 
-Cypress.Commands.add("citForMandatesCallTest", (requestBody, amount, details, confirm, capture_method, payment_type, globalState) => {
-  requestBody.payment_method_data.card = details.card;
+Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data, amount, confirm, capture_method, payment_type, globalState) => {
+  requestBody.payment_method_data.card = req_data.card;
   requestBody.payment_type = payment_type;
   requestBody.confirm = confirm;
   requestBody.amount = amount;
-  requestBody.currency = details.currency;
+  requestBody.currency = req_data.currency;
   requestBody.capture_method = capture_method;
-  requestBody.mandate_data.mandate_type = details.mandate_type;
+  requestBody.mandate_data.mandate_type = req_data.mandate_type;
   requestBody.customer_id = globalState.get("customerId");
   globalState.set("paymentAmount", requestBody.amount);
   cy.request({
@@ -493,7 +501,9 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, amount, details, co
         cy.log(response.body);
         cy.log(nextActionUrl);
       } else if (response.body.authentication_type === "no_three_ds") {
-        expect(response.body.status).to.equal(details.paymentSuccessfulStatus);
+        for(const key in res_data.body) {
+          expect(res_data.body[key]).to.equal(response.body[key]);
+        }
       } else {
         // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);

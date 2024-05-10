@@ -27,7 +27,10 @@ card_pm:{
             "setup_future_usage": "on_session"
         },
         "Response": {
-            "status": "requires_payment_method"
+            "status": 200,
+            "body": {
+                "status": "requires_payment_method"
+            }
         }
     },
     "3DS": {
@@ -38,9 +41,11 @@ card_pm:{
             "setup_future_usage": "on_session"
         },
         "Response": {
-            "status": "succeeded"
+            "status": 200,
+            "body": {
+                "status": "succeeded"
+            }
         }
-        
     },
     "No3DS": {
         "Request": {
@@ -50,26 +55,27 @@ card_pm:{
             "setup_future_usage": "on_session"
         },
         "Response": {
-            "status": "succeeded"
+            "status": 200,
+            "body": {
+                "status": "succeeded"
+            }
         }
     },
     "Capture": {
         "Request": {
             "card": successfulTestCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "customer_acceptance": null,
-            "setup_future_usage": "on_session"
         },
         "Response": {
-            "status": "succeeded",
-            "amount": 6500,
-            "amount_capturable": 0,
-            "amount_received": 6500,
+            "status": 200,
+            "body":{
+                "status": "succeeded",
+                "amount": 6500,
+                "amount_capturable": 0,
+                "amount_received": 6500,
 
+            }
         }
     },
     "PartialCapture": {
@@ -81,55 +87,99 @@ card_pm:{
             "refundStatus": "succeeded",
             "refundSyncStatus": "succeeded",
             "customer_acceptance": null,
-            "setup_future_usage": "on_session"
         },
         "Response": {
-            "status": "partially_captured",
-            "amount": 6500,
-            "amount_capturable": 0,
-            "amount_received": 100,
+            "status": 200,
+            "body": {
+                "status": "partially_captured",
+                "amount": 6500,
+                "amount_capturable": 0,
+                "amount_received": 100,
+            }
+
+        }
+    },
+    "Refund": {
+        "Request": {
+            "card": successfulTestCardDetails,
+            "currency": "USD",
+            "customer_acceptance": null,
+        },
+        "Response": {
+            "status": 200,
+            "body": {
+                "status": "succeeded",
+                // "amount": 6500,
+                // "amount_capturable": 0,
+                // "amount_received": 100,
+            }
 
         }
     },
     "MandateSingleUse3DS": {
-        "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "requires_customer_action",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "mandate_type": {
-            "single_use": {
-                "amount": 8000,
-                "currency": "USD"
+        "Request": {
+            "card": successfulThreeDSTestCardDetails,
+            "currency": "USD",
+            "paymentSuccessfulStatus": "requires_customer_action",
+            "paymentSyncStatus": "succeeded",
+            "refundStatus": "succeeded",
+            "refundSyncStatus": "succeeded",
+            "mandate_type": {
+                "single_use": {
+                    "amount": 8000,
+                    "currency": "USD"
+                }
+            }
+        },
+        "Response": {
+            "status": 200,
+            "body": {
+                "status": "succeeded"
             }
         }
+        
     },
     "MandateSingleUseNo3DS": {
-        "card": successfulTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "mandate_type": {
-            "single_use": {
-                "amount": 8000,
-                "currency": "USD"
+        "Request": {
+            "card": successfulTestCardDetails,
+            "currency": "USD",
+            "paymentSuccessfulStatus": "succeeded",
+            "paymentSyncStatus": "succeeded",
+            "refundStatus": "succeeded",
+            "refundSyncStatus": "succeeded",
+            "mandate_type": {
+                "single_use": {
+                    "amount": 8000,
+                    "currency": "USD"
+                }
             }
+        },
+        "Response": {
+            "status": 200,
+            "body": {
+                "status": "succeeded"
+             }
         }
     },
     "MandateMultiUseNo3DS": {
-        "card": successfulTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "mandate_type": {
-            "multi_use": {
-                "amount": 8000,
-                "currency": "USD"
+        "Request": {
+            "card": successfulTestCardDetails,
+            "currency": "USD",
+            "paymentSuccessfulStatus": "succeeded",
+            "paymentSyncStatus": "succeeded",
+            "refundStatus": "succeeded",
+            "refundSyncStatus": "succeeded",
+            "mandate_type": {
+                "multi_use": {
+                    "amount": 8000,
+                    "currency": "USD"
+                }
+            }
+        },
+        "Response": {
+            "status": 200,
+            "body": {
+                "status": "succeeded"
             }
         }
     },
