@@ -288,14 +288,18 @@ impl
                     )?),
                 }))
             }
-            domain::BankRedirectData::Trustly { country } => {
+            domain::BankRedirectData::Trustly {} => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Trustly,
                     bank_account_country: None,
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
-                    billing_country: Some(country.to_owned()),
+                    billing_country: Some(item.router_data.get_optional_billing_country().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing.country",
+                        },
+                    )?),
                     merchant_customer_id: Some(Secret::new(item.router_data.get_customer_id()?)),
                     merchant_transaction_id: Some(Secret::new(
                         item.router_data.connector_request_reference_id.clone(),

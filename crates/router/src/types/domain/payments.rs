@@ -283,9 +283,7 @@ pub enum BankRedirectData {
     Sofort {
         preferred_language: Option<String>,
     },
-    Trustly {
-        country: common_enums::CountryAlpha2,
-    },
+    Trustly {},
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
     },
@@ -794,21 +792,16 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => {
                 Self::OnlineBankingSlovakia { issuer }
             }
-            api_models::payments::BankRedirectData::OpenBankingUk { issuer, country } => {
+            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => {
                 Self::OpenBankingUk { issuer }
             }
-            api_models::payments::BankRedirectData::Przelewy24 {
-                bank_name,
-                billing_details,
-            } => Self::Przelewy24 { bank_name },
-            api_models::payments::BankRedirectData::Sofort {
-                billing_details,
-                country,
-                preferred_language,
-            } => Self::Sofort { preferred_language },
-            api_models::payments::BankRedirectData::Trustly { country } => {
-                Self::Trustly { country }
+            api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. } => {
+                Self::Przelewy24 { bank_name }
             }
+            api_models::payments::BankRedirectData::Sofort {
+                preferred_language, ..
+            } => Self::Sofort { preferred_language },
+            api_models::payments::BankRedirectData::Trustly { .. } => Self::Trustly {},
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
