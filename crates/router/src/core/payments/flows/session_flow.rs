@@ -11,7 +11,7 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     headers, logger,
-    routes::{self, metrics},
+    routes::{self, app::settings, metrics},
     services,
     types::{
         self,
@@ -90,40 +90,34 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 }
 
 fn is_dynamic_fields_required(
-    state: &routes::AppState,
+    required_fields: &settings::RequiredFields,
     payment_method: enums::PaymentMethod,
     payment_method_type: enums::PaymentMethodType,
     connector: &types::Connector,
     required_field_type: Vec<enums::FieldType>,
-) -> Option<bool> {
-    state
-        .conf
-        .required_fields
+) -> bool {
+    required_fields
         .0
         .get(&payment_method)
-        .and_then(|pm_type| {
-            pm_type
-                .0
-                .get(&payment_method_type)
-                .and_then(|required_fields_for_connector| {
-                    required_fields_for_connector.fields.get(connector).map(
-                        |required_fields_final| {
-                            required_fields_final
-                                .non_mandate
-                                .iter()
-                                .any(|(_, val)| required_field_type.contains(&val.field_type))
-                                || required_fields_final
-                                    .mandate
-                                    .iter()
-                                    .any(|(_, val)| required_field_type.contains(&val.field_type))
-                                || required_fields_final
-                                    .common
-                                    .iter()
-                                    .any(|(_, val)| required_field_type.contains(&val.field_type))
-                        },
-                    )
-                })
+        .and_then(|pm_type| pm_type.0.get(&payment_method_type))
+        .and_then(|required_fields_for_connector| {
+            required_fields_for_connector.fields.get(connector)
         })
+        .map(|required_fields_final| {
+            required_fields_final
+                .non_mandate
+                .iter()
+                .any(|(_, val)| required_field_type.contains(&val.field_type))
+                || required_fields_final
+                    .mandate
+                    .iter()
+                    .any(|(_, val)| required_field_type.contains(&val.field_type))
+                || required_fields_final
+                    .common
+                    .iter()
+                    .any(|(_, val)| required_field_type.contains(&val.field_type))
+        })
+        .unwrap_or(false)
 }
 
 fn get_applepay_metadata(
@@ -298,20 +292,17 @@ async fn create_applepay_session_token(
 
         let billing_variants = enums::FieldType::get_billing_variants();
 
-        let required_billing_contact_fields = is_dynamic_fields_required(
-            state,
+        let required_billing_contact_fields = if is_dynamic_fields_required(
+            &state.conf.required_fields,
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
             &connector.connector_name,
             billing_variants,
-        )
-        .and_then(|is_dynamic_fields_required| {
-            if is_dynamic_fields_required {
-                Some(vec!["postalAddress".to_string()])
-            } else {
-                None
-            }
-        });
+        ) {
+            Some(vec!["postalAddress".to_string()])
+        } else {
+            None
+        };
 
         let required_shipping_contact_fields =
             if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
@@ -542,6 +533,47 @@ fn create_gpay_session_token(
                 expected_format: "gpay_metadata_format".to_string(),
             })?;
 
+        let billing_variants = enums::FieldType::get_billing_variants();
+
+        let is_billing_details_required = is_dynamic_fields_required(
+            &state.conf.required_fields,
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            &connector.connector_name,
+            billing_variants,
+        );
+
+        let billing_address_parameters = if is_billing_details_required {
+            Some(payment_types::GpayBillingAddressParameters {
+                phone_number_required: is_billing_details_required,
+                format: "FULL".to_string(),
+            })
+        } else {
+            None
+        };
+
+        let gpay_allowed_payment_methods = gpay_data
+            .data
+            .allowed_payment_methods
+            .into_iter()
+            .map(
+                |allowed_payment_methods| payment_types::GpayAllowedPaymentMethods {
+                    payment_method_type: allowed_payment_methods.payment_method_type,
+                    parameters: payment_types::GpayAllowedMethodsParameters {
+                        allowed_auth_methods: allowed_payment_methods
+                            .parameters
+                            .allowed_auth_methods,
+                        allowed_card_networks: allowed_payment_methods
+                            .parameters
+                            .allowed_card_networks,
+                        billing_address_required: Some(is_billing_details_required),
+                        billing_address_parameters: billing_address_parameters.clone(),
+                    },
+                    tokenization_specification: allowed_payment_methods.tokenization_specification,
+                },
+            )
+            .collect();
+
         let session_data = router_data.request.clone();
         let transaction_info = payment_types::GpayTransactionInfo {
             country_code: session_data.country.unwrap_or_default(),
@@ -580,7 +612,7 @@ fn create_gpay_session_token(
                     payment_types::GpaySessionTokenResponse::GooglePaySession(
                         payment_types::GooglePaySessionResponse {
                             merchant_info: gpay_data.data.merchant_info,
-                            allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                            allowed_payment_methods: gpay_allowed_payment_methods,
                             transaction_info,
                             connector: connector.connector_name.to_string(),
                             sdk_next_action: payment_types::SdkNextAction {

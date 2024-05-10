@@ -2626,24 +2626,30 @@ where
     S: Serializer,
 {
     if let Some(payment_method_data_response) = payment_method_data_response {
-        match payment_method_data_response.payment_method_data {
-            PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
-            PaymentMethodDataResponse::BankDebit {}
-            | PaymentMethodDataResponse::BankRedirect {}
-            | PaymentMethodDataResponse::Card(_)
-            | PaymentMethodDataResponse::CardRedirect {}
-            | PaymentMethodDataResponse::CardToken {}
-            | PaymentMethodDataResponse::Crypto {}
-            | PaymentMethodDataResponse::MandatePayment {}
-            | PaymentMethodDataResponse::GiftCard {}
-            | PaymentMethodDataResponse::PayLater {}
-            | PaymentMethodDataResponse::Paypal {}
-            | PaymentMethodDataResponse::Upi {}
-            | PaymentMethodDataResponse::Wallet {}
-            | PaymentMethodDataResponse::BankTransfer {}
-            | PaymentMethodDataResponse::Voucher {} => {
-                payment_method_data_response.serialize(serializer)
+        if let Some(payment_method_data) = payment_method_data_response.payment_method_data.as_ref()
+        {
+            match payment_method_data {
+                PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
+                PaymentMethodDataResponse::BankDebit {}
+                | PaymentMethodDataResponse::BankRedirect {}
+                | PaymentMethodDataResponse::Card(_)
+                | PaymentMethodDataResponse::CardRedirect {}
+                | PaymentMethodDataResponse::CardToken {}
+                | PaymentMethodDataResponse::Crypto {}
+                | PaymentMethodDataResponse::MandatePayment {}
+                | PaymentMethodDataResponse::GiftCard {}
+                | PaymentMethodDataResponse::PayLater {}
+                | PaymentMethodDataResponse::Paypal {}
+                | PaymentMethodDataResponse::Upi {}
+                | PaymentMethodDataResponse::Wallet {}
+                | PaymentMethodDataResponse::BankTransfer {}
+                | PaymentMethodDataResponse::Voucher {} => {
+                    payment_method_data_response.serialize(serializer)
+                }
             }
+        } else {
+            // Can serialize directly because there is no `payment_method_data`
+            payment_method_data_response.serialize(serializer)
         }
     } else {
         serializer.serialize_none()
@@ -2675,7 +2681,7 @@ pub enum PaymentMethodDataResponse {
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
     #[serde(flatten)]
-    pub payment_method_data: PaymentMethodDataResponse,
+    pub payment_method_data: Option<PaymentMethodDataResponse>,
     pub billing: Option<Address>,
 }
 
@@ -3853,6 +3859,18 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
+    /// Is billing address required
+    pub billing_address_required: Option<bool>,
+    /// Billing address parameters
+    pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GpayBillingAddressParameters {
+    /// Is billing phone number required
+    pub phone_number_required: bool,
+    /// Billing address format
+    pub format: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4824,6 +4842,68 @@ mod payments_request_api_contract {
                 .payment_method_data,
             Some(PaymentMethodData::Reward)
         );
+    }
+
+    #[test]
+    fn test_payment_method_data_with_payment_method_billing() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method_data": {
+                "billing": {
+                    "address": {
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "city": "San Fransico",
+                        "state": "California",
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "Narayan",
+                        "last_name": "Bhat"
+                    }
+                }
+            }
+        }
+        "#;
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+        assert!(payments_request
+            .unwrap()
+            .payment_method_data
+            .unwrap()
+            .billing
+            .is_some());
+    }
+}
+
+#[cfg(test)]
+mod payments_response_api_contract {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+
+    #[derive(Debug, serde::Serialize)]
+    struct TestPaymentsResponse {
+        #[serde(serialize_with = "serialize_payment_method_data_response")]
+        payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
+    }
+
+    #[test]
+    fn test_reward_payment_response() {
+        let payment_method_response_with_billing = PaymentMethodDataResponseWithBilling {
+            payment_method_data: Some(PaymentMethodDataResponse::Reward {}),
+            billing: None,
+        };
+
+        let payments_response = TestPaymentsResponse {
+            payment_method_data: Some(payment_method_response_with_billing),
+        };
+
+        let expected_response = r#"{"payment_method_data":"reward"}"#;
+
+        let stringified_payments_response = payments_response.encode_to_string_of_json();
+        assert_eq!(stringified_payments_response.unwrap(), expected_response);
     }
 }
 
