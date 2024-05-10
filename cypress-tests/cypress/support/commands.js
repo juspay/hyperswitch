@@ -304,9 +304,9 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
 });
 
 // This is consequent saved card payment confirm call test(Using payment token)
-Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody,det,globalState) => {
+Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, res_data,globalState) => {
   const paymentIntentID = globalState.get("paymentID");
-  SaveCardConfirmBody.card_cvc = det.card_cvc;
+  SaveCardConfirmBody.card_cvc = req_data.card_cvc;
   SaveCardConfirmBody.payment_token = globalState.get("paymentToken");
   SaveCardConfirmBody.client_secret = globalState.get("clientSecret");
   console.log("conf conn ->" + globalState.get("connectorId"));
@@ -330,7 +330,9 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody,det,globalS
             .to.have.property("redirect_to_url");
           const nextActionUrl = response.body.next_action.redirect_to_url;
         } else if (response.body.authentication_type === "no_three_ds") {
-          expect(response.body.status).to.equal(det.paymentSuccessfulStatus);
+          for(const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }
           expect(response.body.customer_id).to.equal(globalState.get("customerId"));
         } else {
           // Handle other authentication types as needed

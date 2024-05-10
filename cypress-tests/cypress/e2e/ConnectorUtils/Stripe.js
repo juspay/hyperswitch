@@ -198,21 +198,29 @@ card_pm:{
         }
     },
     "SaveCardUseNo3DS": {
-        "card": successfulTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "setup_future_usage": "on_session",
-        "customer_acceptance": {
-            "acceptance_type": "offline",
-            "accepted_at": "1963-05-03T04:07:52.723Z",
-            "online": {
-                "ip_address": "127.0.0.1",
-                "user_agent": "amet irure esse"
-            }
+        "Request": {
+            "card": successfulTestCardDetails,
+            "currency": "USD",
+            "paymentSuccessfulStatus": "succeeded",
+            "paymentSyncStatus": "succeeded",
+            "refundStatus": "succeeded",
+            "refundSyncStatus": "succeeded",
+            "setup_future_usage": "on_session",
+            "customer_acceptance": {
+                "acceptance_type": "offline",
+                "accepted_at": "1963-05-03T04:07:52.723Z",
+                "online": {
+                    "ip_address": "127.0.0.1",
+                    "user_agent": "amet irure esse"
+                }
+            },
         },
+        "Response": {
+            "status": 200,
+            "body": {
+                "status": "succeeded"
+            }
+        }
     },
 }
 };

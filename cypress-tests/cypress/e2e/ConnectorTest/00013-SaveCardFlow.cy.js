@@ -25,8 +25,10 @@ describe("Card - SaveCard payment flow test", () => {
       });
   
       it("create+confirm-payment-call-test", () => {
-        let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-        cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"no_three_ds", "automatic", globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.createConfirmPaymentTest( createConfirmPaymentBody, req_data, res_data,"no_three_ds", "automatic", globalState);
       });
   
       it("retrieve-payment-call-test", () => {  
@@ -38,13 +40,17 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-        cy.createPaymentIntentTest( createPaymentBody, det, "no_three_ds", "automatic", globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "no_three_ds", "automatic", globalState);
       });
 
       it ("confirm-save-card-payment-call-test", () => {
-        let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-        cy.saveCardConfirmCallTest(SaveCardConfirmBody,det,globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.saveCardConfirmCallTest(SaveCardConfirmBody, req_data, res_data, globalState);
       });
       
     });
@@ -55,8 +61,10 @@ describe("Card - SaveCard payment flow test", () => {
         });
     
         it("create+confirm-payment-call-test", () => {
-          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"no_three_ds", "automatic", globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createConfirmPaymentTest( createConfirmPaymentBody, req_data, res_data,"no_three_ds", "automatic", globalState);
         });
     
         it("retrieve-payment-call-test", () => {  
@@ -68,19 +76,25 @@ describe("Card - SaveCard payment flow test", () => {
         });
   
         it("create-payment-call-test", () => {
-          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.createPaymentIntentTest( createPaymentBody, det, "no_three_ds", "manual", globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest( createPaymentBody, req_data, res_data, "no_three_ds", "manual", globalState);
         });
 
   
         it ("confirm-save-card-payment-call-test", () => {
-          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.saveCardConfirmCallTest(SaveCardConfirmBody,det,globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.saveCardConfirmCallTest(SaveCardConfirmBody, req_data, res_data, globalState);
         });
         
         it("capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-            cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+            let req_data = data["Request"];
+            let res_data = data["Response"];
+            cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
         });       
 
 
@@ -90,8 +104,10 @@ describe("Card - SaveCard payment flow test", () => {
         });
     
         it("create+confirm-payment-call-test", () => {
-          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"no_three_ds", "automatic", globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createConfirmPaymentTest( createConfirmPaymentBody, req_data, res_data,"no_three_ds", "automatic", globalState);
         });
     
         it("retrieve-payment-call-test", () => {  
@@ -103,19 +119,25 @@ describe("Card - SaveCard payment flow test", () => {
         });
   
         it("create-payment-call-test", () => {
-          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.createPaymentIntentTest( createPaymentBody, det, "no_three_ds", "manual", globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest( createPaymentBody, req_data, res_data, "no_three_ds", "manual", globalState);
         });
 
   
         it ("confirm-save-card-payment-call-test", () => {
-          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.saveCardConfirmCallTest(SaveCardConfirmBody,det,globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.saveCardConfirmCallTest(SaveCardConfirmBody,req_data, res_data,globalState);
         });
         
         it("capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-            cy.captureCallTest(captureBody, 5500, det.paymentSuccessfulStatus, globalState);
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
+            let req_data = data["Request"];
+            let res_data = data["Response"];
+            cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
         });            
       });
     });
