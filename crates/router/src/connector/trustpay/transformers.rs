@@ -1327,6 +1327,8 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
         Self {
             allowed_auth_methods: value.allowed_auth_methods,
             allowed_card_networks: value.allowed_card_networks,
+            billing_address_required: None,
+            billing_address_parameters: None,
         }
     }
 }

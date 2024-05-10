@@ -9051,58 +9051,6 @@
           {
             "type": "string",
             "enum": [
-              "user_address_line1"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_address_line2"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_address_city"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_address_pincode"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_address_state"
-            ]
-          },
-          {
-            "type": "object",
-            "required": [
-              "user_address_country"
-            ],
-            "properties": {
-              "user_address_country": {
-                "type": "object",
-                "required": [
-                  "options"
-                ],
-                "properties": {
-                  "options": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          {
-            "type": "string",
-            "enum": [
               "user_blik_code"
             ]
           },
@@ -9451,6 +9399,19 @@
               "type": "string"
             },
             "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
+          },
+          "billing_address_required": {
+            "type": "boolean",
+            "description": "Is billing address required",
+            "nullable": true
+          },
+          "billing_address_parameters": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayBillingAddressParameters"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9471,6 +9432,23 @@
           },
           "tokenization_specification": {
             "$ref": "#/components/schemas/GpayTokenizationSpecification"
+          }
+        }
+      },
+      "GpayBillingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required",
+          "format"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is billing phone number required"
+          },
+          "format": {
+            "type": "string",
+            "description": "Billing address format"
           }
         }
       },

@@ -3853,6 +3853,18 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
+    /// Is billing address required
+    pub billing_address_required: Option<bool>,
+    /// Billing address parameters
+    pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GpayBillingAddressParameters {
+    /// Is billing phone number required
+    pub phone_number_required: bool,
+    /// Billing address format
+    pub format: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
