@@ -8,7 +8,7 @@
       "_comment": "these details are fetched from utils",
       "card_number": "YourCardNumberHere",
       "card_exp_month": "04",
-      "card_exp_year": "30",
+      "card_exp_year": "24",
       "card_holder_name": "xyz",
       "card_cvc": "424",
       "card_issuer": "",
