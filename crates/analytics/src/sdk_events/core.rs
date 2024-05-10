@@ -106,6 +106,9 @@ pub async fn get_metrics(
                     SdkEventMetrics::AveragePaymentTime => metrics_builder
                         .average_payment_time
                         .add_metrics_bucket(&value),
+                    SdkEventMetrics::LoadTime => {
+                        metrics_builder.load_time.add_metrics_bucket(&value)
+                    }
                     SdkEventMetrics::ThreeDsMethodInvokedCount => metrics_builder
                         .three_ds_method_invoked_count
                         .add_metrics_bucket(&value),

@@ -15,10 +15,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct AveragePaymentTime;
+pub(super) struct LoadTime;
 
 #[async_trait::async_trait]
-impl<T> super::SdkEventMetric<T> for AveragePaymentTime
+impl<T> super::SdkEventMetric<T> for LoadTime
 where
     T: AnalyticsDataSource + super::SdkEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -68,7 +68,7 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::PaymentAttempt)
+            .add_filter_clause("event_name", SdkEventNames::AppRendered)
             .switch()?;
 
         query_builder
