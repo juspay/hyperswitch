@@ -682,7 +682,7 @@ impl PaymentsRequest {
             .as_ref()
             .map(|od| {
                 od.iter()
-                    .map(|order| order.encode_to_value().map(masking::Secret::new))
+                    .map(|order| order.encode_to_value().map(Secret::new))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -916,6 +916,63 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ExtendedCardInfo {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub card_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Secret<String>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+}
+
+impl From<Card> for ExtendedCardInfo {
+    fn from(value: Card) -> Self {
+        Self {
+            card_number: value.card_number,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
+            card_cvc: value.card_cvc,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
+        }
+    }
+}
+
 impl GetAddressFromPaymentMethodData for Card {
     fn get_billing_address(&self) -> Option<Address> {
         // Create billing address if first_name is some or if it is not ""
@@ -1011,11 +1068,11 @@ pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
     KlarnaRedirect {
         /// The billing email
-        #[schema(value_type = String)]
-        billing_email: Email,
+        #[schema(value_type = Option<String>)]
+        billing_email: Option<Email>,
         // The billing country code
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        billing_country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        billing_country: Option<api_enums::CountryAlpha2>,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
@@ -1027,11 +1084,11 @@ pub enum PayLaterData {
     /// For AfterpayClearpay redirect as PayLater Option
     AfterpayClearpayRedirect {
         /// The billing email
-        #[schema(value_type = String)]
-        billing_email: Email,
+        #[schema(value_type = Option<String>)]
+        billing_email: Option<Email>,
         /// The billing name
-        #[schema(value_type = String)]
-        billing_name: Secret<String>,
+        #[schema(value_type = Option<String>)]
+        billing_name: Option<Secret<String>>,
     },
     /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
@@ -1050,13 +1107,13 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                 billing_country,
             } => {
                 let address_details = AddressDetails {
-                    country: Some(*billing_country),
+                    country: *billing_country,
                     ..AddressDetails::default()
                 };
 
                 Some(Address {
                     address: Some(address_details),
-                    email: Some(billing_email.clone()),
+                    email: billing_email.clone(),
                     phone: None,
                 })
             }
@@ -1065,13 +1122,13 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                 billing_name,
             } => {
                 let address_details = AddressDetails {
-                    first_name: Some(billing_name.clone()),
+                    first_name: billing_name.clone(),
                     ..AddressDetails::default()
                 };
 
                 Some(Address {
                     address: Some(address_details),
-                    email: Some(billing_email.clone()),
+                    email: billing_email.clone(),
                     phone: None,
                 })
             }
@@ -1091,7 +1148,7 @@ pub enum BankDebitData {
     /// Payment Method data for Ach bank debit
     AchBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for ach bank debit payment
         #[schema(value_type = String, example = "000123456789")]
         account_number: Secret<String>,
@@ -1116,7 +1173,7 @@ pub enum BankDebitData {
     },
     SepaBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// International bank account number (iban) for SEPA
         #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
@@ -1126,7 +1183,7 @@ pub enum BankDebitData {
     },
     BecsBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for Becs payment method
         #[schema(value_type = String, example = "000123456")]
         account_number: Secret<String>,
@@ -1139,7 +1196,7 @@ pub enum BankDebitData {
     },
     BacsBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for Bacs payment method
         #[schema(value_type = String, example = "00012345")]
         account_number: Secret<String>,
@@ -1155,11 +1212,12 @@ pub enum BankDebitData {
 impl GetAddressFromPaymentMethodData for BankDebitData {
     fn get_billing_address(&self) -> Option<Address> {
         fn get_billing_address_inner(
-            bank_debit_billing: &BankDebitBilling,
+            bank_debit_billing: Option<&BankDebitBilling>,
             bank_account_holder_name: Option<&Secret<String>>,
         ) -> Option<Address> {
             // We will always have address here
-            let mut address = bank_debit_billing.get_billing_address()?;
+            let mut address = bank_debit_billing
+                .and_then(GetAddressFromPaymentMethodData::get_billing_address)?;
 
             // Prefer `account_holder_name` over `name`
             address.address.as_mut().map(|address| {
@@ -1191,7 +1249,10 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 billing_details,
                 bank_account_holder_name,
                 ..
-            } => get_billing_address_inner(billing_details, bank_account_holder_name.as_ref()),
+            } => get_billing_address_inner(
+                billing_details.as_ref(),
+                bank_account_holder_name.as_ref(),
+            ),
         }
     }
 }
@@ -1236,24 +1297,61 @@ mod payment_method_data_serde {
             OptionalPaymentMethod(serde_json::Value),
         }
 
+        // This struct is an intermediate representation
+        // This is required in order to catch deserialization errors when deserializing `payment_method_data`
+        // The #[serde(flatten)] attribute applied on `payment_method_data` discards
+        // any of the error when deserializing and deserializes to an option instead
+        #[derive(serde::Deserialize, Debug)]
+        struct __InnerPaymentMethodData {
+            billing: Option<Address>,
+            #[serde(flatten)]
+            payment_method_data: Option<serde_json::Value>,
+        }
+
         let deserialize_to_inner = __Inner::deserialize(deserializer)?;
+
         match deserialize_to_inner {
             __Inner::OptionalPaymentMethod(value) => {
-                let parsed_value = serde_json::from_value::<PaymentMethodDataRequest>(value)
-                    .map_err(|serde_json_error| {
-                        serde::de::Error::custom(serde_json_error.to_string())
-                    })?;
+                let parsed_value = serde_json::from_value::<__InnerPaymentMethodData>(value)
+                    .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
 
-                Ok(Some(parsed_value))
-            }
-            __Inner::RewardString(inner_string) => {
-                let payment_method_data = match inner_string.as_str() {
-                    "reward" => PaymentMethodData::Reward,
-                    _ => Err(serde::de::Error::custom("Invalid Variant"))?,
+                let payment_method_data = if let Some(payment_method_data_value) =
+                    parsed_value.payment_method_data
+                {
+                    // Even though no data is passed, the flatten serde_json::Value is deserialized as Some(Object {})
+                    if let serde_json::Value::Object(ref inner_map) = payment_method_data_value {
+                        if inner_map.is_empty() {
+                            None
+                        } else {
+                            Some(
+                                serde_json::from_value::<PaymentMethodData>(
+                                    payment_method_data_value,
+                                )
+                                .map_err(|serde_json_error| {
+                                    de::Error::custom(serde_json_error.to_string())
+                                })?,
+                            )
+                        }
+                    } else {
+                        Err(de::Error::custom("Expected a map for payment_method_data"))?
+                    }
+                } else {
+                    None
                 };
 
                 Ok(Some(PaymentMethodDataRequest {
                     payment_method_data,
+                    billing: parsed_value.billing,
+                }))
+            }
+            __Inner::RewardString(inner_string) => {
+                let payment_method_data = match inner_string.as_str() {
+                    "reward" => PaymentMethodData::Reward,
+                    _ => Err(de::Error::custom("Invalid Variant"))?,
+                };
+
+                Ok(Some(PaymentMethodDataRequest {
+                    payment_method_data: Some(payment_method_data),
                     billing: None,
                 }))
             }
@@ -1268,21 +1366,29 @@ mod payment_method_data_serde {
         S: Serializer,
     {
         if let Some(payment_method_data_request) = payment_method_data_request {
-            match payment_method_data_request.payment_method_data {
-                PaymentMethodData::Reward => serializer.serialize_str("reward"),
-                PaymentMethodData::CardRedirect(_)
-                | PaymentMethodData::BankDebit(_)
-                | PaymentMethodData::BankRedirect(_)
-                | PaymentMethodData::BankTransfer(_)
-                | PaymentMethodData::CardToken(_)
-                | PaymentMethodData::Crypto(_)
-                | PaymentMethodData::GiftCard(_)
-                | PaymentMethodData::PayLater(_)
-                | PaymentMethodData::Upi(_)
-                | PaymentMethodData::Voucher(_)
-                | PaymentMethodData::Card(_)
-                | PaymentMethodData::MandatePayment
-                | PaymentMethodData::Wallet(_) => payment_method_data_request.serialize(serializer),
+            if let Some(payment_method_data) =
+                payment_method_data_request.payment_method_data.as_ref()
+            {
+                match payment_method_data {
+                    PaymentMethodData::Reward => serializer.serialize_str("reward"),
+                    PaymentMethodData::CardRedirect(_)
+                    | PaymentMethodData::BankDebit(_)
+                    | PaymentMethodData::BankRedirect(_)
+                    | PaymentMethodData::BankTransfer(_)
+                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::Crypto(_)
+                    | PaymentMethodData::GiftCard(_)
+                    | PaymentMethodData::PayLater(_)
+                    | PaymentMethodData::Upi(_)
+                    | PaymentMethodData::Voucher(_)
+                    | PaymentMethodData::Card(_)
+                    | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::Wallet(_) => {
+                        payment_method_data_request.serialize(serializer)
+                    }
+                }
+            } else {
+                payment_method_data_request.serialize(serializer)
             }
         } else {
             serializer.serialize_none()
@@ -1293,7 +1399,7 @@ mod payment_method_data_serde {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct PaymentMethodDataRequest {
     #[serde(flatten)]
-    pub payment_method_data: PaymentMethodData,
+    pub payment_method_data: Option<PaymentMethodData>,
     /// billing details for the payment method.
     /// This billing details will be passed to the processor as billing address.
     /// If not passed, then payment.billing will be considered
@@ -1342,12 +1448,12 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
         match self {
             Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
-            Self::Wallet(_) => None,
-            Self::PayLater(_) => None,
+            Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
+            Self::PayLater(pay_later) => pay_later.get_billing_address(),
             Self::BankRedirect(_) => None,
-            Self::BankDebit(_) => None,
+            Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
             Self::BankTransfer(_) => None,
-            Self::Voucher(_) => None,
+            Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
             | Self::Upi(_)
@@ -1898,79 +2004,79 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name Japanese convenience stores
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Japanese convenience stores
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
     /// The telephone number for Japanese convenience stores
-    #[schema(value_type = String, example = "9999999999")]
-    pub phone_number: String,
+    #[schema(value_type = Option<String>, example = "9999999999")]
+    pub phone_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct DokuBillingDetails {
     /// The billing first name for Doku
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Doku
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Doku billing
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MultibancoBillingDetails {
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
     /// The billing name for SEPA and BACS billing
-    #[schema(value_type = String, example = "Jane Doe")]
-    pub name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane Doe")]
+    pub name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2030,51 +2136,51 @@ impl GetAddressFromPaymentMethodData for BankRedirectBilling {
 pub enum BankTransferData {
     AchBankTransfer {
         /// The billing details for ACH Bank Transfer
-        billing_details: AchBillingDetails,
+        billing_details: Option<AchBillingDetails>,
     },
     SepaBankTransfer {
         /// The billing details for SEPA
-        billing_details: SepaAndBacsBillingDetails,
+        billing_details: Option<SepaAndBacsBillingDetails>,
 
         /// The two-letter ISO country code for SEPA and BACS
         #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        country: Option<api_enums::CountryAlpha2>,
     },
     BacsBankTransfer {
         /// The billing details for SEPA
-        billing_details: SepaAndBacsBillingDetails,
+        billing_details: Option<SepaAndBacsBillingDetails>,
     },
     MultibancoBankTransfer {
         /// The billing details for Multibanco
-        billing_details: MultibancoBillingDetails,
+        billing_details: Option<MultibancoBillingDetails>,
     },
     PermataBankTransfer {
         /// The billing details for Permata Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     BcaBankTransfer {
         /// The billing details for BCA Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     BniVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     BriVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     CimbVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     DanamonVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     MandiriVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     Pix {},
     Pse {},
@@ -2086,51 +2192,59 @@ pub enum BankTransferData {
 impl GetAddressFromPaymentMethodData for BankTransferData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::AchBankTransfer { billing_details } => Some(Address {
-                address: None,
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
+            Self::AchBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: None,
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
             Self::SepaBankTransfer {
                 billing_details,
                 country,
-            } => Some(Address {
+            } => billing_details.as_ref().map(|details| Address {
                 address: Some(AddressDetails {
-                    country: Some(*country),
-                    first_name: Some(billing_details.name.clone()),
+                    country: *country,
+                    first_name: details.name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(billing_details.email.clone()),
+                email: details.email.clone(),
             }),
-            Self::BacsBankTransfer { billing_details } => Some(Address {
-                address: Some(AddressDetails {
-                    first_name: Some(billing_details.name.clone()),
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
-            Self::MultibancoBankTransfer { billing_details } => Some(Address {
-                address: None,
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
+            Self::BacsBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: Some(AddressDetails {
+                        first_name: details.name.clone(),
+                        ..AddressDetails::default()
+                    }),
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
+            Self::MultibancoBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: None,
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
             Self::PermataBankTransfer { billing_details }
             | Self::BcaBankTransfer { billing_details }
             | Self::BniVaBankTransfer { billing_details }
             | Self::BriVaBankTransfer { billing_details }
             | Self::CimbVaBankTransfer { billing_details }
             | Self::DanamonVaBankTransfer { billing_details }
-            | Self::MandiriVaBankTransfer { billing_details } => Some(Address {
-                address: Some(AddressDetails {
-                    first_name: Some(billing_details.first_name.clone()),
-                    last_name: billing_details.last_name.clone(),
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
+            | Self::MandiriVaBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: Some(AddressDetails {
+                        first_name: details.first_name.clone(),
+                        last_name: details.last_name.clone(),
+                        ..AddressDetails::default()
+                    }),
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
             Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
         }
     }
@@ -2139,11 +2253,11 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 pub struct BankDebitBilling {
     /// The billing name for bank debits
-    #[schema(value_type = String, example = "John Doe")]
-    pub name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub name: Option<Secret<String>>,
     /// The billing email for bank debits
-    #[schema(value_type = String, example = "example@example.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@example.com")]
+    pub email: Option<Email>,
     /// The billing address for bank debits
     pub address: Option<AddressDetails>,
 }
@@ -2151,19 +2265,19 @@ pub struct BankDebitBilling {
 impl GetAddressFromPaymentMethodData for BankDebitBilling {
     fn get_billing_address(&self) -> Option<Address> {
         let address = if let Some(mut address) = self.address.clone() {
-            address.first_name = Some(self.name.clone());
+            address.first_name = self.name.clone().or(address.first_name);
             Address {
                 address: Some(address),
-                email: Some(self.email.clone()),
+                email: self.email.clone(),
                 phone: None,
             }
         } else {
             Address {
                 address: Some(AddressDetails {
-                    first_name: Some(self.name.clone()),
+                    first_name: self.name.clone(),
                     ..AddressDetails::default()
                 }),
-                email: Some(self.email.clone()),
+                email: self.email.clone(),
                 phone: None,
             }
         };
@@ -2235,7 +2349,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
                 let phone = PhoneDetails {
                     // Portuguese country code, this payment method is applicable only in portugal
                     country_code: Some("+351".into()),
-                    number: Some(mb_way_redirect.telephone_number.clone()),
+                    number: mb_way_redirect.telephone_number.clone(),
                 };
 
                 Some(Address {
@@ -2360,7 +2474,7 @@ pub struct MobilePayRedirection {}
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
     #[schema(value_type = String)]
-    pub telephone_number: Secret<String>,
+    pub telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2468,21 +2582,21 @@ impl GetAddressFromPaymentMethodData for VoucherData {
         match self {
             Self::Alfamart(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Indomaret(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Lawson(voucher_data)
             | Self::MiniStop(voucher_data)
@@ -2491,15 +2605,15 @@ impl GetAddressFromPaymentMethodData for VoucherData {
             | Self::PayEasy(voucher_data)
             | Self::SevenEleven(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: Some(PhoneDetails {
-                    number: Some(voucher_data.phone_number.clone().into()),
+                    number: voucher_data.phone_number.clone().map(Secret::new),
                     country_code: None,
                 }),
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Boleto(_)
             | Self::Efecty
@@ -2520,24 +2634,30 @@ where
     S: Serializer,
 {
     if let Some(payment_method_data_response) = payment_method_data_response {
-        match payment_method_data_response.payment_method_data {
-            PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
-            PaymentMethodDataResponse::BankDebit {}
-            | PaymentMethodDataResponse::BankRedirect {}
-            | PaymentMethodDataResponse::Card(_)
-            | PaymentMethodDataResponse::CardRedirect {}
-            | PaymentMethodDataResponse::CardToken {}
-            | PaymentMethodDataResponse::Crypto {}
-            | PaymentMethodDataResponse::MandatePayment {}
-            | PaymentMethodDataResponse::GiftCard {}
-            | PaymentMethodDataResponse::PayLater {}
-            | PaymentMethodDataResponse::Paypal {}
-            | PaymentMethodDataResponse::Upi {}
-            | PaymentMethodDataResponse::Wallet {}
-            | PaymentMethodDataResponse::BankTransfer {}
-            | PaymentMethodDataResponse::Voucher {} => {
-                payment_method_data_response.serialize(serializer)
+        if let Some(payment_method_data) = payment_method_data_response.payment_method_data.as_ref()
+        {
+            match payment_method_data {
+                PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
+                PaymentMethodDataResponse::BankDebit {}
+                | PaymentMethodDataResponse::BankRedirect {}
+                | PaymentMethodDataResponse::Card(_)
+                | PaymentMethodDataResponse::CardRedirect {}
+                | PaymentMethodDataResponse::CardToken {}
+                | PaymentMethodDataResponse::Crypto {}
+                | PaymentMethodDataResponse::MandatePayment {}
+                | PaymentMethodDataResponse::GiftCard {}
+                | PaymentMethodDataResponse::PayLater {}
+                | PaymentMethodDataResponse::Paypal {}
+                | PaymentMethodDataResponse::Upi {}
+                | PaymentMethodDataResponse::Wallet {}
+                | PaymentMethodDataResponse::BankTransfer {}
+                | PaymentMethodDataResponse::Voucher {} => {
+                    payment_method_data_response.serialize(serializer)
+                }
             }
+        } else {
+            // Can serialize directly because there is no `payment_method_data`
+            payment_method_data_response.serialize(serializer)
         }
     } else {
         serializer.serialize_none()
@@ -2569,7 +2689,7 @@ pub enum PaymentMethodDataResponse {
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
     #[serde(flatten)]
-    pub payment_method_data: PaymentMethodDataResponse,
+    pub payment_method_data: Option<PaymentMethodDataResponse>,
     pub billing: Option<Address>,
 }
 
@@ -2585,8 +2705,8 @@ pub enum PaymentIdType {
     PreprocessingId(String),
 }
 
-impl std::fmt::Display for PaymentIdType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PaymentIdType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PaymentIntentId(payment_id) => {
                 write!(f, "payment_intent_id = \"{payment_id}\"")
@@ -2825,6 +2945,8 @@ pub struct ThreeDsData {
     pub three_ds_authorize_url: String,
     /// ThreeDS method details
     pub three_ds_method_details: ThreeDsMethodData,
+    /// Poll config for a connector
+    pub poll_config: PollConfigResponse,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -2839,6 +2961,16 @@ pub enum ThreeDsMethodData {
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct PollConfigResponse {
+    /// Poll Id
+    pub poll_id: String,
+    /// Interval of the poll
+    pub delay_in_secs: i8,
+    /// Frequency of the poll
+    pub frequency: i8,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -3394,6 +3526,8 @@ pub struct PaymentListFilterConstraints {
     pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
+    /// The amount to filter payments list
+    pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
@@ -3409,6 +3543,8 @@ pub struct PaymentListFilterConstraints {
     pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
     /// The list of authentication types to filter payments list
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+    /// The list of merchant connector ids to filter payments list for selected label
+    pub merchant_connector_id: Option<Vec<String>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -3438,6 +3574,12 @@ pub struct PaymentListFiltersV2 {
     pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
     /// The list of available authentication types
     pub authentication_type: Vec<enums::AuthenticationType>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmountFilter {
+    pub start_amount: Option<i64>,
+    pub end_amount: Option<i64>,
 }
 
 #[derive(
@@ -3653,6 +3795,8 @@ pub struct OrderDetailsWithAmount {
     pub product_id: Option<String>,
     /// Category of the product that is being purchased
     pub category: Option<String>,
+    /// Sub category of the product that is being purchased
+    pub sub_category: Option<String>,
     /// Brand of the product that is being purchased
     pub brand: Option<String>,
     /// Type of the product that is being purchased
@@ -3687,6 +3831,8 @@ pub struct OrderDetails {
     pub product_id: Option<String>,
     /// Category of the product that is being purchased
     pub category: Option<String>,
+    /// Sub category of the product that is being purchased
+    pub sub_category: Option<String>,
     /// Brand of the product that is being purchased
     pub brand: Option<String>,
     /// Type of the product that is being purchased
@@ -3872,8 +4018,10 @@ pub struct PaymentRequestMetadata {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenInfo {
-    pub certificate: String,
-    pub certificate_keys: String,
+    #[schema(value_type = String)]
+    pub certificate: Secret<String>,
+    #[schema(value_type = String)]
+    pub certificate_keys: Secret<String>,
     pub merchant_identifier: String,
     pub display_name: String,
     pub initiative: String,
@@ -4600,6 +4748,12 @@ pub enum PaymentLinkStatusWrap {
     IntentStatus(api_enums::IntentStatus),
 }
 
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ExtendedCardInfoResponse {
+    // Encrypted customer payment method data
+    pub payload: String,
+}
+
 #[cfg(test)]
 mod payments_request_api_contract {
     #![allow(clippy::unwrap_used)]
@@ -4633,7 +4787,7 @@ mod payments_request_api_contract {
         let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
         assert!(payments_request.is_ok());
 
-        if let PaymentMethodData::Card(card_data) = payments_request
+        if let Some(PaymentMethodData::Card(card_data)) = payments_request
             .unwrap()
             .payment_method_data
             .unwrap()
@@ -4665,8 +4819,70 @@ mod payments_request_api_contract {
                 .payment_method_data
                 .unwrap()
                 .payment_method_data,
-            PaymentMethodData::Reward
+            Some(PaymentMethodData::Reward)
         );
+    }
+
+    #[test]
+    fn test_payment_method_data_with_payment_method_billing() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method_data": {
+                "billing": {
+                    "address": {
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "city": "San Fransico",
+                        "state": "California",
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "Narayan",
+                        "last_name": "Bhat"
+                    }
+                }
+            }
+        }
+        "#;
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+        assert!(payments_request
+            .unwrap()
+            .payment_method_data
+            .unwrap()
+            .billing
+            .is_some());
+    }
+}
+
+#[cfg(test)]
+mod payments_response_api_contract {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+
+    #[derive(Debug, serde::Serialize)]
+    struct TestPaymentsResponse {
+        #[serde(serialize_with = "serialize_payment_method_data_response")]
+        payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
+    }
+
+    #[test]
+    fn test_reward_payment_response() {
+        let payment_method_response_with_billing = PaymentMethodDataResponseWithBilling {
+            payment_method_data: Some(PaymentMethodDataResponse::Reward {}),
+            billing: None,
+        };
+
+        let payments_response = TestPaymentsResponse {
+            payment_method_data: Some(payment_method_response_with_billing),
+        };
+
+        let expected_response = r#"{"payment_method_data":"reward"}"#;
+
+        let stringified_payments_response = payments_response.encode_to_string_of_json();
+        assert_eq!(stringified_payments_response.unwrap(), expected_response);
     }
 }
 
@@ -4740,8 +4956,8 @@ mod billing_from_payment_method_data {
 
         let klarna_paylater_payment_method_data =
             PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect {
-                billing_email: test_email.clone(),
-                billing_country: TEST_COUNTRY,
+                billing_email: Some(test_email.clone()),
+                billing_country: Some(TEST_COUNTRY),
             });
 
         let billing_address = klarna_paylater_payment_method_data
@@ -4762,14 +4978,14 @@ mod billing_from_payment_method_data {
         let test_first_name = Secret::new(String::from("Chaser"));
 
         let bank_redirect_billing = BankDebitBilling {
-            name: test_first_name.clone(),
+            name: Some(test_first_name.clone()),
             address: None,
-            email: test_email.clone(),
+            email: Some(test_email.clone()),
         };
 
         let ach_bank_debit_payment_method_data =
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                billing_details: bank_redirect_billing,
+                billing_details: Some(bank_redirect_billing),
                 account_number: Secret::new("1234".to_string()),
                 routing_number: Secret::new("1235".to_string()),
                 card_holder_name: None,

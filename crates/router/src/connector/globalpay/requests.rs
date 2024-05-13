@@ -337,7 +337,7 @@ pub struct Card {
     pub expiry_year: Secret<String>,
     /// Indicates whether the card is a debit or credit card.
     pub funding: Option<Funding>,
-    /// The the card account number used to authorize the transaction. Also known as PAN.
+    /// The card account number used to authorize the transaction. Also known as PAN.
     pub number: cards::CardNumber,
     /// Contains the pin block info, relating to the pin code the Payer entered.
     pub pin_block: Option<Secret<String>>,
@@ -776,7 +776,7 @@ pub enum Model {
     Unscheduled,
 }
 
-/// The reason stored credentials are being used to to create a transaction.
+/// The reason stored credentials are being used to create a transaction.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Reason {

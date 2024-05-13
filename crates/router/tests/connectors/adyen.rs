@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, storage::enums, PaymentAddress};
 
@@ -65,9 +65,13 @@ impl AdyenTest {
                         first_name: Some(Secret::new("John".to_string())),
                         last_name: Some(Secret::new("Dough".to_string())),
                     }),
-                    phone: None,
+                    phone: Some(PhoneDetails {
+                        number: Some(Secret::new("8056594427".to_string())),
+                        country_code: Some("+351".to_string()),
+                    }),
                     email: None,
                 }),
+                None,
                 None,
             )),
             ..Default::default()
@@ -97,6 +101,7 @@ impl AdyenTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             payout_method_data: match payout_type {
                 enums::PayoutType::Card => Some(types::api::PayoutMethodData::Card(
@@ -119,6 +124,8 @@ impl AdyenTest {
                 enums::PayoutType::Wallet => Some(types::api::PayoutMethodData::Wallet(
                     types::api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
                         email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
+                        telephone_number: None,
+                        paypal_id: None,
                     }),
                 )),
             },
@@ -146,7 +153,7 @@ impl AdyenTest {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,

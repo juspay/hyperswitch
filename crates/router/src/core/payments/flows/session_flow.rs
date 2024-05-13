@@ -53,12 +53,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
-        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -68,14 +64,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
                 connector.connector_name.to_string(),
             )],
         );
-        self.decide_flow(
-            state,
-            connector,
-            customer,
-            Some(true),
-            call_connector_action,
-        )
-        .await
+        self.decide_flow(state, connector, Some(true), call_connector_action)
+            .await
     }
 
     async fn add_access_token<'a>(
@@ -121,8 +111,8 @@ fn get_applepay_metadata(
 fn build_apple_pay_session_request(
     state: &routes::AppState,
     request: payment_types::ApplepaySessionRequest,
-    apple_pay_merchant_cert: String,
-    apple_pay_merchant_cert_key: String,
+    apple_pay_merchant_cert: masking::Secret<String>,
+    apple_pay_merchant_cert_key: masking::Secret<String>,
 ) -> RouterResult<services::Request> {
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
@@ -198,16 +188,14 @@ async fn create_applepay_session_token(
                         .applepay_decrypt_keys
                         .get_inner()
                         .apple_pay_merchant_cert
-                        .clone()
-                        .expose();
+                        .clone();
 
                     let apple_pay_merchant_cert_key = state
                         .conf
                         .applepay_decrypt_keys
                         .get_inner()
                         .apple_pay_merchant_cert_key
-                        .clone()
-                        .expose();
+                        .clone();
 
                     (
                         payment_request_data,
@@ -521,7 +509,6 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,
-        _customer: &Option<domain::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {

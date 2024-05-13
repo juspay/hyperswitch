@@ -8,7 +8,7 @@ use error_stack::{report, ResultExt};
 use regex::Regex;
 use transformers as nmi;
 
-use super::utils::{self as connector_utils};
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::{
@@ -1007,7 +1007,10 @@ impl services::ConnectorRedirectResponse for Nmi {
                     }
                 }
             }
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
         }
     }
 }

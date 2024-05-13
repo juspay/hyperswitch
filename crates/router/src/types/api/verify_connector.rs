@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct VerifyConnectorData {
-    pub connector: &'static (dyn types::api::Connector + Sync),
+    pub connector: &'static (dyn api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,
     pub card_details: domain::Card,
 }
@@ -81,7 +81,6 @@ impl VerifyConnectorData {
             payment_method: storage_enums::PaymentMethod::Card,
             amount_captured: None,
             preprocessing_id: None,
-            payment_method_id: None,
             connector_customer: None,
             connector_auth_type: self.connector_auth.clone(),
             connector_meta_data: None,
@@ -90,7 +89,7 @@ impl VerifyConnectorData {
             recurring_mandate_payment_data: None,
             payment_method_status: None,
             connector_request_reference_id: attempt_id,
-            address: types::PaymentAddress::new(None, None, None),
+            address: types::PaymentAddress::new(None, None, None, None),
             payment_id: common_utils::generate_id_with_default_len(
                 consts::VERIFY_CONNECTOR_ID_PREFIX,
             ),
@@ -156,11 +155,11 @@ pub trait VerifyConnector {
     }
 
     async fn handle_payment_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
+        connector: &(dyn api::Connector + Sync),
         error_response: types::Response,
     ) -> errors::RouterResponse<()>
     where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
+        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
             .get_error_response(error_response, None)
@@ -172,11 +171,11 @@ pub trait VerifyConnector {
     }
 
     async fn handle_access_token_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
+        connector: &(dyn api::Connector + Sync),
         error_response: types::Response,
     ) -> errors::RouterResult<Option<types::AccessToken>>
     where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
+        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
             .get_error_response(error_response, None)

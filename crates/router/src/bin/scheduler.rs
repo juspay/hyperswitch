@@ -40,7 +40,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
             conf.proxy.clone(),
             services::proxy_bypass_urls(&conf.locker),
         )
-        .change_context(errors::ProcessTrackerError::ConfigurationError)?,
+        .change_context(ProcessTrackerError::ConfigurationError)?,
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
@@ -263,6 +263,23 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow => Ok(Box::new(
                     workflows::outgoing_webhook_retry::OutgoingWebhookRetryWorkflow,
                 )),
+                storage::ProcessTrackerRunner::AttachPayoutAccountWorkflow => {
+                    #[cfg(feature = "payouts")]
+                    {
+                        Ok(Box::new(
+                            workflows::attach_payout_account_workflow::AttachPayoutAccountWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(
+                            error_stack::report!(ProcessTrackerError::UnexpectedFlow),
+                        )
+                        .attach_printable(
+                            "Cannot run Stripe external account workflow when payouts feature is disabled",
+                        )
+                    }
+                }
             }
         };
 
@@ -303,7 +320,7 @@ async fn start_scheduler(
         .conf
         .scheduler
         .clone()
-        .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
+        .ok_or(ProcessTrackerError::ConfigurationError)?;
     scheduler::start_process_tracker(
         state,
         scheduler_flow,
