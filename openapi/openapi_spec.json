@@ -7285,6 +7285,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",
@@ -15775,10 +15776,11 @@
         "enum": [
           "adyen",
           "stripe",
-          "wise",
+          "payone",
           "paypal",
           "ebanx",
-          "cybersource"
+          "cybersource",
+          "wise"
         ]
       },
       "PayoutCreateRequest": {
