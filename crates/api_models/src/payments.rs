@@ -223,7 +223,7 @@ pub struct PaymentsRequest {
     pub currency: Option<api_enums::Currency>,
 
     /// The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.
-    #[schema(value_type = Option<MinorUnit>, example = 6540)]
+    #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments

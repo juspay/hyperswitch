@@ -13371,11 +13371,10 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540,
             "nullable": true
           },
           "payment_id": {
@@ -13751,11 +13750,10 @@
             "$ref": "#/components/schemas/Currency"
           },
           "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540,
             "nullable": true
           },
           "payment_id": {
@@ -14243,11 +14241,10 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540,
             "nullable": true
           },
           "payment_id": {
@@ -15307,11 +15304,10 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540,
             "nullable": true
           },
           "payment_id": {
