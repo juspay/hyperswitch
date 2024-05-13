@@ -1597,6 +1597,7 @@ fn get_error_response_if_failure(
         Some(types::ErrorResponse::from((
             &info_response.error_information,
             &info_response.risk_information,
+            Some(status),
             http_code,
             info_response.id.clone(),
         )))
@@ -1995,6 +1996,7 @@ impl<F>
                     let response = Err(types::ErrorResponse::from((
                         &info_response.error_information,
                         &risk_info,
+                        Some(status),
                         item.http_code,
                         info_response.id.clone(),
                     )));
@@ -2323,17 +2325,10 @@ impl<F>
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum BankOfAmericaTransactionResponse {
-    ApplicationInformation(Box<BankOfAmericaApplicationInfoResponse>),
-    ErrorInformation(BankOfAmericaErrorInformationResponse),
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaApplicationInfoResponse {
+pub struct BankOfAmericaTransactionResponse {
     id: String,
-    application_information: ApplicationInformation,
+    application_information: Option<ApplicationInformation>,
     client_reference_information: Option<ClientReferenceInformation>,
     processor_information: Option<ClientProcessorInformation>,
     processing_information: Option<ProcessingInformationResponse>,
@@ -2356,7 +2351,7 @@ pub struct FraudMarkingInformation {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
-    status: BankofamericaPaymentStatus,
+    status: Option<BankofamericaPaymentStatus>,
 }
 
 impl<F>
@@ -2378,19 +2373,24 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            BankOfAmericaTransactionResponse::ApplicationInformation(app_response) => {
+        match item
+            .response
+            .application_information
+            .and_then(|app_info| app_info.status)
+        {
+            Some(psync_status) => {
                 let status = enums::AttemptStatus::foreign_from((
-                    app_response.application_information.status,
+                    psync_status,
                     item.data.request.is_auto_capture()?,
                 ));
 
                 let connector_response = match item.data.payment_method {
-                    common_enums::PaymentMethod::Card => app_response
+                    common_enums::PaymentMethod::Card => item
+                        .response
                         .processor_information
                         .as_ref()
                         .and_then(|processor_information| {
-                            app_response
+                            item.response
                                 .consumer_authentication_information
                                 .as_ref()
                                 .map(|consumer_auth_information| {
@@ -2418,10 +2418,11 @@ impl<F>
                 if utils::is_payment_failure(status) {
                     Ok(Self {
                         response: Err(types::ErrorResponse::from((
-                            &app_response.error_information,
+                            &item.response.error_information,
                             &risk_info,
+                            Some(status),
                             item.http_code,
-                            app_response.id.clone(),
+                            item.response.id.clone(),
                         ))),
                         status: enums::AttemptStatus::Failure,
                         connector_response,
@@ -2432,16 +2433,17 @@ impl<F>
                         status,
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                app_response.id.clone(),
+                                item.response.id.clone(),
                             ),
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
-                            connector_response_reference_id: app_response
+                            connector_response_reference_id: item
+                                .response
                                 .client_reference_information
                                 .map(|cref| cref.code)
-                                .unwrap_or(Some(app_response.id)),
+                                .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
                         }),
                         connector_response,
@@ -2449,17 +2451,17 @@ impl<F>
                     })
                 }
             }
-            BankOfAmericaTransactionResponse::ErrorInformation(error_response) => Ok(Self {
+            None => Ok(Self {
                 status: item.data.status,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        error_response.id.clone(),
+                        item.response.id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(error_response.id),
+                    connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                 }),
                 ..item.data
@@ -2611,6 +2613,7 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
 pub struct BankOfAmericaRefundResponse {
     id: String,
     status: BankofamericaRefundStatus,
+    error_information: Option<BankOfAmericaErrorInformation>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundResponse>>
@@ -2620,17 +2623,30 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundR
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status.clone());
+        let response = if utils::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse::from((
+                &item.response.error_information,
+                &None,
+                None,
+                item.http_code,
+                item.response.id.clone(),
+            )))
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.data
         })
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaRefundStatus {
     Succeeded,
@@ -2644,21 +2660,15 @@ pub enum BankofamericaRefundStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RsyncApplicationInformation {
-    status: BankofamericaRefundStatus,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum BankOfAmericaRsyncResponse {
-    RsyncApplicationResponse(Box<BankOfAmericaRsyncApplicationResponse>),
-    ErrorInformation(BankOfAmericaErrorInformationResponse),
+    status: Option<BankofamericaRefundStatus>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaRsyncApplicationResponse {
+pub struct BankOfAmericaRsyncResponse {
     id: String,
-    application_information: RsyncApplicationInformation,
+    application_information: Option<RsyncApplicationInformation>,
+    error_information: Option<BankOfAmericaErrorInformation>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResponse>>
@@ -2668,25 +2678,42 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResponse>,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            BankOfAmericaRsyncResponse::RsyncApplicationResponse(rsync_response) => Ok(Self {
-                response: Ok(types::RefundsResponseData {
-                    connector_refund_id: rsync_response.id,
-                    refund_status: enums::RefundStatus::from(
-                        rsync_response.application_information.status,
-                    ),
-                }),
-                ..item.data
+        let response = match item
+            .response
+            .application_information
+            .and_then(|application_information| application_information.status)
+        {
+            Some(status) => {
+                let refund_status = enums::RefundStatus::from(status);
+                if utils::is_refund_failure(refund_status) {
+                    Err(types::ErrorResponse::from((
+                        &item.response.error_information,
+                        &None,
+                        None,
+                        item.http_code,
+                        item.response.id.clone(),
+                    )))
+                } else {
+                    Ok(types::RefundsResponseData {
+                        connector_refund_id: item.response.id,
+                        refund_status,
+                    })
+                }
+            }
+
+            None => Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id.clone(),
+                refund_status: match item.data.response {
+                    Ok(response) => response.refund_status,
+                    Err(_) => common_enums::RefundStatus::Pending,
+                },
             }),
-            BankOfAmericaRsyncResponse::ErrorInformation(error_response) => Ok(Self {
-                status: item.data.status,
-                response: Ok(types::RefundsResponseData {
-                    refund_status: common_enums::RefundStatus::Pending,
-                    connector_refund_id: error_response.id.clone(),
-                }),
-                ..item.data
-            }),
-        }
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
     }
 }
 
@@ -2750,14 +2777,16 @@ impl
     From<(
         &Option<BankOfAmericaErrorInformation>,
         &Option<ClientRiskInformation>,
+        Option<enums::AttemptStatus>,
         u16,
         String,
     )> for types::ErrorResponse
 {
     fn from(
-        (error_data, risk_information, status_code, transaction_id): (
+        (error_data, risk_information, attempt_status, status_code, transaction_id): (
             &Option<BankOfAmericaErrorInformation>,
             &Option<ClientRiskInformation>,
+            Option<enums::AttemptStatus>,
             u16,
             String,
         ),
@@ -2794,7 +2823,7 @@ impl
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(error_reason.clone()),
             status_code,
-            attempt_status: Some(enums::AttemptStatus::Failure),
+            attempt_status,
             connector_transaction_id: Some(transaction_id.clone()),
         }
     }
