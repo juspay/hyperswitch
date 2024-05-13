@@ -274,7 +274,7 @@ pub async fn refunds_filter_list(
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
 #[utoipa::path(
     get,
-    path = "/refunds/filter_v2",
+    path = "/refunds/v2/filter",
     responses(
         (status = 200, description = "List of static filters", body = RefundListFilters),
     ),
