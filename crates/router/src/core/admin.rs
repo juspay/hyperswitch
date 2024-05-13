@@ -731,7 +731,6 @@ fn validate_certificate_in_mca_metadata(
 
 pub async fn create_payment_connector(
     state: SessionState,
-
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {

@@ -282,7 +282,6 @@ pub async fn payments_retrieve(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
-
             )
         },
         auth::auth_type(
@@ -356,7 +355,6 @@ pub async fn payments_retrieve_with_gateway_creds(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
-
             )
         },
         &*auth_type,
@@ -857,7 +855,6 @@ pub async fn payments_cancel(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
-
             )
         },
         &auth::ApiKeyAuth,
@@ -1073,7 +1070,6 @@ pub async fn payments_reject(
                 payments::CallConnectorAction::Trigger,
                 None,
                 payment_types::HeaderPayload::default(),
-
             )
         },
         match env::which() {
@@ -1341,7 +1337,6 @@ pub async fn post_3ds_payments_authorize(
                 auth.merchant_account,
                 auth.key_store,
                 req,
-
             )
         },
         &auth::MerchantIdAuth(merchant_id),

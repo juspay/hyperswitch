@@ -1057,7 +1057,7 @@ pub async fn trigger_refund_execute_workflow(
     Ok(())
 }
 
-//#[instrument]
+#[instrument]
 pub fn refund_to_refund_core_workflow_model(
     refund: &storage::Refund,
 ) -> storage::RefundCoreWorkflow {

@@ -28,7 +28,6 @@ pub async fn retrieve_forex(
 
 pub async fn convert_forex(
     state: SessionState,
-
     amount: i64,
     to_currency: String,
     from_currency: String,

@@ -76,7 +76,6 @@ pub async fn rust_locker_migration(
 
 pub async fn call_to_locker(
     state: &SessionState,
-
     payment_methods: Vec<PaymentMethod>,
     customer_id: &String,
     merchant_id: &str,

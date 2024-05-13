@@ -122,7 +122,6 @@ async fn save_forex_to_local(
 #[allow(dead_code)]
 async fn waited_fetch_and_update_caches(
     state: &SessionState,
-
     local_fetch_retry_delay: u64,
     local_fetch_retry_count: u64,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
@@ -173,7 +172,6 @@ impl From<Conversion> for CurrencyFactors {
 }
 pub async fn get_forex_rates(
     state: &SessionState,
-
     call_delay: i64,
     local_fetch_retry_delay: u64,
     local_fetch_retry_count: u64,
@@ -200,7 +198,6 @@ pub async fn get_forex_rates(
 
 async fn handler_local_no_data(
     state: &SessionState,
-
     call_delay: i64,
     _local_fetch_retry_delay: u64,
     _local_fetch_retry_count: u64,
@@ -220,7 +217,6 @@ async fn handler_local_no_data(
 
 async fn successive_fetch_and_save_forex(
     state: &SessionState,
-
     stale_redis_data: Option<FxExchangeRatesCacheEntry>,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     match acquire_redis_lock(state).await {
@@ -273,7 +269,6 @@ async fn successive_save_data_to_redis_local(
 
 async fn fallback_forex_redis_check(
     state: &SessionState,
-
     redis_data: FxExchangeRatesCacheEntry,
     call_delay: i64,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
@@ -293,7 +288,6 @@ async fn fallback_forex_redis_check(
 
 async fn handler_local_expired(
     state: &SessionState,
-
     call_delay: i64,
     local_rates: FxExchangeRatesCacheEntry,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
@@ -517,7 +511,6 @@ async fn is_redis_expired(
 
 pub async fn convert_currency(
     state: SessionState,
-
     amount: i64,
     to_currency: String,
     from_currency: String,

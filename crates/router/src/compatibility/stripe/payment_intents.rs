@@ -69,7 +69,6 @@ pub async fn payment_intents_create(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 api_types::HeaderPayload::default(),
-
             )
         },
         &auth::ApiKeyAuth,
@@ -200,7 +199,6 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 payments::CallConnectorAction::Trigger,
                     None,
                 api_types::HeaderPayload::default(),
-
             )
         },
         &*auth_type,
@@ -267,7 +265,6 @@ pub async fn payment_intents_update(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 api_types::HeaderPayload::default(),
-
             )
         },
         &*auth_type,
@@ -340,7 +337,6 @@ pub async fn payment_intents_confirm(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 api_types::HeaderPayload::default(),
-
             )
         },
         &*auth_type,
@@ -402,7 +398,6 @@ pub async fn payment_intents_capture(
                 payments::CallConnectorAction::Trigger,
                     None,
                 api_types::HeaderPayload::default(),
-
             )
         },
         &auth::ApiKeyAuth,

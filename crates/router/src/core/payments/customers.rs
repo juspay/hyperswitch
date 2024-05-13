@@ -111,7 +111,7 @@ pub fn should_call_connector_create_customer<'a>(
     }
 }
 
-//#[instrument]
+#[instrument]
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
     customer: Option<&domain::Customer>,

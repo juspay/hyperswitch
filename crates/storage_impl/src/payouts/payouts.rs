@@ -299,7 +299,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    //#[instrument[skip_all]]
+    #[instrument[skip_all]]
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &str,

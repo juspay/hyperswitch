@@ -26,7 +26,7 @@ use crate::{
     AnalyticsProvider,
 };
 
-//#[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn api_events_core(
     pool: &AnalyticsProvider,
     req: ApiLogsRequest,
