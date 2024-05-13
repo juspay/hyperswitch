@@ -301,7 +301,9 @@ async fn create_applepay_session_token(
             &connector.connector_name,
             billing_variants,
         ) {
-            Some(vec!["postalAddress".to_string()])
+            Some(vec![
+                payment_types::ApplePayAddressParameters::PostalAddress,
+            ])
         } else {
             None
         };
@@ -318,9 +320,9 @@ async fn create_applepay_session_token(
                     shipping_variants,
                 ) {
                     Some(vec![
-                        "postalAddress".to_string(),
-                        "phone".to_string(),
-                        "email".to_string(),
+                        payment_types::ApplePayAddressParameters::PostalAddress,
+                        payment_types::ApplePayAddressParameters::Phone,
+                        payment_types::ApplePayAddressParameters::Email,
                     ])
                 } else {
                     None
@@ -438,8 +440,8 @@ fn get_apple_pay_payment_request(
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
     merchant_business_country: Option<api_models::enums::CountryAlpha2>,
-    required_billing_contact_fields: Option<Vec<String>>,
-    required_shipping_contact_fields: Option<Vec<String>>,
+    required_billing_contact_fields: Option<Vec<payment_types::ApplePayAddressParameters>>,
+    required_shipping_contact_fields: Option<Vec<payment_types::ApplePayAddressParameters>>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
         country_code: merchant_business_country.or(session_data.country).ok_or(

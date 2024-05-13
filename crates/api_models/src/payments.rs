@@ -4245,9 +4245,17 @@ pub struct ApplePayPaymentRequest {
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
     /// The required billing contact fields for connector
-    pub required_billing_contact_fields: Option<Vec<String>>,
+    pub required_billing_contact_fields: Option<Vec<ApplePayAddressParameters>>,
     /// The required shipping contacht fields for connector
-    pub required_shipping_contact_fields: Option<Vec<String>>,
+    pub required_shipping_contact_fields: Option<Vec<ApplePayAddressParameters>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ApplePayAddressParameters {
+    PostalAddress,
+    Phone,
+    Email,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]

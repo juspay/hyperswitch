@@ -4946,6 +4946,14 @@
           }
         ]
       },
+      "ApplePayAddressParameters": {
+        "type": "string",
+        "enum": [
+          "postalAddress",
+          "phone",
+          "email"
+        ]
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -4986,7 +4994,7 @@
           "required_billing_contact_fields": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ApplePayAddressParameters"
             },
             "description": "The required billing contact fields for connector",
             "nullable": true
@@ -4994,7 +5002,7 @@
           "required_shipping_contact_fields": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ApplePayAddressParameters"
             },
             "description": "The required shipping contacht fields for connector",
             "nullable": true
