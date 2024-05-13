@@ -2646,7 +2646,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundR
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaRefundStatus {
     Succeeded,
@@ -2684,15 +2684,28 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
             .and_then(|application_information| application_information.status)
         {
             Some(status) => {
-                let refund_status = enums::RefundStatus::from(status);
+                let refund_status: common_enums::RefundStatus = enums::RefundStatus::from(status.clone());
                 if utils::is_refund_failure(refund_status) {
-                    Err(types::ErrorResponse::from((
-                        &item.response.error_information,
-                        &None,
-                        None,
-                        item.http_code,
-                        item.response.id.clone(),
-                    )))
+                    if status == BankofamericaRefundStatus::Voided {
+                        Err(types::ErrorResponse::from((
+                            &Some(BankOfAmericaErrorInformation {
+                                message: Some(consts::REFUND_VOIDED.to_string()),
+                                reason: None,
+                            }),
+                            &None,
+                            None,
+                            item.http_code,
+                            item.response.id.clone(),
+                        )))
+                    } else {
+                        Err(types::ErrorResponse::from((
+                            &item.response.error_information,
+                            &None,
+                            None,
+                            item.http_code,
+                            item.response.id.clone(),
+                        )))
+                    }
                 } else {
                     Ok(types::RefundsResponseData {
                         connector_refund_id: item.response.id,

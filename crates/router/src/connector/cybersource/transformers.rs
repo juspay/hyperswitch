@@ -2705,7 +2705,7 @@ impl From<CybersourceRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourceRefundStatus {
     Succeeded,
@@ -2781,16 +2781,29 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
             .and_then(|application_information| application_information.status)
         {
             Some(status) => {
-                let refund_status = enums::RefundStatus::from(status);
+                let refund_status = enums::RefundStatus::from(status.clone());
                 if utils::is_refund_failure(refund_status) {
-                    Err(types::ErrorResponse::from((
-                        &item.response.error_information,
-                        &None,
-                        None,
-                        item.http_code,
-                        item.response.id.clone(),
-                    )))
-                } else {
+                    if status == CybersourceRefundStatus::Voided {
+                        Err(types::ErrorResponse::from((
+                            &Some(CybersourceErrorInformation {
+                                message: Some(consts::REFUND_VOIDED.to_string()),
+                                reason: None,
+                            }),
+                            &None,
+                            None,
+                            item.http_code,
+                            item.response.id.clone(),
+                        )))
+                    } else {
+                        Err(types::ErrorResponse::from((
+                            &item.response.error_information,
+                            &None,
+                            None,
+                            item.http_code,
+                            item.response.id.clone(),
+                        )))
+                    }
+                }  else {
                     Ok(types::RefundsResponseData {
                         connector_refund_id: item.response.id,
                         refund_status,
