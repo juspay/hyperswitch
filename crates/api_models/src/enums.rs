@@ -439,7 +439,7 @@ impl FieldType {
     }
 }
 
-/// This implementatiobn is to ingore the inner value of UserAddressCountry enum while comparing
+/// This implementatiobn is to ignore the inner value of UserAddressCountry enum while comparing
 impl PartialEq for FieldType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -500,12 +500,12 @@ mod test {
             options: vec!["US".to_string()],
         };
 
-        let user_adress_country_is_all = FieldType::UserAddressCountry {
+        let user_address_country_is_all = FieldType::UserAddressCountry {
             options: vec!["ALL".to_string()],
         };
 
         assert_eq!(
-            user_address_country_is_us.eq(&user_adress_country_is_all),
+            user_address_country_is_us.eq(&user_address_country_is_all),
             true
         )
     }
