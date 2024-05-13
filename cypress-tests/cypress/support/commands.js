@@ -467,8 +467,7 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
   });
 });
 
-Cypress.Commands.add("citForMandatesCallTest", (requestBody, authentication_type ,amount, details, confirm, capture_method, payment_type, globalState) => {
-  requestBody.authentication_type = authentication_type;
+Cypress.Commands.add("citForMandatesCallTest", (requestBody ,amount, details, confirm, capture_method, payment_type, globalState) => {
   requestBody.payment_method_data.card = details.card;
   requestBody.payment_type = payment_type;
   requestBody.confirm = confirm;
