@@ -467,14 +467,17 @@ where
     let payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
-    let payment_method_data_response = payment_method_data.map(|payment_method_data| {
-        api_models::payments::PaymentMethodDataResponseWithBilling {
-            payment_method_data,
-            billing: payment_data
-                .address
-                .get_request_payment_method_billing()
-                .cloned(),
-        }
+    let payment_method_data_response = (payment_method_data.is_some()
+        || payment_data
+            .address
+            .get_request_payment_method_billing()
+            .is_some())
+    .then_some(api_models::payments::PaymentMethodDataResponseWithBilling {
+        payment_method_data,
+        billing: payment_data
+            .address
+            .get_request_payment_method_billing()
+            .cloned(),
     });
 
     let mut headers = connector_http_status_code
@@ -1044,6 +1047,7 @@ pub fn change_order_details_to_new_type(
         requires_shipping: order_details.requires_shipping,
         product_id: order_details.product_id,
         category: order_details.category,
+        sub_category: order_details.sub_category,
         brand: order_details.brand,
         product_type: order_details.product_type,
     }])
@@ -1587,8 +1591,8 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 ..
             } => Ok(Self::ErrorUpdate {
                 status: match status_code {
-                    500..=511 => storage::enums::CaptureStatus::Pending,
-                    _ => storage::enums::CaptureStatus::Failed,
+                    500..=511 => enums::CaptureStatus::Pending,
+                    _ => enums::CaptureStatus::Failed,
                 },
                 error_code: Some(code),
                 error_message: Some(message),

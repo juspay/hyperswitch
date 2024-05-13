@@ -38,14 +38,14 @@ impl NonceSequence {
     }
 
     /// Returns the current nonce value as bytes.
-    fn current(&self) -> [u8; ring::aead::NONCE_LEN] {
-        let mut nonce = [0_u8; ring::aead::NONCE_LEN];
+    fn current(&self) -> [u8; aead::NONCE_LEN] {
+        let mut nonce = [0_u8; aead::NONCE_LEN];
         nonce.copy_from_slice(&self.0.to_be_bytes()[Self::SEQUENCE_NUMBER_START_INDEX..]);
         nonce
     }
 
     /// Constructs a nonce sequence from bytes
-    fn from_bytes(bytes: [u8; ring::aead::NONCE_LEN]) -> Self {
+    fn from_bytes(bytes: [u8; aead::NONCE_LEN]) -> Self {
         let mut sequence_number = [0_u8; 128 / 8];
         sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..].copy_from_slice(&bytes);
         let sequence_number = u128::from_be_bytes(sequence_number);
@@ -53,16 +53,16 @@ impl NonceSequence {
     }
 }
 
-impl ring::aead::NonceSequence for NonceSequence {
-    fn advance(&mut self) -> Result<ring::aead::Nonce, ring::error::Unspecified> {
-        let mut nonce = [0_u8; ring::aead::NONCE_LEN];
+impl aead::NonceSequence for NonceSequence {
+    fn advance(&mut self) -> Result<aead::Nonce, ring::error::Unspecified> {
+        let mut nonce = [0_u8; aead::NONCE_LEN];
         nonce.copy_from_slice(&self.0.to_be_bytes()[Self::SEQUENCE_NUMBER_START_INDEX..]);
 
         // Increment sequence number
         self.0 = self.0.wrapping_add(1);
 
         // Return previous sequence number as bytes
-        Ok(ring::aead::Nonce::assume_unique_for_key(nonce))
+        Ok(aead::Nonce::assume_unique_for_key(nonce))
     }
 }
 
@@ -275,8 +275,8 @@ impl DecodeMessage for GcmAes256 {
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         let nonce_sequence = NonceSequence::from_bytes(
-            <[u8; ring::aead::NONCE_LEN]>::try_from(
-                msg.get(..ring::aead::NONCE_LEN)
+            <[u8; aead::NONCE_LEN]>::try_from(
+                msg.get(..aead::NONCE_LEN)
                     .ok_or(errors::CryptoError::DecodingFailed)
                     .attach_printable("Failed to read the nonce form the encrypted ciphertext")?,
             )
@@ -288,7 +288,7 @@ impl DecodeMessage for GcmAes256 {
         let output = binding.as_mut_slice();
 
         let result = key
-            .open_within(aead::Aad::empty(), output, ring::aead::NONCE_LEN..)
+            .open_within(aead::Aad::empty(), output, aead::NONCE_LEN..)
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         Ok(result.to_vec())

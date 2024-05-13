@@ -41,9 +41,9 @@ pub struct MockDb {
     pub disputes: Arc<Mutex<Vec<store::Dispute>>>,
     pub lockers: Arc<Mutex<Vec<store::LockerMockUp>>>,
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
-    pub captures: Arc<Mutex<Vec<crate::store::capture::Capture>>>,
-    pub merchant_key_store: Arc<Mutex<Vec<crate::store::merchant_key_store::MerchantKeyStore>>>,
-    pub business_profiles: Arc<Mutex<Vec<crate::store::business_profile::BusinessProfile>>>,
+    pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
+    pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
+    pub business_profiles: Arc<Mutex<Vec<store::business_profile::BusinessProfile>>>,
     pub reverse_lookups: Arc<Mutex<Vec<store::ReverseLookup>>>,
     pub payment_link: Arc<Mutex<Vec<store::payment_link::PaymentLink>>>,
     pub organizations: Arc<Mutex<Vec<store::organization::Organization>>>,
@@ -57,6 +57,7 @@ pub struct MockDb {
     pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
     pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
+    pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
 }
 
 impl MockDb {
@@ -100,6 +101,7 @@ impl MockDb {
             payouts: Default::default(),
             authentications: Default::default(),
             roles: Default::default(),
+            user_key_store: Default::default(),
         })
     }
 }

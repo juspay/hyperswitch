@@ -527,7 +527,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             capture_on: resp.capture_on,
             capture_method: resp.capture_method,
             payment_method: resp.payment_method,
-            payment_method_data: resp.payment_method_data.map(|pmd| pmd.payment_method_data),
+            payment_method_data: resp
+                .payment_method_data
+                .and_then(|pmd| pmd.payment_method_data),
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
@@ -649,7 +651,7 @@ fn from_timestamp_to_datetime(
             }
         })?;
 
-        Ok(Some(time::PrimitiveDateTime::new(time.date(), time.time())))
+        Ok(Some(PrimitiveDateTime::new(time.date(), time.time())))
     } else {
         Ok(None)
     }
@@ -744,7 +746,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                         },
                     ))),
                 },
-                None => Some(api_models::payments::MandateType::MultiUse(Some(
+                None => Some(payments::MandateType::MultiUse(Some(
                     payments::MandateAmountData {
                         amount: mandate.amount.unwrap_or_default(),
                         currency,

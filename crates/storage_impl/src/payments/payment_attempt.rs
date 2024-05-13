@@ -1382,6 +1382,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::Update {
                 amount,
@@ -1399,6 +1400,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
             },
             Self::UpdateTrackers {
@@ -1706,6 +1708,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 fingerprint_id,
                 updated_by,
+                payment_method_billing_address_id,
             } => Self::Update {
                 amount,
                 currency,
@@ -1722,6 +1725,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::UpdateTrackers {

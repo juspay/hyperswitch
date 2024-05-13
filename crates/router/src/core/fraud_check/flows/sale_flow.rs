@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use crate::{
     core::{
@@ -65,6 +66,18 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             request: FraudCheckSaleData {
                 amount: self.payment_attempt.amount,
                 order_details: self.order_details.clone(),
+                currency: self.payment_attempt.currency,
+                email: customer
+                    .clone()
+                    .and_then(|customer_data| {
+                        customer_data
+                            .email
+                            .map(|email| Email::try_from(email.into_inner().expose()))
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "customer.customer_data.email",
+                    })?,
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -92,7 +105,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             external_latency: None,
             connector_api_version: None,
             apple_pay_flow: None,
-            frm_metadata: None,
+            frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
             connector_response: None,

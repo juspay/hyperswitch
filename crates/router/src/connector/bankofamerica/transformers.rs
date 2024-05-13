@@ -58,22 +58,10 @@ pub struct BankOfAmericaRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for BankOfAmericaRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BankOfAmericaRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
@@ -603,7 +591,7 @@ impl
                     merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
                         reason: None,
                         original_authorized_amount: Some(utils::get_amount_as_string(
-                            &types::api::CurrencyUnit::Base,
+                            &api::CurrencyUnit::Base,
                             original_amount,
                             original_currency,
                         )?),
@@ -2616,7 +2604,9 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
             BankofamericaRefundStatus::Succeeded | BankofamericaRefundStatus::Transmitted => {
                 Self::Success
             }
-            BankofamericaRefundStatus::Failed | BankofamericaRefundStatus::Voided => Self::Failure,
+            BankofamericaRefundStatus::Cancelled
+            | BankofamericaRefundStatus::Failed
+            | BankofamericaRefundStatus::Voided => Self::Failure,
             BankofamericaRefundStatus::Pending => Self::Pending,
         }
     }
@@ -2654,6 +2644,7 @@ pub enum BankofamericaRefundStatus {
     Failed,
     Pending,
     Voided,
+    Cancelled,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2663,8 +2654,15 @@ pub struct RsyncApplicationInformation {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BankOfAmericaRsyncResponse {
+    RsyncApplicationResponse(Box<BankOfAmericaRsyncApplicationResponse>),
+    ErrorInformation(BankOfAmericaErrorInformationResponse),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaRsyncResponse {
+pub struct BankOfAmericaRsyncApplicationResponse {
     id: String,
     application_information: RsyncApplicationInformation,
 }
@@ -2676,15 +2674,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(
-                    item.response.application_information.status,
-                ),
+        match item.response {
+            BankOfAmericaRsyncResponse::RsyncApplicationResponse(rsync_response) => Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: rsync_response.id,
+                    refund_status: enums::RefundStatus::from(
+                        rsync_response.application_information.status,
+                    ),
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            BankOfAmericaRsyncResponse::ErrorInformation(error_response) => Ok(Self {
+                status: item.data.status,
+                response: Ok(types::RefundsResponseData {
+                    refund_status: common_enums::RefundStatus::Pending,
+                    connector_refund_id: error_response.id.clone(),
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 

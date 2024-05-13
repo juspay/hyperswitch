@@ -36,6 +36,7 @@ use crate::{
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
+        authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{cards, vault, PaymentMethodRetrieve},
@@ -213,6 +214,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 )
             }
@@ -224,38 +226,39 @@ pub async fn create_or_update_address_for_payment_by_request(
                     merchant_key_store,
                     storage_scheme,
                 )
-                .await,
+                .await
+                .map(|payment_address| payment_address.address),
             )
             .transpose()
             .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
         },
         None => match req_address {
             Some(address) => {
-                // generate a new address here
-                let address_details = address.address.clone().unwrap_or_default();
+                let address = get_domain_address(address, merchant_id, key, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address while insert")?;
+
+                let payment_address = domain::PaymentAddress {
+                    address,
+                    payment_id: payment_id.to_string(),
+                    customer_id: customer_id.cloned(),
+                };
+
                 Some(
                     db.insert_address_for_payments(
                         payment_id,
-                        get_domain_address_for_payments(
-                            address_details,
-                            address,
-                            merchant_id,
-                            customer_id,
-                            payment_id,
-                            key,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while encrypting address while insert")?,
+                        payment_address,
                         merchant_key_store,
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while inserting new address")?,
                 )
             }
+
             None => None,
         },
     })
@@ -284,34 +287,34 @@ pub async fn create_or_find_address_for_payment_by_request(
                 merchant_key_store,
                 storage_scheme,
             )
-            .await,
+            .await
+            .map(|payment_address| payment_address.address),
         )
         .transpose()
         .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
         None => match req_address {
             Some(address) => {
                 // generate a new address here
+                let address = get_domain_address(address, merchant_id, key, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address while insert")?;
 
-                let address_details = address.address.clone().unwrap_or_default();
+                let payment_address = domain::PaymentAddress {
+                    address,
+                    payment_id: payment_id.to_string(),
+                    customer_id: customer_id.cloned(),
+                };
+
                 Some(
                     db.insert_address_for_payments(
                         payment_id,
-                        get_domain_address_for_payments(
-                            address_details,
-                            address,
-                            merchant_id,
-                            customer_id,
-                            payment_id,
-                            key,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while encrypting address while insert")?,
+                        payment_address,
                         merchant_key_store,
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while inserting new address")?,
                 )
@@ -321,16 +324,14 @@ pub async fn create_or_find_address_for_payment_by_request(
     })
 }
 
-pub async fn get_domain_address_for_payments(
-    address_details: api_models::payments::AddressDetails,
+pub async fn get_domain_address(
     address: &api_models::payments::Address,
     merchant_id: &str,
-    customer_id: Option<&String>,
-    payment_id: &str,
     key: &[u8],
     storage_scheme: enums::MerchantStorageScheme,
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
+        let address_details = address.address.as_ref();
         Ok(domain::Address {
             id: None,
             phone_number: address
@@ -340,42 +341,40 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
-            customer_id: customer_id.cloned(),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
-            city: address_details.city,
-            country: address_details.country,
+            city: address_details.and_then(|address_details| address_details.city.clone()),
+            country: address_details.and_then(|address_details| address_details.country),
             line1: address_details
-                .line1
+                .and_then(|address_details| address_details.line1.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             line2: address_details
-                .line2
+                .and_then(|address_details| address_details.line2.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             line3: address_details
-                .line3
+                .and_then(|address_details| address_details.line3.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             state: address_details
-                .state
+                .and_then(|address_details| address_details.state.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             created_at: common_utils::date_time::now(),
             first_name: address_details
-                .first_name
+                .and_then(|address_details| address_details.first_name.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             last_name: address_details
-                .last_name
+                .and_then(|address_details| address_details.last_name.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             modified_at: common_utils::date_time::now(),
             zip: address_details
-                .zip
+                .and_then(|address_details| address_details.zip.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
-            payment_id: Some(payment_id.to_owned()),
             updated_by: storage_scheme.to_string(),
             email: address
                 .email
@@ -407,6 +406,7 @@ pub async fn get_address_by_id(
                 storage_scheme,
             )
             .await
+            .map(|payment_address| payment_address.address)
             .ok()),
     }
 }
@@ -460,7 +460,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             mandate_generic_data.recurring_mandate_payment_data,
                             mandate_generic_data.mandate_connector,
-                            None,
+                            mandate_generic_data.payment_method_info,
                         )
                     }
                     RecurringDetails::PaymentMethodId(payment_method_id) => {
@@ -514,7 +514,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             mandate_generic_data.recurring_mandate_payment_data,
                             mandate_generic_data.mandate_connector,
-                            None,
+                            mandate_generic_data.payment_method_info,
                         )
                     } else {
                         (
@@ -635,7 +635,7 @@ pub async fn get_token_for_recurring_mandate(
         merchant_connector_id: mandate.merchant_connector_id,
     };
 
-    if let Some(diesel_models::enums::PaymentMethod::Card) = payment_method.payment_method {
+    if let Some(enums::PaymentMethod::Card) = payment_method.payment_method {
         if state.conf.locker.locker_enabled {
             let _ = cards::get_lookup_key_from_locker(
                 state,
@@ -672,7 +672,7 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: None,
+            payment_method_info: Some(payment_method),
         })
     } else {
         Ok(MandateGenericData {
@@ -686,7 +686,7 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: None,
+            payment_method_info: Some(payment_method),
         })
     }
 }
@@ -4358,6 +4358,103 @@ pub fn validate_mandate_data_and_future_usage(
     } else {
         Ok(())
     }
+}
+
+pub enum PaymentExternalAuthenticationFlow {
+    PreAuthenticationFlow {
+        acquirer_details: authentication::types::AcquirerDetails,
+        card_number: ::cards::CardNumber,
+        token: String,
+    },
+    PostAuthenticationFlow {
+        authentication_id: String,
+    },
+}
+
+pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
+    state: &AppState,
+    key_store: &domain::MerchantKeyStore,
+    business_profile: &storage::BusinessProfile,
+    payment_data: &mut PaymentData<F>,
+    connector_call_type: &api::ConnectorCallType,
+) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
+    let authentication_id = payment_data.payment_attempt.authentication_id.clone();
+    let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
+        == Some(common_enums::AuthenticationType::ThreeDs);
+    let separate_authentication_requested = payment_data
+        .payment_intent
+        .request_external_three_ds_authentication
+        .unwrap_or(false);
+    let separate_three_ds_authentication_attempted = payment_data
+        .payment_attempt
+        .external_three_ds_authentication_attempted
+        .unwrap_or(false);
+    let connector_supports_separate_authn =
+        authentication::utils::get_connector_data_if_separate_authn_supported(connector_call_type);
+    logger::info!("is_pre_authn_call {:?}", authentication_id.is_none());
+    logger::info!(
+        "separate_authentication_requested {:?}",
+        separate_authentication_requested
+    );
+    logger::info!(
+        "payment connector supports external authentication: {:?}",
+        connector_supports_separate_authn.is_some()
+    );
+    let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
+        if let api_models::payments::PaymentMethodData::Card(card) = pmd {
+            Some(card.card_number.clone())
+        } else {
+            None
+        }
+    });
+    Ok(if separate_three_ds_authentication_attempted {
+        authentication_id.map(|authentication_id| {
+            PaymentExternalAuthenticationFlow::PostAuthenticationFlow { authentication_id }
+        })
+    } else if separate_authentication_requested && is_authentication_type_3ds {
+        if let Some((connector_data, card_number)) =
+            connector_supports_separate_authn.zip(card_number)
+        {
+            let token = payment_data
+                .token
+                .clone()
+                .get_required_value("token")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "payment_data.token should not be None while making pre authentication call",
+                )?;
+            let payment_connector_mca = get_merchant_connector_account(
+                state,
+                &business_profile.merchant_id,
+                None,
+                key_store,
+                &business_profile.profile_id,
+                connector_data.connector_name.to_string().as_str(),
+                connector_data.merchant_connector_id.as_ref(),
+            )
+            .await?;
+            let acquirer_details: authentication::types::AcquirerDetails = payment_connector_mca
+                .get_metadata()
+                .get_required_value("merchant_connector_account.metadata")?
+                .peek()
+                .clone()
+                .parse_value("AcquirerDetails")
+                .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                            .to_string(),
+                })?;
+            Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
+                card_number,
+                token,
+                acquirer_details,
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    })
 }
 
 pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
