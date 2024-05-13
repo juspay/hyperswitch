@@ -5163,7 +5163,8 @@
         "type": "string",
         "enum": [
           "threedsecureio",
-          "netcetera"
+          "netcetera",
+          "gpayments"
         ]
       },
       "AuthenticationStatus": {

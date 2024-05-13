@@ -32,6 +32,7 @@ mod forte;
 mod globalpay;
 mod globepay;
 mod gocardless;
+mod gpayments;
 mod helcim;
 mod iatapay;
 mod mifinity;
