@@ -137,6 +137,7 @@ pub enum RoutableConnectors {
     Helcim,
     Iatapay,
     Klarna,
+    Mifinity,
     Mollie,
     Multisafepay,
     Nexinets,
@@ -147,6 +148,7 @@ pub enum RoutableConnectors {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
+    Payone,
     Paypal,
     Payu,
     Placetopay,
@@ -2716,6 +2718,7 @@ pub enum TokenPurpose {
     TOTP,
     VerifyEmail,
     AcceptInvitationFromEmail,
+    ForceSetPassword,
     ResetPassword,
     AcceptInvite,
     UserInfo,

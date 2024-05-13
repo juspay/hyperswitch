@@ -25,6 +25,7 @@ use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
 };
+use serde::Serialize;
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
@@ -32,6 +33,7 @@ use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user_key_store::UserKeyStoreInterface,
     user_role::UserRoleInterface,
 };
 #[cfg(feature = "payouts")]
@@ -74,17 +76,22 @@ use crate::{
     },
 };
 
+#[derive(Clone, Serialize)]
+pub struct TenantID(pub String);
+
 #[derive(Clone)]
 pub struct KafkaStore {
     kafka_producer: KafkaProducer,
     pub diesel_store: Store,
+    pub tenant_id: TenantID,
 }
 
 impl KafkaStore {
-    pub async fn new(store: Store, kafka_producer: KafkaProducer) -> Self {
+    pub async fn new(store: Store, kafka_producer: KafkaProducer, tenant_id: TenantID) -> Self {
         Self {
             kafka_producer,
             diesel_store: store,
+            tenant_id,
         }
     }
 }
@@ -114,12 +121,12 @@ impl AddressInterface for KafkaStore {
 
     async fn update_address_for_payments(
         &self,
-        this: domain::Address,
+        this: domain::PaymentAddress,
         address: domain::AddressUpdate,
         payment_id: String,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .update_address_for_payments(this, address, payment_id, key_store, storage_scheme)
             .await
@@ -128,10 +135,10 @@ impl AddressInterface for KafkaStore {
     async fn insert_address_for_payments(
         &self,
         payment_id: &str,
-        address: domain::Address,
+        address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .insert_address_for_payments(payment_id, address, key_store, storage_scheme)
             .await
@@ -144,7 +151,7 @@ impl AddressInterface for KafkaStore {
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .find_address_by_merchant_id_payment_id_address_id(
                 merchant_id,
@@ -158,7 +165,7 @@ impl AddressInterface for KafkaStore {
 
     async fn insert_address_for_customers(
         &self,
-        address: domain::Address,
+        address: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         self.diesel_store
@@ -2741,5 +2748,28 @@ impl RoleInterface for KafkaStore {
         org_id: &str,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store.list_all_roles(merchant_id, org_id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl UserKeyStoreInterface for KafkaStore {
+    async fn insert_user_key_store(
+        &self,
+        user_key_store: domain::UserKeyStore,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
+        self.diesel_store
+            .insert_user_key_store(user_key_store, key)
+            .await
+    }
+
+    async fn get_user_key_store_by_user_id(
+        &self,
+        user_id: &str,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
+        self.diesel_store
+            .get_user_key_store_by_user_id(user_id, key)
+            .await
     }
 }

@@ -195,7 +195,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 frm_configs: None,
                 frm_config: frm_configs,
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: Some(date_time::now()),
                 connector_webhook_details,
                 applepay_verified_domains,
                 pm_auth_config,

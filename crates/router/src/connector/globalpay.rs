@@ -18,7 +18,7 @@ use self::{
         GlobalpayRefreshTokenResponse,
     },
 };
-use super::utils::RefundsRequestData;
+use super::utils::{PaymentMethodDataType, RefundsRequestData};
 use crate::{
     configs::settings,
     core::{
@@ -130,6 +130,22 @@ impl ConnectorValidation for Globalpay {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::Ideal,
+            PaymentMethodDataType::Sofort,
+            PaymentMethodDataType::Eps,
+            PaymentMethodDataType::Giropay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

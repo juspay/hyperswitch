@@ -22,7 +22,7 @@ use common_utils::{
 use crate::{
     admin::*,
     analytics::{
-        api_event::*, connector_events::ConnectorEventsRequest,
+        api_event::*, auth_events::*, connector_events::ConnectorEventsRequest,
         outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, search::*, *,
     },
     api_keys::*,
@@ -84,6 +84,7 @@ impl_misc_api_event_type!(
     GetPaymentMetricRequest,
     GetRefundMetricRequest,
     GetSdkEventMetricRequest,
+    GetAuthEventMetricRequest,
     GetPaymentFiltersRequest,
     PaymentFiltersResponse,
     GetRefundFilterRequest,
