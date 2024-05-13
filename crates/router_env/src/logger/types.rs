@@ -190,6 +190,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    /// Refunds filters flow
+    RefundsFilters,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.

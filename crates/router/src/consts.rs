@@ -115,3 +115,5 @@ pub const POLL_ID_TTL: i64 = 900;
 // Default Poll Config
 pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
 pub const DEFAULT_POLL_FREQUENCY: i8 = 5;
+
+pub const CONNECTOR_CREDS_TOKEN_TTL: i64 = 900;
