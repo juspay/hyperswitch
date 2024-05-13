@@ -3,25 +3,22 @@ use api_models::{
     payment_methods::ResponsePaymentMethodIntermediate,
 };
 pub use common_enums::enums;
-use common_enums::{PaymentMethodType, CaptureMethod};
-use common_utils::{
-    consts,
-    ext_traits::AsyncExt,
-};
+use common_enums::{CaptureMethod, PaymentMethodType};
+use common_utils::{consts, ext_traits::AsyncExt};
 use error_stack::ResultExt;
-use euclid::{frontend::dir::{self, DirValue}, dirval, dssa::graph::*};
+use euclid::{
+    dirval,
+    dssa::graph::*,
+    frontend::dir::{self, DirValue},
+};
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::error::KgraphError;
 
 use crate::{
     configs::settings,
-    core::{
-        errors,
-        payments::helpers,
-    },
-    db, routes,
-    types,
-    utils::OptionExt, services,
+    core::{errors, payments::helpers},
+    db, routes, services, types,
+    utils::OptionExt,
 };
 
 pub async fn list_payment_methods_from_graph(
@@ -29,7 +26,7 @@ pub async fn list_payment_methods_from_graph(
     merchant_account: types::domain::MerchantAccount,
     key_store: types::domain::MerchantKeyStore,
     req: types::api::PaymentMethodListRequest,
-) -> errors::RouterResponse<()>{
+) -> errors::RouterResponse<()> {
     // Db call for all MCAs linked with the merchant account
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
@@ -108,10 +105,13 @@ pub async fn list_payment_methods_from_graph(
         let context = euclid::dssa::graph::AnalysisContext::from_dir_values([
             dirval!(BillingCountry = Australia),
             dirval!(PaymentCurrency = INR),
-        ]
-        );
-        let graph = make_pm_graph(payment_methods, mca.connector_name.clone(), pm_config_mapping)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+        ]);
+        let graph = make_pm_graph(
+            payment_methods,
+            mca.connector_name.clone(),
+            pm_config_mapping,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Kgraph isn't working")?;
         let result = graph.key_value_analysis(
             dirval!(CaptureMethod = Automatic),
@@ -122,13 +122,13 @@ pub async fn list_payment_methods_from_graph(
         );
         println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> result {:?}", result);
     }
-Ok(services::ApplicationResponse::StatusOk)
+    Ok(services::ApplicationResponse::StatusOk)
 }
 
-fn make_pm_graph<'a> (
-    payment_methods:Vec<serde_json::value::Value>,
+fn make_pm_graph<'a>(
+    payment_methods: Vec<serde_json::value::Value>,
     connector: String,
-    pm_config_mapping: &settings::ConnectorFilters
+    pm_config_mapping: &settings::ConnectorFilters,
 ) -> Result<cgraph::ConstraintGraph<'a, DirValue>, KgraphError> {
     let mut builder = cgraph::ConstraintGraphBuilder::new();
     for payment_method in payment_methods.into_iter() {
@@ -141,7 +141,7 @@ fn make_pm_graph<'a> (
                 pm_config_mapping,
             )?;
         };
-    };
+    }
     Ok(builder.build())
 }
 fn compile_pm_graph(
@@ -212,13 +212,15 @@ fn compile_pm_graph(
         None::<()>,
     );
 
-    builder.make_edge(
-        any_aggregator,
-        pm_node,
-        cgraph::Strength::Strong,
-        cgraph::Relation::Positive,
-        None::<cgraph::DomainId>,
-    ).expect("failed to make edge");
+    builder
+        .make_edge(
+            any_aggregator,
+            pm_node,
+            cgraph::Strength::Strong,
+            cgraph::Relation::Positive,
+            None::<cgraph::DomainId>,
+        )
+        .expect("failed to make edge");
 
     Ok(None)
 }
@@ -260,7 +262,7 @@ fn compile_pm_graph(
 //                         .expect("error1");
 //
 //                     // Currency from config
-//                     let config_currency: Vec<common_enums::Currency> = 
+//                     let config_currency: Vec<common_enums::Currency> =
 //                         Vec::from_iter(value.currency.clone().unwrap())
 //                             .into_iter()
 //                             .collect();
@@ -347,7 +349,10 @@ fn compile_accepted_countries_for_mca(
                             .into_iter()
                             .map(|country| common_enums::Country::from_alpha2(*country))
                             .collect();
-                    println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>config countries {:?}", config_countries);
+                    println!(
+                        ">>>>>>>>>>>>>>>>>>>>>>>>>>>config countries {:?}",
+                        config_countries
+                    );
                     let dir_countries: Vec<DirValue> = config_countries
                         .into_iter()
                         .map(|country| dir::DirValue::BillingCountry(country))
