@@ -4990,7 +4990,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The required billing contacht fields for connector",
+            "description": "The required billing contact fields for connector",
             "nullable": true
           }
         }
