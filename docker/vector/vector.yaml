@@ -1,17 +1,31 @@
+acknowledgements:
+  enabled: true
+
 api:
   enabled: true
   address: 0.0.0.0:8686
+
 sources:
   demo_logs:
     type: demo_logs
     interval: 1
     format: json
+
   kafka_payments:
     type: kafka
     bootstrap_servers: kafka0:29092
     group_id: sessionizer
     topics:
       - ^hyperswitch-.+
+    decoding:
+      codec: json
+
+  kafka_intents_source:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: sessionizer
+    topics:
+      - consolidated-intent-events
     decoding:
       codec: json
 
@@ -29,11 +43,12 @@ transforms:
       - log.dispute_id
     merge_strategies:
       log: retain
+    expire_after_ms: 5000
 
   init_sessionizer_vars:
     type: remap
     inputs:
-      - buffer_with_reduce
+      - kafka_payments
     source: >-
       .sessionizer = {
         "table": "payments",
@@ -51,6 +66,13 @@ transforms:
       process: process
       shutdown: shutdown
     source: |-
+      local socket = require 'socket'
+
+      function sleep(sec)
+        socket.select(nil, nil, sec)
+      end
+
+
       function init(emit)
         local cassandra = require "cassandra"
         
@@ -65,7 +87,7 @@ transforms:
       end
 
       function db_get(table, id, id_type, version)
-        version = version or 1
+        local version = version or 1
         local rows = assert(client:execute(string.format("SELECT * FROM %s WHERE id = ? and id_type = ?", table), {
           id,
           id_type
@@ -73,12 +95,27 @@ transforms:
         return rows
       end
 
+      function db_get_wait(table, id, id_type, version)
+        local is_success, data = pcall(db_get, table, id, id_type, version)
+
+        while not is_success do
+          sleep(5)
+          client:connect()
+          is_success, data = pcall(db_get, table, id, id_type, version)
+        end
+
+        return data
+      end
+
       function process(event, emit)
         local sessionizer = event.log.sessionizer
-        local old_event = db_get(sessionizer.table, sessionizer.id, sessionizer.id_type)
-        if #old_event == 1 then
-          event.log.old_log = old_event[1].state
+        local data = db_get_wait(sessionizer.table, sessionizer.id, sessionizer.id_type)
+
+        event.log.old_log_type = "intent"
+        if #data == 1 then
+          event.log.old_log = data[1].state
         end
+
         emit(event)
       end
 
@@ -136,6 +173,13 @@ transforms:
       process: process
       shutdown: shutdown
     source: |-
+      local socket = require 'socket'
+
+      function sleep(sec)
+        socket.select(nil, nil, sec)
+      end
+
+
       function init(emit)
 
         local cassandra = require "cassandra"
@@ -162,9 +206,21 @@ transforms:
         return res
       end
 
+      function db_set_wait(table, state, id, id_type, version)
+        local is_success, res = pcall(db_set, table, state, id, id_type, version)
+
+        while not is_success do
+          sleep(5)
+          client:connect()
+          is_success, res = pcall(db_set, table, state, id, id_type, version)
+        end
+
+        return res
+      end
+
       function process(event, emit)
         local sessionizer = event.log.sessionizer
-        local new_event_insert = db_set(sessionizer.table, sessionizer.db_event, sessionizer.id, sessionizer.id_type)
+        local new_event_insert = db_set_wait(sessionizer.table, sessionizer.db_event, sessionizer.id, sessionizer.id_type)
         emit(event)
       end
 
@@ -260,9 +316,18 @@ transforms:
       }
 
 sinks:
-  console_intents:
+  kafka_intents_sink:
+    type: kafka
     inputs:
       - consolidate_events_intents
+    bootstrap_servers: kafka0:29092
+    topic: consolidated-intent-events
+    encoding:
+      codec: json
+
+  console_intents:
+    inputs:
+      - kafka_intents_source
     target: stdout
     type: console
     encoding:
