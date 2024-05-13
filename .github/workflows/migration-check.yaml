@@ -66,7 +66,7 @@ jobs:
         if: env.migration_and_schema_changes == 'true'
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
 
       - name: Verify `diesel migration run`
