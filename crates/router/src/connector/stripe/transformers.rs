@@ -3050,8 +3050,6 @@ pub struct RefundRequest {
     pub payment_intent: String,
     #[serde(flatten)]
     pub meta_data: StripeMetadata,
-    #[serde(flatten)]
-    pub charges: Option<ChargeRefundOptions>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
@@ -3059,21 +3057,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let payment_intent = item.request.connector_transaction_id.clone();
-        let charges = item.request.charges.as_ref().map(|charges| {
-            let (refund_application_fee, reverse_transfer) = match charges.request.options {
-                refund_api::ChargeRefundsOptions::Direct(refund_api::DirectChargeRefund {
-                    revert_platform_fee,
-                }) => (Some(revert_platform_fee), None),
-                refund_api::ChargeRefundsOptions::Destination(
-                    refund_api::DestinationChargeRefund { revert_transfer },
-                ) => (None, Some(revert_transfer)),
-            };
-            ChargeRefundOptions {
-                charge: charges.request.charge_id.clone(),
-                refund_application_fee,
-                reverse_transfer,
-            }
-        });
         Ok(Self {
             amount: Some(amount),
             payment_intent,
@@ -3101,7 +3084,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
         let amount = item.request.refund_amount;
         let payment_intent = item.request.connector_transaction_id.clone();
         match item.request.charges.as_ref() {
-            None => Err(errors::ConnectorError::MissingRequiredField { field_name: "charges" }),
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "charges",
+            }
+            .into()),
             Some(charges) => {
                 let (refund_application_fee, reverse_transfer) = match charges.request.options {
                     refund_api::ChargeRefundsOptions::Direct(refund_api::DirectChargeRefund {

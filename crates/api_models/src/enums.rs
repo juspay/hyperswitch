@@ -548,6 +548,12 @@ pub enum PaymentChargeType {
     Stripe(StripeChargeType),
 }
 
+impl Default for PaymentChargeType {
+    fn default() -> Self {
+        Self::Stripe(StripeChargeType::default())
+    }
+}
+
 #[derive(
     Clone,
     Debug,

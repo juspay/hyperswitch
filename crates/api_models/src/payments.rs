@@ -3403,11 +3403,10 @@ pub struct PaymentsResponse {
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentChargeResponse {
-    pub charge_id: String,
-    pub charge_type: api_enums::StripeChargeType,
+    pub charge_id: Option<String>,
+    pub charge_type: api_enums::PaymentChargeType,
     pub application_fees: i64,
     pub transfer_account_id: String,
-    pub automatic_payment_methods_enabled: Option<bool>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]

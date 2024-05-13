@@ -1390,8 +1390,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::RefundRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let request_body = match req.request.charges.as_ref() {
+            None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from(req)?)),
+            Some(charges) => RequestContent::FormUrlEncoded(Box::new(
+                stripe::ChargeRefundRequest::try_from(req)?,
+            )),
+        };
+        Ok(request_body)
     }
 
     fn build_request(

@@ -1,6 +1,9 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::{FrmMessage, GetAddressFromPaymentMethodData, RequestSurchargeDetails};
+use api_models::payments::{
+    FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
+    RequestSurchargeDetails,
+};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
@@ -626,6 +629,31 @@ where
             )
         });
 
+        let charges_response = match payment_intent.charges {
+            None => None,
+            Some(charges) => {
+                let payment_charges = charges
+                    .peek()
+                    .clone()
+                    .parse_value("PaymentChargeRequest")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!(
+                        "Failed to parse PaymentChargeRequest for payment_intent {}",
+                        payment_intent.payment_id
+                    ))?;
+                match payment_charges {
+                    PaymentChargeRequest::Stripe(charge) => Some(PaymentChargeResponse {
+                        charge_id: payment_attempt.charge_id,
+                        charge_type: api_models::enums::PaymentChargeType::Stripe(
+                            charge.charge_type,
+                        ),
+                        application_fees: charge.fees,
+                        transfer_account_id: charge.transfer_account_id,
+                    }),
+                }
+            }
+        };
+
         services::ApplicationResponse::JsonWithHeaders((
             response
                 .set_net_amount(payment_attempt.net_amount)
@@ -777,6 +805,7 @@ where
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))
+                .set_charges(charges_response)
                 .to_owned(),
             headers,
         ))
