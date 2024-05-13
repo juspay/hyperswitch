@@ -13196,7 +13196,7 @@
             "items": {
               "$ref": "#/components/schemas/RequestPaymentMethodTypes"
             },
-            "description": "Subtype of payment method",
+            "description": "Subtype of payment methd",
             "example": [
               "credit"
             ],
