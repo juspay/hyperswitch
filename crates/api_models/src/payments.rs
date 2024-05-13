@@ -1450,9 +1450,9 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
-            Self::BankRedirect(_) => None,
+            Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
             Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
-            Self::BankTransfer(_) => None,
+            Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
