@@ -69,7 +69,7 @@ pub async fn start_process_tracker<
     app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    F: Fn(&T, &str) -> U,
+    F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
 {
     match scheduler_flow {
         SchedulerFlow::Producer => {

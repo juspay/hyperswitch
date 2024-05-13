@@ -26,7 +26,7 @@ pub enum PayoutRetryType {
     MultiConnector,
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_multiple_connector_actions(
     state: &app::SessionState,
@@ -95,7 +95,7 @@ pub async fn do_gsm_multiple_connector_actions(
     Ok(payout_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_single_connector_actions(
     state: &app::SessionState,
@@ -161,7 +161,7 @@ pub async fn do_gsm_single_connector_actions(
     Ok(payout_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
@@ -199,7 +199,7 @@ pub async fn get_retries(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_gsm(
     state: &app::SessionState,
     original_connector_data: &api::ConnectorData,
@@ -216,7 +216,7 @@ pub async fn get_gsm(
     )
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn get_gsm_decision(
     option_gsm: Option<storage::gsm::GatewayStatusMap>,
 ) -> api_models::gsm::GsmDecision {
@@ -239,7 +239,7 @@ pub fn get_gsm_decision(
 }
 
 #[allow(clippy::too_many_arguments)]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn do_retry(
     state: &routes::SessionState,
     connector: api::ConnectorData,
@@ -263,7 +263,7 @@ pub async fn do_retry(
     .await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn modify_trackers(
     state: &routes::SessionState,
     connector: &api::ConnectorData,

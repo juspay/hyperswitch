@@ -34,7 +34,7 @@ const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_di
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
 #[cfg(feature = "payouts")]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_mca_for_payout<'a>(
     state: &'a SessionState,
     connector_id: &str,
@@ -61,7 +61,7 @@ pub async fn get_mca_for_payout<'a>(
 }
 
 #[cfg(feature = "payouts")]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &'a SessionState,
     connector_id: &str,
@@ -192,7 +192,7 @@ pub async fn construct_payout_router_data<'a, F>(
     Ok(router_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a SessionState,
@@ -243,7 +243,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let webhook_url = Some(helpers::create_webhook_url(
-        &state.conf.server.base_url.clone(),
+        &state.base_url.clone(),
         &merchant_account.merchant_id,
         &connector_id.to_string(),
     ));
@@ -487,7 +487,7 @@ pub fn validate_dispute_stage_and_dispute_status(
     )
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_accept_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
@@ -580,7 +580,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     Ok(router_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_submit_evidence_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
@@ -672,7 +672,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     Ok(router_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_upload_file_router_data<'a>(
     state: &'a SessionState,
@@ -770,7 +770,7 @@ pub async fn construct_upload_file_router_data<'a>(
     Ok(router_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_defend_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
@@ -865,7 +865,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     Ok(router_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,

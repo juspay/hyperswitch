@@ -64,7 +64,7 @@ pub async fn payment_authorize(
     if let Ok(payment_data_inner) = payment_data {
         let return_url = format!(
             "{}/dummy-connector/complete/{}",
-            state.conf.server.base_url, req.attempt_id
+            state.base_url, req.attempt_id
         );
         Ok(api::ApplicationResponse::FileData((
             utils::get_authorize_page(payment_data_inner, return_url, dummy_connector_conf)

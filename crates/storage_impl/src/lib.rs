@@ -28,7 +28,7 @@ use common_utils::errors::CustomResult;
 use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use database::store::PgPool;
 pub use mock_db::MockDb;
-use redis_interface::{errors::RedisError, SaddReply};
+use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
 pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
@@ -54,7 +54,11 @@ where
         tokio::sync::oneshot::Sender<()>,
         &'static str,
     );
-    async fn new(config: Self::Config, schema: &str, test_transaction: bool) -> StorageResult<Self> {
+    async fn new(
+        config: Self::Config,
+        schema: &str,
+        test_transaction: bool,
+    ) -> StorageResult<Self> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
         if test_transaction {
@@ -81,9 +85,7 @@ where
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
-    fn get_redis_conn(
-        &self,
-    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError> {
+    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
         self.cache_store.get_redis_conn()
     }
 }
@@ -96,9 +98,13 @@ impl<T: DatabaseStore> RouterStore<T> {
         cache_store: Arc<RedisStore>,
     ) -> StorageResult<Self> {
         let db_store = T::new(db_conf, schema, false).await?;
+        let redis_conn = cache_store.redis_conn.clone();
+
         Ok(Self {
             db_store,
-            cache_store,
+            cache_store: Arc::new(RedisStore {
+                redis_conn: Arc::new(RedisConnectionPool::clone(&redis_conn, schema)),
+            }),
             master_encryption_key: encryption_key,
             request_id: None,
         })
@@ -166,8 +172,13 @@ where
     T: DatabaseStore,
 {
     type Config = (RouterStore<T>, String, u8, u32);
-    async fn new(config: Self::Config, schema:&str ,_test_transaction: bool) -> StorageResult<Self> {
-        let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv) = config;
+    async fn new(
+        config: Self::Config,
+        schema: &str,
+        _test_transaction: bool,
+    ) -> StorageResult<Self> {
+        let (router_store, _, drainer_num_partitions, ttl_for_kv) = config;
+        let drainer_stream_name = format!("{}_{}", schema, config.1);
         Ok(Self::from_store(
             router_store,
             drainer_stream_name,
@@ -184,9 +195,7 @@ where
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
-    fn get_redis_conn(
-        &self,
-    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError> {
+    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
         self.router_store.get_redis_conn()
     }
 }
@@ -282,7 +291,7 @@ pub trait UniqueConstraints {
     fn table_name(&self) -> &str;
     async fn check_for_constraints(
         &self,
-        redis_conn: &Arc<redis_interface::RedisConnectionPool>,
+        redis_conn: &Arc<RedisConnectionPool>,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
         let sadd_result = redis_conn

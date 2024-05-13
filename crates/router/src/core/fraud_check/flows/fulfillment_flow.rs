@@ -18,7 +18,7 @@ use crate::{
     utils, SessionState,
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_fulfillment_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,

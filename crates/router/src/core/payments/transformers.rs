@@ -12,7 +12,7 @@ use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
+    configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -30,7 +30,7 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
@@ -88,7 +88,7 @@ where
     });
 
     let additional_data = PaymentAdditionalData {
-        router_base_url: state.conf.server.base_url.clone(),
+        router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
@@ -195,7 +195,7 @@ where
         data: D,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &String,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -214,7 +214,7 @@ where
         payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &String,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -244,7 +244,7 @@ where
             captures,
             customer,
             auth_flow,
-            server,
+            base_url,
             &operation,
             connector_request_reference_id_config,
             connector_http_status_code,
@@ -264,7 +264,7 @@ where
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &String,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -296,7 +296,7 @@ where
         data: PaymentData<F>,
         customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &String,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -343,7 +343,7 @@ where
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
 #[allow(clippy::too_many_arguments)]
@@ -352,7 +352,7 @@ pub fn payments_to_payments_response<Op, F: Clone>(
     captures: Option<Vec<storage::Capture>>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
-    server: &Server,
+    base_url: &String,
     operation: &Op,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
@@ -560,7 +560,7 @@ where
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {
                             api_models::payments::NextActionData::RedirectToUrl {
                                 redirect_to_url: helpers::create_startpay_url(
-                                    server,
+                                    base_url,
                                     &payment_attempt,
                                     &payment_intent,
                                 ),
@@ -575,9 +575,9 @@ where
                                         .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: helpers::create_authentication_url(&server.base_url, &payment_attempt),
+                                            three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
                                             three_ds_authorize_url: helpers::create_authorize_url(
-                                                &server.base_url,
+                                                base_url,
                                                 &payment_attempt,
                                                 payment_connector_name,
                                             ),

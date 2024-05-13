@@ -14,7 +14,7 @@ use crate::{
     SessionState,
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn create_gsm_rule(
     state: SessionState,
     gsm_rule: gsm_api_types::GsmCreateRequest,
@@ -28,7 +28,7 @@ pub async fn create_gsm_rule(
         .map(|gsm| services::ApplicationResponse::Json(gsm.foreign_into()))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn retrieve_gsm_rule(
     state: SessionState,
     gsm_request: gsm_api_types::GsmRetrieveRequest,
@@ -49,7 +49,7 @@ pub async fn retrieve_gsm_rule(
         .map(|gsm| services::ApplicationResponse::Json(gsm.foreign_into()))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn update_gsm_rule(
     state: SessionState,
     gsm_request: gsm_api_types::GsmUpdateRequest,
@@ -92,7 +92,7 @@ pub async fn update_gsm_rule(
     .map(|gsm| services::ApplicationResponse::Json(gsm.foreign_into()))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn delete_gsm_rule(
     state: SessionState,
     gsm_request: gsm_api_types::GsmDeleteRequest,

@@ -31,7 +31,7 @@ pub struct PaymentReject;
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, PaymentsCancelRequest, Ctx> for PaymentReject
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
@@ -192,7 +192,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest, Ctx> for PaymentReject
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
@@ -260,7 +260,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, PaymentsCancelRequest, Ctx>
     for PaymentReject
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsCancelRequest,

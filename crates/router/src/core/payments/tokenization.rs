@@ -29,7 +29,7 @@ use crate::{
     utils::{generate_id, OptionExt},
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &SessionState,

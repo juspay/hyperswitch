@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::Flow;
 
-use super::{AppState,SessionState};
+use super::{AppState, SessionState};
 use crate::{
     core::{
         api_locking,

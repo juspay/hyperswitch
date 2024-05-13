@@ -11,7 +11,7 @@ use crate::{
     types::{self, api, domain, storage},
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn create_connector_customer<F: Clone, T: Clone>(
     state: &SessionState,
     connector: &api::ConnectorData,

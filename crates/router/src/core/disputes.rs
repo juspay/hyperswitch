@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn retrieve_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -39,7 +39,7 @@ pub async fn retrieve_dispute(
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn retrieve_disputes_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -58,7 +58,7 @@ pub async fn retrieve_disputes_list(
     Ok(services::ApplicationResponse::Json(disputes_list))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn accept_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -159,7 +159,7 @@ pub async fn accept_dispute(
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn submit_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -399,7 +399,7 @@ pub async fn attach_evidence(
     Ok(create_file_response)
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn retrieve_dispute_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

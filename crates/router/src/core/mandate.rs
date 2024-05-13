@@ -29,7 +29,7 @@ use crate::{
     utils::OptionExt,
 };
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn get_mandate(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -53,7 +53,7 @@ pub async fn get_mandate(
     ))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn revoke_mandate(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -155,7 +155,7 @@ pub async fn revoke_mandate(
     }
 }
 
-//#\[instrument\(skip(db))]
+#[instrument(skip(db))]
 pub async fn update_connector_mandate_id(
     db: &dyn StorageInterface,
     merchant_account: String,
@@ -207,7 +207,7 @@ pub async fn update_connector_mandate_id(
     Ok(services::ApplicationResponse::StatusOk)
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -467,7 +467,7 @@ where
     Ok(resp)
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn retrieve_mandates_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

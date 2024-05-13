@@ -20,10 +20,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
-use storage_impl::{
-    redis::RedisStore,
-    RouterStore,
-};
+use storage_impl::{redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};

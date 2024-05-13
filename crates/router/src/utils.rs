@@ -773,7 +773,7 @@ where
             captures,
             customer,
             services::AuthFlow::Merchant,
-            &state.conf.server,
+            &state.base_url,
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,

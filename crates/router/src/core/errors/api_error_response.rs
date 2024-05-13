@@ -265,6 +265,8 @@ pub enum ApiErrorResponse {
         message = "Invalid Cookie"
     )]
     InvalidCookie,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Invalid tenant id: {tenant_id}")]
+    InvalidTenant { tenant_id: String },
 }
 
 impl PTError for ApiErrorResponse {

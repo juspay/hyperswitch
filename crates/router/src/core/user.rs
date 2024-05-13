@@ -1343,7 +1343,7 @@ pub async fn verify_email_without_invite_checks(
         .await
         .map_err(|e| logger::error!(?e));
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
-    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role, &state).await;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;

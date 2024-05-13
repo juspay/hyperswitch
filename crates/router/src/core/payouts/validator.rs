@@ -16,7 +16,7 @@ use crate::{
     utils,
 };
 
-//#\[instrument\(skip(db))]
+#[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &str,

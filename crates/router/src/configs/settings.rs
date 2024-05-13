@@ -124,7 +124,29 @@ pub struct Settings<S: SecretState> {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Multitenancy {
-    pub tenants: Vec<String>,
+    pub tenants: TenantConfig,
+}
+
+impl Multitenancy {
+    pub fn get_tenants(&self) -> HashMap<String, Tenant> {
+        self.tenants.0.clone()
+    }
+    pub fn get_tenant_names(&self) -> Vec<String> {
+        self.tenants.0.keys().cloned().collect()
+    }
+    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+        self.tenants.0.get(tenant_id)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TenantConfig(pub HashMap<String, Tenant>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Tenant {
+    pub name: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -438,7 +460,7 @@ pub struct Server {
     pub workers: usize,
     pub host: String,
     pub request_body_limit: usize,
-    pub base_url: String,
+    // pub base_url: String,
     pub shutdown_timeout: u64,
 }
 

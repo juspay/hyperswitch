@@ -28,7 +28,7 @@ use crate::{
 
 // ********************************************** REFUND EXECUTE **********************************************
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn refund_create_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -119,7 +119,7 @@ pub async fn refund_create_core(
     .map(services::ApplicationResponse::Json)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn trigger_refund_to_gateway(
     state: &SessionState,
     refund: &storage::Refund,
@@ -320,7 +320,7 @@ where
     ))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn refund_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -415,7 +415,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
     predicate1 && predicate2
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn sync_refund_with_gateway(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -558,7 +558,7 @@ pub async fn refund_update_core(
 
 // ********************************************** VALIDATIONS **********************************************
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn validate_and_create_refund(
     state: &SessionState,
@@ -702,7 +702,7 @@ pub async fn validate_and_create_refund(
 ///   If payment-id is provided, lists all the refunds associated with that particular payment-id
 ///   If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
     state: SessionState,
@@ -747,7 +747,7 @@ pub async fn refund_list(
     ))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
     state: SessionState,
@@ -791,7 +791,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
 
 // ********************************************** PROCESS TRACKER **********************************************
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn schedule_refund_execution(
     state: &SessionState,
@@ -869,7 +869,7 @@ pub async fn schedule_refund_execution(
     Ok(result)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
     state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
@@ -938,7 +938,7 @@ pub async fn sync_refund_with_gateway_workflow(
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn start_refund_workflow(
     state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
@@ -954,7 +954,7 @@ pub async fn start_refund_workflow(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn trigger_refund_execute_workflow(
     state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
@@ -1069,7 +1069,7 @@ pub fn refund_to_refund_core_workflow_model(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
@@ -1110,7 +1110,7 @@ pub async fn add_refund_sync_task(
     Ok(response)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,

@@ -27,7 +27,7 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn create_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -134,7 +134,7 @@ pub async fn create_customer(
     ))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -164,7 +164,7 @@ pub async fn retrieve_customer(
     ))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
     merchant_id: String,
@@ -185,7 +185,7 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -339,7 +339,7 @@ pub async fn delete_customer(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn update_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

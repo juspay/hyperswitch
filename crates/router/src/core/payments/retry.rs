@@ -29,7 +29,7 @@ use crate::{
     utils,
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     state: &app::SessionState,
@@ -162,7 +162,7 @@ where
     Ok(router_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
     merchant_id: &str,
@@ -186,7 +186,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         .unwrap_or(false)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
@@ -216,7 +216,7 @@ pub async fn get_retries(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_gsm<F, FData>(
     state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -232,7 +232,7 @@ pub async fn get_gsm<F, FData>(
     )
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn get_gsm_decision(
     option_gsm: Option<storage::gsm::GatewayStatusMap>,
 ) -> api_models::gsm::GsmDecision {
@@ -266,7 +266,7 @@ fn get_flow_name<F>() -> RouterResult<String> {
 }
 
 #[allow(clippy::too_many_arguments)]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     state: &routes::SessionState,
     req_state: ReqState,
@@ -322,7 +322,7 @@ where
     .await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn modify_trackers<F, FData>(
     state: &routes::SessionState,
     connector: String,
@@ -466,7 +466,7 @@ where
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn make_new_payment_attempt(
     connector: String,
     old_payment_attempt: storage::PaymentAttempt,

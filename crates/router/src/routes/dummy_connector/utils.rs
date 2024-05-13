@@ -11,10 +11,7 @@ use super::{
     consts, errors,
     types::{self, GetPaymentMethodDetails},
 };
-use crate::{
-    configs::settings,
-    routes::SessionState,
-};
+use crate::{configs::settings, routes::SessionState};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
@@ -344,7 +341,7 @@ impl types::DummyConnectorPaymentData {
     ) -> types::DummyConnectorResult<Self> {
         let redirect_url = format!(
             "{}/dummy-connector/authorize/{}",
-            state.conf.server.base_url, payment_attempt.attempt_id
+            state.base_url, payment_attempt.attempt_id
         );
         payment_attempt
             .clone()

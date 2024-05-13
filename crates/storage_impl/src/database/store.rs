@@ -13,7 +13,8 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
     type Config: Send;
-    async fn new(config: Self::Config, schema: &str, test_transaction: bool) -> StorageResult<Self>;
+    async fn new(config: Self::Config, schema: &str, test_transaction: bool)
+        -> StorageResult<Self>;
     fn get_master_pool(&self) -> &PgPool;
     fn get_replica_pool(&self) -> &PgPool;
 }
@@ -50,7 +51,11 @@ pub struct ReplicaStore {
 #[async_trait::async_trait]
 impl DatabaseStore for ReplicaStore {
     type Config = (Database, Database);
-    async fn new(config: (Database, Database), schema: &str, test_transaction: bool) -> StorageResult<Self> {
+    async fn new(
+        config: (Database, Database),
+        schema: &str,
+        test_transaction: bool,
+    ) -> StorageResult<Self> {
         let (master_config, replica_config) = config;
         let master_pool = diesel_make_pg_pool(&master_config, schema, test_transaction)
             .await

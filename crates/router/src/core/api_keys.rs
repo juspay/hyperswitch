@@ -108,7 +108,7 @@ impl PlaintextApiKey {
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn create_api_key(
     state: SessionState,
     api_key: api::CreateApiKeyRequest,
@@ -178,7 +178,7 @@ pub async fn create_api_key(
 // After first email has been sent, update the schedule_time based on retry_count in execute_workflow().
 // A task is not scheduled if the time for the first email is in the past.
 #[cfg(feature = "email")]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn add_api_key_expiry_task(
     store: &dyn crate::db::StorageInterface,
     api_key: &ApiKey,
@@ -242,7 +242,7 @@ pub async fn add_api_key_expiry_task(
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn retrieve_api_key(
     state: SessionState,
     merchant_id: &str,
@@ -259,7 +259,7 @@ pub async fn retrieve_api_key(
     Ok(ApplicationResponse::Json(api_key.foreign_into()))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn update_api_key(
     state: SessionState,
     api_key: api::UpdateApiKeyRequest,
@@ -335,7 +335,7 @@ pub async fn update_api_key(
 // Construct Update variant of ProcessTrackerUpdate with new tracking_data.
 // A task is not scheduled if the time for the first email is in the past.
 #[cfg(feature = "email")]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn update_api_key_expiry_task(
     store: &dyn crate::db::StorageInterface,
     api_key: &ApiKey,
@@ -393,7 +393,7 @@ pub async fn update_api_key_expiry_task(
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn revoke_api_key(
     state: SessionState,
     merchant_id: &str,
@@ -441,7 +441,7 @@ pub async fn revoke_api_key(
 // Function to revoke api_key_expiry task in the process_tracker table when API key is revoked.
 // Construct StatusUpdate variant of ProcessTrackerUpdate by setting status to 'finish'.
 #[cfg(feature = "email")]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn revoke_api_key_expiry_task(
     store: &dyn crate::db::StorageInterface,
     key_id: &str,
@@ -461,7 +461,7 @@ pub async fn revoke_api_key_expiry_task(
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn list_api_keys(
     state: SessionState,
     merchant_id: String,

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -73,6 +73,7 @@ pub struct Settings<S: SecretState> {
     pub drainer: DrainerSettings,
     pub encryption_management: EncryptionManagementConfig,
     pub secrets_management: SecretsManagementConfig,
+    pub multitenancy: Multitenancy,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -95,6 +96,32 @@ pub struct DrainerSettings {
     pub max_read_count: u64,
     pub shutdown_interval: u32, // in milliseconds
     pub loop_interval: u32,     // in milliseconds
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Multitenancy {
+    pub tenants: TenantConfig,
+}
+impl Multitenancy {
+    pub fn get_tenants(&self) -> HashMap<String, Tenant> {
+        self.tenants.0.clone()
+    }
+    pub fn get_tenant_names(&self) -> Vec<String> {
+        self.tenants.0.keys().cloned().collect()
+    }
+    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+        self.tenants.0.get(tenant_id)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TenantConfig(pub HashMap<String, Tenant>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Tenant {
+    pub name: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

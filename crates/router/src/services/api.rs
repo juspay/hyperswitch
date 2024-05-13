@@ -271,7 +271,7 @@ pub enum CaptureSyncMethod {
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
-//#\[instrument\(skip_all, fields(connector_name, payment_method))]
+#[instrument(skip_all, fields(connector_name, payment_method))]
 pub async fn execute_connector_processing_step<
     'b,
     'a,
@@ -536,7 +536,7 @@ where
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn call_connector_api(
     state: &SessionState,
     request: Request,
@@ -572,7 +572,7 @@ pub async fn call_connector_api(
     handle_response(response).await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn send_request(
     state: &SessionState,
     request: Request,
@@ -752,7 +752,7 @@ fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) ->
     false
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 async fn handle_response(
     response: CustomResult<reqwest::Response, errors::ApiClientError>,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
@@ -946,10 +946,10 @@ pub enum AuthFlow {
 }
 
 #[allow(clippy::too_many_arguments)]
-//#\[instrument\(
-//     skip(request, payload, state, func, api_auth, request_state),
-//     fields(merchant_id)
-// )]
+#[instrument(
+    skip(request, payload, state, func, api_auth, request_state),
+    fields(merchant_id)
+)]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
@@ -997,25 +997,35 @@ where
     //     .ok_or_else(|| {
     //         errors::ApiErrorResponse::InvalidRequestData { message: "Missing tenant Id".to_string() }
     //         .switch()
-    //     }).map(|tenant_id| if !state.conf.multitenancy.tenants.contains(&tenant_id.to_string()) {
-    //         Err(errors::ApiErrorResponse::InvalidRequestData { message: "Invalid tenant Id".to_string() }
+    //     }).map(|tenant_id| if !state.conf.multitenancy.get_tenant_names().contains(&tenant_id.to_string()) {
+    //         Err(errors::ApiErrorResponse::InvalidTenant { tenant_id: tenant_id.to_string() }
     //         .switch())
     //     } else {
     //         Ok(tenant_id)
     //     } )??;
     let tenant_id = "public";
-    let mut session_state = SessionState {
-        store: state.stores.get(tenant_id).ok_or_else(|| {
-            errors::ApiErrorResponse::InternalServerError
-                .switch()
-        })?.clone(),
-        conf: Arc::clone(&state.conf),
-        api_client: state.api_client.clone(),
-        event_handler: state.event_handler.clone(),
-        pool: state.pool.clone(),
-        file_storage_client: state.file_storage_client.clone(),
-        request_id: state.request_id.clone(),
-    };
+    let mut session_state =
+        SessionState::from_app_state(Arc::new(app_state.clone()), tenant_id, || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.to_string(),
+            }
+            .switch()
+        })?;
+    // {
+    //     store: state.stores.get(tenant_id).ok_or_else(|| {
+    //         errors::ApiErrorResponse::InternalServerError
+    //             .switch()
+    //     })?.clone(),
+    //     conf: Arc::clone(&state.conf),
+    //     api_client: state.api_client.clone(),
+    //     event_handler: state.event_handler.clone(),
+    //     pool: state.pools.get(tenant_id).ok_or_else(|| {
+    //         errors::ApiErrorResponse::InternalServerError
+    //             .switch()
+    //     })?.clone(),
+    //     file_storage_client: state.file_storage_client.clone(),
+    //     request_id: state.request_id.clone(),
+    // };
     session_state.add_request_id(request_id);
 
     // Currently auth failures are not recorded as API events
@@ -1119,10 +1129,10 @@ where
     output
 }
 
-//#\[instrument\(
-//     skip(request, state, func, api_auth, payload),
-//     fields(request_method, request_url_path, status_code)
-// )]
+#[instrument(
+    skip(request, state, func, api_auth, payload),
+    fields(request_method, request_url_path, status_code)
+)]
 pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
     state: web::Data<AppState>,

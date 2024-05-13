@@ -89,7 +89,7 @@ impl ToString for AnalyticsProvider {
 }
 
 impl AnalyticsProvider {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     pub async fn get_payment_metrics(
         &self,
         metric: &PaymentMetrics,
@@ -565,20 +565,20 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(config: &AnalyticsConfig) -> Self {
+    pub async fn from_conf(config: &AnalyticsConfig, tenant: &str) -> Self {
         match config {
-            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx).await),
+            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx, tenant).await),
             AnalyticsConfig::Clickhouse { clickhouse } => Self::Clickhouse(ClickhouseClient {
                 config: Arc::new(clickhouse.clone()),
             }),
             AnalyticsConfig::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh(
-                SqlxClient::from_conf(sqlx).await,
+                SqlxClient::from_conf(sqlx, tenant).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
                 },
             ),
             AnalyticsConfig::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx(
-                SqlxClient::from_conf(sqlx).await,
+                SqlxClient::from_conf(sqlx, tenant).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
                 },

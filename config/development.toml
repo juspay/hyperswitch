@@ -614,5 +614,6 @@ payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
 
-[multitenancy]
-tenants = ["public", "zurich"]
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080"}
+zurich = { name = "zurich", base_url = "http://localhost:9090"}

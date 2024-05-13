@@ -52,7 +52,7 @@ pub struct PaymentCreate;
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
@@ -215,7 +215,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
                     .unwrap_or_default();
 
-                let default_domain_name = state.conf.server.base_url.clone();
+                let default_domain_name = state.base_url.clone();
 
                 let (payment_link_config, domain_name) =
                     payment_link::get_payment_link_config_based_on_priority(
@@ -464,7 +464,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest, Ctx>
     for PaymentCreate
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -491,7 +491,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         .await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a SessionState,
@@ -515,7 +515,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         .await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _state: &'a SessionState,
@@ -537,7 +537,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         helpers::get_connector_default(state, request.routing.clone()).await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
@@ -552,7 +552,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
 impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
@@ -657,7 +657,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::PaymentsRequest, Ctx>
     for PaymentCreate
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
@@ -752,7 +752,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 }
 
 impl PaymentCreate {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
         payment_id: &str,
@@ -928,7 +928,7 @@ impl PaymentCreate {
         ))
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
         payment_id: &str,
@@ -1023,7 +1023,7 @@ impl PaymentCreate {
         })
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     pub async fn get_ephemeral_key(
         request: &api::PaymentsRequest,
         state: &SessionState,
@@ -1049,7 +1049,7 @@ impl PaymentCreate {
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {

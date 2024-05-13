@@ -16,7 +16,7 @@ use crate::{
     utils::Encode,
 };
 
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -43,7 +43,7 @@ pub async fn create_payment_method_api(
     .await
 }
 
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -92,7 +92,7 @@ pub async fn list_payment_method_api(
     operation_id = "List all Payment Methods for a Customer",
     security(("api_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<(String,)>,
@@ -150,7 +150,7 @@ pub async fn list_customer_payment_method_api(
     operation_id = "List all Payment Methods for a Customer",
     security(("publishable_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api_client(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -183,7 +183,7 @@ pub async fn list_customer_payment_method_api_client(
     .await
 }
 
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -209,7 +209,7 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -239,7 +239,7 @@ pub async fn payment_method_update_api(
     .await
 }
 
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -263,7 +263,7 @@ pub async fn payment_method_delete_api(
     .await
 }
 
-//#\[instrument\(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
+#[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
 pub async fn list_countries_currencies_for_connector_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -292,7 +292,7 @@ pub async fn list_countries_currencies_for_connector_payment_method(
     .await
 }
 
-//#\[instrument\(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
+#[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
 pub async fn default_payment_method_set_api(
     state: web::Data<AppState>,
     req: HttpRequest,

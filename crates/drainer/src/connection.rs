@@ -18,14 +18,20 @@ pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnecti
 ///
 /// Will panic if could not create a db pool
 #[allow(clippy::expect_used)]
-pub async fn diesel_make_pg_pool(database: &Database, _test_transaction: bool) -> PgPool {
+pub async fn diesel_make_pg_pool(
+    database: &Database,
+    _test_transaction: bool,
+    schema: &str,
+) -> PgPool {
     let database_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
+        "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
         database.username,
         database.password.peek(),
         database.host,
         database.port,
-        database.dbname
+        database.dbname,
+        schema,
+        schema
     );
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder()

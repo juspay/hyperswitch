@@ -18,7 +18,7 @@ enum MerchantAccountOrBusinessProfile {
     BusinessProfile(storage::BusinessProfile),
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn list_initial_delivery_attempts(
     state: SessionState,
     merchant_id_or_profile_id: String,
@@ -106,7 +106,7 @@ pub async fn list_initial_delivery_attempts(
     ))
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn list_delivery_attempts(
     state: SessionState,
     merchant_id_or_profile_id: String,
@@ -155,7 +155,7 @@ pub async fn list_delivery_attempts(
     }
 }
 
-//#\[instrument\(skip(state))]
+#[instrument(skip(state))]
 pub async fn retry_delivery_attempt(
     state: SessionState,
     merchant_id_or_profile_id: String,

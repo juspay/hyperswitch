@@ -181,7 +181,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         Ok(())
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
@@ -234,7 +234,7 @@ impl<
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest, Ctx>,
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -274,7 +274,7 @@ where
         helpers::get_connector_default(state, None).await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a SessionState,
@@ -298,7 +298,7 @@ where
         .await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
@@ -318,7 +318,7 @@ impl<
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Ctx>,
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -346,7 +346,7 @@ where
             .await?,
         ))
     }
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a SessionState,
@@ -373,7 +373,7 @@ where
         helpers::get_connector_default(state, None).await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
@@ -393,7 +393,7 @@ impl<
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest, Ctx>,
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -422,7 +422,7 @@ where
         ))
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a SessionState,
@@ -449,7 +449,7 @@ where
         helpers::get_connector_default(state, None).await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
@@ -469,7 +469,7 @@ impl<
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest, Ctx>,
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _db: &dyn StorageInterface,
@@ -487,7 +487,7 @@ where
         Ok((Box::new(self), None))
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a SessionState,
@@ -514,7 +514,7 @@ where
         helpers::get_connector_default(state, None).await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,

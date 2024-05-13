@@ -62,9 +62,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::{
-        app::ReqState, metrics, payment_methods::ParentPaymentMethodToken, SessionState,
-    },
+    routes::{app::ReqState, metrics, payment_methods::ParentPaymentMethodToken, SessionState},
     services::{self, api::Authenticate},
     types::{
         self as router_types,
@@ -82,7 +80,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-//#\[instrument\(skip_all, fields(payment_id, merchant_id))]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &SessionState,
     req_state: ReqState,
@@ -509,7 +507,7 @@ where
     ))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn call_decision_manager<O>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -544,7 +542,7 @@ where
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 async fn populate_surcharge_details<F>(
     state: &SessionState,
     payment_data: &mut PaymentData<F>,
@@ -624,7 +622,7 @@ pub fn get_connector_data(
         .attach_printable("Connector not found in connectors iterator")
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -735,7 +733,7 @@ where
         payment_data,
         customer,
         auth_flow,
-        &state.conf.server,
+        &state.base_url,
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
@@ -1150,7 +1148,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
 }
 
 #[allow(clippy::too_many_arguments)]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     state: &SessionState,
     req_state: ReqState,
@@ -1775,7 +1773,7 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
     connector_name == *"trustpay" || connector_name == *"payme"
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn construct_profile_id_and_get_mca<'a, F>(
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -3523,7 +3521,7 @@ where
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn payment_external_authentication(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3658,7 +3656,7 @@ pub async fn payment_external_authentication(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing connector in payment_attempt")?;
     let return_url = Some(helpers::create_authorize_url(
-        &state.conf.server.base_url,
+        &state.base_url,
         &payment_attempt.clone(),
         payment_connector_name,
     ));

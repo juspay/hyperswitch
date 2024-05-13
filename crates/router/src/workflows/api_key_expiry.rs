@@ -1,7 +1,7 @@
 use common_utils::{errors::ValidationError, ext_traits::ValueExt};
 use diesel_models::{enums as storage_enums, ApiKeyExpiryTrackingData};
 use router_env::logger;
-use scheduler::{workflows::ProcessTrackerWorkflow};
+use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerAppState};
 
 use crate::{
     errors,

@@ -32,7 +32,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerEnableConfig},
+    configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -101,7 +101,7 @@ pub fn filter_mca_based_on_business_profile(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
     db: &dyn StorageInterface,
@@ -261,7 +261,7 @@ pub async fn create_or_update_address_for_payment_by_request(
     })
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_find_address_for_payment_by_request(
     db: &dyn StorageInterface,
@@ -671,7 +671,7 @@ pub async fn get_token_for_recurring_mandate(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 /// Check weather the merchant id in the request
 /// and merchant id in the merchant account are same.
 pub fn validate_merchant_id(
@@ -692,7 +692,7 @@ pub fn validate_merchant_id(
     })
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
     op_amount_to_capture: Option<i64>,
@@ -731,7 +731,7 @@ pub fn validate_request_amount_and_amount_to_capture(
 }
 
 /// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn validate_amount_to_capture_and_capture_method(
     payment_attempt: Option<&PaymentAttempt>,
     request: &api_models::payments::PaymentsRequest,
@@ -777,7 +777,7 @@ pub fn validate_amount_to_capture_and_capture_method(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn validate_card_data(
     payment_method_data: Option<api::PaymentMethodData>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -974,16 +974,13 @@ pub fn validate_customer_id_mandatory_cases(
 }
 
 pub fn create_startpay_url(
-    server: &Server,
+    base_url: &String,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> String {
     format!(
         "{}/payments/redirect/{}/{}/{}",
-        server.base_url,
-        payment_intent.payment_id,
-        payment_intent.merchant_id,
-        payment_attempt.attempt_id
+        base_url, payment_intent.payment_id, payment_intent.merchant_id, payment_attempt.attempt_id
     )
 }
 
@@ -1127,7 +1124,7 @@ pub fn verify_mandate_details_for_recurring_payments(
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
     confirm: Option<bool>,
@@ -1212,7 +1209,7 @@ where
     Box::new(PaymentResponse)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
@@ -1379,7 +1376,7 @@ pub fn validate_customer_details_in_request(
 
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
@@ -1432,7 +1429,7 @@ pub async fn get_connector_default(
     ))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     operation: BoxedOperation<'a, F, R, Ctx>,
@@ -2021,7 +2018,7 @@ pub fn should_store_payment_method_data_in_vault(
         .unwrap_or(true)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) fn validate_capture_method(
     capture_method: storage_enums::CaptureMethod,
 ) -> RouterResult<()> {
@@ -2038,7 +2035,7 @@ pub(crate) fn validate_capture_method(
     )
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) fn validate_status_with_capture_method(
     status: storage_enums::IntentStatus,
     capture_method: storage_enums::CaptureMethod,
@@ -2069,7 +2066,7 @@ pub(crate) fn validate_status_with_capture_method(
     )
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
@@ -2084,7 +2081,7 @@ pub(crate) fn validate_amount_to_capture(
     )
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) fn validate_payment_method_fields_present(
     req: &api::PaymentsRequest,
 ) -> RouterResult<()> {
@@ -2713,7 +2710,7 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -3012,7 +3009,7 @@ mod tests {
 }
 
 // This function will be removed after moving this functionality to server_wrap and using cache instead of config
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -3099,7 +3096,7 @@ impl MerchantConnectorAccountType {
 
 /// Query for merchant connector account either by business label or profile id
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
     state: &SessionState,
     merchant_id: &str,
@@ -3234,7 +3231,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -3441,7 +3438,7 @@ impl AttemptType {
         }
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
@@ -3581,7 +3578,7 @@ mod test {
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,

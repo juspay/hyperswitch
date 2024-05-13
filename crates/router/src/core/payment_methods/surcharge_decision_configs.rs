@@ -385,7 +385,7 @@ fn get_surcharge_details_from_surcharge_output(
     })
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn ensure_algorithm_cached(
     store: &dyn StorageInterface,
     merchant_id: &str,
@@ -408,7 +408,7 @@ pub async fn ensure_algorithm_cached(
     Ok(key)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn refresh_surcharge_algorithm_cache(
     store: &dyn StorageInterface,
     key: String,

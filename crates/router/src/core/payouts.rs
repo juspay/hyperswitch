@@ -143,7 +143,7 @@ pub async fn get_connector_choice(
 }
 
 #[cfg(feature = "payouts")]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn make_connector_decision(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -253,7 +253,7 @@ pub async fn make_connector_decision(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_create_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -456,7 +456,7 @@ pub async fn payouts_update_core(
     .await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -480,7 +480,7 @@ pub async fn payouts_retrieve_core(
     .await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_cancel_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -583,7 +583,7 @@ pub async fn payouts_cancel_core(
     .await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_fulfill_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

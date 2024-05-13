@@ -74,7 +74,7 @@ use crate::{
     utils::{self, ConnectorResponseExt, OptionExt},
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
@@ -168,7 +168,7 @@ pub fn store_default_payment_method(
 
     (payment_method_response, None)
 }
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_or_insert_payment_method(
     db: &dyn db::StorageInterface,
     req: api::PaymentMethodCreate,
@@ -236,7 +236,7 @@ pub async fn get_or_insert_payment_method(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn add_payment_method(
     state: routes::SessionState,
     req: api::PaymentMethodCreate,
@@ -464,7 +464,7 @@ pub async fn insert_payment_method(
     .await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn update_customer_payment_method(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -693,7 +693,7 @@ pub async fn delete_card_from_locker(
     .await
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn add_card_hs(
     state: &routes::SessionState,
     req: api::PaymentMethodCreate,
@@ -736,7 +736,7 @@ pub async fn add_card_hs(
     Ok((payment_method_resp, store_card_payload.duplication_check))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn decode_and_decrypt_locker_data(
     key_store: &domain::MerchantKeyStore,
     enc_card_data: String,
@@ -757,7 +757,7 @@ pub async fn decode_and_decrypt_locker_data(
         )
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_payment_method_from_hs_locker<'a>(
     state: &'a routes::SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -819,7 +819,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     Ok(payment_method_data)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn call_to_locker_hs<'a>(
     state: &routes::SessionState,
     payload: &payment_methods::StoreLockerReq<'a>,
@@ -892,7 +892,7 @@ pub async fn update_payment_method_connector_mandate_details(
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
 }
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn get_card_from_hs_locker<'a>(
     state: &'a routes::SessionState,
     customer_id: &str,
@@ -945,7 +945,7 @@ pub async fn get_card_from_hs_locker<'a>(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn delete_card_from_hs_locker<'a>(
     state: &routes::SessionState,
     customer_id: &str,
@@ -1052,7 +1052,7 @@ pub async fn mock_call_to_locker_hs<'a>(
     })
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn mock_get_card<'a>(
     db: &dyn db::StorageInterface,
     card_id: &'a str,
@@ -1088,7 +1088,7 @@ pub async fn mock_get_card<'a>(
     ))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn mock_get_payment_method<'a>(
     db: &dyn db::StorageInterface,
     key_store: &domain::MerchantKeyStore,
@@ -1119,7 +1119,7 @@ pub async fn mock_get_payment_method<'a>(
     })
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn mock_delete_card_hs<'a>(
     db: &dyn db::StorageInterface,
     card_id: &'a str,
@@ -1134,7 +1134,7 @@ pub async fn mock_delete_card_hs<'a>(
     })
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn mock_delete_card<'a>(
     db: &dyn db::StorageInterface,
     card_id: &'a str,
@@ -3401,7 +3401,7 @@ pub async fn get_bank_from_hs_locker(
 pub struct TempLockerCardSupport;
 
 impl TempLockerCardSupport {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn create_payment_method_data_in_temp_locker(
         state: &routes::SessionState,
         payment_token: &str,
@@ -3486,7 +3486,7 @@ impl TempLockerCardSupport {
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     state: routes::SessionState,
     pm: api::PaymentMethodId,
@@ -3541,7 +3541,7 @@ pub async fn retrieve_payment_method(
     ))
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn delete_payment_method(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,

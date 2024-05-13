@@ -21,13 +21,12 @@ use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
 #[cfg(feature = "recon")]
-use crate::routes::{AppState, SessionState};
+use crate::routes::SessionState;
 use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
     },
-    db::StorageInterface,
     routes::app::SessionStateInfo,
     services::api,
     types::domain,
@@ -1067,13 +1066,13 @@ impl AuthInfo for ReconUser {
 }
 #[cfg(all(feature = "olap", feature = "recon"))]
 #[async_trait]
-impl AuthenticateAndFetch<ReconUser, AppState> for ReconJWT {
+impl AuthenticateAndFetch<ReconUser, SessionState> for ReconJWT {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
         state: &SessionState,
     ) -> RouterResult<(ReconUser, AuthenticationType)> {
-        let payload = parse_jwt_payload::<AppState, ReconToken>(request_headers, state).await?;
+        let payload = parse_jwt_payload::<SessionState, ReconToken>(request_headers, state).await?;
 
         Ok((
             ReconUser {

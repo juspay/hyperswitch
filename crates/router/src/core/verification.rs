@@ -4,12 +4,7 @@ use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
-use crate::{
-    core::errors::api_error_response,
-    headers, logger,
-    routes::SessionState,
-    services,
-};
+use crate::{core::errors::api_error_response, headers, logger, routes::SessionState, services};
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 

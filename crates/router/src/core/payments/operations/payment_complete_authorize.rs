@@ -34,7 +34,7 @@ pub struct CompleteAuthorize;
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for CompleteAuthorize
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
@@ -332,7 +332,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest, Ctx>
     for CompleteAuthorize
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -359,7 +359,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         .await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a SessionState,
@@ -384,7 +384,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         Ok((op, payment_method_data, pm_id))
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _state: &'a SessionState,
@@ -408,7 +408,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         helpers::get_connector_default(state, request.routing.clone()).await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
@@ -423,7 +423,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
 impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for CompleteAuthorize
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
@@ -449,7 +449,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::PaymentsRequest, Ctx>
     for CompleteAuthorize
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,

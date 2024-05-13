@@ -89,7 +89,7 @@ use crate::{
     operation_id = "Create a Payment",
     security(("api_key" = [])),
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -166,7 +166,7 @@ pub async fn payments_create(
 //     tag = "Payments",
 //     operation_id = "Start a Redirection Payment"
 // )]
-//#\[instrument\(skip(state, req), fields(flow = ?Flow::PaymentsStart, payment_id))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart, payment_id))]
 pub async fn payments_start(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -232,7 +232,7 @@ pub async fn payments_start(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-//#\[instrument\(skip(state, req), fields(flow, payment_id))]
+#[instrument(skip(state, req), fields(flow, payment_id))]
 // #[get("/{payment_id}")]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
@@ -309,7 +309,7 @@ pub async fn payments_retrieve(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []))
 )]
-//#\[instrument\(skip(state, req), fields(flow, payment_id))]
+#[instrument(skip(state, req), fields(flow, payment_id))]
 // #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
@@ -382,7 +382,7 @@ pub async fn payments_retrieve_with_gateway_creds(
     operation_id = "Update a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsUpdate, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate, payment_id))]
 // #[post("/{payment_id}")]
 pub async fn payments_update(
     state: web::Data<app::AppState>,
@@ -450,7 +450,7 @@ pub async fn payments_update(
     operation_id = "Confirm a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 // #[post("/{payment_id}/confirm")]
 pub async fn payments_confirm(
     state: web::Data<app::AppState>,
@@ -528,7 +528,7 @@ pub async fn payments_confirm(
     operation_id = "Capture a Payment",
     security(("api_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
 // #[post("/{payment_id}/capture")]
 pub async fn payments_capture(
     state: web::Data<app::AppState>,
@@ -593,7 +593,7 @@ pub async fn payments_capture(
     operation_id = "Create Session tokens for a Payment",
     security(("publishable_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
 pub async fn payments_connector_session(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -655,7 +655,7 @@ pub async fn payments_connector_session(
 //     tag = "Payments",
 //     operation_id = "Get Redirect Response for a Payment"
 // )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -718,7 +718,7 @@ pub async fn payments_redirect_response(
 //     tag = "Payments",
 //     operation_id = "Get Redirect Response for a Payment"
 // )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response_with_creds_identifier(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -761,7 +761,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     )
     .await
 }
-//#\[instrument\(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
+#[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -824,7 +824,7 @@ pub async fn payments_complete_authorize(
     operation_id = "Cancel a Payment",
     security(("api_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 // #[post("/{payment_id}/cancel")]
 pub async fn payments_cancel(
     state: web::Data<app::AppState>,
@@ -890,7 +890,7 @@ pub async fn payments_cancel(
     operation_id = "List all Payments",
     security(("api_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payments_list(
     state: web::Data<app::AppState>,
@@ -914,7 +914,7 @@ pub async fn payments_list(
     )
     .await
 }
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payments_list_by_filter(
     state: web::Data<app::AppState>,
@@ -940,7 +940,7 @@ pub async fn payments_list_by_filter(
     )
     .await
 }
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_payments(
     state: web::Data<app::AppState>,
@@ -966,7 +966,7 @@ pub async fn get_filters_for_payments(
 }
 
 #[cfg(feature = "oltp")]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsApprove, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsApprove, payment_id))]
 // #[post("/{payment_id}/approve")]
 pub async fn payments_approve(
     state: web::Data<app::AppState>,
@@ -1027,7 +1027,7 @@ pub async fn payments_approve(
 }
 
 #[cfg(feature = "oltp")]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsReject, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsReject, payment_id))]
 // #[post("/{payment_id}/reject")]
 pub async fn payments_reject(
     state: web::Data<app::AppState>,
@@ -1190,7 +1190,7 @@ where
     operation_id = "Increment authorized amount for a Payment",
     security(("api_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
 pub async fn payments_incremental_authorization(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1255,7 +1255,7 @@ pub async fn payments_incremental_authorization(
     operation_id = "Initiate external authentication for a Payment",
     security(("api_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsExternalAuthentication, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsExternalAuthentication, payment_id))]
 pub async fn payments_external_authentication(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1304,7 +1304,7 @@ pub async fn payments_external_authentication(
     operation_id = "Authorize a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsAuthorize, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsAuthorize, payment_id))]
 pub async fn post_3ds_payments_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,

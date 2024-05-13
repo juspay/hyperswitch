@@ -439,7 +439,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,
     _payment_id: &api::PaymentIdType,

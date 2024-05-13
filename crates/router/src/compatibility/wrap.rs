@@ -15,7 +15,7 @@ use crate::{
     services::{self, api, authentication as auth, logger},
 };
 
-//#\[instrument\(skip(request, payload, state, func, api_authentication))]
+#[instrument(skip(request, payload, state, func, api_authentication))]
 pub async fn compatibility_api_wrap<'a, 'b, U, T, Q, F, Fut, S, E, E2>(
     flow: impl router_env::types::FlowMetric,
     state: Arc<AppState>,

@@ -74,15 +74,17 @@ use crate::{
 
 #[derive(Clone)]
 pub struct KafkaStore {
+    tenant_id: String,
     kafka_producer: KafkaProducer,
     pub diesel_store: Store,
 }
 
 impl KafkaStore {
-    pub async fn new(store: Store, kafka_producer: KafkaProducer) -> Self {
+    pub async fn new(store: Store, kafka_producer: KafkaProducer, tenant_id: String) -> Self {
         Self {
             kafka_producer,
             diesel_store: store,
+            tenant_id,
         }
     }
 }
@@ -1059,8 +1061,9 @@ impl QueueInterface for KafkaStore {
         entry_id: &RedisEntryId,
         fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
+        let stream_name = format!("{}_{}", &self.tenant_id, stream);
         self.diesel_store
-            .stream_append_entry(stream, entry_id, fields)
+            .stream_append_entry(&stream_name, entry_id, fields)
             .await
     }
 

@@ -25,7 +25,7 @@ pub struct OutgoingWebhookRetryWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -204,7 +204,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         Ok(())
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn error_handler<'a>(
         &'a self,
         state: &'a SessionState,
@@ -243,7 +243,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 ///   seconds between them by default.
 /// - `custom_merchant_mapping.merchant_id1`: Merchant-specific retry configuration for merchant
 ///   with merchant ID `merchant_id1`.
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -288,7 +288,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 }
 
 /// Schedule the webhook delivery task for retry
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -311,7 +311,7 @@ pub(crate) async fn retry_webhook_delivery_task(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 async fn get_outgoing_webhook_content_and_event_type(
     state: SessionState,
     req_state: ReqState,

@@ -109,7 +109,7 @@ async fn generate_jwe_payload_for_request(
     Ok(jwe_body)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn generate_fingerprint(
     state: &routes::SessionState,
     card_number: StrongSecret<String>,
@@ -127,7 +127,7 @@ pub async fn generate_fingerprint(
     Ok(generate_fingerprint_resp)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 async fn call_to_locker_for_fingerprint(
     state: &routes::SessionState,
     payload: &blocklist::GenerateFingerprintRequest,

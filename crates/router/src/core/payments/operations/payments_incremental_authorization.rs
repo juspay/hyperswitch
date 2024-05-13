@@ -39,7 +39,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest, Ctx>
     for PaymentIncrementalAuthorization
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
@@ -174,7 +174,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest, Ctx>
     for PaymentIncrementalAuthorization
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &'b SessionState,
@@ -265,7 +265,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, Ctx>
     for PaymentIncrementalAuthorization
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsIncrementalAuthorizationRequest,
@@ -290,7 +290,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
     Domain<F, PaymentsIncrementalAuthorizationRequest, Ctx> for PaymentIncrementalAuthorization
 {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _db: &dyn StorageInterface,
@@ -308,7 +308,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         Ok((Box::new(self), None))
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a SessionState,
@@ -335,7 +335,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         helpers::get_connector_default(state, None).await
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,

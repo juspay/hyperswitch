@@ -203,7 +203,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn refunds_incoming_webhook_flow(
     state: SessionState,
@@ -498,7 +498,7 @@ pub async fn mandates_incoming_webhook_flow(
 }
 
 #[allow(clippy::too_many_arguments)]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn disputes_incoming_webhook_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -658,7 +658,7 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
 }
 
 #[allow(clippy::too_many_arguments)]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -798,7 +798,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 }
 
 #[allow(clippy::too_many_arguments)]
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub(crate) async fn trigger_webhook_and_raise_event(
     state: SessionState,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -1327,7 +1327,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
     Ok(application_response)
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
     state: SessionState,
     req_state: ReqState,

@@ -19,7 +19,7 @@ use crate::{
     scheduler::SchedulerInterface, utils::*, SchedulerAppState,
 };
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn start_producer<T, U, F>(
     state: &T,
     scheduler_settings: Arc<SchedulerSettings>,
@@ -27,7 +27,7 @@ pub async fn start_producer<T, U, F>(
     app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    F: Fn(&T, &str) -> U,
+    F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
     T: SchedulerAppState,
     U: SchedulerAppState,
 {
@@ -70,7 +70,7 @@ where
                 interval.tick().await;
                 let tenants = state.get_tenants();
                 for tenant in tenants {
-                    let session_state = app_state_to_session_state(state, tenant.as_str());
+                    let session_state = app_state_to_session_state(state, tenant.as_str())?;
                     match run_producer_flow(&session_state, &scheduler_settings).await {
                         Ok(_) => (),
                         Err(error) => {
@@ -99,7 +99,7 @@ where
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn run_producer_flow<T>(
     state: &T,
     settings: &SchedulerSettings,
@@ -128,7 +128,7 @@ where
     Ok(())
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn fetch_producer_tasks(
     db: &dyn SchedulerInterface,
     conf: &SchedulerSettings,

@@ -49,11 +49,11 @@ impl Default for SqlxClient {
 }
 
 impl SqlxClient {
-    pub async fn from_conf(conf: &Database) -> Self {
+    pub async fn from_conf(conf: &Database, schema: &str) -> Self {
         let password = &conf.password.peek();
         let database_url = format!(
-            "postgres://{}:{}@{}:{}/{}",
-            conf.username, password, conf.host, conf.port, conf.dbname
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
+            conf.username, password, conf.host, conf.port, conf.dbname, schema, schema
         );
         #[allow(clippy::expect_used)]
         let pool = PgPoolOptions::new()

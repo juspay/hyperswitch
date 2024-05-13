@@ -295,6 +295,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidCookie => {
                 AER::BadRequest(ApiError::new("IR", 26, "Invalid Cookie", None))
             }
+            Self::InvalidTenant { tenant_id } => {
+                AER::BadRequest(ApiError::new("IR", 27, format!("Invalid Tenant {tenant_id}"), None))
+            }
         }
     }
 }

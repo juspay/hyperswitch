@@ -12,8 +12,7 @@ use router::{
         errors::{self, CustomResult},
         health_check::HealthCheckInterface,
     },
-    logger,
-    routes,
+    logger, routes,
     services::{self, api},
     workflows,
 };
@@ -76,21 +75,21 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
         [router_env::service_name!()],
     );
 
-    // #[allow(clippy::expect_used)]
-    // let web_server = Box::pin(start_web_server(
-    //     state.clone(),
-    //     scheduler_flow_str.to_string(),
-    // ))
-    // .await
-    // .expect("Failed to create the server");
+    #[allow(clippy::expect_used)]
+    let web_server = Box::pin(start_web_server(
+        state.clone(),
+        scheduler_flow_str.to_string(),
+    ))
+    .await
+    .expect("Failed to create the server");
 
-    // let _task_handle = tokio::spawn(
-    //     async move {
-    //         let _ = web_server.await;
-    //         logger::error!("The health check probe stopped working!");
-    //     }
-    //     .in_current_span(),
-    // );
+    let _task_handle = tokio::spawn(
+        async move {
+            let _ = web_server.await;
+            logger::error!("The health check probe stopped working!");
+        }
+        .in_current_span(),
+    );
 
     logger::debug!(startup_config=?state.conf);
 
@@ -137,12 +136,12 @@ impl Health {
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn health() -> impl actix_web::Responder {
     logger::info!("Scheduler health was called");
     actix_web::HttpResponse::Ok().body("Scheduler health is good")
 }
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn deep_health_check(
     state: web::Data<routes::AppState>,
     service: web::Data<String>,
@@ -152,7 +151,19 @@ pub async fn deep_health_check(
     let app_state = Arc::clone(&state.into_inner());
     let service_name = service.into_inner();
     for (tenant, _) in stores {
-        let session_state = routes::SessionState::from_app_state(app_state.clone(), &tenant);
+        let session_state_res =
+            routes::SessionState::from_app_state(app_state.clone(), &tenant, || {
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "tenant_id",
+                }
+                .into()
+            });
+        let session_state = match session_state_res {
+            Ok(state) => state,
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        };
         let report = deep_health_check_func(session_state, &service_name).await;
         match report {
             Ok(response) => {
@@ -178,7 +189,7 @@ pub async fn deep_health_check(
             .unwrap_or_default(),
     )
 }
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn deep_health_check_func(
     state: routes::SessionState,
     service: &str,
@@ -330,7 +341,11 @@ async fn start_scheduler(
         Arc::new(scheduler_settings),
         channel,
         WorkflowRunner {},
-        |state, tenant| routes::SessionState::from_app_state(Arc::new(state.clone()), tenant),
+        |state, tenant| {
+            routes::SessionState::from_app_state(Arc::new(state.clone()), tenant, || {
+                errors::ProcessTrackerError::TenantNotFound.into()
+            })
+        },
     )
     .await
 }

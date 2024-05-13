@@ -123,7 +123,7 @@ mod tests {
 
         let store = state
             .stores
-            .get(state.conf.multitenancy.tenants.get(0).unwrap())
+            .get(state.conf.multitenancy.get_tenant_names().get(0).unwrap())
             .unwrap();
         let response = store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
@@ -167,7 +167,7 @@ mod tests {
         };
         let store = state
             .stores
-            .get(state.conf.multitenancy.tenants.get(0).unwrap())
+            .get(state.conf.multitenancy.get_tenant_names().get(0).unwrap())
             .unwrap();
         store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
@@ -222,7 +222,7 @@ mod tests {
         };
         let store = state
             .stores
-            .get(state.conf.multitenancy.tenants.get(0).unwrap())
+            .get(state.conf.multitenancy.get_tenant_names().get(0).unwrap())
             .unwrap();
         store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)

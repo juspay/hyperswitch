@@ -47,7 +47,7 @@ pub mod flows;
 pub mod operation;
 pub mod types;
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req>(
     state: &SessionState,
     payment_data: &mut payments::PaymentData<D>,
@@ -647,7 +647,7 @@ impl From<PaymentToFrmData> for PaymentDetails {
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn frm_fulfillment_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -706,7 +706,7 @@ pub async fn frm_fulfillment_core(
     }
 }
 
-//#\[instrument\(skip_all)]
+#[instrument(skip_all)]
 pub async fn make_fulfillment_api_call(
     db: &dyn StorageInterface,
     fraud_check: FraudCheck,

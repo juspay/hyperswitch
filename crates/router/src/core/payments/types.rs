@@ -321,7 +321,7 @@ impl SurchargeMetadata {
             }
         }
     }
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
         state: &SessionState,
@@ -357,7 +357,7 @@ impl SurchargeMetadata {
         Ok(())
     }
 
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     pub async fn get_individual_surcharge_detail_from_redis(
         state: &SessionState,
         surcharge_key: SurchargeKey,

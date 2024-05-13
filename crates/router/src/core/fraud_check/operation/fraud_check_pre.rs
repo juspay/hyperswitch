@@ -63,7 +63,7 @@ impl<F: Clone + Send> FraudCheckOperation<F> for FraudCheckPre {
 
 #[async_trait]
 impl GetTracker<PaymentToFrmData> for FraudCheckPre {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
@@ -134,7 +134,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
 
 #[async_trait]
 impl<F: Send + Clone> Domain<F> for FraudCheckPre {
-    //#\[instrument\(skip_all)]
+    #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
         state: &'a SessionState,

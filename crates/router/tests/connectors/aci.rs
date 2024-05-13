@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::{marker::PhantomData, str::FromStr, sync::Arc};
 
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
@@ -186,13 +186,14 @@ async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::SessionState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
 
     static CV: aci::Aci = aci::Aci;
     let connector = types::api::ConnectorData {
@@ -231,13 +232,15 @@ async fn payments_create_failure() {
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
+        let state =
+            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Aci,
@@ -292,13 +295,14 @@ async fn refund_for_successful_payments() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Authorize,
@@ -361,13 +365,14 @@ async fn refunds_create_failure() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Execute,

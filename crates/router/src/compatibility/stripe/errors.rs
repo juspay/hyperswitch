@@ -262,6 +262,8 @@ pub enum StripeErrorCode {
     CurrencyConversionFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_27", message = "Invalid tenant")]
+    InvalidTenant,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -635,6 +637,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::InvalidWalletToken { wallet_name } => {
                 Self::InvalidWalletToken { wallet_name }
             }
+            errors::ApiErrorResponse::InvalidTenant { tenant_id } => Self::InvalidTenant,
         }
     }
 }
@@ -706,7 +709,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentMethodUnactivated
             | Self::InvalidConnectorConfiguration { .. }
             | Self::CurrencyConversionFailed
-            | Self::PaymentMethodDeleteFailed => StatusCode::BAD_REQUEST,
+            | Self::PaymentMethodDeleteFailed
+            | Self::InvalidTenant => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound
