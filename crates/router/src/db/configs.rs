@@ -1,4 +1,3 @@
-use common_utils::ext_traits::AsyncExt;
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
