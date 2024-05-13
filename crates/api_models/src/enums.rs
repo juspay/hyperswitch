@@ -518,6 +518,27 @@ impl PartialEq for FieldType {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_partialeq_for_field_type() {
+        let user_address_country_is_us = FieldType::UserAddressCountry {
+            options: vec!["US".to_string()],
+        };
+
+        let user_adress_country_is_all = FieldType::UserAddressCountry {
+            options: vec!["ALL".to_string()],
+        };
+
+        assert_eq!(
+            user_address_country_is_us.eq(&user_adress_country_is_all),
+            true
+        )
+    }
+}
+
 #[derive(
     Debug,
     serde::Deserialize,
