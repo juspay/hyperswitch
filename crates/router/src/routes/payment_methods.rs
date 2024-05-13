@@ -7,7 +7,10 @@ use time::PrimitiveDateTime;
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, errors, payment_methods::cards},
+    core::{
+        api_locking, errors,
+        payment_methods::{cards, utils::list_payment_methods_from_graph},
+    },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -98,7 +101,8 @@ pub async fn list_payment_method_api(
         &req,
         payload,
         |state, auth, req, _| {
-            cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
+            // cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
+            list_payment_methods_from_graph(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
