@@ -504,10 +504,7 @@ mod test {
             options: vec!["ALL".to_string()],
         };
 
-        assert_eq!(
-            user_address_country_is_us.eq(&user_address_country_is_all),
-            true
-        )
+        assert!(user_address_country_is_us.eq(&user_address_country_is_all))
     }
 }
 
