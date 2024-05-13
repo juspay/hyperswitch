@@ -3869,6 +3869,24 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
+    /// Is billing address required
+    pub billing_address_required: Option<bool>,
+    /// Billing address parameters
+    pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GpayBillingAddressParameters {
+    /// Is billing phone number required
+    pub phone_number_required: bool,
+    /// Billing address format
+    pub format: GpayBillingAddressFormat,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum GpayBillingAddressFormat {
+    FULL,
+    MIN,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4215,6 +4233,8 @@ pub struct ApplePayPaymentRequest {
     /// The list of supported networks
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
+    /// The required billing contact fields for connector
+    pub required_billing_contact_fields: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]

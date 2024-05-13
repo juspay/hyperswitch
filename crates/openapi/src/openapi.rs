@@ -388,6 +388,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
         api_models::payments::GooglePaySessionResponse,
+        api_models::payments::GpayBillingAddressParameters,
+        api_models::payments::GpayBillingAddressFormat,
         api_models::payments::SepaBankTransferInstructions,
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,

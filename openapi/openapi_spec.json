@@ -4999,6 +4999,14 @@
           "merchant_identifier": {
             "type": "string",
             "nullable": true
+          },
+          "required_billing_contact_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The required billing contact fields for connector",
+            "nullable": true
           }
         }
       },
@@ -9437,6 +9445,19 @@
               "type": "string"
             },
             "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
+          },
+          "billing_address_required": {
+            "type": "boolean",
+            "description": "Is billing address required",
+            "nullable": true
+          },
+          "billing_address_parameters": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayBillingAddressParameters"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9457,6 +9478,29 @@
           },
           "tokenization_specification": {
             "$ref": "#/components/schemas/GpayTokenizationSpecification"
+          }
+        }
+      },
+      "GpayBillingAddressFormat": {
+        "type": "string",
+        "enum": [
+          "FULL",
+          "MIN"
+        ]
+      },
+      "GpayBillingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required",
+          "format"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is billing phone number required"
+          },
+          "format": {
+            "$ref": "#/components/schemas/GpayBillingAddressFormat"
           }
         }
       },

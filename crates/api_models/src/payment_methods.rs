@@ -537,7 +537,7 @@ impl From<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>> for SurchargePercen
     }
 }
 /// Required fields info used while listing the payment_method_data
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema, Hash)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 pub struct RequiredFieldInfo {
     /// Required field for a payment_method through a payment_method_type
     pub required_field: String,
