@@ -1,9 +1,16 @@
 pub mod validator;
 
+#[cfg(feature = "olap")]
+use std::collections::HashMap;
+
+#[cfg(feature = "olap")]
+use api_models::admin::MerchantConnectorInfo;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
+#[cfg(feature = "olap")]
+use strum::IntoEnumIterator;
 
 use crate::{
     consts,
@@ -765,6 +772,48 @@ pub async fn refund_filter_list(
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     Ok(services::ApplicationResponse::Json(filter_list))
+}
+
+#[instrument(skip_all)]
+#[cfg(feature = "olap")]
+pub async fn get_filters_for_refunds(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+) -> RouterResponse<api_models::refunds::RefundListFilters> {
+    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+        super::admin::list_payment_connectors(state, merchant_account.merchant_id).await?
+    {
+        data
+    } else {
+        return Err(errors::ApiErrorResponse::InternalServerError.into());
+    };
+
+    let connector_map = merchant_connector_accounts
+        .into_iter()
+        .filter_map(|merchant_connector_account| {
+            merchant_connector_account.connector_label.map(|label| {
+                let info = MerchantConnectorInfo {
+                    connector_label: label,
+                    merchant_connector_id: merchant_connector_account.merchant_connector_id,
+                };
+                (merchant_connector_account.connector_name, info)
+            })
+        })
+        .fold(
+            HashMap::new(),
+            |mut map: HashMap<String, Vec<MerchantConnectorInfo>>, (connector_name, info)| {
+                map.entry(connector_name).or_default().push(info);
+                map
+            },
+        );
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::refunds::RefundListFilters {
+            connector: connector_map,
+            currency: enums::Currency::iter().collect(),
+            refund_status: enums::RefundStatus::iter().collect(),
+        },
+    ))
 }
 
 impl ForeignFrom<storage::Refund> for api::RefundResponse {
