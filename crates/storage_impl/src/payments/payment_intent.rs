@@ -1,5 +1,6 @@
 #[cfg(feature = "olap")]
 use api_models::payments::AmountFilter;
+use api_models::payments::MinorUnit;
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
@@ -801,9 +802,9 @@ impl DataModelExt for PaymentIntentNew {
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             status: self.status,
-            amount: self.amount,
+            amount: self.amount.get_amount_as_i64(),
             currency: self.currency,
-            amount_captured: self.amount_captured,
+            amount_captured: MinorUnit::get_optional_amount_as_i64(self.amount_captured),
             customer_id: self.customer_id,
             description: self.description,
             return_url: self.return_url,
@@ -847,9 +848,9 @@ impl DataModelExt for PaymentIntentNew {
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             status: storage_model.status,
-            amount: storage_model.amount,
+            amount: MinorUnit::new(storage_model.amount),
             currency: storage_model.currency,
-            amount_captured: storage_model.amount_captured,
+            amount_captured: MinorUnit::new_from_optional_i64_amount(storage_model.amount_captured),
             customer_id: storage_model.customer_id,
             description: storage_model.description,
             return_url: storage_model.return_url,
@@ -899,9 +900,11 @@ impl DataModelExt for PaymentIntent {
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             status: self.status,
-            amount: self.amount,
+            amount: self.amount.get_amount_as_i64(),
             currency: self.currency,
-            amount_captured: self.amount_captured,
+            amount_captured: self
+                .amount_captured
+                .map(|capture_amt| capture_amt.get_amount_as_i64()),
             customer_id: self.customer_id,
             description: self.description,
             return_url: self.return_url,
@@ -946,9 +949,11 @@ impl DataModelExt for PaymentIntent {
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             status: storage_model.status,
-            amount: storage_model.amount,
+            amount: MinorUnit::new(storage_model.amount),
             currency: storage_model.currency,
-            amount_captured: storage_model.amount_captured,
+            amount_captured: storage_model
+                .amount_captured
+                .map(|capture_amt| MinorUnit::new(capture_amt)),
             customer_id: storage_model.customer_id,
             description: storage_model.description,
             return_url: storage_model.return_url,
@@ -1003,7 +1008,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 incremental_authorization_allowed,
             } => DieselPaymentIntentUpdate::ResponseUpdate {
                 status,
-                amount_captured,
+                amount_captured: MinorUnit::get_optional_amount_as_i64(amount_captured),
                 fingerprint_id,
                 return_url,
                 updated_by,
@@ -1073,7 +1078,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 session_expiry,
                 request_external_three_ds_authentication,
             } => DieselPaymentIntentUpdate::Update {
-                amount,
+                amount: amount.get_amount_as_i64(),
                 currency,
                 setup_future_usage,
                 status,
@@ -1140,7 +1145,9 @@ impl DataModelExt for PaymentIntentUpdate {
                 updated_by,
             },
             Self::IncrementalAuthorizationAmountUpdate { amount } => {
-                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
+                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
+                    amount: amount.get_amount_as_i64(),
+                }
             }
             Self::AuthorizationCountUpdate {
                 authorization_count,

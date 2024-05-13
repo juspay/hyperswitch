@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payments::{MinorUnit, RequestSurchargeDetails},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
@@ -66,7 +68,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount,
+                payment_intent.amount.get_amount_as_i64(),
                 false,
             )?;
         }
@@ -153,7 +155,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
-            request.amount_to_capture,
+            MinorUnit::get_optional_amount_as_i64(request.amount_to_capture),
             request
                 .surcharge_details
                 .or(payment_attempt.get_surcharge_details()),
@@ -341,11 +343,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
                         .or(payment_attempt.get_total_surcharge_amount());
-                    (amount + surcharge_amount.unwrap_or(0)).into()
+                    MinorUnit::from(amount.add(surcharge_amount.unwrap_or_default()))
                 };
-                (Box::new(operations::PaymentConfirm), amount)
+                (Box::new(operations::PaymentConfirm), amount.into())
             } else {
-                (Box::new(self), amount)
+                (Box::new(self), amount.into())
             };
 
         payment_intent.status = match request.payment_method_data.as_ref() {
@@ -693,7 +695,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
-
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -766,7 +767,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
-            request.amount_to_capture,
+            MinorUnit::get_optional_amount_as_i64(request.amount_to_capture),
             request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {

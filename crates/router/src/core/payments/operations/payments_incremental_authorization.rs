@@ -77,7 +77,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             })?
         }
 
-        if request.amount < payment_intent.amount {
+        if request.amount.is_greater_than(payment_intent.amount) {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Amount should be greater than original authorized amount".to_owned(),
             })?
@@ -146,8 +146,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_message: None,
             payment_link_data: None,
             incremental_authorization_details: Some(IncrementalAuthorizationDetails {
-                additional_amount: request.amount - amount,
-                total_amount: request.amount,
+                additional_amount: request.amount.substract(amount).get_amount_as_i64(),
+                total_amount: request.amount.get_amount_as_i64(),
                 reason: request.reason.clone(),
                 authorization_id: None,
             }),
@@ -221,7 +221,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             error_code: None,
             error_message: None,
             connector_authorization_id: None,
-            previously_authorized_amount: payment_data.payment_intent.amount,
+            previously_authorized_amount: payment_data.payment_intent.amount.get_amount_as_i64(),
         };
         let authorization = db
             .store

@@ -2524,7 +2524,9 @@ impl<F, T>
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
             response,
-            amount_captured: item.response.amount_received,
+            amount_captured: api_models::payments::MinorUnit::new_from_optional_i64_amount(
+                item.response.amount_received,
+            ),
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2697,7 +2699,9 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
-            amount_captured: item.response.amount_received,
+            amount_captured: api_models::payments::MinorUnit::new_from_optional_i64_amount(
+                item.response.amount_received,
+            ),
             connector_response: connector_response_data,
             ..item.data
         })

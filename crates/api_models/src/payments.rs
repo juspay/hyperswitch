@@ -224,7 +224,7 @@ pub struct PaymentsRequest {
 
     /// The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.
     #[schema(example = 6540)]
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: Option<MinorUnit>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
@@ -470,21 +470,21 @@ pub struct PaymentsRequest {
 }
 
 impl PaymentsRequest {
-    pub fn get_total_capturable_amount(&self) -> Option<i64> {
+    pub fn get_total_capturable_amount(&self) -> Option<MinorUnit> {
         let surcharge_amount = self
             .surcharge_details
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-            .unwrap_or(0);
+            .unwrap_or_default();
         self.amount
-            .map(|amount| i64::from(amount) + surcharge_amount)
+            .map(|amount| MinorUnit::from(amount).add(surcharge_amount))
     }
 }
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
 pub struct RequestSurchargeDetails {
-    pub surcharge_amount: i64,
-    pub tax_amount: Option<i64>,
+    pub surcharge_amount: MinorUnit,
+    pub tax_amount: Option<MinorUnit>,
 }
 
 /// Browser information to be used for 3DS 2.0
@@ -527,10 +527,12 @@ pub struct BrowserInformation {
 
 impl RequestSurchargeDetails {
     pub fn is_surcharge_zero(&self) -> bool {
-        self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
+        self.surcharge_amount.get_amount_as_i64() == 0
+            && self.tax_amount.unwrap_or_default().get_amount_as_i64() == 0
     }
-    pub fn get_total_surcharge_amount(&self) -> i64 {
-        self.surcharge_amount + self.tax_amount.unwrap_or(0)
+    pub fn get_total_surcharge_amount(&self) -> MinorUnit {
+        self.surcharge_amount
+            .add(self.tax_amount.unwrap_or_default())
     }
 }
 
@@ -559,7 +561,7 @@ pub struct PaymentAttemptResponse {
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<enums::Currency>,
@@ -613,7 +615,7 @@ pub struct CaptureResponse {
     #[schema(value_type = CaptureStatus, example = "charged")]
     pub status: enums::CaptureStatus,
     /// The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// The currency of the amount of the capture
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<enums::Currency>,
@@ -690,27 +692,79 @@ impl PaymentsRequest {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
+pub struct MinorUnit(i64);
+
+impl MinorUnit {
+    pub fn get_amount_as_i64(&self) -> i64 {
+        self.0
+    }
+
+    pub fn add(&self, a2: MinorUnit) -> Self {
+        MinorUnit::new(self.get_amount_as_i64() + a2.get_amount_as_i64())
+    }
+
+    pub fn substract(&self, a2: MinorUnit) -> Self {
+        MinorUnit::new(self.get_amount_as_i64() - a2.get_amount_as_i64())
+    }
+
+    pub fn get_optional_amount_as_i64(optional_amount: Option<Self>) -> Option<i64> {
+        optional_amount.map(|amount| amount.get_amount_as_i64())
+    }
+
+    pub fn new(value: i64) -> Self {
+        MinorUnit(value)
+    }
+    pub fn optional_new_from_i64_amount(value: i64) -> Option<Self> {
+        Some(MinorUnit(value))
+    }
+
+    pub fn new_from_optional_i64_amount(value: Option<i64>) -> Option<Self> {
+        value.map(|amount| MinorUnit(amount))
+    }
+
+    pub fn is_equal(&self, a2: MinorUnit) -> bool {
+        self.get_amount_as_i64() == a2.get_amount_as_i64()
+    }
+
+    pub fn is_not_equal(&self, a2: MinorUnit) -> bool {
+        !self.is_equal(a2)
+    }
+
+    pub fn is_greater_than(&self, a2: MinorUnit) -> bool {
+        self.get_amount_as_i64() > a2.get_amount_as_i64()
+    }
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
     Value(NonZeroI64),
     #[default]
     Zero,
 }
 
-impl From<Amount> for i64 {
+impl From<Amount> for MinorUnit {
     fn from(amount: Amount) -> Self {
         match amount {
-            Amount::Value(val) => val.get(),
-            Amount::Zero => 0,
+            Amount::Value(val) => MinorUnit::new(val.get()),
+            Amount::Zero => MinorUnit::new(0),
         }
     }
 }
 
-impl From<i64> for Amount {
-    fn from(val: i64) -> Self {
-        NonZeroI64::new(val).map_or(Self::Zero, Amount::Value)
+impl fmt::Display for MinorUnit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
+impl From<MinorUnit> for Amount {
+    fn from(minor_unit: MinorUnit) -> Self {
+        match minor_unit.0 {
+            0 => Amount::Zero,
+            val => NonZeroI64::new(val).map_or(Self::Zero, Amount::Value),
+        }
+    }
+}
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRedirectRequest {
@@ -798,7 +852,7 @@ pub struct MandateData {
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SingleUseMandate {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: api_enums::Currency,
 }
 
@@ -806,7 +860,7 @@ pub struct SingleUseMandate {
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
     #[schema(example = 6540)]
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// The currency for the transaction
     #[schema(value_type = Currency, example = "USD")]
     pub currency: api_enums::Currency,
@@ -2851,7 +2905,7 @@ pub struct PaymentsCaptureRequest {
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
     /// The Amount to be captured/ debited from the user's payment method.
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: Option<MinorUnit>,
     /// Decider to refund the uncaptured amount
     pub refund_uncaptured_amount: Option<bool>,
     /// Provides information about a card payment that customers see on their statements.
@@ -3105,20 +3159,20 @@ pub struct PaymentsResponse {
 
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(example = 100)]
-    pub amount: i64,
+    pub amount: MinorUnit,
 
     /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
     /// If no surcharge_details, net_amount = amount
     #[schema(example = 110)]
-    pub net_amount: i64,
+    pub net_amount: MinorUnit,
 
     /// The maximum amount that could be captured from the payment
     #[schema(minimum = 100, example = 6540)]
-    pub amount_capturable: Option<i64>,
+    pub amount_capturable: Option<MinorUnit>,
 
     /// The amount which is already captured from the payment
     #[schema(minimum = 100, example = 6540)]
-    pub amount_received: Option<i64>,
+    pub amount_received: Option<MinorUnit>,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
@@ -3472,7 +3526,7 @@ pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization
     pub authorization_id: String,
     /// Amount the authorization has been made for
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[schema(value_type= AuthorizationStatus)]
     /// The status of the authorization
     pub status: common_enums::AuthorizationStatus,
@@ -3715,7 +3769,7 @@ pub struct PgRedirectResponse {
     pub status: api_enums::IntentStatus,
     pub gateway_id: String,
     pub customer_id: Option<String>,
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
@@ -4266,7 +4320,7 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub payment_id: String,
     /// The total amount including previously authorized amount and additional amount
     #[schema(value_type = i64, example = 6540)]
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// Reason for incremental authorization
     pub reason: Option<String>,
 }
@@ -4469,6 +4523,7 @@ pub mod amount {
     use super::Amount;
     struct AmountVisitor;
     struct OptionalAmountVisitor;
+    use crate::payments::MinorUnit;
 
     // This is defined to provide guarded deserialization of amount
     // which itself handles zero and non-zero values internally
@@ -4501,7 +4556,7 @@ pub mod amount {
                     "invalid value `{v}`, expected a positive integer"
                 )));
             }
-            Ok(Amount::from(v))
+            Ok(Amount::from(MinorUnit::new(v)))
         }
     }
 
@@ -4573,7 +4628,7 @@ pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

@@ -1,3 +1,4 @@
+use api_models::payments::MinorUnit;
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
@@ -74,9 +75,9 @@ pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -119,7 +120,7 @@ pub struct PaymentIntentNew {
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
-        amount_captured: Option<i64>,
+        amount_captured: Option<MinorUnit>,
         return_url: Option<String>,
         updated_by: String,
         fingerprint_id: Option<String>,
@@ -149,7 +150,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     Update {
-        amount: i64,
+        amount: MinorUnit,
         currency: storage_enums::Currency,
         setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
@@ -196,7 +197,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
-        amount: i64,
+        amount: MinorUnit,
     },
     AuthorizationCountUpdate {
         authorization_count: i32,
@@ -205,10 +206,10 @@ pub enum PaymentIntentUpdate {
 
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,

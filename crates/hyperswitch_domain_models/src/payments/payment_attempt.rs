@@ -1,4 +1,4 @@
-use api_models::enums::Connector;
+use api_models::{enums::Connector, payments::MinorUnit};
 use common_enums as storage_enums;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -111,15 +111,15 @@ pub struct PaymentAttempt {
     pub merchant_id: String,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: i64,
-    pub net_amount: i64,
+    pub amount: MinorUnit,
+    pub net_amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
-    pub offer_amount: Option<i64>,
-    pub surcharge_amount: Option<i64>,
-    pub tax_amount: Option<i64>,
+    pub offer_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
@@ -135,7 +135,7 @@ pub struct PaymentAttempt {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: Option<MinorUnit>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
     pub error_code: Option<String>,
@@ -153,7 +153,7 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
-    pub amount_capturable: i64,
+    pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
@@ -169,12 +169,17 @@ pub struct PaymentAttempt {
 }
 
 impl PaymentAttempt {
-    pub fn get_total_amount(&self) -> i64 {
-        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    pub fn get_total_amount(&self) -> MinorUnit {
+        self.amount.add(
+            self.surcharge_amount
+                .unwrap_or_default()
+                .add(self.tax_amount.unwrap_or_default()),
+        )
     }
-    pub fn get_total_surcharge_amount(&self) -> Option<i64> {
+
+    pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.surcharge_amount
-            .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or(0))
+            .map(|surcharge_amount| surcharge_amount.add(self.tax_amount.unwrap_or_default()))
     }
 }
 
@@ -194,18 +199,18 @@ pub struct PaymentAttemptNew {
     pub merchant_id: String,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// amount + surcharge_amount + tax_amount
     /// This field will always be derived before updating in the Database
-    pub net_amount: i64,
+    pub net_amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
-    pub offer_amount: Option<i64>,
-    pub surcharge_amount: Option<i64>,
-    pub tax_amount: Option<i64>,
+    pub offer_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
@@ -220,7 +225,7 @@ pub struct PaymentAttemptNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: Option<MinorUnit>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
     pub payment_token: Option<String>,
@@ -236,7 +241,7 @@ pub struct PaymentAttemptNew {
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
-    pub amount_capturable: i64,
+    pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
@@ -253,8 +258,12 @@ pub struct PaymentAttemptNew {
 
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> i64 {
-        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    pub fn calculate_net_amount(&self) -> MinorUnit {
+        self.amount.add(
+            self.surcharge_amount
+                .unwrap_or_default()
+                .add(self.tax_amount.unwrap_or_default()),
+        )
     }
 
     pub fn populate_derived_fields(self) -> Self {
@@ -267,7 +276,7 @@ impl PaymentAttemptNew {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
-        amount: i64,
+        amount: MinorUnit,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -277,10 +286,10 @@ pub enum PaymentAttemptUpdate {
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
-        amount_to_capture: Option<i64>,
+        amount_to_capture: Option<MinorUnit>,
         capture_method: Option<storage_enums::CaptureMethod>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
+        surcharge_amount: Option<MinorUnit>,
+        tax_amount: Option<MinorUnit>,
         fingerprint_id: Option<String>,
         updated_by: String,
     },
@@ -288,9 +297,9 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
-        amount_capturable: Option<i64>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
+        amount_capturable: Option<MinorUnit>,
+        surcharge_amount: Option<MinorUnit>,
+        tax_amount: Option<MinorUnit>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -299,7 +308,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     ConfirmUpdate {
-        amount: i64,
+        amount: MinorUnit,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -315,10 +324,10 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
-        amount_capturable: Option<i64>,
+        amount_capturable: Option<MinorUnit>,
         updated_by: String,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
+        surcharge_amount: Option<MinorUnit>,
+        tax_amount: Option<MinorUnit>,
         merchant_connector_id: Option<String>,
         external_three_ds_authentication_attempted: Option<bool>,
         authentication_connector: Option<String>,
@@ -361,7 +370,7 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
-        amount_capturable: Option<i64>,
+        amount_capturable: Option<MinorUnit>,
         updated_by: String,
         authentication_data: Option<serde_json::Value>,
         encoded_data: Option<String>,
@@ -390,7 +399,7 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
-        amount_capturable: Option<i64>,
+        amount_capturable: Option<MinorUnit>,
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
@@ -398,13 +407,13 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
     },
     CaptureUpdate {
-        amount_to_capture: Option<i64>,
+        amount_to_capture: Option<MinorUnit>,
         multiple_capture_count: Option<i16>,
         updated_by: String,
     },
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,
-        amount_capturable: i64,
+        amount_capturable: MinorUnit,
         updated_by: String,
     },
     PreprocessingUpdate {
@@ -424,8 +433,8 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
-        amount: i64,
-        amount_capturable: i64,
+        amount: MinorUnit,
+        amount_capturable: MinorUnit,
     },
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,

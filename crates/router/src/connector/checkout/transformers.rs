@@ -922,7 +922,9 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 incremental_authorization_allowed: None,
             }),
             status,
-            amount_captured,
+            amount_captured: api_models::payments::MinorUnit::new_from_optional_i64_amount(
+                amount_captured,
+            ),
             ..item.data
         })
     }

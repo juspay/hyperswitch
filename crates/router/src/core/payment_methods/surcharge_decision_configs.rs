@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use api_models::{
     payment_methods::SurchargeDetailsResponse,
-    payments, routing,
+    payments,
+    payments::MinorUnit,
+    routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
 use common_utils::{ext_traits::StringExt, static_cache::StaticCache, types as common_utils_types};
@@ -353,7 +355,7 @@ fn get_surcharge_details_from_surcharge_output(
     let surcharge_amount = match surcharge_details.surcharge.clone() {
         surcharge_decision_configs::SurchargeOutput::Fixed { amount } => amount,
         surcharge_decision_configs::SurchargeOutput::Rate(percentage) => percentage
-            .apply_and_ceil_result(payment_attempt.amount)
+            .apply_and_ceil_result(payment_attempt.amount.get_amount_as_i64())
             .change_context(ConfigError::DslExecutionError)
             .attach_printable("Failed to Calculate surcharge amount by applying percentage")?,
     };
@@ -379,9 +381,11 @@ fn get_surcharge_details_from_surcharge_output(
             }
         },
         tax_on_surcharge: surcharge_details.tax_on_surcharge,
-        surcharge_amount,
-        tax_on_surcharge_amount,
-        final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
+        surcharge_amount: MinorUnit::new(surcharge_amount),
+        tax_on_surcharge_amount: MinorUnit::new(tax_on_surcharge_amount),
+        final_amount: MinorUnit::new(
+            payment_attempt.amount.get_amount_as_i64() + surcharge_amount + tax_on_surcharge_amount,
+        ),
     })
 }
 

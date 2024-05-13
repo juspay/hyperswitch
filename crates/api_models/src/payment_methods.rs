@@ -14,7 +14,7 @@ use utoipa::{schema, ToSchema};
 use crate::payouts;
 use crate::{
     admin, enums as api_enums,
-    payments::{self, BankCodeResponse},
+    payments::{self, BankCodeResponse, MinorUnit},
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -656,7 +656,7 @@ pub struct PaymentMethodListRequest {
 
     /// Filter by amount
     #[schema(example = 60)]
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]

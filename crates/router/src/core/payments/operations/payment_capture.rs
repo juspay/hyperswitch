@@ -78,8 +78,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
 
         helpers::validate_amount_to_capture(
-            payment_attempt.amount_capturable,
-            request.amount_to_capture,
+            payment_attempt.amount_capturable.get_amount_as_i64(),
+            request
+                .amount_to_capture
+                .map(|capture_amount| capture_amount.get_amount_as_i64()),
         )?;
 
         helpers::validate_capture_method(capture_method)?;
@@ -90,8 +92,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .get_required_value("amount_to_capture")?;
 
             helpers::validate_amount_to_capture(
-                payment_attempt.amount_capturable,
-                Some(amount_to_capture),
+                payment_attempt.amount_capturable.get_amount_as_i64(),
+                Some(amount_to_capture.get_amount_as_i64()),
             )?;
 
             let previous_captures = db

@@ -685,13 +685,15 @@ where
     O: Send + Clone + Sync,
 {
     if let Some(surcharge_amount) = payment_data.payment_attempt.surcharge_amount {
-        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or(0);
-        let final_amount =
-            payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
+        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or_default();
+        let final_amount = payment_data
+            .payment_attempt
+            .amount
+            .add(surcharge_amount.add(tax_on_surcharge_amount));
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
                 original_amount: payment_data.payment_attempt.amount,
-                surcharge: Surcharge::Fixed(surcharge_amount),
+                surcharge: Surcharge::Fixed(surcharge_amount.get_amount_as_i64()),
                 tax_on_surcharge: None,
                 surcharge_amount,
                 tax_on_surcharge_amount,
@@ -3910,7 +3912,7 @@ pub async fn payment_external_authentication(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
     let currency = payment_attempt.currency.get_required_value("currency")?;
-    let amount = payment_attempt.get_total_amount().into();
+    let amount = payment_attempt.get_total_amount();
     let shipping_address = helpers::create_or_find_address_for_payment_by_request(
         db,
         None,

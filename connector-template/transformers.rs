@@ -4,7 +4,7 @@ use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types:
 
 //TODO: Fill the struct with respective fields
 pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
@@ -140,7 +140,7 @@ incremental_authorization_allowed: None,
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct {{project-name | downcase | pascal_case}}RefundRequest {
-    pub amount: i64
+    pub amount: MinorUnit
 }
 
 impl<F> TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::RefundsRouterData<F>>> for {{project-name | downcase | pascal_case}}RefundRequest {

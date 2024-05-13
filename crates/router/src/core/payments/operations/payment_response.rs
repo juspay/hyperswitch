@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use api_models::payments::MinorUnit;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::Encode;
@@ -255,31 +256,41 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .attach_printable("missing incremental_authorization_details in payment_data")
             })?;
         // Update payment_intent and payment_attempt 'amount' if incremental_authorization is successful
-        let (option_payment_attempt_update, option_payment_intent_update) =
-            match router_data.response.clone() {
-                Err(_) => (None, None),
-                Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
-                    status,
-                    ..
-                }) => {
-                    if status == AuthorizationStatus::Success {
-                        (Some(
-                        storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-                            amount: incremental_authorization_details.total_amount,
-                            amount_capturable: incremental_authorization_details.total_amount,
-                        },
-                    ), Some(
-                        storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-                            amount: incremental_authorization_details.total_amount,
-                        },
-                    ))
-                    } else {
-                        (None, None)
-                    }
+        let (option_payment_attempt_update, option_payment_intent_update) = match router_data
+            .response
+            .clone()
+        {
+            Err(_) => (None, None),
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                status, ..
+            }) => {
+                if status == AuthorizationStatus::Success {
+                    (
+                        Some(
+                            storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                                amount: MinorUnit::new(
+                                    incremental_authorization_details.total_amount,
+                                ),
+                                amount_capturable: MinorUnit::new(
+                                    incremental_authorization_details.total_amount,
+                                ),
+                            },
+                        ),
+                        Some(
+                            storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
+                                amount: MinorUnit::new(
+                                    incremental_authorization_details.total_amount,
+                                ),
+                            },
+                        ),
+                    )
+                } else {
+                    (None, None)
                 }
-                _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unexpected response in incremental_authorization flow")?,
-            };
+            }
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unexpected response in incremental_authorization flow")?,
+        };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
             payment_data.payment_attempt = db
@@ -782,9 +793,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_message: Some(Some(err.message)),
                             error_code: Some(Some(err.code)),
                             error_reason: Some(err.reason),
-                            amount_capturable: router_data
-                                .request
-                                .get_amount_capturable(&payment_data, status),
+                            amount_capturable: MinorUnit::new_from_optional_i64_amount(
+                                router_data
+                                    .request
+                                    .get_amount_capturable(&payment_data, status),
+                            ),
                             updated_by: storage_scheme.to_string(),
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
@@ -927,9 +940,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 connector: None,
                                 connector_transaction_id: connector_transaction_id.clone(),
                                 authentication_type: None,
-                                amount_capturable: router_data
-                                    .request
-                                    .get_amount_capturable(&payment_data, updated_attempt_status),
+                                amount_capturable: MinorUnit::new_from_optional_i64_amount(
+                                    router_data.request.get_amount_capturable(
+                                        &payment_data,
+                                        updated_attempt_status,
+                                    ),
+                                ),
                                 payment_method_id,
                                 mandate_id: payment_data.payment_attempt.mandate_id.clone(),
                                 connector_metadata,
@@ -1017,7 +1033,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             payment_attempt_update = Some(storage::PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status: multiple_capture_data.get_attempt_status(authorized_amount),
                 amount_capturable: authorized_amount
-                    - multiple_capture_data.get_total_blocked_amount(),
+                    .substract(multiple_capture_data.get_total_blocked_amount()),
                 updated_by: storage_scheme.to_string(),
             });
             Some(multiple_capture_data)
@@ -1157,7 +1173,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 payments::tokenization::update_connector_mandate_details_in_payment_method(
                     payment_method.clone(),
                     payment_method.payment_method_type,
-                    Some(payment_data.payment_attempt.amount),
+                    Some(payment_data.payment_attempt.amount.get_amount_as_i64()),
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
@@ -1358,10 +1374,10 @@ fn get_capture_update_for_unmapped_capture_responses(
 
 fn get_total_amount_captured<F: Clone, T: types::Capturable>(
     request: &T,
-    amount_captured: Option<i64>,
+    amount_captured: Option<MinorUnit>,
     router_data_status: enums::AttemptStatus,
     payment_data: &PaymentData<F>,
-) -> Option<i64> {
+) -> Option<MinorUnit> {
     match &payment_data.multiple_capture_data {
         Some(multiple_capture_data) => {
             //multiple capture
@@ -1369,7 +1385,8 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         }
         None => {
             //Non multiple capture
-            let amount = request.get_captured_amount(payment_data);
+            let amount =
+                MinorUnit::new_from_optional_i64_amount(request.get_captured_amount(payment_data));
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {
                     amount

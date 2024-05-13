@@ -1,3 +1,4 @@
+use api_models::payments::MinorUnit;
 use common_utils::pii;
 use time::PrimitiveDateTime;
 
@@ -15,9 +16,9 @@ pub struct PaymentIntent {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,

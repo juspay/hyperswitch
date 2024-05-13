@@ -1800,7 +1800,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: Some(amount_captured),
+            amount_captured: Some(api_models::payments::MinorUnit::new(amount_captured)),
             ..item.data
         })
     }

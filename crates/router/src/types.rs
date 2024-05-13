@@ -18,6 +18,7 @@ pub mod transformers;
 
 use std::{collections::HashMap, marker::PhantomData};
 
+use api_models::payments::MinorUnit;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
@@ -284,7 +285,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
@@ -679,7 +680,7 @@ impl Capturable for PaymentsAuthorizeData {
         let final_amount = self
             .surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount);
+            .map(|surcharge_details| surcharge_details.final_amount.get_amount_as_i64());
         final_amount.or(Some(self.amount))
     }
 
@@ -712,7 +713,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -789,7 +790,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -804,7 +805,7 @@ impl Capturable for PaymentsCancelData {
         F: Clone,
     {
         // return previously captured amount
-        payment_data.payment_intent.amount_captured
+        MinorUnit::get_optional_amount_as_i64(payment_data.payment_intent.amount_captured)
     }
     fn get_amount_capturable<F>(
         &self,
@@ -850,10 +851,12 @@ impl Capturable for PaymentsSyncData {
     where
         F: Clone,
     {
-        payment_data
-            .payment_attempt
-            .amount_to_capture
-            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+        MinorUnit::get_optional_amount_as_i64(
+            payment_data
+                .payment_attempt
+                .amount_to_capture
+                .or_else(|| Some(payment_data.payment_attempt.get_total_amount())),
+        )
     }
     fn get_amount_capturable<F>(
         &self,
@@ -1439,7 +1442,7 @@ impl Default for ErrorResponse {
 impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
         Self {
-            amount_to_capture: data.amount_captured,
+            amount_to_capture: MinorUnit::get_optional_amount_as_i64(data.amount_captured),
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
             amount: Some(data.request.amount),

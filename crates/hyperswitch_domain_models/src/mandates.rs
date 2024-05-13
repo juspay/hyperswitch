@@ -1,7 +1,7 @@
 use api_models::payments::{
     AcceptanceType as ApiAcceptanceType, CustomerAcceptance as ApiCustomerAcceptance,
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
-    OnlineMandate as ApiOnlineMandate,
+    MinorUnit, OnlineMandate as ApiOnlineMandate,
 };
 use common_enums::Currency;
 use common_utils::{date_time, errors::ParsingError, pii};
@@ -24,7 +24,7 @@ pub enum MandateDataType {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Currency,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,

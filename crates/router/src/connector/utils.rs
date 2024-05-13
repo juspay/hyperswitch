@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, OrderDetailsWithAmount},
+    payments::{self, MinorUnit, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -130,7 +130,12 @@ where
     {
         match self.status {
             enums::AttemptStatus::Voided => {
-                if payment_data.payment_intent.amount_captured > Some(0) {
+                if payment_data
+                    .payment_intent
+                    .amount_captured
+                    .unwrap_or_default()
+                    .is_greater_than(MinorUnit::new(0))
+                {
                     enums::AttemptStatus::PartialCharged
                 } else {
                     self.status
@@ -140,7 +145,9 @@ where
                 let captured_amount =
                     types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                if Some(total_capturable_amount) == captured_amount {
+                if total_capturable_amount
+                    .is_equal(MinorUnit::new(captured_amount.unwrap_or_default()))
+                {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged
@@ -673,23 +680,27 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_original_amount(&self) -> i64 {
         self.surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.original_amount)
+            .map(|surcharge_details| surcharge_details.original_amount.get_amount_as_i64())
             .unwrap_or(self.amount)
     }
     fn get_surcharge_amount(&self) -> Option<i64> {
         self.surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount)
+            .map(|surcharge_details| surcharge_details.surcharge_amount.get_amount_as_i64())
     }
     fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
+        self.surcharge_details.as_ref().map(|surcharge_details| {
+            surcharge_details
+                .tax_on_surcharge_amount
+                .get_amount_as_i64()
+        })
     }
     fn get_total_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+        self.surcharge_details.as_ref().map(|surcharge_details| {
+            surcharge_details
+                .get_total_surcharge_amount()
+                .get_amount_as_i64()
+        })
     }
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {

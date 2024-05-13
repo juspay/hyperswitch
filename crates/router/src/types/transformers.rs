@@ -1,7 +1,7 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
 use api_models::{
-    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
+    enums as api_enums, gsm as gsm_api_types, payment_methods, payments, payments::MinorUnit,
     routing::ConnectorSelection,
 };
 use common_utils::{
@@ -305,7 +305,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
 impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::MandateAmountData {
     fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
         Self {
-            amount: from.amount,
+            amount: MinorUnit::new(from.amount),
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,
@@ -374,7 +374,7 @@ impl ForeignFrom<api_models::payments::MandateData>
 impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::MandateAmountData {
     fn foreign_from(from: api_models::payments::MandateAmountData) -> Self {
         Self {
-            amount: from.amount,
+            amount: from.amount.get_amount_as_i64(),
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,
@@ -772,7 +772,7 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
     fn foreign_from(authorization: storage::Authorization) -> Self {
         Self {
             authorization_id: authorization.authorization_id,
-            amount: authorization.amount,
+            amount: MinorUnit::new(authorization.amount),
             status: authorization.status,
             error_code: authorization.error_code,
             error_message: authorization.error_message,
@@ -934,7 +934,7 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
         Self {
             capture_id: capture.capture_id,
             status: capture.status,
-            amount: capture.amount,
+            amount: MinorUnit::new(capture.amount),
             currency: capture.currency,
             connector: capture.connector,
             authorized_attempt_id: capture.authorized_attempt_id,
@@ -1088,7 +1088,7 @@ impl
             payment_link_id: payment_link_config.payment_link_id,
             merchant_id: payment_link_config.merchant_id,
             link_to_pay: payment_link_config.link_to_pay,
-            amount: payment_link_config.amount,
+            amount: MinorUnit::new(payment_link_config.amount),
             created_at: payment_link_config.created_at,
             expiry: payment_link_config.fulfilment_time,
             description: payment_link_config.description,

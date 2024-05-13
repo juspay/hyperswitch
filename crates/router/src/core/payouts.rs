@@ -368,8 +368,10 @@ pub async fn payouts_update_core(
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
+    let amount = api_models::payments::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
+        .get_amount_as_i64();
     let updated_payouts = storage::PayoutsUpdate::Update {
-        amount: req.amount.unwrap_or(payouts.amount.into()).into(),
+        amount,
         destination_currency: req.currency.unwrap_or(payouts.destination_currency),
         source_currency: req.currency.unwrap_or(payouts.source_currency),
         description: req.description.clone().or(payouts.description.clone()),
@@ -1964,14 +1966,15 @@ pub async fn payout_create_db_entries(
     } else {
         None
     };
-
+    let amount = api_models::payments::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
+        .get_amount_as_i64();
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_string(),
         customer_id: customer_id.to_owned(),
         address_id: address_id.to_owned(),
         payout_type,
-        amount: req.amount.unwrap_or(api::Amount::Zero).into(),
+        amount,
         destination_currency: currency,
         source_currency: currency,
         description: req.description.to_owned(),
