@@ -2325,10 +2325,17 @@ impl<F>
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BankOfAmericaTransactionResponse {
+    ApplicationInformation(Box<BankOfAmericaApplicationInfoResponse>),
+    ErrorInformation(BankOfAmericaErrorInformationResponse),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaTransactionResponse {
+pub struct BankOfAmericaApplicationInfoResponse {
     id: String,
-    application_information: Option<ApplicationInformation>,
+    application_information: ApplicationInformation,
     client_reference_information: Option<ClientReferenceInformation>,
     processor_information: Option<ClientProcessorInformation>,
     processing_information: Option<ProcessingInformationResponse>,
@@ -2351,7 +2358,7 @@ pub struct FraudMarkingInformation {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
-    status: Option<BankofamericaPaymentStatus>,
+    status: BankofamericaPaymentStatus,
 }
 
 impl<F>
@@ -2373,24 +2380,19 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        match item
-            .response
-            .application_information
-            .and_then(|app_info| app_info.status)
-        {
-            Some(psync_status) => {
+        match item.response {
+            BankOfAmericaTransactionResponse::ApplicationInformation(app_response) => {
                 let status = enums::AttemptStatus::foreign_from((
-                    psync_status,
+                    app_response.application_information.status,
                     item.data.request.is_auto_capture()?,
                 ));
 
                 let connector_response = match item.data.payment_method {
-                    common_enums::PaymentMethod::Card => item
-                        .response
+                    common_enums::PaymentMethod::Card => app_response
                         .processor_information
                         .as_ref()
                         .and_then(|processor_information| {
-                            item.response
+                            app_response
                                 .consumer_authentication_information
                                 .as_ref()
                                 .map(|consumer_auth_information| {
@@ -2418,11 +2420,11 @@ impl<F>
                 if utils::is_payment_failure(status) {
                     Ok(Self {
                         response: Err(types::ErrorResponse::from((
-                            &item.response.error_information,
+                            &app_response.error_information,
                             &risk_info,
                             Some(status),
                             item.http_code,
-                            item.response.id.clone(),
+                            app_response.id.clone(),
                         ))),
                         status: enums::AttemptStatus::Failure,
                         connector_response,
@@ -2433,17 +2435,16 @@ impl<F>
                         status,
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                item.response.id.clone(),
+                                app_response.id.clone(),
                             ),
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
-                            connector_response_reference_id: item
-                                .response
+                            connector_response_reference_id: app_response
                                 .client_reference_information
                                 .map(|cref| cref.code)
-                                .unwrap_or(Some(item.response.id)),
+                                .unwrap_or(Some(app_response.id)),
                             incremental_authorization_allowed: None,
                         }),
                         connector_response,
@@ -2451,17 +2452,17 @@ impl<F>
                     })
                 }
             }
-            None => Ok(Self {
+            BankOfAmericaTransactionResponse::ErrorInformation(error_response) => Ok(Self {
                 status: item.data.status,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.id.clone(),
+                        error_response.id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.id),
+                    connector_response_reference_id: Some(error_response.id),
                     incremental_authorization_allowed: None,
                 }),
                 ..item.data
