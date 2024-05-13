@@ -333,7 +333,7 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
-                .service(web::resource("/filter/v2").route(web::get().to(get_payment_filters)))
+                .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -717,7 +717,7 @@ impl Refunds {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
-                .service(web::resource("/filter/v2").route(web::get().to(get_refunds_filters)));
+                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)));
         }
         #[cfg(feature = "oltp")]
         {
