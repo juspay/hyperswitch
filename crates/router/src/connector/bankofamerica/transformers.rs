@@ -2684,7 +2684,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
             .and_then(|application_information| application_information.status)
         {
             Some(status) => {
-                let refund_status: common_enums::RefundStatus = enums::RefundStatus::from(status.clone());
+                let refund_status: common_enums::RefundStatus =
+                    enums::RefundStatus::from(status.clone());
                 if utils::is_refund_failure(refund_status) {
                     if status == BankofamericaRefundStatus::Voided {
                         Err(types::ErrorResponse::from((

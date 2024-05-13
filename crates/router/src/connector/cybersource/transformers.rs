@@ -2803,7 +2803,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
                             item.response.id.clone(),
                         )))
                     }
-                }  else {
+                } else {
                     Ok(types::RefundsResponseData {
                         connector_refund_id: item.response.id,
                         refund_status,
