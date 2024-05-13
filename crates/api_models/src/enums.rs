@@ -528,12 +528,12 @@ mod test {
             options: vec!["US".to_string()],
         };
 
-        let user_adress_country_is_all = FieldType::UserAddressCountry {
+        let user_address_country_is_all = FieldType::UserAddressCountry {
             options: vec!["ALL".to_string()],
         };
 
         assert_eq!(
-            user_address_country_is_us.eq(&user_adress_country_is_all),
+            user_address_country_is_us.eq(&user_address_country_is_all),
             true
         )
     }

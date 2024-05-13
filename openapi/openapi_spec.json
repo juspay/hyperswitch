@@ -6706,7 +6706,7 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A a boolen value to indicate if cusomter shipping details needs to be sent for wallets payments",
+            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },

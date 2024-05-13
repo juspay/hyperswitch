@@ -917,7 +917,7 @@ pub struct BusinessProfileCreate {
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A a boolen value to indicate if cusomter shipping details needs to be sent for wallets payments
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
@@ -1059,7 +1059,7 @@ pub struct BusinessProfileUpdate {
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A a boolen value to indicate if cusomter shipping details needs to be sent for wallets payments
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
