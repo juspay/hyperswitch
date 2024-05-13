@@ -951,9 +951,7 @@ impl DataModelExt for PaymentIntent {
             status: storage_model.status,
             amount: MinorUnit::new(storage_model.amount),
             currency: storage_model.currency,
-            amount_captured: storage_model
-                .amount_captured
-                .map(|capture_amt| MinorUnit::new(capture_amt)),
+            amount_captured: storage_model.amount_captured.map(MinorUnit::new),
             customer_id: storage_model.customer_id,
             description: storage_model.description,
             return_url: storage_model.return_url,

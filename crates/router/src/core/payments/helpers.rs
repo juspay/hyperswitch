@@ -769,7 +769,7 @@ pub fn validate_amount_to_capture_and_capture_method(
     if capture_method == api_enums::CaptureMethod::Automatic {
         let original_amount = request
             .amount
-            .map(|amount| api_models::payments::MinorUnit::from(amount))
+            .map(MinorUnit::from)
             .or(payment_attempt.map(|payment_attempt| payment_attempt.amount));
         let surcharge_amount = request
             .surcharge_details
@@ -2915,7 +2915,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -2973,7 +2973,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -3030,7 +3030,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,

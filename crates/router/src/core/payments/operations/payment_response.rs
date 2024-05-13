@@ -256,16 +256,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .attach_printable("missing incremental_authorization_details in payment_data")
             })?;
         // Update payment_intent and payment_attempt 'amount' if incremental_authorization is successful
-        let (option_payment_attempt_update, option_payment_intent_update) = match router_data
-            .response
-            .clone()
-        {
-            Err(_) => (None, None),
-            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
-                status, ..
-            }) => {
-                if status == AuthorizationStatus::Success {
-                    (
+        let (option_payment_attempt_update, option_payment_intent_update) =
+            match router_data.response.clone() {
+                Err(_) => (None, None),
+                Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status,
+                    ..
+                }) => {
+                    if status == AuthorizationStatus::Success {
+                        (
                         Some(
                             storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                                 amount: MinorUnit::new(
@@ -284,13 +283,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                             },
                         ),
                     )
-                } else {
-                    (None, None)
+                    } else {
+                        (None, None)
+                    }
                 }
-            }
-            _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unexpected response in incremental_authorization flow")?,
-        };
+                _ => Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unexpected response in incremental_authorization flow")?,
+            };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
             payment_data.payment_attempt = db

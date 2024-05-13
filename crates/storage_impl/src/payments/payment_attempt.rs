@@ -1189,15 +1189,9 @@ impl DataModelExt for PaymentAttempt {
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
             error_message: storage_model.error_message,
-            offer_amount: storage_model
-                .offer_amount
-                .map(|offer_amount| MinorUnit::new(offer_amount)),
-            surcharge_amount: storage_model
-                .surcharge_amount
-                .map(|surcharge_amount| MinorUnit::new(surcharge_amount)),
-            tax_amount: storage_model
-                .tax_amount
-                .map(|tax_amt| MinorUnit::new(tax_amt)),
+            offer_amount: storage_model.offer_amount.map(MinorUnit::new),
+            surcharge_amount: storage_model.surcharge_amount.map(MinorUnit::new),
+            tax_amount: storage_model.tax_amount.map(MinorUnit::new),
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
             connector_transaction_id: storage_model.connector_transaction_id,
@@ -1209,9 +1203,7 @@ impl DataModelExt for PaymentAttempt {
             modified_at: storage_model.modified_at,
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
-            amount_to_capture: storage_model
-                .amount_to_capture
-                .map(|capture_amt| MinorUnit::new(capture_amt)),
+            amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
             mandate_id: storage_model.mandate_id,
             browser_info: storage_model.browser_info,
             error_code: storage_model.error_code,
@@ -1328,15 +1320,9 @@ impl DataModelExt for PaymentAttemptNew {
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
             error_message: storage_model.error_message,
-            offer_amount: storage_model
-                .offer_amount
-                .map(|offer_amount| MinorUnit::new(offer_amount)),
-            surcharge_amount: storage_model
-                .surcharge_amount
-                .map(|surcharge_amount| MinorUnit::new(surcharge_amount)),
-            tax_amount: storage_model
-                .tax_amount
-                .map(|tax_amount| MinorUnit::new(tax_amount)),
+            offer_amount: storage_model.offer_amount.map(MinorUnit::new),
+            surcharge_amount: storage_model.surcharge_amount.map(MinorUnit::new),
+            tax_amount: storage_model.tax_amount.map(MinorUnit::new),
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
             capture_method: storage_model.capture_method,
@@ -1347,9 +1333,7 @@ impl DataModelExt for PaymentAttemptNew {
             modified_at: storage_model.modified_at,
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
-            amount_to_capture: storage_model
-                .amount_to_capture
-                .map(|amount_to_capture| MinorUnit::new(amount_to_capture)),
+            amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
             mandate_id: storage_model.mandate_id,
             browser_info: storage_model.browser_info,
             payment_token: storage_model.payment_token,
@@ -1748,11 +1732,10 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_type,
                 payment_experience,
                 business_sub_label,
-                amount_to_capture: amount_to_capture.map(|capture_amt| MinorUnit::new(capture_amt)),
+                amount_to_capture: amount_to_capture.map(MinorUnit::new),
                 capture_method,
-                surcharge_amount: surcharge_amount
-                    .map(|surcharge_amt| MinorUnit::new(surcharge_amt)),
-                tax_amount: tax_amount.map(|tax_amt| MinorUnit::new(tax_amt)),
+                surcharge_amount: surcharge_amount.map(MinorUnit::new),
+                tax_amount: tax_amount.map(MinorUnit::new),
                 fingerprint_id,
                 updated_by,
             },
@@ -1769,10 +1752,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_token,
                 connector,
                 straight_through_algorithm,
-                amount_capturable: amount_capturable.map(|capture_amt| MinorUnit::new(capture_amt)),
-                surcharge_amount: surcharge_amount
-                    .map(|surcharge_amt| MinorUnit::new(surcharge_amt)),
-                tax_amount: tax_amount.map(|tax_amt| MinorUnit::new(tax_amt)),
+                amount_capturable: amount_capturable.map(MinorUnit::new),
+                surcharge_amount: surcharge_amount.map(MinorUnit::new),
+                tax_amount: tax_amount.map(MinorUnit::new),
                 updated_by,
                 merchant_connector_id: connector_id,
             },
@@ -1828,10 +1810,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
-                amount_capturable: amount_capturable.map(|capture_amt| MinorUnit::new(capture_amt)),
-                surcharge_amount: surcharge_amount
-                    .map(|surcharge_amt| MinorUnit::new(surcharge_amt)),
-                tax_amount: tax_amount.map(|tax_amt| MinorUnit::new(tax_amt)),
+                amount_capturable: amount_capturable.map(MinorUnit::new),
+                surcharge_amount: surcharge_amount.map(MinorUnit::new),
+                tax_amount: tax_amount.map(MinorUnit::new),
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
@@ -1901,7 +1882,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
-                amount_capturable: amount_capturable.map(|capture_amt| MinorUnit::new(capture_amt)),
+                amount_capturable: amount_capturable.map(MinorUnit::new),
                 updated_by,
                 authentication_data,
                 encoded_data,
@@ -1951,7 +1932,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 error_reason,
-                amount_capturable: amount_capturable.map(|capture_amt| MinorUnit::new(capture_amt)),
+                amount_capturable: amount_capturable.map(MinorUnit::new),
                 updated_by,
                 unified_code,
                 unified_message,
@@ -1963,7 +1944,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 multiple_capture_count,
                 updated_by,
             } => Self::CaptureUpdate {
-                amount_to_capture: amount_to_capture.map(|capture_amt| MinorUnit::new(capture_amt)),
+                amount_to_capture: amount_to_capture.map(MinorUnit::new),
                 multiple_capture_count,
                 updated_by,
             },

@@ -343,11 +343,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
                         .or(payment_attempt.get_total_surcharge_amount());
-                    MinorUnit::from(amount.add(surcharge_amount.unwrap_or_default()))
+                    amount.add(surcharge_amount.unwrap_or_default())
                 };
                 (Box::new(operations::PaymentConfirm), amount.into())
             } else {
-                (Box::new(self), amount.into())
+                (Box::new(self), amount)
             };
 
         payment_intent.status = match request.payment_method_data.as_ref() {

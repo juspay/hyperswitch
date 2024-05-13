@@ -699,12 +699,12 @@ impl MinorUnit {
         self.0
     }
 
-    pub fn add(&self, a2: MinorUnit) -> Self {
-        MinorUnit::new(self.get_amount_as_i64() + a2.get_amount_as_i64())
+    pub fn add(&self, a2: Self) -> Self {
+        Self::new(self.get_amount_as_i64() + a2.get_amount_as_i64())
     }
 
-    pub fn substract(&self, a2: MinorUnit) -> Self {
-        MinorUnit::new(self.get_amount_as_i64() - a2.get_amount_as_i64())
+    pub fn substract(&self, a2: Self) -> Self {
+        Self::new(self.get_amount_as_i64() - a2.get_amount_as_i64())
     }
 
     pub fn get_optional_amount_as_i64(optional_amount: Option<Self>) -> Option<i64> {
@@ -712,25 +712,25 @@ impl MinorUnit {
     }
 
     pub fn new(value: i64) -> Self {
-        MinorUnit(value)
+        Self(value)
     }
     pub fn optional_new_from_i64_amount(value: i64) -> Option<Self> {
-        Some(MinorUnit(value))
+        Some(Self(value))
     }
 
     pub fn new_from_optional_i64_amount(value: Option<i64>) -> Option<Self> {
-        value.map(|amount| MinorUnit(amount))
+        value.map(Self)
     }
 
-    pub fn is_equal(&self, a2: MinorUnit) -> bool {
+    pub fn is_equal(&self, a2: Self) -> bool {
         self.get_amount_as_i64() == a2.get_amount_as_i64()
     }
 
-    pub fn is_not_equal(&self, a2: MinorUnit) -> bool {
+    pub fn is_not_equal(&self, a2: Self) -> bool {
         !self.is_equal(a2)
     }
 
-    pub fn is_greater_than(&self, a2: MinorUnit) -> bool {
+    pub fn is_greater_than(&self, a2: Self) -> bool {
         self.get_amount_as_i64() > a2.get_amount_as_i64()
     }
 }
@@ -745,8 +745,8 @@ pub enum Amount {
 impl From<Amount> for MinorUnit {
     fn from(amount: Amount) -> Self {
         match amount {
-            Amount::Value(val) => MinorUnit::new(val.get()),
-            Amount::Zero => MinorUnit::new(0),
+            Amount::Value(val) => Self::new(val.get()),
+            Amount::Zero => Self::new(0),
         }
     }
 }
@@ -760,8 +760,8 @@ impl fmt::Display for MinorUnit {
 impl From<MinorUnit> for Amount {
     fn from(minor_unit: MinorUnit) -> Self {
         match minor_unit.0 {
-            0 => Amount::Zero,
-            val => NonZeroI64::new(val).map_or(Self::Zero, Amount::Value),
+            0 => Self::Zero,
+            val => NonZeroI64::new(val).map_or(Self::Zero, Self::Value),
         }
     }
 }
