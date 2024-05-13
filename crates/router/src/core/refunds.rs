@@ -789,20 +789,15 @@ pub async fn get_filters_for_refunds(
     };
 
     let connector_map = merchant_connector_accounts
-        .iter()
+        .into_iter()
         .filter_map(|merchant_connector_account| {
-            merchant_connector_account
-                .connector_label
-                .as_ref()
-                .map(|label| {
-                    let info = MerchantConnectorInfo {
-                        connector_label: label.clone(),
-                        merchant_connector_id: merchant_connector_account
-                            .merchant_connector_id
-                            .clone(),
-                    };
-                    (merchant_connector_account.connector_name.clone(), info)
-                })
+            merchant_connector_account.connector_label.map(|label| {
+                let info = MerchantConnectorInfo {
+                    connector_label: label,
+                    merchant_connector_id: merchant_connector_account.merchant_connector_id,
+                };
+                (merchant_connector_account.connector_name, info)
+            })
         })
         .fold(
             HashMap::new(),

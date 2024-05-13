@@ -121,11 +121,11 @@ impl RefundDbExt for Refund {
             _ => filter,
         };
 
-        if let Some(connector) = refund_list_details.clone().connector {
+        if let Some(connector) = refund_list_details.connector.clone() {
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
 
-        if let Some(merchant_connector_id) = refund_list_details.clone().merchant_connector_id {
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id.clone() {
             filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id));
         }
 
