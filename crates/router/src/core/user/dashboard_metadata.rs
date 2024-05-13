@@ -8,15 +8,15 @@ use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::logger;
 
+#[cfg(feature = "email")]
+use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, AppState},
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
+    types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
-#[cfg(feature = "email")]
-use crate::{services::email::types as email_types, types::domain};
 
 pub async fn set_metadata(
     state: AppState,
@@ -709,7 +709,7 @@ pub async fn get_merchant_connector_account_by_name(
     merchant_id: &str,
     connector_name: &str,
     key_store: &MerchantKeyStore,
-) -> UserResult<Option<crate::types::domain::MerchantConnectorAccount>> {
+) -> UserResult<Option<domain::MerchantConnectorAccount>> {
     state
         .store
         .find_merchant_connector_account_by_merchant_id_connector_name(

@@ -10,13 +10,14 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
-    CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
-    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignInWithTokenResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenResponse,
-    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
+    AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
+    ConnectAccountRequest, CreateInternalUserRequest, DashboardEntryResponse,
+    ForgotPasswordRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
+    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
+    ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse,
+    SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse,
+    TokenResponse, UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate,
+    VerifyEmailRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -38,6 +39,12 @@ impl ApiEventMetric for VerifyTokenResponse {
     }
 }
 
+impl<T> ApiEventMetric for TokenOrPayloadResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
 common_utils::impl_misc_api_event_type!(
     SignUpRequest,
     SignUpWithMerchantIdRequest,
@@ -54,6 +61,7 @@ common_utils::impl_misc_api_event_type!(
     ConnectAccountRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    RotatePasswordRequest,
     InviteUserRequest,
     ReInviteUserRequest,
     VerifyEmailRequest,
@@ -62,11 +70,12 @@ common_utils::impl_misc_api_event_type!(
     SignInResponse,
     UpdateUserAccountDetailsRequest,
     GetUserDetailsResponse,
-    SignInWithTokenResponse,
     GetUserRoleDetailsRequest,
     GetUserRoleDetailsResponse,
     TokenResponse,
-    UserFromEmailRequest
+    UserFromEmailRequest,
+    BeginTotpResponse,
+    VerifyTotpRequest
 );
 
 #[cfg(feature = "dummy_connector")]

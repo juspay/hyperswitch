@@ -38,7 +38,7 @@ pub struct PhoneNumber(Secret<String, PhoneNumberStrategy>);
 
 impl<T> Strategy<T> for PhoneNumberStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
@@ -85,7 +85,7 @@ impl ops::DerefMut for PhoneNumber {
     }
 }
 
-impl<DB> Queryable<diesel::sql_types::Text, DB> for PhoneNumber
+impl<DB> Queryable<sql_types::Text, DB> for PhoneNumber
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -210,7 +210,7 @@ pub enum EmailStrategy {}
 
 impl<T> Strategy<T> for EmailStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
@@ -224,7 +224,7 @@ where
 #[derive(
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
 )]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[diesel(sql_type = sql_types::Text)]
 #[serde(try_from = "String")]
 pub struct Email(Secret<String, EmailStrategy>);
 
@@ -262,7 +262,7 @@ impl ops::DerefMut for Email {
     }
 }
 
-impl<DB> Queryable<diesel::sql_types::Text, DB> for Email
+impl<DB> Queryable<sql_types::Text, DB> for Email
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -353,7 +353,7 @@ pub enum UpiVpaMaskingStrategy {}
 
 impl<T> Strategy<T> for UpiVpaMaskingStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let vpa_str: &str = val.as_ref();
