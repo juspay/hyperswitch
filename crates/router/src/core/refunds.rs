@@ -637,10 +637,16 @@ pub async fn validate_and_create_refund(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
 
-    let (revert_platform_fee, revert_transfer) = match req.charges {
-        Some(charge) => (charge.revert_platform_fee, charge.revert_transfer),
-        None => (None, None),
-    };
+    let (revert_platform_fee, revert_transfer) =
+        req.charges
+            .map_or((None, None), |charges| match charges.options {
+                api::ChargeRefundsOptions::Direct(api::DirectChargeRefund {
+                    revert_platform_fee,
+                }) => (Some(revert_platform_fee), None),
+                api::ChargeRefundsOptions::Destination(api::DestinationChargeRefund {
+                    revert_transfer,
+                }) => (None, Some(revert_transfer)),
+            });
 
     let refund_create_req = storage::RefundNew::default()
         .set_refund_id(refund_id.to_string())
@@ -777,6 +783,24 @@ pub async fn refund_filter_list(
 impl ForeignFrom<storage::Refund> for api::RefundResponse {
     fn foreign_from(refund: storage::Refund) -> Self {
         let refund = refund;
+
+        let charges = refund.charge_id.and_then(|charge_id| {
+            match (refund.revert_platform_fee, refund.revert_transfer) {
+                (None, Some(revert_transfer)) => Some(api::ChargeRefunds {
+                    charge_id,
+                    options: api::ChargeRefundsOptions::Destination(api::DestinationChargeRefund {
+                        revert_transfer,
+                    }),
+                }),
+                (Some(revert_platform_fee), _) => Some(api::ChargeRefunds {
+                    charge_id,
+                    options: api::ChargeRefundsOptions::Direct(api::DirectChargeRefund {
+                        revert_platform_fee,
+                    }),
+                }),
+                _ => None, // Default case if neither condition matches
+            }
+        });
         Self {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
@@ -792,10 +816,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             updated_at: Some(refund.updated_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
-            charges: Some(api::RefundCharges {
-                revert_platform_fee: refund.revert_platform_fee,
-                revert_transfer: refund.revert_transfer,
-            }),
+            charges,
         }
     }
 }

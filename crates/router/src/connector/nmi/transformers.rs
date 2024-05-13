@@ -232,8 +232,8 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                    charge_id: None,
+                }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
             Response::Declined | Response::Error => (
@@ -386,8 +386,8 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                    charge_id: None,
+                }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
                 {
@@ -763,8 +763,8 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                    charge_id: None,
+                }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
             Response::Declined | Response::Error => (
@@ -858,8 +858,8 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                    charge_id: None,
+                }),
                 enums::AttemptStatus::Charged,
             ),
             Response::Declined | Response::Error => (
@@ -915,8 +915,8 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                    charge_id: None,
+                }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
                 {
@@ -966,8 +966,8 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                    charge_id: None,
+                }),
                 enums::AttemptStatus::VoidInitiated,
             ),
             Response::Declined | Response::Error => (
@@ -1017,8 +1017,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                    charge_id: None,
+                }),
                 ..item.data
             }),
             None => Ok(Self { ..item.data }), //when there is empty connector response i.e. response we get in psync when payment status is in authentication_pending

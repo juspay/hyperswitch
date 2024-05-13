@@ -1531,6 +1531,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 payment_method_data,
+                charge_id,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1551,6 +1552,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 payment_method_data,
+                charge_id,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1852,6 +1854,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 payment_method_data,
+                charge_id,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -1872,6 +1875,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 payment_method_data,
+                charge_id,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,

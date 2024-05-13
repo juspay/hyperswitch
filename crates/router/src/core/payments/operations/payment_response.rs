@@ -857,6 +857,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     connector_metadata,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
+                    charge_id,
                     ..
                 } => {
                     payment_data
@@ -944,6 +945,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 authentication_data,
                                 encoded_data,
                                 payment_method_data: additional_payment_method_data,
+                                charge_id,
                             }),
                         ),
                     };

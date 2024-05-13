@@ -1,5 +1,6 @@
 pub use api_models::refunds::{
-    RefundCharges, RefundRequest, RefundResponse, RefundStatus, RefundType, RefundUpdateRequest,
+    ChargeRefunds, ChargeRefundsOptions, DestinationChargeRefund, DirectChargeRefund,
+    RefundRequest, RefundResponse, RefundStatus, RefundType, RefundUpdateRequest,
     RefundsRetrieveRequest,
 };
 

@@ -50,16 +50,31 @@ pub struct RefundRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<RefundCharges>)]
-    pub charges: Option<RefundCharges>,
+    #[schema(value_type = Option<ChargeRefunds>)]
+    pub charges: Option<ChargeRefunds>,
 }
 
-#[derive(Clone, Default, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct RefundCharges {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub revert_platform_fee: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub revert_transfer: Option<bool>,
+#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ChargeRefunds {
+    pub charge_id: String,
+    pub options: ChargeRefundsOptions,
+}
+
+#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ChargeRefundsOptions {
+    Direct(DirectChargeRefund),
+    Destination(DestinationChargeRefund),
+}
+
+#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
+pub struct DirectChargeRefund {
+    pub revert_platform_fee: bool,
+}
+
+#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
+pub struct DestinationChargeRefund {
+    pub revert_transfer: bool,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -146,8 +161,8 @@ pub struct RefundResponse {
     pub merchant_connector_id: Option<String>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(value_type = Option<RefundCharges>)]
-    pub charges: Option<RefundCharges>,
+    #[schema(value_type = Option<ChargeRefunds>)]
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
@@ -175,7 +190,7 @@ pub struct RefundListRequest {
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
     pub count: usize,

@@ -276,6 +276,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
+        charge_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -685,6 +686,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 payment_method_data,
+                charge_id,
             } => Self {
                 status: Some(status),
                 connector: connector.map(Some),
@@ -706,6 +708,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 payment_method_data,
+                charge_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

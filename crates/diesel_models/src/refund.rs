@@ -39,6 +39,7 @@ pub struct Refund {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charge_id: Option<String>,
     pub revert_platform_fee: Option<bool>,
     pub revert_transfer: Option<bool>,
 }
@@ -83,6 +84,7 @@ pub struct RefundNew {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charge_id: Option<String>,
     pub revert_platform_fee: Option<bool>,
     pub revert_transfer: Option<bool>,
 }
@@ -280,6 +282,7 @@ mod tests {
     "profile_id": null,
     "updated_by": "admin",
     "merchant_connector_id": null,
+    "charge_id": null,
     "revert_platform_fee": null,
     "revert_transfer": null
 }"#;

@@ -712,8 +712,8 @@ impl<F, T>
                                 payment_response.data.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                charge_id: None,
-            })
+                            charge_id: None,
+                        })
                     },
                     ..item.data
                 })

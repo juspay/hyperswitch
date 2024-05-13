@@ -940,6 +940,7 @@ impl PaymentCreate {
                 fingerprint_id: None,
                 authentication_connector: None,
                 authentication_id: None,
+                charge_id: None,
             },
             additional_pm_data,
         ))

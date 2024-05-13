@@ -373,6 +373,7 @@ impl<F, T>
                     item.response.idempotency_id.unwrap_or(item.response.id),
                 ),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

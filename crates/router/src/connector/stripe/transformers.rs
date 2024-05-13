@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-use api_models::{self, enums as api_enums};
+use api_models::{self, enums as api_enums, refunds as refund_api};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode},
@@ -2581,10 +2581,14 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
-            let charge_id = item.response.latest_charge.map(|charge| match charge {
-                StripeChargeEnum::ChargeId(charge_id) => charge_id,
-                StripeChargeEnum::ChargeObject(charge) => charge.id,
-            });
+            let charge_id = item
+                .response
+                .latest_charge
+                .as_ref()
+                .map(|charge| match charge {
+                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
+                });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2769,10 +2773,14 @@ impl<F, T>
                     }),
                 _ => None,
             };
-            let charge_id = item.response.latest_charge.map(|charge| match charge {
-                StripeChargeEnum::ChargeId(charge_id) => charge_id,
-                StripeChargeEnum::ChargeObject(charge) => charge.id,
-            });
+            let charge_id = item
+                .response
+                .latest_charge
+                .as_ref()
+                .map(|charge| match charge {
+                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
+                });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -3042,6 +3050,8 @@ pub struct RefundRequest {
     pub payment_intent: String,
     #[serde(flatten)]
     pub meta_data: StripeMetadata,
+    #[serde(flatten)]
+    pub charges: Option<ChargeRefundOptions>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
@@ -3049,6 +3059,21 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let payment_intent = item.request.connector_transaction_id.clone();
+        let charges = item.request.charges.as_ref().map(|charges| {
+            let (refund_application_fee, reverse_transfer) = match charges.request.options {
+                refund_api::ChargeRefundsOptions::Direct(refund_api::DirectChargeRefund {
+                    revert_platform_fee,
+                }) => (Some(revert_platform_fee), None),
+                refund_api::ChargeRefundsOptions::Destination(
+                    refund_api::DestinationChargeRefund { revert_transfer },
+                ) => (None, Some(revert_transfer)),
+            };
+            ChargeRefundOptions {
+                charge: charges.request.charge_id.clone(),
+                refund_application_fee,
+                reverse_transfer,
+            }
+        });
         Ok(Self {
             amount: Some(amount),
             payment_intent,
@@ -3057,6 +3082,47 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
                 is_refund_id_as_reference: Some("true".to_string()),
             },
         })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChargeRefundRequest {
+    pub charge: String,
+    pub refund_application_fee: Option<bool>,
+    pub reverse_transfer: Option<bool>,
+    pub amount: Option<i64>, //amount in cents, hence passed as integer
+    #[serde(flatten)]
+    pub meta_data: StripeMetadata,
+}
+
+impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let amount = item.request.refund_amount;
+        let payment_intent = item.request.connector_transaction_id.clone();
+        match item.request.charges.as_ref() {
+            None => Err(errors::ConnectorError::MissingRequiredField { field_name: "charges" }),
+            Some(charges) => {
+                let (refund_application_fee, reverse_transfer) = match charges.request.options {
+                    refund_api::ChargeRefundsOptions::Direct(refund_api::DirectChargeRefund {
+                        revert_platform_fee,
+                    }) => (Some(revert_platform_fee), None),
+                    refund_api::ChargeRefundsOptions::Destination(
+                        refund_api::DestinationChargeRefund { revert_transfer },
+                    ) => (None, Some(revert_transfer)),
+                };
+                Ok(Self {
+                    charge: charges.request.charge_id.clone(),
+                    refund_application_fee,
+                    reverse_transfer,
+                    amount: Some(amount),
+                    meta_data: StripeMetadata {
+                        order_id: Some(item.request.refund_id.clone()),
+                        is_refund_id_as_reference: Some("true".to_string()),
+                    },
+                })
+            }
+        }
     }
 }
 
@@ -3491,7 +3557,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: Some(item.response.id),
             })

@@ -1021,6 +1021,15 @@ pub struct RefundsData {
     /// Arbitrary metadata required for refund
     pub connector_metadata: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    /// Charges associated with the payment
+    pub charges: Option<ChargeRefunds>,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct ChargeRefunds {
+    pub charge_type: api_models::enums::PaymentChargeType,
+    pub transfer_account_id: String,
+    pub request: api_models::refunds::ChargeRefunds,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]

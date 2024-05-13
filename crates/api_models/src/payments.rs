@@ -3396,6 +3396,18 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated: Option<PrimitiveDateTime>,
+
+    /// Fee information to be charged on the payment being collected
+    pub charges: Option<PaymentChargeResponse>,
+}
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct PaymentChargeResponse {
+    pub charge_id: String,
+    pub charge_type: api_enums::StripeChargeType,
+    pub application_fees: i64,
+    pub transfer_account_id: String,
+    pub automatic_payment_methods_enabled: Option<bool>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]

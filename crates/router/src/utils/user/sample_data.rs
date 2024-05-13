@@ -295,8 +295,9 @@ pub async fn generate_sample_data(
                 profile_id: payment_intent.profile_id.clone(),
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                revert_platform_fee: Some(true),
-                revert_transfer: Some(true),
+                charge_id: None,
+                revert_platform_fee: None,
+                revert_transfer: None,
             })
         } else {
             None

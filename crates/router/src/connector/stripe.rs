@@ -875,8 +875,6 @@ impl
                     _ => (),
                 },
             });
-
-        router_env::logger::warn!("[DEBUG] header - {:?}", header);
         Ok(header)
     }
 
@@ -1355,6 +1353,23 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+
+        req.request
+            .charges
+            .as_ref()
+            .map(|charge| match &charge.charge_type {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => match stripe_charge {
+                    api::enums::StripeChargeType::Direct => {
+                        let mut customer_account_header = vec![(
+                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                            charge.transfer_account_id.clone().into_masked(),
+                        )];
+                        header.append(&mut customer_account_header);
+                    }
+                    _ => (),
+                },
+            });
+
         Ok(header)
     }
 

@@ -705,8 +705,8 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                            charge_id: None,
+                        }),
                     },
                     ..item.data
                 })
@@ -778,8 +778,8 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                            charge_id: None,
+                        }),
                     },
                     ..item.data
                 })
@@ -1103,8 +1103,8 @@ impl<F, Req>
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                        charge_id: None,
+                    }),
                     status: payment_status,
                     ..item.data
                 })
