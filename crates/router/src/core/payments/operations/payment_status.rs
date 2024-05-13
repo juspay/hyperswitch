@@ -289,7 +289,7 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
-    payment_attempt.encoded_data = request.param.clone();
+    payment_attempt.encoded_data.clone_from(&request.param);
 
     let attempts = match request.expand_attempts {
         Some(true) => {
@@ -459,6 +459,7 @@ async fn get_tracker_for_sync<
             shipping_address.as_ref().map(From::from),
             billing_address.as_ref().map(From::from),
             payment_method_billing.as_ref().map(From::from),
+            business_profile.use_billing_as_payment_method_billing,
         ),
         token_data: None,
         confirm: Some(request.force_sync),
@@ -490,6 +491,7 @@ async fn get_tracker_for_sync<
         authentication,
         frm_metadata: None,
         recurring_details: None,
+        poll_config: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

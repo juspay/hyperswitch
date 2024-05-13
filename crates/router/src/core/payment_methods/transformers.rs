@@ -328,6 +328,7 @@ pub fn mk_add_bank_response_hs(
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
     }
 }
 
@@ -373,6 +374,7 @@ pub fn mk_add_card_response_hs(
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
+        client_secret: req.client_secret,
     }
 }
 
@@ -561,7 +563,7 @@ pub fn get_card_detail(
         card_token: None,
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(masking::Secret::new),
+        nick_name: response.nick_name.map(Secret::new),
         card_isin: None,
         card_issuer: None,
         card_network: None,

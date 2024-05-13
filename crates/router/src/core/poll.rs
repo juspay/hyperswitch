@@ -19,7 +19,7 @@ pub async fn retrieve_poll_status(
         .attach_printable("Failed to get redis connection")?;
     let request_poll_id = req.poll_id;
     // prepend 'poll_{merchant_id}_' to restrict access to only fetching Poll IDs, as this is a freely passed string in the request
-    let poll_id = format!("poll_{}_{}", merchant_account.merchant_id, request_poll_id);
+    let poll_id = super::utils::get_poll_id(merchant_account.merchant_id, request_poll_id.clone());
     let redis_value = redis_conn
         .get_key::<Option<String>>(poll_id.as_str())
         .await

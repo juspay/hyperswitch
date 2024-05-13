@@ -4,6 +4,7 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
+        auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
@@ -247,6 +248,11 @@ pub enum Aggregate<R> {
         field: R,
         alias: Option<&'static str>,
     },
+    Percentile {
+        field: R,
+        alias: Option<&'static str>,
+        percentile: Option<&'static u8>,
+    },
 }
 
 // Window functions in query
@@ -286,12 +292,12 @@ pub enum Order {
     Descending,
 }
 
-impl ToString for Order {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Ascending => "asc",
-            Self::Descending => "desc",
-        })
+impl std::fmt::Display for Order {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ascending => write!(f, "asc"),
+            Self::Descending => write!(f, "desc"),
+        }
     }
 }
 
@@ -379,11 +385,17 @@ impl_to_sql_for_to_string!(
     Order
 );
 
-impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
-
-impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
-
-impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
+impl_to_sql_for_to_string!(
+    &SdkEventDimensions,
+    SdkEventDimensions,
+    SdkEventNames,
+    AuthEventFlows,
+    &ApiEventDimensions,
+    ApiEventDimensions,
+    &DisputeDimensions,
+    DisputeDimensions,
+    DisputeStage
+);
 
 #[derive(Debug)]
 pub enum FilterTypes {
@@ -505,6 +517,14 @@ where
         value: impl ToSql<T>,
     ) -> QueryResult<()> {
         self.add_custom_filter_clause(key, value, FilterTypes::EqualBool)
+    }
+
+    pub fn add_negative_filter_clause(
+        &mut self,
+        key: impl ToSql<T>,
+        value: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        self.add_custom_filter_clause(key, value, FilterTypes::NotEqual)
     }
 
     pub fn add_custom_filter_clause(
@@ -709,12 +729,12 @@ where
         Ok(query)
     }
 
-    pub async fn execute_query<R, P: AnalyticsDataSource>(
+    pub async fn execute_query<R, P>(
         &mut self,
         store: &P,
     ) -> CustomResult<CustomResult<Vec<R>, QueryExecutionError>, QueryBuildingError>
     where
-        P: LoadRow<R>,
+        P: LoadRow<R> + AnalyticsDataSource,
         Aggregate<&'static str>: ToSql<T>,
         Window<&'static str>: ToSql<T>,
     {

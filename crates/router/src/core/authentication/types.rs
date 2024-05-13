@@ -33,7 +33,7 @@ pub enum PostAuthenthenticationFlowInput<'a, F: Clone> {
 #[derive(Clone, Debug)]
 pub struct PreAuthenticationData {
     pub threeds_server_transaction_id: String,
-    pub message_version: String,
+    pub message_version: common_utils::types::SemanticVersion,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
@@ -51,11 +51,11 @@ impl ForeignTryFrom<&storage::Authentication> for PreAuthenticationData {
             .change_context(error_message)?;
         let message_version = authentication
             .message_version
-            .as_ref()
+            .clone()
             .get_required_value("message_version")?;
         Ok(Self {
             threeds_server_transaction_id,
-            message_version: message_version.to_string(),
+            message_version,
             acquirer_bin: authentication.acquirer_bin.clone(),
             acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
             connector_metadata: authentication.connector_metadata.clone(),
