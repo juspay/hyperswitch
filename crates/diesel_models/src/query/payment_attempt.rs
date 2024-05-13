@@ -10,7 +10,7 @@ use error_stack::{report, ResultExt};
 use super::generics;
 use crate::{
     enums::{self, IntentStatus},
-    errors::{self, DatabaseError},
+    errors::DatabaseError,
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
@@ -246,7 +246,7 @@ impl PaymentAttempt {
             .distinct()
             .get_results_async::<Option<String>>(conn)
             .await
-            .change_context(errors::DatabaseError::Others)
+            .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
             .into_iter()
             .flatten()
@@ -350,7 +350,7 @@ impl PaymentAttempt {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .change_context(errors::DatabaseError::Others)
+        .change_context(DatabaseError::Others)
         .attach_printable("Error filtering count of payments")
     }
 }

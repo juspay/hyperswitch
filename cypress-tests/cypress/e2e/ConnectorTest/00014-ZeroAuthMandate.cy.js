@@ -23,8 +23,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     context("Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test", () => {
 
         it("Confirm No 3DS CIT", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
-            cy.citForMandatesCallTest(citConfirmBody,"no_three_ds", 0, det, true, "automatic", "setup_mandate", globalState);
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DS"];
+            cy.citForMandatesCallTest(citConfirmBody, 0, det, true, "automatic", "setup_mandate", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -34,8 +34,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     context("Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test", () => {
 
         it("Confirm No 3DS CIT", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
-            cy.citForMandatesCallTest(citConfirmBody,"no_three_ds", 0, det, true, "automatic", "setup_mandate", globalState);
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DS"];
+            cy.citForMandatesCallTest(citConfirmBody, 0, det, true, "automatic", "setup_mandate", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {

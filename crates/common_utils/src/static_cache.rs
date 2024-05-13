@@ -26,6 +26,8 @@ impl<T> StaticCache<T>
 where
     T: Send,
 {
+    // Cannot have default impl as it cannot be called during instantiation of static item
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
             data: Lazy::new(|| RwLock::new(FxHashMap::default())),

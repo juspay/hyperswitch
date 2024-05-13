@@ -123,11 +123,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
                     let payment_attempt_update =
-                        data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
+                        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            status: api_models::enums::AttemptStatus::AuthenticationFailed,
+                            status: api_models::enums::AttemptStatus::Failure,
                             error_code: None,
                             error_message: None,
                             error_reason: Some(Some(

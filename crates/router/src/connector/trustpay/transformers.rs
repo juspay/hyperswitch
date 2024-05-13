@@ -28,19 +28,12 @@ pub struct TrustpayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for TrustpayRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for TrustpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -1179,7 +1172,7 @@ impl<F>
         let create_intent_response = item.response.init_result_data.to_owned();
         let secrets = item.response.secrets.to_owned();
         let instance_id = item.response.instance_id.to_owned();
-        let pmt = utils::PaymentsPreProcessingData::get_payment_method_type(&item.data.request)?;
+        let pmt = PaymentsPreProcessingData::get_payment_method_type(&item.data.request)?;
 
         match (pmt, create_intent_response) {
             (
@@ -1230,6 +1223,7 @@ pub fn get_apple_pay_session<F, T>(
                         ),
                         total: apple_pay_init_result.total.into(),
                         merchant_identifier: None,
+                        required_billing_contact_fields: None,
                     }),
                     connector: "trustpay".to_string(),
                     delayed_session_token: true,
@@ -1333,6 +1327,8 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
         Self {
             allowed_auth_methods: value.allowed_auth_methods,
             allowed_card_networks: value.allowed_card_networks,
+            billing_address_required: None,
+            billing_address_parameters: None,
         }
     }
 }

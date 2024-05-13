@@ -1,16 +1,5 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
-use data_models::{
-    errors,
-    mandates::{MandateAmountData, MandateDataType, MandateDetails},
-    payments::{
-        payment_attempt::{
-            PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
-            PaymentListFilters,
-        },
-        PaymentIntent,
-    },
-};
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
@@ -24,6 +13,17 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    errors,
+    mandates::{MandateAmountData, MandateDataType, MandateDetails},
+    payments::{
+        payment_attempt::{
+            PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
+            PaymentListFilters,
+        },
+        PaymentIntent,
+    },
+};
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
@@ -1377,6 +1377,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::Update {
                 amount,
@@ -1394,6 +1395,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
             },
             Self::UpdateTrackers {
@@ -1697,6 +1699,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 fingerprint_id,
                 updated_by,
+                payment_method_billing_address_id,
             } => Self::Update {
                 amount,
                 currency,
@@ -1713,6 +1716,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::UpdateTrackers {

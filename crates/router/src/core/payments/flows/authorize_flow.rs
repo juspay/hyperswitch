@@ -154,6 +154,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         self.request.payment_method_type,
                     )
                     .to_payment_failed_response()?;
+
+                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+                    &self.request,
+                ) {
+                    connector
+                        .connector
+                        .validate_mandate_payment(
+                            self.request.payment_method_type,
+                            self.request.payment_method_data.clone(),
+                        )
+                        .to_payment_failed_response()?;
+                }
+
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
@@ -231,7 +244,9 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
@@ -264,7 +279,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             Err(types::ErrorResponse::default());
 
         let preprocessing_router_data =
-            payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
                 router_data.clone(),
                 preprocessing_request_data,
                 preprocessing_response_data,
@@ -301,12 +316,11 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             ],
         );
 
-        let authorize_router_data =
-            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                resp.clone(),
-                router_data.request.to_owned(),
-                resp.response,
-            );
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data.request.to_owned(),
+            resp.response,
+        );
 
         Ok(authorize_router_data)
     } else {
