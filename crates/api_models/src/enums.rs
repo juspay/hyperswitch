@@ -458,7 +458,7 @@ impl FieldType {
     }
 }
 
-/// This implementatiobn is to ingore the inner value of UserAddressCountry enum while comparing
+/// This implementatiobn is to ignore the inner value of UserAddressCountry enum while comparing
 impl PartialEq for FieldType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
