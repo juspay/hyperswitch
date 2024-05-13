@@ -547,7 +547,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             seller_info: None,
             results_response_notification_url: Some(request.webhook_url),
         };
-        let browser_information = request.browser_details.map(netcetera_types::Browser::from);
+        let browser_information = match request.device_channel {
+            api_models::payments::DeviceChannel::Browser => {
+                request.browser_details.map(netcetera_types::Browser::from)
+            }
+            api_models::payments::DeviceChannel::App => None,
+        };
         let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
         let device_render_options = match request.device_channel {
             api_models::payments::DeviceChannel::App => {

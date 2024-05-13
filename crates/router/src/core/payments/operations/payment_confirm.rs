@@ -471,6 +471,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
             .in_current_span(),
         );
+
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
             request.off_session,
@@ -560,6 +561,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         } else {
             (None, payment_method_info)
         };
+
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
