@@ -295,11 +295,11 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
 });
 
 // This is consequent saved card payment confirm call test(Using payment token)
-Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody,det,globalState) => {
+Cypress.Commands.add("saveCardConfirmCallTest", (saveCardConfirmBody,det,globalState) => {
   const paymentIntentID = globalState.get("paymentID");
-  SaveCardConfirmBody.card_cvc = det.card.card_cvc;
-  SaveCardConfirmBody.payment_token = globalState.get("paymentToken");
-  SaveCardConfirmBody.client_secret = globalState.get("clientSecret");
+  saveCardConfirmBody.card_cvc = det.card.card_cvc;
+  saveCardConfirmBody.payment_token = globalState.get("paymentToken");
+  saveCardConfirmBody.client_secret = globalState.get("clientSecret");
   console.log("conf conn ->" + globalState.get("connectorId"));
   cy.request({
     method: "POST",
@@ -308,7 +308,7 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody,det,globalS
       "Content-Type": "application/json",
       "api-key": globalState.get("publishableKey"),
     },
-    body: SaveCardConfirmBody,
+    body: saveCardConfirmBody,
 
   })
     .then((response) => {
