@@ -52,13 +52,15 @@ impl SchedulerInterface for MockDb {}
 
 #[async_trait::async_trait]
 pub trait SchedulerAppState: Send + Sync + Clone {
-    fn get_db(&self) -> Box<dyn SchedulerInterface>;
     fn get_tenants(&self) -> Vec<String>;
 }
-
+#[async_trait::async_trait]
+pub trait SchedulerSessionState: Send + Sync + Clone {
+    fn get_db(&self) -> Box<dyn SchedulerInterface>;
+}
 pub async fn start_process_tracker<
     T: SchedulerAppState + 'static,
-    U: SchedulerAppState + 'static,
+    U: SchedulerSessionState + 'static,
     F,
 >(
     state: &T,

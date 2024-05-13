@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     configs::settings::SchedulerSettings, errors, flow::SchedulerFlow,
-    scheduler::SchedulerInterface, utils::*, SchedulerAppState,
+    scheduler::SchedulerInterface, utils::*, SchedulerAppState, SchedulerSessionState,
 };
 
 #[instrument(skip_all)]
@@ -29,7 +29,7 @@ pub async fn start_producer<T, U, F>(
 where
     F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
     T: SchedulerAppState,
-    U: SchedulerAppState,
+    U: SchedulerSessionState,
 {
     use std::time::Duration;
 
@@ -105,7 +105,7 @@ pub async fn run_producer_flow<T>(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerAppState,
+    T: SchedulerSessionState,
 {
     lock_acquire_release::<_, _, _>(state.get_db().as_scheduler(), settings, move || async {
         let tasks = fetch_producer_tasks(state.get_db().as_scheduler(), settings).await?;

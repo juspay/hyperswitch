@@ -76,13 +76,9 @@ pub struct SessionState {
     pub request_id: Option<RequestId>,
     pub base_url: String,
 }
-impl scheduler::SchedulerAppState for SessionState {
+impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
         self.store.get_scheduler_db()
-    }
-
-    fn get_tenants(&self) -> Vec<String> {
-        self.conf.multitenancy.get_tenant_names().clone()
     }
 }
 impl SessionState {
@@ -160,9 +156,6 @@ pub struct AppState {
     pub encryption_client: Box<dyn EncryptionManagementInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
-    fn get_db(&self) -> Box<dyn SchedulerInterface> {
-        todo!()
-    }
     fn get_tenants(&self) -> Vec<String> {
         self.conf.multitenancy.get_tenant_names().clone()
     }

@@ -22,7 +22,7 @@ use router_env::{
 };
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
-    workflows::ProcessTrackerWorkflows, SchedulerAppState,
+    workflows::ProcessTrackerWorkflows, SchedulerSessionState,
 };
 use storage_impl::errors::ApplicationError;
 use tokio::sync::{mpsc, oneshot};

@@ -25,7 +25,7 @@ use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
 use crate::{
     configs::settings::SchedulerSettings, db::process_tracker::ProcessTrackerInterface, errors,
-    metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface,
+    metrics, utils as pt_utils, SchedulerAppState, SchedulerSessionState, SchedulerInterface,
 };
 
 // Valid consumer business statuses
@@ -34,7 +34,7 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 }
 
 #[instrument(skip_all)]
-pub async fn start_consumer<T: SchedulerAppState + 'static, U: SchedulerAppState + 'static, F>(
+pub async fn start_consumer<T: SchedulerAppState + 'static, U: SchedulerSessionState + 'static, F>(
     state: &T,
     settings: sync::Arc<SchedulerSettings>,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<U> + 'static + Copy + std::fmt::Debug,
@@ -135,7 +135,7 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_operations<T: SchedulerAppState + 'static>(
+pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     state: &T,
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
@@ -234,7 +234,7 @@ pub async fn start_workflow<T>(
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerAppState,
+    T: SchedulerSessionState,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     logger::info!(pt.name=?process.name, pt.id=%process.id);

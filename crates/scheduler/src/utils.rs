@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     configs::settings::SchedulerSettings, consumer::types::ProcessTrackerBatch, errors,
-    flow::SchedulerFlow, metrics, SchedulerAppState, SchedulerInterface,
+    flow::SchedulerFlow, metrics, SchedulerSessionState, SchedulerInterface,
 };
 
 pub async fn divide_and_append_tasks<T>(
@@ -259,7 +259,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
-    T: SchedulerAppState,
+    T: SchedulerSessionState,
 {
     match consumer::consumer_operations(&state, &settings, workflow_selector).await {
         Ok(_) => (),
