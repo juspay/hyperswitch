@@ -1,26 +1,24 @@
 use api_models::analytics::{
-    sdk_events::{
-        SdkEventDimensions, SdkEventFilters, SdkEventMetricsBucketIdentifier, SdkEventNames,
-    },
-    Granularity, TimeRange,
+    auth_events::AuthEventMetricsBucketIdentifier, sdk_events::SdkEventNames, Granularity,
+    TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
-use super::SdkEventMetricRow;
+use super::AuthEventMetricRow;
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct AuthenticationUnsuccessfulCount;
+pub(super) struct ThreeDsSdkCount;
 
 #[async_trait::async_trait]
-impl<T> super::SdkEventMetric<T> for AuthenticationUnsuccessfulCount
+impl<T> super::AuthEventMetric<T> for ThreeDsSdkCount
 where
-    T: AnalyticsDataSource + super::SdkEventMetricAnalytics,
+    T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
@@ -29,19 +27,13 @@ where
 {
     async fn load_metrics(
         &self,
-        dimensions: &[SdkEventDimensions],
+        _merchant_id: &str,
         publishable_key: &str,
-        filters: &SdkEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::SdkEvents);
-        let dimensions = dimensions.to_vec();
-
-        for dim in dimensions.iter() {
-            query_builder.add_select_column(dim).switch()?;
-        }
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -56,35 +48,30 @@ where
                 .switch()?;
         }
 
-        filters.set_filter_clause(&mut query_builder).switch()?;
-
         query_builder
             .add_filter_clause("merchant_id", publishable_key)
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::AuthenticationCall)
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("log_type", "ERROR")
+            .add_bool_filter_clause("first_event", 1)
             .switch()?;
 
         query_builder
             .add_filter_clause("category", "USER_EVENT")
             .switch()?;
 
+        query_builder
+            .add_filter_clause("log_type", "INFO")
+            .switch()?;
+
+        query_builder
+            .add_filter_clause("event_name", SdkEventNames::ThreeDsMethod)
+            .switch()?;
+
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
             .switch()?;
-
-        for dim in dimensions.iter() {
-            query_builder
-                .add_group_by_clause(dim)
-                .attach_printable("Error grouping by dimensions")
-                .switch()?;
-        }
 
         if let Some(_granularity) = granularity.as_ref() {
             query_builder
@@ -94,27 +81,19 @@ where
         }
 
         query_builder
-            .execute_query::<SdkEventMetricRow, _>(pool)
+            .execute_query::<AuthEventMetricRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
             .change_context(MetricsError::QueryExecutionFailure)?
             .into_iter()
             .map(|i| {
                 Ok((
-                    SdkEventMetricsBucketIdentifier::new(
-                        i.payment_method.clone(),
-                        i.platform.clone(),
-                        i.browser_name.clone(),
-                        i.source.clone(),
-                        i.component.clone(),
-                        i.payment_experience.clone(),
-                        i.time_bucket.clone(),
-                    ),
+                    AuthEventMetricsBucketIdentifier::new(i.time_bucket.clone()),
                     i,
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>,
+                Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)
