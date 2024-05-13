@@ -6818,9 +6818,7 @@
             "$ref": "#/components/schemas/CaptureStatus"
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "currency": {
             "allOf": [
@@ -9820,9 +9818,7 @@
             "description": "The unique identifier of authorization"
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Amount the authorization has been made for"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "status": {
             "$ref": "#/components/schemas/AuthorizationStatus"
@@ -9974,10 +9970,7 @@
         ],
         "properties": {
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The maximum amount to be debited for the mandate transaction",
-            "example": 6540
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -12103,9 +12096,7 @@
             "$ref": "#/components/schemas/AttemptStatus"
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "currency": {
             "allOf": [
@@ -13262,9 +13253,11 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "refund_uncaptured_amount": {
@@ -13312,10 +13305,11 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
-            "example": 6540,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "payment_id": {
@@ -13691,10 +13685,11 @@
             "$ref": "#/components/schemas/Currency"
           },
           "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
-            "example": 6540,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "payment_id": {
@@ -14182,10 +14177,11 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
-            "example": 6540,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "payment_id": {
@@ -14612,32 +14608,26 @@
             "default": "requires_confirmation"
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 100
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "net_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
-            "example": 110
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "amount_capturable": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The maximum amount that could be captured from the payment",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 100
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           },
           "amount_received": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The amount which is already captured from the payment",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 100
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -15251,10 +15241,11 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
-            "example": 6540,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "payment_id": {
@@ -17034,12 +17025,14 @@
         ],
         "properties": {
           "surcharge_amount": {
-            "type": "integer",
-            "format": "int64"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "tax_amount": {
-            "type": "integer",
-            "format": "int64",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           }
         }
@@ -17153,8 +17146,7 @@
             "type": "string"
           },
           "amount": {
-            "type": "integer",
-            "format": "int64"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "created_at": {
             "type": "string",
