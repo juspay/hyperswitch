@@ -9464,6 +9464,13 @@
           }
         }
       },
+      "GpayBillingAddressFormat": {
+        "type": "string",
+        "enum": [
+          "FULL",
+          "MIN"
+        ]
+      },
       "GpayBillingAddressParameters": {
         "type": "object",
         "required": [
@@ -9476,8 +9483,7 @@
             "description": "Is billing phone number required"
           },
           "format": {
-            "type": "string",
-            "description": "Billing address format"
+            "$ref": "#/components/schemas/GpayBillingAddressFormat"
           }
         }
       },

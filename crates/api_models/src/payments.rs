@@ -3878,11 +3878,11 @@ pub struct GpayBillingAddressParameters {
     /// Is billing phone number required
     pub phone_number_required: bool,
     /// Billing address format
-    pub format: BillingAddressFormat,
+    pub format: GpayBillingAddressFormat,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub enum BillingAddressFormat {
+pub enum GpayBillingAddressFormat {
     FULL,
     MIN,
 }

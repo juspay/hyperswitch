@@ -510,7 +510,7 @@ fn create_gpay_session_token(
         let billing_address_parameters =
             is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
                 phone_number_required: is_billing_details_required,
-                format: payment_types::BillingAddressFormat::FULL,
+                format: payment_types::GpayBillingAddressFormat::FULL,
             });
 
         let gpay_allowed_payment_methods = gpay_data
