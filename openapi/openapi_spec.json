@@ -4737,14 +4737,12 @@
       },
       "AchBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
         "properties": {
           "email": {
             "type": "string",
             "description": "The Email ID for ACH billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -4990,7 +4988,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The required billing contacht fields for connector",
+            "description": "The required billing contact fields for connector",
             "nullable": true
           },
           "required_shipping_contact_fields": {
@@ -5181,7 +5179,8 @@
         "type": "string",
         "enum": [
           "threedsecureio",
-          "netcetera"
+          "netcetera",
+          "gpayments"
         ]
       },
       "AuthenticationStatus": {
@@ -6089,12 +6088,14 @@
             "properties": {
               "ach_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/AchBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/AchBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6109,12 +6110,16 @@
               "sepa_bank_transfer": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -6131,12 +6136,14 @@
             "properties": {
               "bacs_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6150,12 +6157,14 @@
             "properties": {
               "multibanco_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/MultibancoBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/MultibancoBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6169,12 +6178,14 @@
             "properties": {
               "permata_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6188,12 +6199,14 @@
             "properties": {
               "bca_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6207,12 +6220,14 @@
             "properties": {
               "bni_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6226,12 +6241,14 @@
             "properties": {
               "bri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6245,12 +6262,14 @@
             "properties": {
               "cimb_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6264,12 +6283,14 @@
             "properties": {
               "danamon_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6283,12 +6304,14 @@
             "properties": {
               "mandiri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -8585,26 +8608,24 @@
       },
       "DokuBillingDetails": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Doku",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Doku",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Doku billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9528,6 +9549,13 @@
           }
         }
       },
+      "GpayBillingAddressFormat": {
+        "type": "string",
+        "enum": [
+          "FULL",
+          "MIN"
+        ]
+      },
       "GpayBillingAddressParameters": {
         "type": "object",
         "required": [
@@ -9540,8 +9568,7 @@
             "description": "Is billing phone number required"
           },
           "format": {
-            "type": "string",
-            "description": "Billing address format"
+            "$ref": "#/components/schemas/GpayBillingAddressFormat"
           }
         }
       },
@@ -11473,13 +11500,11 @@
       },
       "MultibancoBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
         "properties": {
           "email": {
             "type": "string",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -17823,20 +17848,18 @@
       },
       "SepaAndBacsBillingDetails": {
         "type": "object",
-        "required": [
-          "email",
-          "name"
-        ],
         "properties": {
           "email": {
             "type": "string",
             "description": "The Email ID for SEPA and BACS billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           },
           "name": {
             "type": "string",
             "description": "The billing name for SEPA and BACS billing",
-            "example": "Jane Doe"
+            "example": "Jane Doe",
+            "nullable": true
           }
         }
       },

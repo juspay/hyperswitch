@@ -89,6 +89,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     }
 }
 
+/// This function checks if for a given connector, payment_method and payment_method_type,
+/// the list of required_field_type is present in dynamic fields
 fn is_dynamic_fields_required(
     required_fields: &settings::RequiredFields,
     payment_method: enums::PaymentMethod,
@@ -540,14 +542,11 @@ fn create_gpay_session_token(
             billing_variants,
         );
 
-        let billing_address_parameters = if is_billing_details_required {
-            Some(payment_types::GpayBillingAddressParameters {
+        let billing_address_parameters =
+            is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
                 phone_number_required: is_billing_details_required,
-                format: "FULL".to_string(),
-            })
-        } else {
-            None
-        };
+                format: payment_types::GpayBillingAddressFormat::FULL,
+            });
 
         let gpay_allowed_payment_methods = gpay_data
             .data
@@ -555,18 +554,12 @@ fn create_gpay_session_token(
             .into_iter()
             .map(
                 |allowed_payment_methods| payment_types::GpayAllowedPaymentMethods {
-                    payment_method_type: allowed_payment_methods.payment_method_type,
                     parameters: payment_types::GpayAllowedMethodsParameters {
-                        allowed_auth_methods: allowed_payment_methods
-                            .parameters
-                            .allowed_auth_methods,
-                        allowed_card_networks: allowed_payment_methods
-                            .parameters
-                            .allowed_card_networks,
                         billing_address_required: Some(is_billing_details_required),
                         billing_address_parameters: billing_address_parameters.clone(),
+                        ..allowed_payment_methods.parameters
                     },
-                    tokenization_specification: allowed_payment_methods.tokenization_specification,
+                    ..allowed_payment_methods
                 },
             )
             .collect();
