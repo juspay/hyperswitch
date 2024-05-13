@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.13.0
+
+### Features
+
+- **Connectors:** Add mandate validation for auth flow ([#4089](https://github.com/juspay/hyperswitch/pull/4089)) ([`fef28c3`](https://github.com/juspay/hyperswitch/commit/fef28c3345ae60046f46a2bdf9eca6b38278d75b))
+- **analytics:** Authentication analytics ([#4429](https://github.com/juspay/hyperswitch/pull/4429)) ([`24d1542`](https://github.com/juspay/hyperswitch/commit/24d154248c8814e729206208f096aba68dcff8c0))
+
+### Bug Fixes
+
+- **connector:** [BOA/CYBS] add cancelled status to refund response ([#4620](https://github.com/juspay/hyperswitch/pull/4620)) ([`cf0e3da`](https://github.com/juspay/hyperswitch/commit/cf0e3daeaa1dfdfa00d4cccdff5b845ac368bcb9))
+- **router:** Fix QR data into image conversion ([#4619](https://github.com/juspay/hyperswitch/pull/4619)) ([`28ab368`](https://github.com/juspay/hyperswitch/commit/28ab36873b2a475f1de95819b3d81aae954a2cfc))
+
+### Refactors
+
+- **payment_method_data:** Send optional billing details in response ([#4569](https://github.com/juspay/hyperswitch/pull/4569)) ([`86e0550`](https://github.com/juspay/hyperswitch/commit/86e05501cbea53fd85e2bc67a1c2be4cba47d0ff))
+
+**Full Changelog:** [`2024.05.10.0...2024.05.13.0`](https://github.com/juspay/hyperswitch/compare/2024.05.10.0...2024.05.13.0)
+
+- - -
+
 ## 2024.05.10.0
 
 ### Features
