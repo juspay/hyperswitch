@@ -6,7 +6,6 @@ use base64::Engine;
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
-#[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 #[cfg(feature = "payouts")]
@@ -14,14 +13,15 @@ use router_env::{instrument, tracing};
 use time::{format_description, OffsetDateTime};
 
 use self::transformers as payone;
+#[cfg(feature = "payouts")]
+use crate::services;
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, logger,
+    headers,
     services::{
-        self,
         request::{self, Mask},
         ConnectorIntegration, ConnectorValidation,
     },
@@ -35,6 +35,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Payone;
+
 impl Payone {
     pub fn generate_signature(
         &self,
@@ -127,7 +128,6 @@ where
                 authorization_header.to_string().into(),
             ),
         ];
-        logger::debug!(" build headers ");
 
         Ok(headers)
     }
@@ -239,7 +239,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Payone {}
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payone {}
-#[cfg(feature = "payouts")]
 impl api::Payouts for Payone {}
 
 #[cfg(feature = "payouts")]

@@ -1,25 +1,28 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
+#[cfg(feature = "payouts")]
 use cards::CardNumber;
+#[cfg(feature = "payouts")]
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
+#[cfg(feature = "payouts")]
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer, CARD_REGEX},
-    utils::OptionExt,
-};
+use crate::connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer};
 
+#[cfg(feature = "payouts")]
 type Error = error_stack::Report<errors::ConnectorError>;
-use crate::connector::utils::CardData;
+
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::{CardData, RouterData, CARD_REGEX},
     core::errors,
-    logger,
     types::{self, storage::enums as storage_enums, transformers::ForeignFrom},
+    utils::OptionExt,
 };
+#[cfg(not(feature = "payouts"))]
+use crate::{core::errors, types};
 
 pub struct PayoneRouterData<T> {
     pub amount: i64,
@@ -124,6 +127,7 @@ pub struct Card {
     expiry_date: Secret<String>,
 }
 
+#[cfg(feature = "payouts")]
 impl Card {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         for (k, v) in CARD_REGEX.iter() {
@@ -187,7 +191,6 @@ pub enum Gateway {
 impl TryFrom<CardIssuer> for Gateway {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(issuer: CardIssuer) -> Result<Self, Self::Error> {
-        logger::debug!("it is in PayoutCreateRequest Gateway debug");
         match issuer {
             CardIssuer::Master => Ok(Self::MasterCard),
             CardIssuer::Visa => Ok(Self::Visa),
@@ -214,10 +217,7 @@ impl TryFrom<&PayoutMethodData> for Card {
                         field_name: "payout_method_data.card.holder_name",
                     })?,
                 expiry_date: match card.get_expiry_date_as_mmyy() {
-                    Ok(date) => {
-                        logger::debug!("date date {}", date.clone().expose());
-                        date
-                    }
+                    Ok(date) => date,
                     Err(_) => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "payout_method_data.card.expiry_date",
                     })?,
