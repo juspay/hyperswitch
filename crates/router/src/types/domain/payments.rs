@@ -282,12 +282,6 @@ pub enum BankRedirectData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct BankRedirectBilling {
-    pub billing_name: Option<Secret<String>>,
-    pub email: Option<Email>,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {
     pub pay_currency: Option<String>,
@@ -707,16 +701,12 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 bank_account_iban,
                 ..
             } => Self::Giropay {
-                // billing_details: billing_details.map(BankRedirectBilling::from),
                 bank_account_bic,
                 bank_account_iban,
-                // country,
             },
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Self::Ideal {
-                // billing_details: billing_details.map(BankRedirectBilling::from),
-                bank_name,
-                // country,
-            },
+            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+                Self::Ideal { bank_name }
+            }
             api_models::payments::BankRedirectData::Interac { .. } => Self::Interac {},
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
                 Self::OnlineBankingCzechRepublic { issuer }
@@ -746,15 +736,6 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => {
                 Self::OnlineBankingThailand { issuer }
             }
-        }
-    }
-}
-
-impl From<api_models::payments::BankRedirectBilling> for BankRedirectBilling {
-    fn from(billing: api_models::payments::BankRedirectBilling) -> Self {
-        Self {
-            billing_name: billing.billing_name,
-            email: billing.email,
         }
     }
 }
