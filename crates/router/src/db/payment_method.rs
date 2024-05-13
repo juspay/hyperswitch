@@ -194,10 +194,11 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_payment_method(
             &self,
-            payment_method_new: storage_types::PaymentMethodNew,
+            mut payment_method_new: storage_types::PaymentMethodNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
             let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Insert).await;
+            payment_method_new.update_storage_scheme(storage_scheme);
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -291,7 +292,7 @@ mod storage {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
                     payment_method
-                        .update_with_payment_method_id(&conn, payment_method_update.into())
+                        .update_with_payment_method_id(&conn, payment_method_update.convert_to_payment_method_update(storage_scheme))
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
@@ -302,7 +303,7 @@ mod storage {
                     };
                     let key_str = key.to_string();
 
-                    let p_update: PaymentMethodUpdateInternal = payment_method_update.into();
+                    let p_update: PaymentMethodUpdateInternal = payment_method_update.convert_to_payment_method_update(storage_scheme);
                     let updated_payment_method =
                         p_update.clone().apply_changeset(payment_method.clone());
 
@@ -668,6 +669,7 @@ impl PaymentMethodInterface for MockDb {
             status: payment_method_new.status,
             client_secret: payment_method_new.client_secret,
             network_transaction_id: payment_method_new.network_transaction_id,
+            updated_by : payment_method_new.updated_by,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)
