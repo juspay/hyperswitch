@@ -166,7 +166,7 @@ pub async fn perform_pre_authentication(
     };
 
     // from version call response, we will get to know the maximum supported 3ds version.
-    // If the version is not greater than or equal to 3DS 2.0, We should do the successive pre authentication call.
+    // If the version is not greater than or equal to 3DS 2.0, We should not do the successive pre authentication call.
     if !authentication.is_separate_authn_required() {
         return Ok(authentication);
     }
