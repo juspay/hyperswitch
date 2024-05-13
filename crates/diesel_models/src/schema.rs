@@ -932,6 +932,8 @@ diesel::table! {
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,
         payment_method_billing_address -> Nullable<Bytea>,
+        #[max_length = 32]
+        updated_by -> Nullable<Varchar>,
     }
 }
 
