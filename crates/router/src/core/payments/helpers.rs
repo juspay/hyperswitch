@@ -794,7 +794,7 @@ pub fn validate_amount_to_capture_and_capture_method(
             total_capturable_amount.zip(amount_to_capture)
         {
             utils::when(
-                !amount_to_capture.is_not_equal(total_capturable_amount),
+                amount_to_capture.is_not_equal(total_capturable_amount),
                 || {
                     Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message: "amount_to_capture must be equal to total_capturable_amount when capture_method = automatic".into()
