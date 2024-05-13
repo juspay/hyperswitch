@@ -35,11 +35,117 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: Option<String>,
     pub merchant_id: String,
-    pub payment_id: Option<String>,
     pub updated_by: String,
     pub email: crypto::OptionalEncryptableEmail,
+}
+
+/// Based on the flow, appropriate address has to be used
+/// In case of Payments, The `PaymentAddress`[PaymentAddress] has to be used
+/// which contains only the `Address`[Address] object and `payment_id` and optional `customer_id`
+#[derive(Debug, Clone)]
+pub struct PaymentAddress {
+    pub address: Address,
+    pub payment_id: String,
+    // This is present in `PaymentAddress` because even `payouts` uses `PaymentAddress`
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CustomerAddress {
+    pub address: Address,
+    pub customer_id: String,
+}
+
+#[async_trait]
+impl behaviour::Conversion for CustomerAddress {
+    type DstType = diesel_models::address::Address;
+    type NewDstType = diesel_models::address::AddressNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let converted_address = Address::convert(self.address).await?;
+        Ok(diesel_models::address::Address {
+            customer_id: Some(self.customer_id),
+            payment_id: None,
+            ..converted_address
+        })
+    }
+
+    async fn convert_back(
+        other: Self::DstType,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Self, ValidationError> {
+        let customer_id =
+            other
+                .customer_id
+                .clone()
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "cutomer_id".to_string(),
+                })?;
+
+        let address = Address::convert_back(other, key).await?;
+
+        Ok(Self {
+            address,
+            customer_id,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let address_new = Address::construct_new(self.address).await?;
+
+        Ok(Self::NewDstType {
+            customer_id: Some(self.customer_id),
+            payment_id: None,
+            ..address_new
+        })
+    }
+}
+#[async_trait]
+impl behaviour::Conversion for PaymentAddress {
+    type DstType = diesel_models::address::Address;
+    type NewDstType = diesel_models::address::AddressNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let converted_address = Address::convert(self.address).await?;
+        Ok(diesel_models::address::Address {
+            customer_id: self.customer_id,
+            payment_id: Some(self.payment_id),
+            ..converted_address
+        })
+    }
+
+    async fn convert_back(
+        other: Self::DstType,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Self, ValidationError> {
+        let payment_id = other
+            .payment_id
+            .clone()
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "payment_id".to_string(),
+            })?;
+
+        let customer_id = other.customer_id.clone();
+
+        let address = Address::convert_back(other, key).await?;
+
+        Ok(Self {
+            address,
+            payment_id,
+            customer_id,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let address_new = Address::construct_new(self.address).await?;
+
+        Ok(Self::NewDstType {
+            customer_id: self.customer_id,
+            payment_id: Some(self.payment_id),
+            ..address_new
+        })
+    }
 }
 
 #[async_trait]
@@ -64,11 +170,11 @@ impl behaviour::Conversion for Address {
             country_code: self.country_code,
             created_at: self.created_at,
             modified_at: self.modified_at,
-            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
-            payment_id: self.payment_id,
             updated_by: self.updated_by,
             email: self.email.map(Encryption::from),
+            payment_id: None,
+            customer_id: None,
         })
     }
 
@@ -95,10 +201,8 @@ impl behaviour::Conversion for Address {
                 country_code: other.country_code,
                 created_at: other.created_at,
                 modified_at: other.modified_at,
-                customer_id: other.customer_id,
-                merchant_id: other.merchant_id,
-                payment_id: other.payment_id,
                 updated_by: other.updated_by,
+                merchant_id: other.merchant_id,
                 email: other.email.async_lift(inner_decrypt_email).await?,
             })
         }
@@ -123,13 +227,13 @@ impl behaviour::Conversion for Address {
             last_name: self.last_name.map(Encryption::from),
             phone_number: self.phone_number.map(Encryption::from),
             country_code: self.country_code,
-            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
-            payment_id: self.payment_id,
             created_at: now,
             modified_at: now,
             updated_by: self.updated_by,
             email: self.email.map(Encryption::from),
+            customer_id: None,
+            payment_id: None,
         })
     }
 }

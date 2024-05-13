@@ -89,6 +89,7 @@ pub struct Settings<S: SecretState> {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub user: UserSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
@@ -119,6 +120,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
+    pub saved_payment_methods: EligiblePaymentMethods,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -167,6 +169,13 @@ pub struct PaymentMethodAuth {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct EligiblePaymentMethods {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub sdk_eligible_payment_methods: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DefaultExchangeRates {
     pub base_currency: String,
     pub conversion: HashMap<String, Conversion>,
@@ -193,7 +202,7 @@ pub struct ApplepayMerchantConfigs {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct MultipleApiVersionSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub supported_connectors: HashSet<api_models::enums::Connector>,
+    pub supported_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -207,10 +216,10 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<api_models::enums::Connector>,
+    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub payout_connector_list: HashSet<api_models::enums::PayoutConnectors>,
+    pub payout_connector_list: HashSet<enums::PayoutConnectors>,
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -256,7 +265,7 @@ pub struct Mandates {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTransactionIdSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<api_models::enums::Connector>,
+    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -272,7 +281,7 @@ pub struct SupportedPaymentMethodTypesForMandate(
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedConnectorsForMandate {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<api_models::enums::Connector>,
+    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -315,9 +324,7 @@ pub enum PaymentMethodTypeTokenFilter {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct BankRedirectConfig(
-    pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
-);
+pub struct BankRedirectConfig(pub HashMap<enums::PaymentMethodType, ConnectorBankNames>);
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 
@@ -338,17 +345,17 @@ pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCoun
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub enum PaymentMethodFilterKey {
-    PaymentMethodType(api_models::enums::PaymentMethodType),
-    CardNetwork(api_models::enums::CardNetwork),
+    PaymentMethodType(enums::PaymentMethodType),
+    CardNetwork(enums::CardNetwork),
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "deserialize_optional_hashset")]
-    pub currency: Option<HashSet<api_models::enums::Currency>>,
+    pub currency: Option<HashSet<enums::Currency>>,
     #[serde(deserialize_with = "deserialize_optional_hashset")]
-    pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
+    pub country: Option<HashSet<enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
 
@@ -383,6 +390,11 @@ pub struct Secrets {
     pub admin_api_key: Secret<String>,
     pub recon_admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct UserSettings {
+    pub password_validity_in_days: u16,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -507,9 +519,11 @@ pub struct Connectors {
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
     pub gocardless: ConnectorParams,
+    pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub netcetera: ConnectorParams,
@@ -521,6 +535,7 @@ pub struct Connectors {
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
     pub payme: ConnectorParams,
+    pub payone: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub placetopay: ConnectorParams,
@@ -621,13 +636,13 @@ pub struct ApiKeys {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+    pub connectors_with_delayed_session_response: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct WebhookSourceVerificationCall {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
+    pub connectors_with_webhook_source_verification_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

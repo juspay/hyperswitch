@@ -403,7 +403,9 @@ pub async fn save_payout_data_to_locker(
                 .await
                 .flatten()
                 .map(|card_info| {
-                    payment_method.payment_method_issuer = card_info.card_issuer.clone();
+                    payment_method
+                        .payment_method_issuer
+                        .clone_from(&card_info.card_issuer);
                     payment_method.card_network =
                         card_info.card_network.clone().map(|cn| cn.to_string());
                     api::payment_methods::PaymentMethodsData::Card(
@@ -450,7 +452,7 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await,
+                cards::create_encrypted_data(key_store, Some(pm_data)).await,
                 payment_method,
             )
         } else {
@@ -493,6 +495,7 @@ pub async fn save_payout_data_to_locker(
             None,
             None,
             merchant_account.storage_scheme,
+            None,
         )
         .await?;
     }
@@ -642,7 +645,7 @@ pub async fn decide_payout_connector(
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
-    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
 ) -> RouterResult<api::ConnectorCallType> {
     // 1. For existing attempts, use stored connector
     let payout_attempt = &payout_data.payout_attempt;

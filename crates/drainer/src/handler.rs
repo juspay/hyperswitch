@@ -95,7 +95,7 @@ impl Handler {
         while let Some(_c) = rx.recv().await {
             logger::info!("Awaiting shutdown!");
             metrics::SHUTDOWN_SIGNAL_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
-            let shutdown_started = tokio::time::Instant::now();
+            let shutdown_started = time::Instant::now();
             rx.close();
 
             //Check until the active tasks are zero. This does not include the tasks in the stream.

@@ -37,7 +37,7 @@ pub async fn create_customer(
     let db = state.store.as_ref();
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
-    customer_data.merchant_id = merchant_id.to_owned();
+    merchant_id.clone_into(&mut customer_data.merchant_id);
 
     // We first need to validate whether the customer with the given customer id already exists
     // this may seem like a redundant db call, as the insert_customer will anyway return this error
