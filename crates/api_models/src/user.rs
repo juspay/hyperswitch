@@ -1,4 +1,4 @@
-use common_enums::{PermissionGroup, RoleScope};
+use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
@@ -88,6 +88,11 @@ pub struct ForgotPasswordRequest {
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct ResetPasswordRequest {
     pub token: Secret<String>,
+    pub password: Secret<String>,
+}
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct RotatePasswordRequest {
     pub password: Secret<String>,
 }
 
@@ -212,4 +217,43 @@ pub struct VerifyTokenResponse {
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
     pub preferred_merchant_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TokenOnlyQueryParam {
+    pub token_only: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TokenResponse {
+    pub token: Secret<String>,
+    pub token_type: TokenPurpose,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum TokenOrPayloadResponse<T> {
+    Token(TokenResponse),
+    Payload(T),
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserFromEmailRequest {
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct BeginTotpResponse {
+    pub secret: Option<TotpSecret>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TotpSecret {
+    pub secret: Secret<String>,
+    pub totp_url: Secret<String>,
+    pub recovery_codes: Vec<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyTotpRequest {
+    pub totp: Option<Secret<String>>,
 }

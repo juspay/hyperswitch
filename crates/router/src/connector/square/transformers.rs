@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
-    types::{
-        self, api, domain,
-        storage::{self, enums},
-    },
+    types::{self, api, domain, storage::enums},
     unimplemented_payment_method,
 };
 
@@ -192,14 +189,14 @@ pub struct SquareSessionResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, SquareSessionResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, SquareSessionResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: storage::enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Pending,
             session_token: Some(item.response.session_id.clone().expose()),
             response: Ok(types::PaymentsResponseData::SessionTokenResponse {
                 session_token: item.response.session_id.expose(),
@@ -216,7 +213,7 @@ pub struct SquareTokenResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, SquareTokenResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -262,8 +259,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                 Ok(Self {
                     idempotency_key: Secret::new(item.attempt_id.clone()),
                     source_id: Secret::new(match pm_token {
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
                         )?,
                     }),
@@ -305,31 +302,23 @@ pub struct SquareAuthType {
     pub(super) key1: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for SquareAuthType {
+impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-                ..
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),
             }),
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { .. }
-            | hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey { .. }
-            | hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey { .. }
-            | hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
-                ..
+            types::ConnectorAuthType::HeaderKey { .. }
+            | types::ConnectorAuthType::SignatureKey { .. }
+            | types::ConnectorAuthType::MultiAuthKey { .. }
+            | types::ConnectorAuthType::CurrencyAuthKey { .. }
+            | types::ConnectorAuthType::TemporaryAuth { .. }
+            | types::ConnectorAuthType::NoKey { .. }
+            | types::ConnectorAuthType::CertificateAuth { .. } => {
+                Err(errors::ConnectorError::FailedToObtainAuthType.into())
             }
-            | hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth { .. }
-            | hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey { .. }
-            | hyperswitch_domain_models::router_data::ConnectorAuthType::CertificateAuth {
-                ..
-            } => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -370,7 +359,7 @@ pub struct SquarePaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, SquarePaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

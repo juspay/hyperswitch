@@ -8,12 +8,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    mandates::AcceptanceType,
-    router_data::{
-        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, PaymentMethodToken,
-    },
-};
+use hyperswitch_domain_models::mandates::AcceptanceType;
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -51,14 +46,10 @@ pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for StripeAuthType {
+impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } =
-            item
-        {
+    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
                 api_key: api_key.to_owned(),
             })
@@ -1066,75 +1057,6 @@ impl From<&domain::BankDebitData> for StripePaymentMethodType {
     }
 }
 
-impl TryFrom<(&domain::payments::PayLaterData, StripePaymentMethodType)> for StripeBillingAddress {
-    type Error = errors::ConnectorError;
-
-    fn try_from(
-        (pay_later_data, pm_type): (&domain::payments::PayLaterData, StripePaymentMethodType),
-    ) -> Result<Self, Self::Error> {
-        match (pay_later_data, pm_type) {
-            (
-                domain::payments::PayLaterData::KlarnaRedirect {
-                    billing_email,
-                    billing_country,
-                },
-                StripePaymentMethodType::Klarna,
-            ) => Ok(Self {
-                email: Some(billing_email.to_owned()),
-                country: Some(billing_country.to_owned()),
-                ..Self::default()
-            }),
-            (
-                domain::payments::PayLaterData::AffirmRedirect {},
-                StripePaymentMethodType::Affirm,
-            ) => Ok(Self::default()),
-            (
-                domain::payments::PayLaterData::AfterpayClearpayRedirect {
-                    billing_email,
-                    billing_name,
-                },
-                StripePaymentMethodType::AfterpayClearpay,
-            ) => Ok(Self {
-                email: Some(billing_email.to_owned()),
-                name: Some(billing_name.to_owned()),
-                ..Self::default()
-            }),
-            _ => Err(errors::ConnectorError::MismatchedPaymentData),
-        }
-    }
-}
-
-impl From<&domain::BankDebitBilling> for StripeBillingAddress {
-    fn from(item: &domain::BankDebitBilling) -> Self {
-        Self {
-            email: Some(item.email.to_owned()),
-            country: item
-                .address
-                .as_ref()
-                .and_then(|address| address.country.to_owned()),
-            name: Some(item.name.to_owned()),
-            city: item
-                .address
-                .as_ref()
-                .and_then(|address| address.city.to_owned()),
-            address_line1: item
-                .address
-                .as_ref()
-                .and_then(|address| address.line1.to_owned()),
-            address_line2: item
-                .address
-                .as_ref()
-                .and_then(|address| address.line2.to_owned()),
-            zip_code: item
-                .address
-                .as_ref()
-                .and_then(|address| address.zip.to_owned()),
-            state: None,
-            phone: None,
-        }
-    }
-}
-
 impl TryFrom<(&domain::BankRedirectData, Option<bool>)> for StripeBillingAddress {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -1154,9 +1076,7 @@ impl TryFrom<(&domain::BankRedirectData, Option<bool>)> for StripeBillingAddress
                     },
                 )?;
                 Self {
-                    name: Some(connector_util::BankRedirectBillingData::get_billing_name(
-                        &billing_data,
-                    )?),
+                    name: Some(BankRedirectBillingData::get_billing_name(&billing_data)?),
                     ..Self::default()
                 }
             }),
@@ -1239,10 +1159,9 @@ impl TryFrom<(&domain::BankRedirectData, Option<bool>)> for StripeBillingAddress
 
 fn get_bank_debit_data(
     bank_debit_data: &domain::BankDebitData,
-) -> (StripePaymentMethodType, BankDebitData, StripeBillingAddress) {
+) -> (StripePaymentMethodType, BankDebitData) {
     match bank_debit_data {
         domain::BankDebitData::AchBankDebit {
-            billing_details,
             account_number,
             routing_number,
             ..
@@ -1252,24 +1171,15 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 routing_number: routing_number.to_owned(),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Ach, ach_data, billing_data)
+            (StripePaymentMethodType::Ach, ach_data)
         }
-        domain::BankDebitData::SepaBankDebit {
-            billing_details,
-            iban,
-            ..
-        } => {
+        domain::BankDebitData::SepaBankDebit { iban, .. } => {
             let sepa_data = BankDebitData::Sepa {
                 iban: iban.to_owned(),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Sepa, sepa_data, billing_data)
+            (StripePaymentMethodType::Sepa, sepa_data)
         }
         domain::BankDebitData::BecsBankDebit {
-            billing_details,
             account_number,
             bsb_number,
             ..
@@ -1278,12 +1188,9 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 bsb_number: bsb_number.to_owned(),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Becs, becs_data, billing_data)
+            (StripePaymentMethodType::Becs, becs_data)
         }
         domain::BankDebitData::BacsBankDebit {
-            billing_details,
             account_number,
             sort_code,
             ..
@@ -1292,9 +1199,7 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 sort_code: Secret::new(sort_code.clone().expose().replace('-', "")),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Bacs, bacs_data, billing_data)
+            (StripePaymentMethodType::Bacs, bacs_data)
         }
     }
 }
@@ -1302,7 +1207,7 @@ fn get_bank_debit_data(
 fn create_stripe_payment_method(
     payment_method_data: &domain::PaymentMethodData,
     auth_type: enums::AuthenticationType,
-    payment_method_token: Option<PaymentMethodToken>,
+    payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
 ) -> Result<
@@ -1327,7 +1232,7 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
-            let billing_address = StripeBillingAddress::try_from((pay_later_data, stripe_pm_type))?;
+
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
                     payment_method_data_type: stripe_pm_type,
@@ -1357,7 +1262,7 @@ fn create_stripe_payment_method(
             ))
         }
         domain::PaymentMethodData::BankDebit(bank_debit_data) => {
-            let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
+            let (pm_type, bank_debit_data) = get_bank_debit_data(bank_debit_data);
 
             let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
                 bank_specific_data: bank_debit_data,
@@ -1367,74 +1272,63 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
-                domain::BankTransferData::AchBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::AchBankTransfer {} => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
                         Box::new(AchTransferData {
-                            email: billing_details.email.to_owned(),
+                            email: billing_address.email.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "billing_address.email",
+                                },
+                            )?,
                         }),
                     )),
                     None,
                     StripeBillingAddress::default(),
                 )),
-                domain::BankTransferData::MultibancoBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::MultibancoBankTransfer {} => Ok((
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::MultibancoBankTransfers(Box::new(
                             MultibancoTransferData {
-                                email: billing_details.email.to_owned(),
+                                email: billing_address.email.ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "billing_address.email",
+                                    },
+                                )?,
                             },
                         )),
                     ),
                     None,
                     StripeBillingAddress::default(),
                 )),
-                domain::BankTransferData::SepaBankTransfer {
-                    billing_details,
-                    country,
-                } => {
-                    let billing_details = StripeBillingAddress {
-                        email: Some(billing_details.email.clone()),
-                        name: Some(billing_details.name.clone()),
-                        ..Default::default()
-                    };
-                    Ok((
-                        StripePaymentMethodData::BankTransfer(
-                            StripeBankTransferData::SepaBankTransfer(Box::new(
-                                SepaBankTransferData {
-                                    payment_method_data_type:
-                                        StripePaymentMethodType::CustomerBalance,
-                                    bank_transfer_type: BankTransferType::EuBankTransfer,
-                                    balance_funding_type: BankTransferType::BankTransfers,
-                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                    country: country.to_owned(),
+                domain::BankTransferData::SepaBankTransfer {} => Ok((
+                    StripePaymentMethodData::BankTransfer(
+                        StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
+                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                            bank_transfer_type: BankTransferType::EuBankTransfer,
+                            balance_funding_type: BankTransferType::BankTransfers,
+                            payment_method_type: StripePaymentMethodType::CustomerBalance,
+                            country: billing_address.country.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "billing_address.country",
                                 },
-                            )),
-                        ),
-                        Some(StripePaymentMethodType::CustomerBalance),
-                        billing_details,
-                    ))
-                }
-                domain::BankTransferData::BacsBankTransfer { billing_details } => {
-                    let billing_details = StripeBillingAddress {
-                        email: Some(billing_details.email.clone()),
-                        name: Some(billing_details.name.clone()),
-                        ..Default::default()
-                    };
-                    Ok((
-                        StripePaymentMethodData::BankTransfer(
-                            StripeBankTransferData::BacsBankTransfers(Box::new(
-                                BacsBankTransferData {
-                                    payment_method_data_type:
-                                        StripePaymentMethodType::CustomerBalance,
-                                    bank_transfer_type: BankTransferType::GbBankTransfer,
-                                    balance_funding_type: BankTransferType::BankTransfers,
-                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                },
-                            )),
-                        ),
-                        Some(StripePaymentMethodType::CustomerBalance),
-                        billing_details,
-                    ))
-                }
+                            )?,
+                        })),
+                    ),
+                    Some(StripePaymentMethodType::CustomerBalance),
+                    billing_address,
+                )),
+                domain::BankTransferData::BacsBankTransfer {} => Ok((
+                    StripePaymentMethodData::BankTransfer(
+                        StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
+                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                            bank_transfer_type: BankTransferType::GbBankTransfer,
+                            balance_funding_type: BankTransferType::BankTransfers,
+                            payment_method_type: StripePaymentMethodType::CustomerBalance,
+                        })),
+                    ),
+                    Some(StripePaymentMethodType::CustomerBalance),
+                    billing_address,
+                )),
                 domain::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
@@ -1533,40 +1427,36 @@ impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
     }
 }
 
-impl
-    TryFrom<(
-        &domain::WalletData,
-        Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
-    )> for StripePaymentMethodData
-{
+impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for StripePaymentMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (wallet_data, payment_method_token): (&domain::WalletData, Option<PaymentMethodToken>),
+        (wallet_data, payment_method_token): (
+            &domain::WalletData,
+            Option<types::PaymentMethodToken>,
+        ),
     ) -> Result<Self, Self::Error> {
         match wallet_data {
             domain::WalletData::ApplePay(applepay_data) => {
-                let mut apple_pay_decrypt_data = if let Some(
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                        decrypt_data,
-                    ),
-                ) = payment_method_token
-                {
-                    let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
-                    let exp_month = decrypt_data.get_expiry_month()?;
+                let mut apple_pay_decrypt_data =
+                    if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
+                        payment_method_token
+                    {
+                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                        let exp_month = decrypt_data.get_expiry_month()?;
 
-                    Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
-                        Box::new(StripeApplePayPredecrypt {
-                            number: decrypt_data.clone().application_primary_account_number,
-                            exp_year: expiry_year_4_digit,
-                            exp_month,
-                            eci: decrypt_data.payment_data.eci_indicator,
-                            cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
-                            tokenization_method: "apple_pay".to_string(),
-                        }),
-                    )))
-                } else {
-                    None
-                };
+                        Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
+                            Box::new(StripeApplePayPredecrypt {
+                                number: decrypt_data.clone().application_primary_account_number,
+                                exp_year: expiry_year_4_digit,
+                                exp_month,
+                                eci: decrypt_data.payment_data.eci_indicator,
+                                cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                                tokenization_method: "apple_pay".to_string(),
+                            }),
+                        )))
+                    } else {
+                        None
+                    };
 
                 if apple_pay_decrypt_data.is_none() {
                     apple_pay_decrypt_data =
@@ -1931,16 +1821,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     })?;
 
                 let payment_method_token = match payment_method_token {
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
-                        payment_method_token,
-                    ) => payment_method_token,
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                        _,
-                    ) => Err(unimplemented_payment_method!(
-                        "Apple Pay",
-                        "Simplified",
-                        "Stripe"
-                    ))?,
+                    types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        unimplemented_payment_method!("Apple Pay", "Simplified", "Stripe"),
+                    )?,
                 };
                 Some(StripePaymentMethodData::Wallet(
                     StripeWallet::ApplepayPayment(ApplepayPayment {
@@ -2106,11 +1990,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         //Only cards supported for mandates
         let pm_type = StripePaymentMethodType::Card;
-        let payment_data = StripePaymentMethodData::try_from((
-            item.request.payment_method_data.clone(),
-            item.auth_type,
-            pm_type,
-        ))?;
+        let payment_data = StripePaymentMethodData::try_from((item, item.auth_type, pm_type))?;
 
         let meta_data = Some(get_transaction_metadata(
             item.request.metadata.clone(),
@@ -2385,7 +2265,7 @@ pub struct AdditionalPaymentMethodDetails {
     pub authentication_details: Option<Value>,
 }
 
-impl From<AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorResponse {
+impl From<AdditionalPaymentMethodDetails> for types::AdditionalPaymentMethodConnectorResponse {
     fn from(item: AdditionalPaymentMethodDetails) -> Self {
         Self::Card {
             authentication_data: item.authentication_details,
@@ -2486,7 +2366,7 @@ pub struct SetupIntentResponse {
 
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
-) -> Option<ConnectorResponseData> {
+) -> Option<types::ConnectorResponseData> {
     if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
         charge_object
             .payment_method_details
@@ -2495,13 +2375,13 @@ fn extract_payment_method_connector_response_from_latest_charge(
     } else {
         None
     }
-    .map(AdditionalPaymentMethodConnectorResponse::from)
-    .map(ConnectorResponseData::with_additional_payment_method_data)
+    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+    .map(types::ConnectorResponseData::with_additional_payment_method_data)
 }
 
 fn extract_payment_method_connector_response_from_latest_attempt(
     stripe_latest_attempt: &LatestAttempt,
-) -> Option<ConnectorResponseData> {
+) -> Option<types::ConnectorResponseData> {
     if let LatestAttempt::PaymentIntentAttempt(intent_attempt) = stripe_latest_attempt {
         intent_attempt
             .payment_method_details
@@ -2510,13 +2390,13 @@ fn extract_payment_method_connector_response_from_latest_attempt(
     } else {
         None
     }
-    .map(AdditionalPaymentMethodConnectorResponse::from)
-    .map(ConnectorResponseData::with_additional_payment_method_data)
+    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+    .map(types::ConnectorResponseData::with_additional_payment_method_data)
 }
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2639,7 +2519,7 @@ pub fn get_connector_metadata(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2763,7 +2643,7 @@ impl<F, T>
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2916,16 +2796,14 @@ impl Serialize for StripeNextActionResponse {
     {
         match *self {
             Self::CashappHandleRedirectOrDisplayQrCode(ref i) => {
-                serde::Serialize::serialize(i, serializer)
+                Serialize::serialize(i, serializer)
             }
-            Self::RedirectToUrl(ref i) => serde::Serialize::serialize(i, serializer),
-            Self::AlipayHandleRedirect(ref i) => serde::Serialize::serialize(i, serializer),
-            Self::VerifyWithMicrodeposits(ref i) => serde::Serialize::serialize(i, serializer),
-            Self::WechatPayDisplayQrCode(ref i) => serde::Serialize::serialize(i, serializer),
-            Self::DisplayBankTransferInstructions(ref i) => {
-                serde::Serialize::serialize(i, serializer)
-            }
-            Self::NoNextActionBody => serde::Serialize::serialize("NoNextActionBody", serializer),
+            Self::RedirectToUrl(ref i) => Serialize::serialize(i, serializer),
+            Self::AlipayHandleRedirect(ref i) => Serialize::serialize(i, serializer),
+            Self::VerifyWithMicrodeposits(ref i) => Serialize::serialize(i, serializer),
+            Self::WechatPayDisplayQrCode(ref i) => Serialize::serialize(i, serializer),
+            Self::DisplayBankTransferInstructions(ref i) => Serialize::serialize(i, serializer),
+            Self::NoNextActionBody => Serialize::serialize("NoNextActionBody", serializer),
         }
     }
 }
@@ -3041,10 +2919,10 @@ pub enum RefundStatus {
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            self::RefundStatus::Succeeded => Self::Success,
-            self::RefundStatus::Failed => Self::Failure,
-            self::RefundStatus::Pending => Self::Pending,
-            self::RefundStatus::RequiresAction => Self::ManualReview,
+            RefundStatus::Succeeded => Self::Success,
+            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Pending => Self::Pending,
+            RefundStatus::RequiresAction => Self::ManualReview,
         }
     }
 }
@@ -3070,7 +2948,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+            Err(types::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: item
                     .response
@@ -3105,7 +2983,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+            Err(types::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: item
                     .response
@@ -3367,7 +3245,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -3422,7 +3300,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -3435,16 +3313,16 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let status = enums::AttemptStatus::from(item.response.status);
         let response = if connector_util::is_payment_failure(status) {
-            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+            Err(types::ErrorResponse {
                 code: item
                     .response
                     .failure_code
-                    .unwrap_or_else(|| crate::consts::NO_ERROR_CODE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .failure_message
                     .clone()
-                    .unwrap_or_else(|| crate::consts::NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.failure_message,
                 status_code: item.http_code,
                 attempt_status: Some(status),
@@ -3472,7 +3350,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, StripeTokenResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -3489,7 +3367,7 @@ impl<F, T>
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, StripeCustomerResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -3710,19 +3588,20 @@ pub struct EvidenceDetails {
 
 impl
     TryFrom<(
-        domain::PaymentMethodData,
+        &types::SetupMandateRouterData,
         enums::AuthenticationType,
         StripePaymentMethodType,
     )> for StripePaymentMethodData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (pm_data, auth_type, pm_type): (
-            domain::PaymentMethodData,
+        (item, auth_type, pm_type): (
+            &types::SetupMandateRouterData,
             enums::AuthenticationType,
             StripePaymentMethodType,
         ),
     ) -> Result<Self, Self::Error> {
+        let pm_data = &item.request.payment_method_data;
         match pm_data {
             domain::PaymentMethodData::Card(ref ccard) => {
                 let payment_method_auth_type = match auth_type {
@@ -3741,7 +3620,7 @@ impl
                 Ok(Self::try_from((wallet_data, None))?)
             }
             domain::PaymentMethodData::BankDebit(bank_debit_data) => {
-                let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
+                let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data);
 
                 Ok(Self::BankDebit(StripeBankDebitData {
                     bank_specific_data: bank_data,
@@ -3750,31 +3629,27 @@ impl
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data
                 .deref()
             {
-                domain::BankTransferData::AchBankTransfer { billing_details } => {
-                    Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
-                        Box::new(AchTransferData {
-                            email: billing_details.email.to_owned(),
-                        }),
-                    )))
-                }
-                domain::BankTransferData::MultibancoBankTransfer { billing_details } => Ok(
-                    Self::BankTransfer(StripeBankTransferData::MultibancoBankTransfers(Box::new(
+                domain::BankTransferData::AchBankTransfer {} => Ok(Self::BankTransfer(
+                    StripeBankTransferData::AchBankTransfer(Box::new(AchTransferData {
+                        email: item.get_billing_email()?,
+                    })),
+                )),
+                domain::BankTransferData::MultibancoBankTransfer {} => Ok(Self::BankTransfer(
+                    StripeBankTransferData::MultibancoBankTransfers(Box::new(
                         MultibancoTransferData {
-                            email: billing_details.email.to_owned(),
+                            email: item.get_billing_email()?,
                         },
-                    ))),
-                ),
-                domain::BankTransferData::SepaBankTransfer { country, .. } => {
-                    Ok(Self::BankTransfer(
-                        StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
-                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            bank_transfer_type: BankTransferType::EuBankTransfer,
-                            balance_funding_type: BankTransferType::BankTransfers,
-                            payment_method_type: StripePaymentMethodType::CustomerBalance,
-                            country: country.to_owned(),
-                        })),
-                    ))
-                }
+                    )),
+                )),
+                domain::BankTransferData::SepaBankTransfer {} => Ok(Self::BankTransfer(
+                    StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
+                        payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                        bank_transfer_type: BankTransferType::EuBankTransfer,
+                        balance_funding_type: BankTransferType::BankTransfers,
+                        payment_method_type: StripePaymentMethodType::CustomerBalance,
+                        country: item.get_billing_country()?,
+                    })),
+                )),
                 domain::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
                     StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
                         payment_method_data_type: StripePaymentMethodType::CustomerBalance,
@@ -4026,7 +3901,7 @@ fn get_transaction_metadata(
 }
 
 impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
-    type Error = hyperswitch_domain_models::router_data::ErrorResponse;
+    type Error = types::ErrorResponse;
     fn try_from(
         (response, http_code, response_id): (&Option<ErrorDetails>, u16, String),
     ) -> Result<Self, Self::Error> {
@@ -4047,7 +3922,7 @@ impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseDa
             ),
         };
 
-        Err(hyperswitch_domain_models::router_data::ErrorResponse {
+        Err(types::ErrorResponse {
             code,
             message: error_message.clone(),
             reason: response.clone().and_then(|res| {

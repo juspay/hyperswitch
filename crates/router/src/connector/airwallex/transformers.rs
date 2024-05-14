@@ -18,17 +18,11 @@ pub struct AirwallexAuthType {
     pub x_client_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for AirwallexAuthType {
+impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-            api_key,
-            key1,
-        } = auth_type
-        {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 x_api_key: api_key.clone(),
                 x_client_id: key1.clone(),
@@ -65,20 +59,13 @@ pub struct AirwallexRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for AirwallexRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AirwallexRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -272,33 +259,16 @@ pub struct AirwallexAuthUpdateResponse {
     token: Secret<String>,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            AirwallexAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        hyperswitch_domain_models::router_data::AccessToken,
-    >
+impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AirwallexAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
+        item: types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         let expires = (item.response.expires_at - common_utils::date_time::now()).whole_seconds();
         Ok(Self {
-            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
+            response: Ok(types::AccessToken {
                 token: item.response.token,
                 expires,
             }),
@@ -522,7 +492,7 @@ fn get_redirection_form(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, AirwallexPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

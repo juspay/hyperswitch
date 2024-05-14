@@ -4,6 +4,7 @@ use api_models::{
     payments,
 };
 use async_trait::async_trait;
+use common_enums::TokenPurpose;
 use common_utils::date_time;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -66,7 +67,7 @@ pub enum AuthenticationType {
     },
     SinglePurposeJWT {
         user_id: String,
-        purpose: Purpose,
+        purpose: TokenPurpose,
     },
     MerchantId {
         merchant_id: String,
@@ -113,28 +114,28 @@ impl AuthenticationType {
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Clone, Debug)]
 pub struct UserFromSinglePurposeToken {
     pub user_id: String,
+    pub origin: domain::Origin,
 }
 
+#[cfg(feature = "olap")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SinglePurposeToken {
     pub user_id: String,
-    pub purpose: Purpose,
+    pub purpose: TokenPurpose,
+    pub origin: domain::Origin,
     pub exp: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
-pub enum Purpose {
-    AcceptInvite,
 }
 
 #[cfg(feature = "olap")]
 impl SinglePurposeToken {
     pub async fn new_token(
         user_id: String,
-        purpose: Purpose,
+        purpose: TokenPurpose,
+        origin: domain::Origin,
         settings: &Settings,
     ) -> UserResult<String> {
         let exp_duration =
@@ -143,6 +144,7 @@ impl SinglePurposeToken {
         let token_payload = Self {
             user_id,
             purpose,
+            origin,
             exp,
         };
         jwt::generate_jwt(&token_payload, settings).await
@@ -201,6 +203,23 @@ impl AuthInfo for () {
 impl AuthInfo for AuthenticationData {
     fn get_merchant_id(&self) -> Option<&str> {
         Some(&self.merchant_account.merchant_id)
+    }
+}
+
+pub trait GetUserIdFromAuth {
+    fn get_user_id(&self) -> String;
+}
+
+impl GetUserIdFromAuth for UserFromToken {
+    fn get_user_id(&self) -> String {
+        self.user_id.clone()
+    }
+}
+
+#[cfg(feature = "olap")]
+impl GetUserIdFromAuth for UserFromSinglePurposeToken {
+    fn get_user_id(&self) -> String {
+        self.user_id.clone()
     }
 }
 
@@ -308,8 +327,9 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Debug)]
-pub(crate) struct SinglePurposeJWTAuth(pub Purpose);
+pub(crate) struct SinglePurposeJWTAuth(pub TokenPurpose);
 
 #[cfg(feature = "olap")]
 #[async_trait]
@@ -334,7 +354,41 @@ where
         Ok((
             UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
+                origin: payload.origin.clone(),
             },
+            AuthenticationType::SinglePurposeJWT {
+                user_id: payload.user_id,
+                purpose: payload.purpose,
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Box<dyn GetUserIdFromAuth>, A> for SinglePurposeJWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Box<dyn GetUserIdFromAuth>, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        if self.0 != payload.purpose {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        Ok((
+            Box::new(UserFromSinglePurposeToken {
+                user_id: payload.user_id.clone(),
+                origin: payload.origin.clone(),
+            }),
             AuthenticationType::SinglePurposeJWT {
                 user_id: payload.user_id,
                 purpose: payload.purpose,
@@ -784,6 +838,37 @@ where
 
 #[cfg(feature = "olap")]
 #[async_trait]
+impl<A> AuthenticateAndFetch<Box<dyn GetUserIdFromAuth>, A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Box<dyn GetUserIdFromAuth>, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        Ok((
+            Box::new(UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            }),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for DashboardNoPermissionAuth
 where
     A: AppStateInfo + Sync,
@@ -872,13 +957,13 @@ impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     }
 }
 
-impl ClientSecretFetch for api_models::payments::PaymentsRetrieveRequest {
+impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
 }
 
-impl ClientSecretFetch for api_models::payments::RetrievePaymentLinkRequest {
+impl ClientSecretFetch for payments::RetrievePaymentLinkRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }

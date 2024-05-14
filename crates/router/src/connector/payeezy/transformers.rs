@@ -15,20 +15,13 @@ pub struct PayeezyRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for PayeezyRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for PayeezyRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -277,12 +270,10 @@ pub struct PayeezyAuthType {
     pub(super) merchant_token: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PayeezyAuthType {
+impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -400,7 +391,7 @@ pub struct PayeezyPaymentsMetadata {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

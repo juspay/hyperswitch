@@ -63,7 +63,7 @@ where
     #[cfg(feature = "payouts")]
     fn build_headers(
         &self,
-        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
@@ -95,8 +95,7 @@ impl ConnectorCommon for Ebanx {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
-    {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: ebanx::EbanxErrorResponse =
             res.response
                 .parse_struct("EbanxErrorResponse")
@@ -105,7 +104,7 @@ impl ConnectorCommon for Ebanx {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(hyperswitch_domain_models::router_data::ErrorResponse {
+        Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.status_code,
             message: response.code,
@@ -180,7 +179,8 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -191,8 +191,7 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
-    {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -266,7 +265,8 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -277,8 +277,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
-    {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -342,7 +341,8 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -353,8 +353,7 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
-    {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -394,12 +393,8 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     //TODO: implement sessions flow
 }
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
-    > for Ebanx
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Ebanx
 {
 }
 

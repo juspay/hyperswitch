@@ -1,11 +1,7 @@
 use std::{str::FromStr, time::Duration};
 
 use masking::Secret;
-use router::types::{
-    self,
-    storage::{self, enums},
-    PaymentsResponseData,
-};
+use router::types::{self, storage::enums, PaymentsResponseData};
 use test_utils::connector_auth::ConnectorAuthentication;
 
 use crate::utils::{self, get_connector_transaction_id, Connector, ConnectorActions};
@@ -71,7 +67,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
         }),
         browser_info: None,
         amount: None,
-        currency: storage::enums::Currency::USD,
+        currency: enums::Currency::USD,
     })
 }
 
@@ -147,7 +143,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -291,7 +287,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -444,7 +440,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 }),
                 browser_info: None,
                 amount: None,
-                currency: storage::enums::Currency::USD,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(None),
         )
@@ -475,7 +471,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 }),
                 browser_info: None,
                 amount: None,
-                currency: storage::enums::Currency::USD,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(None),
         )
@@ -506,7 +502,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 }),
                 browser_info: None,
                 amount: None,
-                currency: storage::enums::Currency::USD,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(None),
         )

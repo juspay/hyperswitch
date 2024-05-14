@@ -20,18 +20,13 @@ pub struct PlacetopayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for PlacetopayRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for PlacetopayRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -165,11 +160,9 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PlacetopayAuth {
+impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         let placetopay_auth = PlacetopayAuthType::try_from(auth_type)?;
         let nonce_bytes = utils::generate_random_bytes(16);
         let now = date_time::date_as_yyyymmddthhmmssmmmz()
@@ -190,17 +183,11 @@ impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for Pla
     }
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PlacetopayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-            api_key,
-            key1,
-        } = auth_type
-        {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 login: api_key.to_owned(),
                 tran_key: key1.to_owned(),
@@ -265,7 +252,7 @@ pub struct PlacetopayPaymentsResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PlacetopayPaymentsResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

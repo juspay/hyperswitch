@@ -5,12 +5,12 @@ use std::fmt::Debug;
 use common_enums::AttemptStatus;
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data::ErrorResponse;
 use masking::ExposeInterface;
 use transformers as multisafepay;
 
 use crate::{
     configs::settings,
+    connector::utils::{is_mandate_supported, PaymentMethodDataType},
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -23,7 +23,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         storage::enums,
-        Response,
+        ErrorResponse, Response,
     },
     utils::BytesExt,
 };
@@ -37,7 +37,7 @@ where
 {
     fn build_headers(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
@@ -63,7 +63,7 @@ impl ConnectorCommon for Multisafepay {
 
     fn get_auth_header(
         &self,
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = multisafepay::MultisafepayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -116,6 +116,18 @@ impl ConnectorValidation for Multisafepay {
             .into()),
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+        ]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl api::Payment for Multisafepay {}
@@ -142,7 +154,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<
+        _req: &types::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -165,12 +177,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
 impl api::ConnectorAccessToken for Multisafepay {}
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
-    > for Multisafepay
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Multisafepay
 {
 }
 
@@ -241,7 +249,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -346,7 +354,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -445,7 +453,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -520,7 +528,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

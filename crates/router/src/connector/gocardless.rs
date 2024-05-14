@@ -10,7 +10,7 @@ use transformers as gocardless;
 
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
+    connector::utils::{self as connector_utils, PaymentMethodDataType},
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -54,7 +54,7 @@ where
 {
     fn build_headers(
         &self,
-        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![
@@ -92,7 +92,7 @@ impl ConnectorCommon for Gocardless {
 
     fn get_auth_header(
         &self,
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = gocardless::GocardlessAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -194,7 +194,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        hyperswitch_domain_models::router_data::RouterData<
+        types::RouterData<
             api::CreateConnectorCustomer,
             types::ConnectorCustomerData,
             types::PaymentsResponseData,
@@ -214,7 +214,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -302,7 +302,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -343,6 +343,19 @@ impl ConnectorValidation for Gocardless {
             ),
         }
     }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::SepaBankDebit,
+            PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::BecsBankDebit,
+            PaymentMethodDataType::BacsBankDebit,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -351,12 +364,8 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     //TODO: implement sessions flow
 }
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
-    > for Gocardless
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Gocardless
 {
 }
 
@@ -429,7 +438,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -520,7 +529,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -595,7 +604,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -692,7 +701,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

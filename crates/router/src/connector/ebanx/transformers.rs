@@ -155,17 +155,13 @@ pub struct EbanxAuthType {
     pub integration_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for EbanxAuthType {
+impl TryFrom<&types::ConnectorAuthType> for EbanxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
-                Ok(Self {
-                    integration_key: api_key.to_owned(),
-                })
-            }
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                integration_key: api_key.to_owned(),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }

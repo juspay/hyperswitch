@@ -57,20 +57,13 @@ pub struct DlocalRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for DlocalRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for DlocalRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, _currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -256,12 +249,10 @@ pub struct DlocalAuthType {
     pub(super) secret: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for DlocalAuthType {
+impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -317,7 +308,7 @@ pub struct DlocalPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -358,7 +349,7 @@ pub struct DlocalPaymentsSyncResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, DlocalPaymentsSyncResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -395,7 +386,7 @@ pub struct DlocalPaymentsCaptureResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -430,7 +421,7 @@ pub struct DlocalPaymentsCancelResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, DlocalPaymentsCancelResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

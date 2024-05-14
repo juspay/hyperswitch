@@ -5,6 +5,7 @@ use crate::{
     utils::{self, ConnectorActions},
 };
 
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 struct MollieTest;
 impl ConnectorActions for MollieTest {}

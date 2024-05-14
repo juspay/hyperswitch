@@ -190,22 +190,10 @@ pub struct WorldlineRouterData<T> {
     amount: i64,
     router_data: T,
 }
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for WorldlineRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for WorldlineRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -217,8 +205,8 @@ impl<T>
 impl
     TryFrom<
         &WorldlineRouterData<
-            &hyperswitch_domain_models::router_data::RouterData<
-                types::api::payments::Authorize,
+            &types::RouterData<
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
             >,
@@ -229,8 +217,8 @@ impl
 
     fn try_from(
         item: &WorldlineRouterData<
-            &hyperswitch_domain_models::router_data::RouterData<
-                types::api::payments::Authorize,
+            &types::RouterData<
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
             >,
@@ -508,12 +496,10 @@ pub struct WorldlineAuthType {
     pub merchant_account_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for WorldlineAuthType {
+impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -584,7 +570,7 @@ pub struct Payment {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, PaymentsResponseData>
+    for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -595,7 +581,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 item.response.status,
                 item.response.capture_method,
             )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -629,7 +615,7 @@ pub struct RedirectData {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, PaymentsResponseData>
+    for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -647,7 +633,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 item.response.payment.status,
                 item.response.payment.capture_method,
             )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.payment.id.clone(),
                 ),

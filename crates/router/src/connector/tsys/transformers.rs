@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
     core::errors,
-    types::{
-        self, api, domain,
-        storage::{self, enums},
-    },
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -25,7 +22,7 @@ pub struct TsysPaymentAuthSaleRequest {
     transaction_key: Secret<String>,
     card_data_source: String,
     transaction_amount: String,
-    currency_code: storage::enums::Currency,
+    currency_code: enums::Currency,
     card_number: cards::CardNumber,
     expiration_date: Secret<String>,
     cvv2: Secret<String>,
@@ -94,13 +91,11 @@ pub struct TsysAuthType {
     pub(super) developer_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for TsysAuthType {
+impl TryFrom<&types::ConnectorAuthType> for TsysAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+            types::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -201,8 +196,8 @@ pub enum TsysPaymentsResponse {
 fn get_error_response(
     connector_response: TsysErrorResponse,
     status_code: u16,
-) -> hyperswitch_domain_models::router_data::ErrorResponse {
-    hyperswitch_domain_models::router_data::ErrorResponse {
+) -> types::ErrorResponse {
+    types::ErrorResponse {
         code: connector_response.response_code,
         message: connector_response.response_message.clone(),
         reason: Some(connector_response.response_message),
@@ -252,7 +247,7 @@ fn get_payments_sync_response(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, TsysPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -358,7 +353,7 @@ pub struct TsysSyncResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, TsysSyncResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

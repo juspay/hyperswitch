@@ -120,22 +120,12 @@ pub enum CardPayment {
     CardToken(Secret<String>),
 }
 
-impl<T>
-    TryFrom<
-        &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for Shift4PaymentsRequest
+impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let submit_for_settlement = item.request.is_auto_capture()?;
         let amount = item.request.amount.to_string();
@@ -150,22 +140,12 @@ impl<T>
     }
 }
 
-impl<T>
-    TryFrom<
-        &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for Shift4PaymentMethod
+impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for Shift4PaymentMethod
 {
     type Error = Error;
     fn try_from(
-        item: &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             domain::PaymentMethodData::Card(ref ccard) => Self::try_from((item, ccard)),
@@ -302,22 +282,14 @@ impl TryFrom<&domain::GiftCardData> for Shift4PaymentMethod {
 
 impl<T>
     TryFrom<(
-        &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         &domain::Card,
     )> for Shift4PaymentMethod
 {
     type Error = Error;
     fn try_from(
         (item, card): (
-            &hyperswitch_domain_models::router_data::RouterData<
-                T,
-                types::PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            >,
+            &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
             &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
@@ -351,22 +323,14 @@ impl<T>
 
 impl<T>
     TryFrom<(
-        &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         &domain::BankRedirectData,
     )> for Shift4PaymentMethod
 {
     type Error = Error;
     fn try_from(
         (item, redirect_data): (
-            &hyperswitch_domain_models::router_data::RouterData<
-                T,
-                types::PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            >,
+            &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
             &domain::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
@@ -384,22 +348,12 @@ impl<T>
     }
 }
 
-impl<T>
-    TryFrom<
-        &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for Shift4PaymentsRequest
+impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>>
+    for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        item: &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             Some(domain::PaymentMethodData::Card(_)) => {
@@ -479,22 +433,12 @@ impl TryFrom<&Option<String>> for Flow {
     }
 }
 
-impl<T>
-    TryFrom<
-        &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for Billing
+impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for Billing
 {
     type Error = Error;
     fn try_from(
-        item: &hyperswitch_domain_models::router_data::RouterData<
-            T,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let billing_address = item
             .get_optional_billing()
@@ -527,14 +471,10 @@ pub struct Shift4AuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for Shift4AuthType {
+impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
     type Error = Error;
-    fn try_from(
-        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } =
-            item
-        {
+    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
                 api_key: api_key.to_owned(),
             })
@@ -699,12 +639,7 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -750,7 +685,7 @@ impl<F>
 
 impl<T, F>
     TryFrom<types::ResponseRouterData<F, Shift4NonThreeDsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -812,9 +747,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
 impl From<Shift4RefundStatus> for enums::RefundStatus {
     fn from(item: Shift4RefundStatus) -> Self {
         match item {
-            self::Shift4RefundStatus::Successful => Self::Success,
-            self::Shift4RefundStatus::Failed => Self::Failure,
-            self::Shift4RefundStatus::Processing => Self::Pending,
+            Shift4RefundStatus::Successful => Self::Success,
+            Shift4RefundStatus::Failed => Self::Failure,
+            Shift4RefundStatus::Processing => Self::Pending,
         }
     }
 }

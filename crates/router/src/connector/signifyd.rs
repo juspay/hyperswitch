@@ -1,6 +1,7 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+use base64::Engine;
 #[cfg(feature = "frm")]
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
@@ -9,6 +10,7 @@ use transformers as signifyd;
 
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
@@ -33,7 +35,7 @@ where
 {
     fn build_headers(
         &self,
-        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -61,11 +63,14 @@ impl ConnectorCommon for Signifyd {
 
     fn get_auth_header(
         &self,
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = signifyd::SignifydAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_api_key = format!("Basic {}", auth.api_key.peek());
+        let auth_api_key = format!(
+            "Basic {}",
+            consts::BASE64_ENGINE.encode(auth.api_key.peek())
+        );
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -89,7 +94,7 @@ impl ConnectorCommon for Signifyd {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: crate::consts::NO_ERROR_CODE.to_string(),
+            code: consts::NO_ERROR_CODE.to_string(),
             message: response.messages.join(" &"),
             reason: Some(response.errors.to_string()),
             attempt_status: None,
@@ -120,12 +125,8 @@ impl
 {
 }
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
-    > for Signifyd
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Signifyd
 {
 }
 
@@ -138,7 +139,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<
+        _req: &types::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,

@@ -50,7 +50,7 @@ where
 {
     fn build_headers(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
@@ -196,7 +196,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i: &mut ConnectorEvent| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -237,7 +237,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i: &mut ConnectorEvent| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -281,12 +281,8 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
-    > for Zsl
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Zsl
 {
     fn build_request(
         &self,
@@ -310,7 +306,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<
+        _req: &types::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -428,9 +424,7 @@ impl api::IncomingWebhook for Zsl {
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_account_details = merchant_connector_account
             .connector_account_details
-            .parse_value::<hyperswitch_domain_models::router_data::ConnectorAuthType>(
-                "ConnectorAuthType",
-            )
+            .parse_value::<types::ConnectorAuthType>("ConnectorAuthType")
             .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let auth_type = zsl::ZslAuthType::try_from(&connector_account_details)?;
         let key = auth_type.api_key.expose();

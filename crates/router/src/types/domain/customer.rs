@@ -148,14 +148,14 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: Some(date_time::now()),
                 ..Default::default()
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
             } => Self {
                 default_payment_method_id,
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: Some(date_time::now()),
                 ..Default::default()
             },
         }

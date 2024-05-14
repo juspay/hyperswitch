@@ -19,22 +19,10 @@ pub struct ProphetpayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ProphetpayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ProphetpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
@@ -50,13 +38,11 @@ pub struct ProphetpayAuthType {
     pub(super) profile_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for ProphetpayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for ProphetpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+            types::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -185,12 +171,7 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -236,7 +217,7 @@ fn get_redirect_url_form(
     mut redirect_url: Url,
     complete_auth_url: Option<String>,
 ) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
-    let mut form_fields = std::collections::HashMap::<String, String>::new();
+    let mut form_fields = HashMap::<String, String>::new();
 
     form_fields.insert(
         String::from("redirectUrl"),
@@ -396,12 +377,7 @@ impl<F>
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -436,7 +412,7 @@ impl<F>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: item.response.response_code,
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -461,7 +437,7 @@ pub struct ProphetpaySyncResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, ProphetpaySyncResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -486,7 +462,7 @@ impl<F, T>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -511,7 +487,7 @@ pub struct ProphetpayVoidResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, ProphetpayVoidResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -536,7 +512,7 @@ impl<F, T>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::VoidFailed,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -644,7 +620,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -684,7 +660,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),

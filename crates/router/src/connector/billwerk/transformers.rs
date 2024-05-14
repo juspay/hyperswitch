@@ -14,22 +14,10 @@ pub struct BillwerkRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for BillwerkRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BillwerkRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -43,16 +31,11 @@ pub struct BillwerkAuthType {
     pub(super) public_api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BillwerkAuthType {
+impl TryFrom<&types::ConnectorAuthType> for BillwerkAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_api_key: key1.to_owned(),
             }),
@@ -140,12 +123,7 @@ impl<T>
             T,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        api::PaymentMethodToken,
-        T,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<api::PaymentMethodToken, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -200,9 +178,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
             .into());
         };
         let source = match item.router_data.get_payment_method_token()? {
-            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(pm_token) => {
-                Ok(Secret::new(pm_token))
-            }
+            types::PaymentMethodToken::Token(pm_token) => Ok(Secret::new(pm_token)),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
             }),
@@ -261,7 +237,7 @@ pub struct BillwerkPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BillwerkPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -274,7 +250,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let error_response = if item.response.error.is_some() || item.response.error_state.is_some()
         {
-            Some(hyperswitch_domain_models::router_data::ErrorResponse {
+            Some(types::ErrorResponse {
                 code: item
                     .response
                     .error_state

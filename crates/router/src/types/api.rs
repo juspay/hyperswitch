@@ -365,6 +365,7 @@ impl ConnectorData {
                 enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
+                // enums::Connector::Mifinity => Ok(Box::new(&connector::Mifinity)), Added as template code for future usage
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
                 enums::Connector::Nmi => Ok(Box::new(&connector::Nmi)),
                 enums::Connector::Noon => Ok(Box::new(&connector::Noon)),
@@ -372,6 +373,7 @@ impl ConnectorData {
                 enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
+                // enums::Connector::Payone => Ok(Box::new(&connector::Payone)), Added as template code for future usage
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Placetopay => Ok(Box::new(&connector::Placetopay)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
@@ -385,7 +387,6 @@ impl ConnectorData {
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
-                enums::Connector::Netcetera => Ok(Box::new(&connector::Netcetera)),
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
@@ -396,7 +397,9 @@ impl ConnectorData {
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
                 | enums::Connector::Riskified
-                | enums::Connector::Threedsecureio => {
+                | enums::Connector::Threedsecureio
+                // | enums::Connector::Gpayments  Added as template code for future usage
+                | enums::Connector::Netcetera => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

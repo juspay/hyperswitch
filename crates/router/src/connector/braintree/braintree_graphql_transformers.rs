@@ -27,22 +27,10 @@ pub struct BraintreeRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for BraintreeRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BraintreeRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
@@ -80,7 +68,7 @@ pub enum BraintreePaymentsRequest {
 #[derive(Debug, Deserialize)]
 pub struct BraintreeMeta {
     merchant_account_id: Secret<String>,
-    merchant_config_currency: types::storage::enums::Currency,
+    merchant_config_currency: enums::Currency,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
@@ -228,12 +216,7 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -290,7 +273,7 @@ impl<F>
 fn build_error_response<T>(
     response: &[ErrorDetails],
     http_code: u16,
-) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
+) -> Result<T, types::ErrorResponse> {
     let error_messages = response
         .iter()
         .map(|error| error.message.to_string())
@@ -319,8 +302,8 @@ fn get_error_response<T>(
     error_msg: Option<String>,
     error_reason: Option<String>,
     http_code: u16,
-) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
-    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+) -> Result<T, types::ErrorResponse> {
+    Err(types::ErrorResponse {
         code: error_code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
         message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: error_reason,
@@ -336,10 +319,10 @@ fn get_error_response<T>(
 //     pub(super) merchant_id: Secret<String>,
 // }
 
-// impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BraintreeAuthType {
+// impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
 //     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(item: &hyperswitch_domain_models::router_data::ConnectorAuthType) -> Result<Self, Self::Error> {
-//         if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+//     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+//         if let types::ConnectorAuthType::SignatureKey {
 //             api_key: public_key,
 //             key1: merchant_id,
 //             api_secret: private_key,
@@ -415,12 +398,7 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -482,12 +460,7 @@ impl<F>
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -532,12 +505,7 @@ impl<F>
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -973,7 +941,7 @@ pub enum BraintreeTokenResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreeTokenResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1167,7 +1135,7 @@ pub enum BraintreeCancelResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreeCancelResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1258,7 +1226,7 @@ pub struct PSyncResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreePSyncResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1356,8 +1324,8 @@ impl
             variables: VariablePaymentInput {
                 input: PaymentInput {
                     payment_method_id: match item.router_data.get_payment_method_token()? {
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token.into(),
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        types::PaymentMethodToken::Token(token) => token.into(),
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
                         )?,
                     },
@@ -1427,7 +1395,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
 
 fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
-    payment_method_token: hyperswitch_domain_models::router_data::PaymentMethodToken,
+    payment_method_token: types::PaymentMethodToken,
     card_details: domain::PaymentMethodData,
 ) -> Result<services::RedirectForm, error_stack::Report<errors::ConnectorError>> {
     Ok(services::RedirectForm::Braintree {
@@ -1437,10 +1405,12 @@ fn get_braintree_redirect_form(
             .client_token
             .expose(),
         card_token: match payment_method_token {
-            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
-            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
-            )?,
+            types::PaymentMethodToken::Token(token) => token,
+            types::PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
+                "Apple Pay",
+                "Simplified",
+                "Braintree"
+            ))?,
         },
         bin: match card_details {
             domain::PaymentMethodData::Card(card_details) => {

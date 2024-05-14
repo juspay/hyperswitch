@@ -27,18 +27,13 @@ pub struct ThreedsecureioRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ThreedsecureioRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for ThreedsecureioRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -117,7 +112,7 @@ impl
                 )
             }
             ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
-                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                Err(types::ErrorResponse {
                     code: error_response.error_code,
                     message: error_response
                         .error_description
@@ -168,7 +163,7 @@ impl
                 let creq_str = to_string(&creq)
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing creq_str")?;
-                let creq_base64 = base64::Engine::encode(&BASE64_ENGINE, creq_str)
+                let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
                     .trim_end_matches('=')
                     .to_owned();
                 Ok(
@@ -196,7 +191,7 @@ impl
             }
             ThreedsecureioAuthenticationResponse::Error(err_response) => match *err_response {
                 ThreedsecureioErrorResponseWrapper::ErrorResponse(resp) => {
-                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    Err(types::ErrorResponse {
                         code: resp.error_code,
                         message: resp
                             .error_description
@@ -209,7 +204,7 @@ impl
                     })
                 }
                 ThreedsecureioErrorResponseWrapper::ErrorString(error) => {
-                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    Err(types::ErrorResponse {
                         code: error.clone(),
                         message: error.clone(),
                         reason: Some(error),
@@ -231,19 +226,13 @@ pub struct ThreedsecureioAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType>
-    for ThreedsecureioAuthType
-{
+impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
-                Ok(Self {
-                    api_key: api_key.to_owned(),
-                })
-            }
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -276,7 +265,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             .map(|currency| currency.to_string())
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("missing field currency")?;
-        let purchase_currency: Currency = iso_currency::Currency::from_code(&currency)
+        let purchase_currency: Currency = Currency::from_code(&currency)
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("error while parsing Currency")?;
         let billing_address = request.billing_address.address.clone().ok_or(

@@ -30,7 +30,7 @@ pub struct CashtocodePaymentsRequest {
 }
 
 fn get_mid(
-    connector_auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    connector_auth_type: &types::ConnectorAuthType,
     payment_method_type: Option<enums::PaymentMethodType>,
     currency: enums::Currency,
 ) -> Result<Secret<String>, errors::ConnectorError> {
@@ -95,16 +95,12 @@ pub struct CashtocodeAuth {
     pub merchant_id_evoucher: Option<Secret<String>>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for CashtocodeAuthType {
+impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>; // Assuming ErrorStack is the appropriate error type
 
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
-                auth_key_map,
-            } => {
+            types::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
                 let transformed_auths = auth_key_map
                     .iter()
                     .map(|(currency, identity_auth_key)| {
@@ -128,26 +124,13 @@ impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for Cas
     }
 }
 
-impl
-    TryFrom<(
-        &hyperswitch_domain_models::router_data::ConnectorAuthType,
-        &enums::Currency,
-    )> for CashtocodeAuth
-{
+impl TryFrom<(&types::ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        value: (
-            &hyperswitch_domain_models::router_data::ConnectorAuthType,
-            &enums::Currency,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: (&types::ConnectorAuthType, &enums::Currency)) -> Result<Self, Self::Error> {
         let (auth_type, currency) = value;
 
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
-            auth_key_map,
-        } = auth_type
-        {
+        if let types::ConnectorAuthType::CurrencyAuthKey { auth_key_map } = auth_type {
             if let Some(identity_auth_key) = auth_key_map.get(currency) {
                 let cashtocode_auth: Self = identity_auth_key
                     .to_owned()
@@ -220,13 +203,13 @@ fn get_redirect_form_data(
         enums::PaymentMethodType::ClassicReward => Ok(services::RedirectForm::Form {
             //redirect form is manually constructed because the connector for this pm type expects query params in the url
             endpoint: response_data.pay_url.to_string(),
-            method: services::Method::Post,
+            method: Method::Post,
             form_fields: Default::default(),
         }),
         enums::PaymentMethodType::Evoucher => Ok(services::RedirectForm::from((
             //here the pay url gets parsed, and query params are sent as formfields as the connector expects
             response_data.pay_url,
-            services::Method::Get,
+            Method::Get,
         ))),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("CashToCode"),
@@ -242,12 +225,7 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -261,7 +239,7 @@ impl<F>
         let (status, response) = match item.response {
             CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
                 enums::AttemptStatus::Failure,
-                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                Err(types::ErrorResponse {
                     code: error_data.error.to_string(),
                     status_code: item.http_code,
                     message: error_data.error_description,
@@ -311,7 +289,7 @@ impl<F, T>
             T,
             types::PaymentsResponseData,
         >,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

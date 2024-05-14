@@ -27,19 +27,12 @@ pub struct ZslRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ZslRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for ZslRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (currency_unit, currency, txn_amount, item): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -57,16 +50,11 @@ pub struct ZslAuthType {
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for ZslAuthType {
+impl TryFrom<&types::ConnectorAuthType> for ZslAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_id: key1.clone(),
             }),
@@ -303,7 +291,7 @@ pub struct ZslPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, ZslPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -355,7 +343,7 @@ impl<F, T>
                 // When the signature check fails
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
-                    response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    response: Err(types::ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_string(),
                         message: auth_error::INVALID_SIGNATURE.to_string(),
                         reason: Some(auth_error::INVALID_SIGNATURE.to_string()),
@@ -371,7 +359,7 @@ impl<F, T>
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),
                     reason: Some(error_reason.clone()),
@@ -418,7 +406,7 @@ impl types::transformers::ForeignFrom<String> for api_models::webhooks::Incoming
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -445,7 +433,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::Pa
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),
                     reason: Some(error_reason.clone()),

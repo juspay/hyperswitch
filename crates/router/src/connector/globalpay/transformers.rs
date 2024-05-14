@@ -17,7 +17,7 @@ use crate::{
     consts,
     core::errors,
     services::{self, RedirectForm},
-    types::{self, api, domain, storage::enums, transformers::ForeignTryFrom, ErrorResponse},
+    types::{self, api, domain, storage::enums, ErrorResponse},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -121,16 +121,11 @@ pub struct GlobalpayAuthType {
     pub key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for GlobalpayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     type Error = Error;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: key1.to_owned(),
                 key: api_key.to_owned(),
             }),
@@ -139,9 +134,7 @@ impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for Glo
     }
 }
 
-impl TryFrom<GlobalpayRefreshTokenResponse>
-    for hyperswitch_domain_models::router_data::AccessToken
-{
+impl TryFrom<GlobalpayRefreshTokenResponse> for types::AccessToken {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn try_from(item: GlobalpayRefreshTokenResponse) -> Result<Self, Self::Error> {
@@ -248,7 +241,7 @@ fn get_payment_response(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobalpayPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -276,7 +269,7 @@ impl<F, T>
             })
             .transpose()?;
         let redirection_data =
-            redirect_url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
+            redirect_url.map(|url| RedirectForm::from((url, services::Method::Get)));
         Ok(Self {
             status,
             response: get_payment_response(status, item.response, redirection_data),
@@ -286,14 +279,14 @@ impl<F, T>
 }
 
 impl
-    ForeignTryFrom<(
+    TryFrom<(
         types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
         bool,
     )> for types::PaymentsSyncRouterData
 {
     type Error = Error;
 
-    fn foreign_try_from(
+    fn try_from(
         (value, is_multiple_capture_sync): (
             types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
             bool,
@@ -315,31 +308,15 @@ impl
 }
 
 impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            GlobalpayRefreshTokenResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        hyperswitch_domain_models::router_data::AccessToken,
-    >
+    TryFrom<types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            GlobalpayRefreshTokenResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
+        item: types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
+            response: Ok(types::AccessToken {
                 token: item.response.token,
                 expires: item.response.seconds_to_expire,
             }),
@@ -457,8 +434,8 @@ fn get_mandate_details(item: &types::PaymentsAuthorizeRouterData) -> Result<Mand
             Some(StoredCredential {
                 model: Some(requests::Model::Recurring),
                 sequence: Some(match connector_mandate_id.is_some() {
-                    true => requests::Sequence::Subsequent,
-                    false => requests::Sequence::First,
+                    true => Sequence::Subsequent,
+                    false => Sequence::First,
                 }),
             }),
             connector_mandate_id,

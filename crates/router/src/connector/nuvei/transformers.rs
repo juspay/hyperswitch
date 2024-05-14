@@ -406,7 +406,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, NuveiSessionResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -632,11 +632,7 @@ impl<F>
     ForeignTryFrom<(
         AlternativePaymentMethodType,
         Option<domain::BankRedirectData>,
-        &hyperswitch_domain_models::router_data::RouterData<
-            F,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     )> for NuveiPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -644,11 +640,7 @@ impl<F>
         data: (
             AlternativePaymentMethodType,
             Option<domain::BankRedirectData>,
-            &hyperswitch_domain_models::router_data::RouterData<
-                F,
-                types::PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            >,
+            &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ),
     ) -> Result<Self, Self::Error> {
         let (payment_method, redirect, item) = data;
@@ -720,11 +712,7 @@ impl<F>
 
 fn get_pay_later_info<F>(
     payment_method_type: AlternativePaymentMethodType,
-    item: &hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let address = item
         .get_billing()?
@@ -753,22 +741,14 @@ fn get_pay_later_info<F>(
 
 impl<F>
     TryFrom<(
-        &hyperswitch_domain_models::router_data::RouterData<
-            F,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         String,
     )> for NuveiPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         data: (
-            &hyperswitch_domain_models::router_data::RouterData<
-                F,
-                types::PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            >,
+            &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
             String,
         ),
     ) -> Result<Self, Self::Error> {
@@ -915,11 +895,7 @@ impl<F>
 }
 
 fn get_card_info<F>(
-    item: &hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card_details: &domain::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let browser_information = item.request.browser_info.clone();
@@ -1182,7 +1158,7 @@ pub struct NuveiPaymentRequestData {
     pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
-    pub connector_auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
+    pub connector_auth_type: types::ConnectorAuthType,
     pub session_token: Secret<String>,
     pub capture_method: Option<diesel_models::enums::CaptureMethod>,
 }
@@ -1254,12 +1230,10 @@ pub struct NuveiAuthType {
     pub(super) merchant_secret: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for NuveiAuthType {
+impl TryFrom<&types::ConnectorAuthType> for NuveiAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -1393,7 +1367,7 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
 fn build_error_response<T>(
     response: &NuveiPaymentsResponse,
     http_code: u16,
-) -> Option<Result<T, hyperswitch_domain_models::router_data::ErrorResponse>> {
+) -> Option<Result<T, types::ErrorResponse>> {
     match response.status {
         NuveiPaymentStatus::Error => Some(get_error_response(
             response.err_code,
@@ -1431,7 +1405,7 @@ impl NuveiPaymentsGenericResponse for api::Capture {}
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 where
     F: NuveiPaymentsGenericResponse,
 {
@@ -1584,22 +1558,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
     }
 }
 
-impl<F>
-    TryFrom<
-        &hyperswitch_domain_models::router_data::RouterData<
-            F,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for NuveiPaymentsRequest
+impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for NuveiPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: &hyperswitch_domain_models::router_data::RouterData<
-            F,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         {
             let item = data;
@@ -1643,7 +1607,7 @@ fn get_refund_response(
     response: NuveiPaymentsResponse,
     http_code: u16,
     txn_id: String,
-) -> Result<types::RefundsResponseData, hyperswitch_domain_models::router_data::ErrorResponse> {
+) -> Result<types::RefundsResponseData, types::ErrorResponse> {
     let refund_status = response
         .transaction_status
         .clone()
@@ -1669,8 +1633,8 @@ fn get_error_response<T>(
     error_code: Option<i64>,
     error_msg: &Option<String>,
     http_code: u16,
-) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
-    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+) -> Result<T, types::ErrorResponse> {
+    Err(types::ErrorResponse {
         code: error_code
             .map(|c| c.to_string())
             .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),

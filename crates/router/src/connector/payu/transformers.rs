@@ -140,16 +140,11 @@ pub struct PayuAuthType {
     pub(super) merchant_pos_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PayuAuthType {
+impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_pos_id: key1.to_owned(),
             }),
@@ -195,7 +190,7 @@ pub struct PayuPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PayuPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -248,7 +243,7 @@ pub struct PayuPaymentsCaptureResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PayuPaymentsCaptureResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -301,32 +296,15 @@ pub struct PayuAuthUpdateResponse {
     pub grant_type: String,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            PayuAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        hyperswitch_domain_models::router_data::AccessToken,
-    >
+impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            PayuAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
+        item: types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
+            response: Ok(types::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -346,7 +324,7 @@ pub struct PayuPaymentsCancelResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PayuPaymentsCancelResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -478,7 +456,7 @@ pub struct PayuPaymentsSyncResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PayuPaymentsSyncResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

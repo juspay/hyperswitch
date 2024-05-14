@@ -18,22 +18,10 @@ pub struct StaxRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for StaxRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for StaxRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
@@ -80,8 +68,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     }),
@@ -99,8 +87,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
-                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     }),
@@ -133,17 +121,13 @@ pub struct StaxAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for StaxAuthType {
+impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
-                Ok(Self {
-                    api_key: api_key.to_owned(),
-                })
-            }
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -181,7 +165,7 @@ pub struct StaxCustomerResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, StaxCustomerResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -243,7 +227,6 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 Ok(Self::Card(stax_card_data))
             }
             domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
-                billing_details,
                 account_number,
                 routing_number,
                 bank_name,
@@ -252,7 +235,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 ..
             }) => {
                 let stax_bank_data = StaxBankTokenizeData {
-                    person_name: billing_details.name,
+                    person_name: item.get_billing_full_name()?,
                     bank_account: account_number,
                     bank_routing: routing_number,
                     bank_name: bank_name.ok_or_else(missing_field_err("bank_name"))?,
@@ -290,7 +273,7 @@ pub struct StaxTokenResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -336,7 +319,7 @@ pub struct StaxMetaData {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, StaxPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

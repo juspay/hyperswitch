@@ -92,16 +92,11 @@ pub struct GlobepayAuthType {
     pub(super) credential_code: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for GlobepayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for GlobepayAuthType {
     type Error = Error;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 partner_code: api_key.to_owned(),
                 credential_code: key1.to_owned(),
             }),
@@ -159,7 +154,7 @@ pub enum GlobepayReturnCode {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobepayPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -248,7 +243,7 @@ impl From<GlobepayPaymentPsyncStatus> for enums::AttemptStatus {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobepaySyncResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -294,8 +289,8 @@ fn get_error_response(
     return_code: GlobepayReturnCode,
     return_msg: Option<String>,
     status_code: u16,
-) -> hyperswitch_domain_models::router_data::ErrorResponse {
-    hyperswitch_domain_models::router_data::ErrorResponse {
+) -> types::ErrorResponse {
+    types::ErrorResponse {
         code: return_code.to_string(),
         message: consts::NO_ERROR_MESSAGE.to_string(),
         reason: return_msg,

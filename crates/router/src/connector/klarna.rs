@@ -47,7 +47,7 @@ impl ConnectorCommon for Klarna {
 
     fn get_auth_header(
         &self,
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = klarna::KlarnaAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -61,8 +61,7 @@ impl ConnectorCommon for Klarna {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
-    {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -76,7 +75,7 @@ impl ConnectorCommon for Klarna {
             .error_messages
             .map(|messages| messages.join(" & "))
             .or(response.error_message);
-        Ok(hyperswitch_domain_models::router_data::ErrorResponse {
+        Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
             message: consts::NO_ERROR_MESSAGE.to_string(),
@@ -113,7 +112,7 @@ impl
     services::ConnectorIntegration<
         api::AccessTokenAuth,
         types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
+        types::AccessToken,
     > for Klarna
 {
     // Not Implemented (R)
@@ -202,7 +201,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -214,8 +213,7 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
-    {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -232,7 +230,7 @@ impl
     // Not Implemented(R)
     fn build_request(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<
+        _req: &types::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -488,7 +486,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -500,8 +498,7 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
-    {
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }

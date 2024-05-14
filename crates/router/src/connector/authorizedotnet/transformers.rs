@@ -17,7 +17,7 @@ use crate::{
         api::{self, enums as api_enums},
         domain,
         storage::enums,
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -46,22 +46,10 @@ pub struct AuthorizedotnetRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for AuthorizedotnetRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AuthorizedotnetRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
@@ -78,19 +66,11 @@ pub struct AuthorizedotnetAuthType {
     transaction_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType>
-    for AuthorizedotnetAuthType
-{
+impl TryFrom<&types::ConnectorAuthType> for AuthorizedotnetAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-            api_key,
-            key1,
-        } = auth_type
-        {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 name: api_key.to_owned(),
                 transaction_key: key1.to_owned(),
@@ -640,7 +620,7 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
 }
 
 impl<F, T>
-    ForeignTryFrom<(
+    TryFrom<(
         types::ResponseRouterData<
             F,
             AuthorizedotnetPaymentsResponse,
@@ -648,10 +628,10 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
         bool,
-    )> for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(
+    fn try_from(
         (item, is_auto_capture): (
             types::ResponseRouterData<
                 F,
@@ -669,17 +649,13 @@ impl<F, T>
                     is_auto_capture,
                 ));
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| {
-                        hyperswitch_domain_models::router_data::ErrorResponse {
-                            code: error.error_code.clone(),
-                            message: error.error_text.clone(),
-                            reason: None,
-                            status_code: item.http_code,
-                            attempt_status: None,
-                            connector_transaction_id: Some(
-                                transaction_response.transaction_id.clone(),
-                            ),
-                        }
+                    errors.iter().next().map(|error| types::ErrorResponse {
+                        code: error.error_code.clone(),
+                        message: error.error_text.clone(),
+                        reason: None,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                     })
                 });
                 let metadata = transaction_response
@@ -736,7 +712,7 @@ impl<F, T>
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, AuthorizedotnetVoidResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -751,17 +727,13 @@ impl<F, T>
             Some(transaction_response) => {
                 let status = enums::AttemptStatus::from(transaction_response.response_code.clone());
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| {
-                        hyperswitch_domain_models::router_data::ErrorResponse {
-                            code: error.error_code.clone(),
-                            message: error.error_text.clone(),
-                            reason: None,
-                            status_code: item.http_code,
-                            attempt_status: None,
-                            connector_transaction_id: Some(
-                                transaction_response.transaction_id.clone(),
-                            ),
-                        }
+                    errors.iter().next().map(|error| types::ErrorResponse {
+                        code: error.error_code.clone(),
+                        message: error.error_text.clone(),
+                        reason: None,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                     })
                 });
                 let metadata = transaction_response
@@ -901,16 +873,14 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
         let transaction_response = &item.response.transaction_response;
         let refund_status = enums::RefundStatus::from(transaction_response.response_code.clone());
         let error = transaction_response.errors.clone().and_then(|errors| {
-            errors.first().map(
-                |error| hyperswitch_domain_models::router_data::ErrorResponse {
-                    code: error.error_code.clone(),
-                    message: error.error_text.clone(),
-                    reason: None,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-                },
-            )
+            errors.first().map(|error| types::ErrorResponse {
+                code: error.error_code.clone(),
+                message: error.error_text.clone(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+            })
         });
 
         Ok(Self {
@@ -1093,7 +1063,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncRe
 impl<F, Req>
     TryFrom<
         types::ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, Req, types::PaymentsResponseData>
+    > for types::RouterData<F, Req, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -1179,12 +1149,12 @@ impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
 fn get_err_response(
     status_code: u16,
     message: ResponseMessages,
-) -> Result<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError> {
+) -> Result<types::ErrorResponse, errors::ConnectorError> {
     let response_message = message
         .message
         .first()
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-    Ok(hyperswitch_domain_models::router_data::ErrorResponse {
+    Ok(types::ErrorResponse {
         code: response_message.code.clone(),
         message: response_message.text.clone(),
         reason: None,

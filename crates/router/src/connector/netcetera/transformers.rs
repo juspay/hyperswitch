@@ -16,18 +16,13 @@ pub struct NetceteraRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for NetceteraRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for NetceteraRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -105,7 +100,7 @@ impl
                 )
             }
             NetceteraPreAuthenticationResponse::Failure(error_response) => {
-                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                Err(types::ErrorResponse {
                     code: error_response.error_details.error_code,
                     message: error_response.error_details.error_detail,
                     reason: Some(error_response.error_details.error_description),
@@ -172,16 +167,14 @@ impl
                     },
                 )
             }
-            NetceteraAuthenticationResponse::Error(error_response) => {
-                Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                    code: error_response.error_details.error_code,
-                    message: error_response.error_details.error_detail,
-                    reason: Some(error_response.error_details.error_description),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                })
-            }
+            NetceteraAuthenticationResponse::Error(error_response) => Err(types::ErrorResponse {
+                code: error_response.error_details.error_code,
+                message: error_response.error_details.error_detail,
+                reason: Some(error_response.error_details.error_description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
         };
         Ok(Self {
             response,
@@ -195,13 +188,11 @@ pub struct NetceteraAuthType {
     pub(super) private_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for NetceteraAuthType {
+impl TryFrom<&types::ConnectorAuthType> for NetceteraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type.to_owned() {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::CertificateAuth {
+            types::ConnectorAuthType::CertificateAuth {
                 certificate,
                 private_key,
             } => Ok(Self {
@@ -556,7 +547,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             seller_info: None,
             results_response_notification_url: Some(request.webhook_url),
         };
-        let browser_information = request.browser_details.map(netcetera_types::Browser::from);
+        let browser_information = match request.device_channel {
+            api_models::payments::DeviceChannel::Browser => {
+                request.browser_details.map(netcetera_types::Browser::from)
+            }
+            api_models::payments::DeviceChannel::App => None,
+        };
         let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
         let device_render_options = match request.device_channel {
             api_models::payments::DeviceChannel::App => {

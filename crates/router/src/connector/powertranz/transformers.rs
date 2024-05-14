@@ -237,16 +237,11 @@ pub struct PowertranzAuthType {
     pub(super) power_tranz_password: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PowertranzAuthType {
+impl TryFrom<&types::ConnectorAuthType> for PowertranzAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 power_tranz_id: key1.to_owned(),
                 power_tranz_password: api_key.to_owned(),
             }),
@@ -315,7 +310,7 @@ impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PowertranzBaseResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -439,7 +434,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PowertranzBaseRespon
 fn build_error_response(
     item: &PowertranzBaseResponse,
     status_code: u16,
-) -> Option<hyperswitch_domain_models::router_data::ErrorResponse> {
+) -> Option<types::ErrorResponse> {
     // errors object has highest precedence to get error message and code
     let error_response = if item.errors.is_some() {
         item.errors.as_ref().map(|errors| {
@@ -447,7 +442,7 @@ fn build_error_response(
             let code = first_error.map(|error| error.code.clone());
             let message = first_error.map(|error| error.message.clone());
 
-            hyperswitch_domain_models::router_data::ErrorResponse {
+            types::ErrorResponse {
                 status_code,
                 code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                 message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
@@ -464,7 +459,7 @@ fn build_error_response(
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
         // Incase error object is not present the error message and code should be propagated based on iso_response_code
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             status_code,
             code: item.iso_response_code.clone(),
             message: item.response_message.clone(),

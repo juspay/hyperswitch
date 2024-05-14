@@ -114,7 +114,7 @@ fn fetch_payment_instrument(
 impl
     TryFrom<
         &WorldpayRouterData<
-            &hyperswitch_domain_models::router_data::RouterData<
+            &types::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
@@ -126,7 +126,7 @@ impl
 
     fn try_from(
         item: &WorldpayRouterData<
-            &hyperswitch_domain_models::router_data::RouterData<
+            &types::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
@@ -167,16 +167,11 @@ pub struct WorldpayAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for WorldpayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
                 let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
@@ -249,7 +244,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
                 })?,
             },
             description: item.response.description,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::try_from(item.response.links)?,
                 redirection_data: None,
                 mandate_reference: None,

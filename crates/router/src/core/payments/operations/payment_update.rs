@@ -81,7 +81,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -96,11 +96,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )?;
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
-
-        payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -236,6 +231,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
+        payment_attempt.payment_method_billing_address_id = payment_method_billing
+            .as_ref()
+            .map(|payment_method_billing| payment_method_billing.address_id.clone());
 
         payment_intent.allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
@@ -265,7 +263,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 &request
                     .payment_method_data
                     .as_ref()
-                    .map(|pmd| pmd.payment_method_data.clone()),
+                    .and_then(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &token,
@@ -348,16 +346,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 (Box::new(self), amount)
             };
 
-        payment_intent.status = match request.payment_method_data.as_ref() {
-            Some(_) => {
-                if request.confirm.unwrap_or(false) {
-                    payment_intent.status
-                } else {
-                    storage_enums::IntentStatus::RequiresConfirmation
-                }
+        payment_intent.status = if request
+            .payment_method_data
+            .as_ref()
+            .is_some_and(|payment_method_data| payment_method_data.payment_method_data.is_some())
+        {
+            if request.confirm.unwrap_or(false) {
+                payment_intent.status
+            } else {
+                storage_enums::IntentStatus::RequiresConfirmation
             }
-            None => storage_enums::IntentStatus::RequiresPaymentMethod,
+        } else {
+            storage_enums::IntentStatus::RequiresPaymentMethod
         };
+
         payment_intent.request_external_three_ds_authentication = request
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
@@ -425,12 +427,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
                 payment_method_billing.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: request.confirm,
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -593,12 +596,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 storage_enums::AttemptStatus::ConfirmationAwaited
             }
         };
+        let profile_id = payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
 
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
+                    .await
             })
             .await
             .as_ref()
@@ -613,6 +624,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
+        let payment_method_billing_address_id = payment_data
+            .payment_attempt
+            .payment_method_billing_address_id
+            .clone();
 
         let surcharge_amount = payment_data
             .surcharge_details
@@ -642,6 +657,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     surcharge_amount,
                     tax_amount,
                     fingerprint_id: None,
+                    payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
@@ -718,8 +734,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        payment_data.mandate_id = payment_data.mandate_id.clone();
 
         Ok((
             payments::is_confirm(self, payment_data.confirm),
@@ -824,7 +838,9 @@ impl PaymentUpdate {
 
         payment_intent.business_country = request.business_country;
 
-        payment_intent.business_label = request.business_label.clone();
+        payment_intent
+            .business_label
+            .clone_from(&request.business_label);
 
         request
             .description

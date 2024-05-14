@@ -29,18 +29,13 @@ pub struct PaypalRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for PaypalRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for PaypalRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -153,7 +148,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
 pub struct Address {
     address_line_1: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
-    country_code: api_models::enums::CountryAlpha2,
+    country_code: enums::CountryAlpha2,
     admin_area_2: Option<String>,
 }
 
@@ -216,7 +211,7 @@ pub enum ThreeDsType {
 #[derive(Debug, Serialize)]
 pub struct RedirectRequest {
     name: Secret<String>,
-    country_code: api_models::enums::CountryAlpha2,
+    country_code: enums::CountryAlpha2,
     experience_context: ContextStruct,
 }
 
@@ -454,12 +449,12 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
                 let attributes = match item.router_data.auth_type {
-                    api_models::enums::AuthenticationType::ThreeDs => Some(ThreeDsSetting {
+                    enums::AuthenticationType::ThreeDs => Some(ThreeDsSetting {
                         verification: ThreeDsMethod {
                             method: ThreeDsType::ScaAlways,
                         },
                     }),
-                    api_models::enums::AuthenticationType::NoThreeDs => None,
+                    enums::AuthenticationType::NoThreeDs => None,
                 };
 
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
@@ -766,32 +761,15 @@ pub struct PaypalAuthUpdateResponse {
     pub expires_in: i64,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            PaypalAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        hyperswitch_domain_models::router_data::AccessToken,
-    >
+impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            PaypalAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
+        item: types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
+            response: Ok(types::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -875,16 +853,13 @@ impl TryFrom<&ConnectorAuthType> for PaypalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self::AuthWithDetails(
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::AuthWithDetails(
                 PaypalConnectorCredentials::StandardIntegration(StandardFlowCredentials {
                     client_id: key1.to_owned(),
                     client_secret: api_key.to_owned(),
                 }),
             )),
-            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -895,9 +870,7 @@ impl TryFrom<&ConnectorAuthType> for PaypalAuthType {
                     payer_id: api_secret.to_owned(),
                 }),
             )),
-            hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth => {
-                Ok(Self::TemporaryAuth)
-            }
+            ConnectorAuthType::TemporaryAuth => Ok(Self::TemporaryAuth),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
@@ -1157,7 +1130,7 @@ fn get_id_based_on_intent(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1238,7 +1211,7 @@ fn get_redirect_url(
     let mut link: Option<Url> = None;
     for item2 in link_vec.iter() {
         if item2.rel == "payer-action" {
-            link = item2.href.clone();
+            link.clone_from(&item2.href)
         }
     }
     Ok(link)
@@ -1252,12 +1225,7 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsSyncData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1303,7 +1271,7 @@ impl<F>
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1350,12 +1318,7 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsSyncData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1392,12 +1355,7 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1470,7 +1428,7 @@ fn paypal_threeds_link(
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PaypalPaymentsSyncResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1860,7 +1818,7 @@ pub struct PaypalPaymentsCancelResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PaypalPaymentsCancelResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

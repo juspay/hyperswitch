@@ -62,7 +62,7 @@ async fn should_authorize_gpay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Wallet(
+                payment_method_data: domain::PaymentMethodData::Wallet(
                     domain::WalletData::GooglePay(domain::GooglePayWalletData {
                         pm_type: "CARD".to_string(),
                         description: "Visa1234567890".to_string(),
@@ -97,7 +97,7 @@ async fn should_authorize_applepay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Wallet(
+                payment_method_data: domain::PaymentMethodData::Wallet(
                     domain::WalletData::ApplePay(domain::ApplePayWalletData {
                         payment_data: "someData".to_string(),
                         transaction_identifier: "someId".to_string(),
@@ -149,7 +149,7 @@ async fn should_sync_payment() {
     let response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "112233".to_string(),
                 ),
                 ..Default::default()

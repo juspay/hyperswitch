@@ -472,13 +472,13 @@ pub trait XmlExt {
     ///
     /// Deserialize an XML string into the specified type `<T>`.
     ///
-    fn parse_xml<T>(self) -> Result<T, quick_xml::de::DeError>
+    fn parse_xml<T>(self) -> Result<T, de::DeError>
     where
         T: serde::de::DeserializeOwned;
 }
 
 impl XmlExt for &str {
-    fn parse_xml<T>(self) -> Result<T, quick_xml::de::DeError>
+    fn parse_xml<T>(self) -> Result<T, de::DeError>
     where
         T: serde::de::DeserializeOwned,
     {

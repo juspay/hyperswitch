@@ -56,7 +56,7 @@ where
 {
     fn build_headers(
         &self,
-        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![
@@ -90,7 +90,7 @@ impl ConnectorCommon for Braintree {
 
     fn get_auth_header(
         &self,
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = braintree::BraintreeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -187,12 +187,8 @@ impl api::PaymentsCompleteAuthorize for Braintree {}
 impl api::PaymentSession for Braintree {}
 impl api::ConnectorAccessToken for Braintree {}
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
-    > for Braintree
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Braintree
 {
     // Not Implemented (R)
 }
@@ -297,7 +293,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -387,7 +383,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -415,7 +411,7 @@ impl
     // Not Implemented (R)
     fn build_request(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<
+        _req: &types::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -537,7 +533,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -685,13 +681,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
             false => {
                 let response: braintree::BraintreePaymentsResponse = res
@@ -700,13 +694,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
         }
     }
@@ -846,13 +838,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
-                    hyperswitch_domain_models::router_data::RouterData::try_from(
-                        types::ResponseRouterData {
-                            response,
-                            data: data.clone(),
-                            http_code: res.status_code,
-                        },
-                    )
+                    types::RouterData::try_from(types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
                 }
                 false => {
                     let response: braintree_graphql_transformers::BraintreeAuthResponse = res
@@ -861,13 +851,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
-                    hyperswitch_domain_models::router_data::RouterData::try_from(
-                        types::ResponseRouterData {
-                            response,
-                            data: data.clone(),
-                            http_code: res.status_code,
-                        },
-                    )
+                    types::RouterData::try_from(types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
                 }
             },
             false => {
@@ -877,13 +865,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
         }
     }
@@ -1010,13 +996,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
             false => {
                 let response: braintree::BraintreePaymentsResponse = res
@@ -1025,13 +1009,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
         }
     }
@@ -1176,13 +1158,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
             false => {
                 let response: braintree::RefundResponse = res
@@ -1191,13 +1171,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
         }
     }
@@ -1295,11 +1273,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
-        hyperswitch_domain_models::router_data::RouterData<
-            api::RSync,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
+        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
         let connector_api_version = &data.connector_api_version;
@@ -1311,13 +1285,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
             false => {
                 let response: braintree::RefundResponse = res
@@ -1326,13 +1298,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
         }
     }
@@ -1497,10 +1467,8 @@ impl api::IncomingWebhook for Braintree {
 
         match response.dispute {
             Some(dispute_data) => {
-                let currency = diesel_models::enums::Currency::from_str(
-                    dispute_data.currency_iso_code.as_str(),
-                )
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+                let currency = enums::Currency::from_str(dispute_data.currency_iso_code.as_str())
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
                 Ok(api::disputes::DisputePayload {
                     amount: connector_utils::to_currency_lower_unit(
                         dispute_data.amount_disputed.to_string(),
@@ -1719,13 +1687,11 @@ impl
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
             false => {
                 let response: braintree_graphql_transformers::BraintreeCompleteAuthResponse = res
@@ -1734,13 +1700,11 @@ impl
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                hyperswitch_domain_models::router_data::RouterData::try_from(
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                )
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
         }
     }

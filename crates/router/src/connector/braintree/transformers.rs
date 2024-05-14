@@ -21,7 +21,7 @@ pub struct PaymentOptions {
 #[derive(Debug, Deserialize)]
 pub struct BraintreeMeta {
     merchant_account_id: Option<Secret<String>>,
-    merchant_config_currency: Option<types::storage::enums::Currency>,
+    merchant_config_currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -198,12 +198,10 @@ pub struct BraintreeAuthType {
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for BraintreeAuthType {
+impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey {
             api_key: public_key,
             key1: merchant_id,
             api_secret: private_key,
@@ -262,7 +260,7 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreePaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -293,7 +291,7 @@ impl<F, T>
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, BraintreeSessionTokenResponse, T, types::PaymentsResponseData>,
-    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -306,7 +304,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Paypal(Box::new(
+                session_token: api::SessionToken::Paypal(Box::new(
                     payments::PaypalSessionTokenResponse {
                         session_token: item.response.client_token.value.expose(),
                     },

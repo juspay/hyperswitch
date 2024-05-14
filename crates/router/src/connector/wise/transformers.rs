@@ -23,16 +23,11 @@ pub struct WiseAuthType {
     pub(super) profile_id: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for WiseAuthType {
+impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
     type Error = Error;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 profile_id: key1.to_owned(),
             }),
@@ -365,10 +360,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             item.request.entity_type,
         )?;
         let source_id = match item.connector_auth_type.to_owned() {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key: _,
-                key1,
-            } => Ok(key1),
+            types::ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(key1),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "source_id for PayoutRecipient creation",
             }),

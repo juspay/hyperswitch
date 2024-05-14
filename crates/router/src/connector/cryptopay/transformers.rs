@@ -10,7 +10,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, domain, storage::enums, transformers::ForeignTryFrom},
+    types::{self, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -19,19 +19,12 @@ pub struct CryptopayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for CryptopayRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for CryptopayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -105,16 +98,10 @@ pub struct CryptopayAuthType {
     pub(super) api_secret: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for CryptopayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for CryptopayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-            api_key,
-            key1,
-        } = auth_type
-        {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 api_key: api_key.to_owned(),
                 api_secret: key1.to_owned(),
@@ -154,13 +141,13 @@ pub struct CryptopayPaymentsResponse {
 }
 
 impl<F, T>
-    ForeignTryFrom<(
+    TryFrom<(
         types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
         diesel_models::enums::Currency,
-    )> for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(
+    fn try_from(
         (item, currency): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
             diesel_models::enums::Currency,
@@ -169,7 +156,7 @@ impl<F, T>
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
         let response = if is_payment_failure(status) {
             let payment_response = &item.response.data;
-            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+            Err(types::ErrorResponse {
                 code: payment_response
                     .name
                     .clone()

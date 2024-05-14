@@ -28,19 +28,12 @@ pub struct TrustpayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for TrustpayRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for TrustpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -59,12 +52,10 @@ pub struct TrustpayAuthType {
     pub(super) secret_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for TrustpayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
     type Error = Error;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -675,7 +666,7 @@ pub enum TrustpayPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, TrustpayPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -702,7 +693,7 @@ fn handle_cards_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -721,7 +712,7 @@ fn handle_cards_response(
             form_fields,
         });
     let error = if msg.is_some() {
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: response
                 .payment_status
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -753,7 +744,7 @@ fn handle_bank_redirects_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -783,13 +774,13 @@ fn handle_bank_redirects_error_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::AuthorizationFailed;
-    let error = Some(hyperswitch_domain_models::router_data::ErrorResponse {
+    let error = Some(types::ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),
@@ -816,7 +807,7 @@ fn handle_bank_redirects_sync_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -827,7 +818,7 @@ fn handle_bank_redirects_sync_response(
             .payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -876,7 +867,7 @@ pub fn handle_webhook_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -886,7 +877,7 @@ pub fn handle_webhook_response(
         let reason_info = payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -923,7 +914,7 @@ pub fn get_trustpay_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -984,40 +975,23 @@ pub struct TrustpayAccessTokenErrorResponse {
     pub result_info: ResultInfo,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            TrustpayAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        hyperswitch_domain_models::router_data::AccessToken,
-    >
+impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            TrustpayAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
+        item: types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         match (item.response.access_token, item.response.expires_in) {
             (Some(access_token), Some(expires_in)) => Ok(Self {
-                response: Ok(hyperswitch_domain_models::router_data::AccessToken {
+                response: Ok(types::AccessToken {
                     token: access_token,
                     expires: expires_in,
                 }),
                 ..item.data
             }),
             _ => Ok(Self {
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                response: Err(types::ErrorResponse {
                     code: item.response.result_info.result_code.to_string(),
                     // message vary for the same code, so relying on code alone as it is unique
                     message: item.response.result_info.result_code.to_string(),
@@ -1184,12 +1158,7 @@ impl<F>
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -1203,7 +1172,7 @@ impl<F>
         let create_intent_response = item.response.init_result_data.to_owned();
         let secrets = item.response.secrets.to_owned();
         let instance_id = item.response.instance_id.to_owned();
-        let pmt = utils::PaymentsPreProcessingData::get_payment_method_type(&item.data.request)?;
+        let pmt = PaymentsPreProcessingData::get_payment_method_type(&item.data.request)?;
 
         match (pmt, create_intent_response) {
             (
@@ -1230,10 +1199,10 @@ pub fn get_apple_pay_session<F, T>(
         types::PaymentsResponseData,
     >,
 ) -> Result<
-    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>,
+    types::RouterData<F, T, types::PaymentsResponseData>,
     error_stack::Report<errors::ConnectorError>,
 > {
-    Ok(hyperswitch_domain_models::router_data::RouterData {
+    Ok(types::RouterData {
         response: Ok(types::PaymentsResponseData::PreProcessingResponse {
             connector_metadata: None,
             pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
@@ -1254,6 +1223,7 @@ pub fn get_apple_pay_session<F, T>(
                         ),
                         total: apple_pay_init_result.total.into(),
                         merchant_identifier: None,
+                        required_billing_contact_fields: None,
                     }),
                     connector: "trustpay".to_string(),
                     delayed_session_token: true,
@@ -1286,10 +1256,10 @@ pub fn get_google_pay_session<F, T>(
         types::PaymentsResponseData,
     >,
 ) -> Result<
-    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>,
+    types::RouterData<F, T, types::PaymentsResponseData>,
     error_stack::Report<errors::ConnectorError>,
 > {
-    Ok(hyperswitch_domain_models::router_data::RouterData {
+    Ok(types::RouterData {
         response: Ok(types::PaymentsResponseData::PreProcessingResponse {
             connector_metadata: None,
             pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
@@ -1357,6 +1327,8 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
         Self {
             allowed_auth_methods: value.allowed_auth_methods,
             allowed_card_networks: value.allowed_card_networks,
+            billing_address_required: None,
+            billing_address_parameters: None,
         }
     }
 }
@@ -1491,16 +1463,11 @@ pub enum RefundResponse {
 fn handle_cards_refund_response(
     response: CardsRefundResponse,
     status_code: u16,
-) -> CustomResult<
-    (
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
-        types::RefundsResponseData,
-    ),
-    errors::ConnectorError,
-> {
+) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
+{
     let (refund_status, msg) = get_refund_status(&response.payment_status)?;
     let error = if msg.is_some() {
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: response.payment_status,
             message: msg
                 .clone()
@@ -1523,17 +1490,12 @@ fn handle_cards_refund_response(
 fn handle_webhooks_refund_response(
     response: WebhookPaymentInformation,
     status_code: u16,
-) -> CustomResult<
-    (
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
-        types::RefundsResponseData,
-    ),
-    errors::ConnectorError,
-> {
+) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
+{
     let refund_status = diesel_models::enums::RefundStatus::try_from(response.status)?;
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -1565,13 +1527,10 @@ fn handle_webhooks_refund_response(
 fn handle_bank_redirects_refund_response(
     response: BankRedirectRefundResponse,
     status_code: u16,
-) -> (
-    Option<hyperswitch_domain_models::router_data::ErrorResponse>,
-    types::RefundsResponseData,
-) {
+) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
     let (refund_status, msg) = get_refund_status_from_result_info(response.result_info.result_code);
     let error = if msg.is_some() {
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: response.result_info.result_code.to_string(),
             // message vary for the same code, so relying on code alone as it is unique
             message: response.result_info.result_code.to_string(),
@@ -1593,17 +1552,14 @@ fn handle_bank_redirects_refund_response(
 fn handle_bank_redirects_refund_sync_response(
     response: SyncResponseBankRedirect,
     status_code: u16,
-) -> (
-    Option<hyperswitch_domain_models::router_data::ErrorResponse>,
-    types::RefundsResponseData,
-) {
+) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
     let refund_status = enums::RefundStatus::from(response.payment_information.status);
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response
             .payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -1632,11 +1588,8 @@ fn handle_bank_redirects_refund_sync_response(
 fn handle_bank_redirects_refund_sync_error_response(
     response: ErrorResponseBankRedirect,
     status_code: u16,
-) -> (
-    Option<hyperswitch_domain_models::router_data::ErrorResponse>,
-    types::RefundsResponseData,
-) {
-    let error = Some(hyperswitch_domain_models::router_data::ErrorResponse {
+) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
+    let error = Some(types::ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),

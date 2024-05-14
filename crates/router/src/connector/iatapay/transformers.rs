@@ -37,22 +37,10 @@ pub struct IatapayRouterData<T> {
     amount: f64,
     router_data: T,
 }
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for IatapayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for IatapayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
@@ -66,32 +54,15 @@ pub struct IatapayAuthUpdateResponse {
     pub expires_in: i64,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            IatapayAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        hyperswitch_domain_models::router_data::AccessToken,
-    >
+impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            IatapayAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
+        item: types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
+            response: Ok(types::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -130,8 +101,8 @@ pub struct IatapayPaymentsRequest {
 impl
     TryFrom<
         &IatapayRouterData<
-            &hyperswitch_domain_models::router_data::RouterData<
-                types::api::payments::Authorize,
+            &types::RouterData<
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             >,
@@ -142,8 +113,8 @@ impl
 
     fn try_from(
         item: &IatapayRouterData<
-            &hyperswitch_domain_models::router_data::RouterData<
-                types::api::payments::Authorize,
+            &types::RouterData<
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             >,
@@ -213,13 +184,11 @@ pub struct IatapayAuthType {
     pub(super) client_secret: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for IatapayAuthType {
+impl TryFrom<&types::ConnectorAuthType> for IatapayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+            types::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -292,14 +261,14 @@ fn get_iatpay_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.status);
     let error = if connector_util::is_payment_failure(status) {
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: response
                 .failure_code
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -351,7 +320,7 @@ fn get_iatpay_response(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -457,7 +426,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+            Err(types::ErrorResponse {
                 code: item
                     .response
                     .failure_code
@@ -495,7 +464,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+            Err(types::ErrorResponse {
                 code: item
                     .response
                     .failure_code
@@ -534,7 +503,7 @@ pub struct IatapayErrorResponse {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
-    pub path: String,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

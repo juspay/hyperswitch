@@ -35,7 +35,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     if should_update_router_data {
         match add_access_token_result.access_token_result.as_ref() {
             Ok(access_token) => {
-                router_data.access_token = access_token.clone();
+                router_data.access_token.clone_from(access_token);
                 true
             }
             Err(connector_error) => {
@@ -83,7 +83,16 @@ pub async fn add_access_token<
             .attach_printable("DB error when accessing the access token")?;
 
         let res = match old_access_token {
-            Some(access_token) => Ok(Some(access_token)),
+            Some(access_token) => {
+                router_env::logger::debug!(
+                    "Access token found in redis for merchant_id: {}, payment_id: {}, connector: {} which has expiry of: {} seconds",
+                    merchant_account.merchant_id,
+                    router_data.payment_id,
+                    connector.connector_name,
+                    access_token.expires
+                );
+                Ok(Some(access_token))
+            }
             None => {
                 let cloned_router_data = router_data.clone();
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from(

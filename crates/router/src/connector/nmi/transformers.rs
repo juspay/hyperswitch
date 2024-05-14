@@ -42,16 +42,11 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     type Error = Error;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
-                Ok(Self {
-                    api_key: api_key.to_owned(),
-                    public_key: None,
-                })
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+                public_key: None,
+            }),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_key: Some(key1.to_owned()),
             }),
@@ -66,20 +61,13 @@ pub struct NmiRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for NmiRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for NmiRouterData<T> {
     type Error = Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -241,7 +229,7 @@ impl
                 enums::AttemptStatus::AuthenticationPending,
             ),
             Response::Declined | Response::Error => (
-                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                Err(types::ErrorResponse {
                     code: item.response.response_code,
                     message: item.response.responsetext.to_owned(),
                     reason: Some(item.response.responsetext),
@@ -400,12 +388,10 @@ impl
                 },
             ),
             Response::Declined | Response::Error => (
-                Err(
-                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
-                        item.response,
-                        item.http_code,
-                    )),
-                ),
+                Err(types::ErrorResponse::foreign_from((
+                    item.response,
+                    item.http_code,
+                ))),
                 enums::AttemptStatus::Failure,
             ),
         };
@@ -417,9 +403,7 @@ impl
     }
 }
 
-impl ForeignFrom<(NmiCompleteResponse, u16)>
-    for hyperswitch_domain_models::router_data::ErrorResponse
-{
+impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (NmiCompleteResponse, u16)) -> Self {
         Self {
             code: response.response_code,
@@ -493,7 +477,6 @@ pub struct CardThreeDsData {
     email: Option<Email>,
     cardholder_auth: Option<String>,
     cavv: Option<String>,
-    xid: Option<String>,
     eci: Option<String>,
     cvv: Secret<String>,
     three_ds_version: Option<String>,
@@ -639,10 +622,9 @@ impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for Payme
             email: item.email.clone(),
             cavv: Some(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
-            xid: Some(auth_data.threeds_server_transaction_id.clone()),
             cardholder_auth: None,
             three_ds_version: Some(auth_data.message_version.clone()),
-            directory_server_id: None,
+            directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
         };
 
         Ok(Self::CardThreeDs(Box::new(card_3ds_details)))
@@ -749,12 +731,7 @@ impl
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -781,12 +758,10 @@ impl
                 enums::AttemptStatus::CaptureInitiated,
             ),
             Response::Declined | Response::Error => (
-                Err(
-                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
-                        item.response,
-                        item.http_code,
-                    )),
-                ),
+                Err(types::ErrorResponse::foreign_from((
+                    item.response,
+                    item.http_code,
+                ))),
                 enums::AttemptStatus::CaptureFailed,
             ),
         };
@@ -850,12 +825,7 @@ impl<T>
             T,
             types::PaymentsResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        api::SetupMandate,
-        T,
-        types::PaymentsResponseData,
-    >
+    > for types::RouterData<api::SetupMandate, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -882,12 +852,10 @@ impl<T>
                 enums::AttemptStatus::Charged,
             ),
             Response::Declined | Response::Error => (
-                Err(
-                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
-                        item.response,
-                        item.http_code,
-                    )),
-                ),
+                Err(types::ErrorResponse::foreign_from((
+                    item.response,
+                    item.http_code,
+                ))),
                 enums::AttemptStatus::Failure,
             ),
         };
@@ -899,9 +867,7 @@ impl<T>
     }
 }
 
-impl ForeignFrom<(StandardResponse, u16)>
-    for hyperswitch_domain_models::router_data::ErrorResponse
-{
+impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (StandardResponse, u16)) -> Self {
         Self {
             code: response.response_code,
@@ -915,11 +881,7 @@ impl ForeignFrom<(StandardResponse, u16)>
 }
 
 impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
-    for hyperswitch_domain_models::router_data::RouterData<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >
+    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -952,12 +914,10 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                 },
             ),
             Response::Declined | Response::Error => (
-                Err(
-                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
-                        item.response,
-                        item.http_code,
-                    )),
-                ),
+                Err(types::ErrorResponse::foreign_from((
+                    item.response,
+                    item.http_code,
+                ))),
                 enums::AttemptStatus::Failure,
             ),
         };
@@ -971,11 +931,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
 
 impl<T>
     TryFrom<types::ResponseRouterData<api::Void, StandardResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<
-        api::Void,
-        T,
-        types::PaymentsResponseData,
-    >
+    for types::RouterData<api::Void, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -1002,12 +958,10 @@ impl<T>
                 enums::AttemptStatus::VoidInitiated,
             ),
             Response::Declined | Response::Error => (
-                Err(
-                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
-                        item.response,
-                        item.http_code,
-                    )),
-                ),
+                Err(types::ErrorResponse::foreign_from((
+                    item.response,
+                    item.http_code,
+                ))),
                 enums::AttemptStatus::VoidFailed,
             ),
         };
@@ -1033,7 +987,7 @@ pub enum NmiStatus {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(

@@ -18,18 +18,13 @@ pub struct VoltRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for VoltRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for VoltRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -194,32 +189,15 @@ pub struct VoltAuthUpdateResponse {
     pub refresh_token: Secret<String>,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            VoltAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        hyperswitch_domain_models::router_data::AccessToken,
-    >
+impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            VoltAuthUpdateResponse,
-            T,
-            hyperswitch_domain_models::router_data::AccessToken,
-        >,
+        item: types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(hyperswitch_domain_models::router_data::AccessToken {
+            response: Ok(types::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -235,13 +213,11 @@ pub struct VoltAuthType {
     pub(super) client_secret: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for VoltAuthType {
+impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey {
+            types::ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
@@ -285,7 +261,7 @@ pub struct VoltPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, VoltPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -350,7 +326,7 @@ pub struct VoltPsyncResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, VoltPaymentsResponseData, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -367,7 +343,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
-                        Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        Err(types::ErrorResponse {
                             code: payment_response.status.clone().to_string(),
                             message: payment_response.status.clone().to_string(),
                             reason: Some(payment_response.status.to_string()),
@@ -399,7 +375,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
-                        Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        Err(types::ErrorResponse {
                             code: detailed_status
                                 .clone()
                                 .map(|volt_status| volt_status.to_string())

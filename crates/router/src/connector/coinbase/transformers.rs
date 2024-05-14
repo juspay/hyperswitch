@@ -46,14 +46,10 @@ pub struct CoinbaseAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for CoinbaseAuthType {
+impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        _auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } =
-            _auth_type
-        {
+    fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
             Ok(Self {
                 api_key: api_key.to_owned(),
             })
@@ -118,7 +114,7 @@ pub struct CoinbasePaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, CoinbasePaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

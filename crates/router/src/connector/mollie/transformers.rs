@@ -176,8 +176,8 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                 billing_address: get_billing_details(item.router_data)?,
                                 shipping_address: get_shipping_details(item.router_data)?,
                                 card_token: Some(Secret::new(match pm_token {
-                                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token) => token,
-                                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    types::PaymentMethodToken::Token(token) => token,
+                                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                         Err(unimplemented_payment_method!(
                                             "Apple Pay",
                                             "Simplified",
@@ -195,7 +195,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                         get_payment_method_for_wallet(item.router_data, wallet_data)
                     }
                     domain::PaymentMethodData::BankDebit(ref directdebit_data) => {
-                        PaymentMethodData::try_from(directdebit_data)
+                        PaymentMethodData::try_from((directdebit_data, item.router_data))
                     }
                     _ => Err(
                         errors::ConnectorError::NotImplemented("Payment Method".to_string()).into(),
@@ -254,18 +254,18 @@ impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     }
 }
 
-impl TryFrom<&domain::BankDebitData> for PaymentMethodData {
+impl TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &domain::BankDebitData) -> Result<Self, Self::Error> {
-        match value {
-            domain::BankDebitData::SepaBankDebit {
-                bank_account_holder_name,
-                iban,
-                ..
-            } => Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
-                consumer_name: bank_account_holder_name.clone(),
-                consumer_account: iban.clone(),
-            }))),
+    fn try_from(
+        (bank_debit_data, item): (&domain::BankDebitData, &types::PaymentsAuthorizeRouterData),
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
+            domain::BankDebitData::SepaBankDebit { iban, .. } => {
+                Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
+                    consumer_name: item.get_optional_billing_full_name(),
+                    consumer_account: iban.clone(),
+                })))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -463,22 +463,15 @@ pub struct MollieAuthType {
     pub(super) profile_token: Option<Secret<String>>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for MollieAuthType {
+impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
     type Error = Error;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
-                Ok(Self {
-                    api_key: api_key.to_owned(),
-                    profile_token: None,
-                })
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+                profile_token: None,
+            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 profile_token: Some(key1.to_owned()),
             }),
@@ -495,7 +488,7 @@ pub struct MollieCardTokenResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, MollieCardTokenResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -503,11 +496,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
-            payment_method_token: Some(
-                hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
-                    item.response.card_token.clone().expose(),
-                ),
-            ),
+            payment_method_token: Some(types::PaymentMethodToken::Token(
+                item.response.card_token.clone().expose(),
+            )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),
             }),
@@ -518,7 +509,7 @@ impl<F, T>
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, MolliePaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(

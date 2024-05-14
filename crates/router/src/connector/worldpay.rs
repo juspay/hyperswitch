@@ -10,10 +10,9 @@ use error_stack::ResultExt;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
-use super::utils::{self, RefundsRequestData};
+use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -39,7 +38,7 @@ where
 {
     fn build_headers(
         &self,
-        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![(
@@ -71,7 +70,7 @@ impl ConnectorCommon for Worldpay {
 
     fn get_auth_header(
         &self,
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = worldpay::WorldpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -133,7 +132,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<
+        _req: &types::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -252,12 +251,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
 impl api::ConnectorAccessToken for Worldpay {}
 
-impl
-    ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
-    > for Worldpay
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Worldpay
 {
 }
 
@@ -520,7 +515,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -717,7 +712,7 @@ impl api::IncomingWebhook for Worldpay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let event_signature =
-            utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
+            connector_utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
             .last()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
@@ -754,9 +749,7 @@ impl api::IncomingWebhook for Worldpay {
             .parse_struct("WorldpayWebhookTransactionId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            types::api::PaymentIdType::ConnectorTransactionId(
-                body.event_details.transaction_reference,
-            ),
+            api::PaymentIdType::ConnectorTransactionId(body.event_details.transaction_reference),
         ))
     }
 

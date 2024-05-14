@@ -19,22 +19,10 @@ pub struct RapydRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for RapydRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for RapydRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -187,16 +175,10 @@ pub struct RapydAuthType {
     pub secret_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for RapydAuthType {
+impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-            api_key,
-            key1,
-        } = auth_type
-        {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 access_key: api_key.to_owned(),
                 secret_key: key1.to_owned(),
@@ -444,7 +426,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsCaptureRouterData>> for CaptureReq
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, RapydPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -459,7 +441,7 @@ impl<F, T>
                 match attempt_status {
                     diesel_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
-                        Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        Err(types::ErrorResponse {
                             code: data
                                 .failure_code
                                 .to_owned()
@@ -505,7 +487,7 @@ impl<F, T>
             }
             None => (
                 enums::AttemptStatus::Failure,
-                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                Err(types::ErrorResponse {
                     code: item.response.status.error_code,
                     status_code: item.http_code,
                     message: item.response.status.status.unwrap_or_default(),

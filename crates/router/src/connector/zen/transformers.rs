@@ -23,22 +23,10 @@ pub struct ZenRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ZenRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ZenRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
@@ -53,14 +41,10 @@ pub struct ZenAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for ZenAuthType {
+impl TryFrom<&types::ConnectorAuthType> for ZenAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
-        if let hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } =
-            auth_type
-        {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
                 api_key: api_key.to_owned(),
             })
@@ -890,7 +874,7 @@ pub struct ZenMerchantActionData {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, ZenPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -921,7 +905,7 @@ fn get_zen_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        Option<types::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -938,7 +922,7 @@ fn get_zen_response(
     };
     let status = enums::AttemptStatus::foreign_try_from((response.status, action))?;
     let error = if utils::is_payment_failure(status) {
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: response
                 .reject_code
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -967,7 +951,7 @@ fn get_zen_response(
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -985,7 +969,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsR
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1079,16 +1063,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 fn get_zen_refund_response(
     response: RefundResponse,
     status_code: u16,
-) -> CustomResult<
-    (
-        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
-        types::RefundsResponseData,
-    ),
-    errors::ConnectorError,
-> {
+) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
+{
     let refund_status = enums::RefundStatus::from(response.status);
     let error = if utils::is_refund_failure(refund_status) {
-        Some(hyperswitch_domain_models::router_data::ErrorResponse {
+        Some(types::ErrorResponse {
             code: response
                 .reject_code
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),

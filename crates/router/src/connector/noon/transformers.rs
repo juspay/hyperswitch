@@ -441,13 +441,11 @@ pub struct NoonAuthType {
     pub(super) business_identifier: Secret<String>,
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for NoonAuthType {
+impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+            types::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -551,7 +549,7 @@ pub struct NoonPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -738,12 +736,7 @@ impl<F>
             types::MandateRevokeRequestData,
             types::MandateRevokeResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::MandateRevokeRequestData,
-        types::MandateRevokeResponseData,
-    >
+    > for types::RouterData<F, types::MandateRevokeRequestData, types::MandateRevokeResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

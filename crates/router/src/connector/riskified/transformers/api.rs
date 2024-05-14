@@ -270,7 +270,7 @@ pub enum PaymentStatus {
 
 impl<F, T>
     TryFrom<ResponseRouterData<F, RiskifiedPaymentsResponse, T, frm_types::FraudCheckResponseData>>
-    for hyperswitch_domain_models::router_data::RouterData<F, T, frm_types::FraudCheckResponseData>
+    for types::RouterData<F, T, frm_types::FraudCheckResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -367,8 +367,7 @@ impl<F, T>
             T,
             frm_types::FraudCheckResponseData,
         >,
-    >
-    for hyperswitch_domain_models::router_data::RouterData<F, T, frm_types::FraudCheckResponseData>
+    > for types::RouterData<F, T, frm_types::FraudCheckResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -537,7 +536,7 @@ impl
             frm_types::FraudCheckResponseData,
         >,
     >
-    for hyperswitch_domain_models::router_data::RouterData<
+    for types::RouterData<
         Fulfillment,
         frm_types::FraudCheckFulfillmentData,
         frm_types::FraudCheckResponseData,
