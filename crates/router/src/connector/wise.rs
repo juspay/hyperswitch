@@ -1,6 +1,6 @@
 pub mod transformers;
 use std::fmt::Debug;
-use crate::types::transformers::ForeignFrom;
+
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
@@ -23,6 +23,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
     },
     utils::BytesExt,
 };

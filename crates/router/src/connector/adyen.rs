@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use crate::types::transformers::ForeignTryFrom;
+
 use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::request::RequestContent;
@@ -30,7 +30,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
         domain,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };

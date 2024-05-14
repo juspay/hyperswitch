@@ -7,7 +7,7 @@ use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use transformers as multisafepay;
-use crate::types::transformers::ForeignFrom;
+
 use crate::{
     configs::settings,
     connector::utils::{is_mandate_supported, PaymentMethodDataType},
@@ -23,6 +23,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         storage::enums,
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,

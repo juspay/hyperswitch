@@ -2450,7 +2450,8 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
-    pub recurring_mandate_payment_data: Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
+    pub recurring_mandate_payment_data:
+        Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<types::SurchargeDetails>,

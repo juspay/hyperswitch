@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
-use crate::types::transformers::ForeignFrom;
+
 use crate::{
     connector::utils::{
         self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
@@ -18,7 +18,7 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api, domain, domain::PaymentMethodData, storage::enums,
+        self, api, domain, domain::PaymentMethodData, storage::enums, transformers::ForeignFrom,
         MandateReference,
     },
     unimplemented_payment_method,
@@ -191,7 +191,10 @@ impl<F, T>
         let status = enums::AttemptStatus::from(item.response.sale_status.clone());
         let response = if is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::foreign_from((&item.response, item.http_code)))
+            Err(types::ErrorResponse::foreign_from((
+                &item.response,
+                item.http_code,
+            )))
         } else {
             Ok(types::PaymentsResponseData::try_from(&item.response)?)
         };

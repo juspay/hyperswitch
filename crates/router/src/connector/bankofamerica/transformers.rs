@@ -422,7 +422,10 @@ impl<F, T>
                 })
             }
             BankOfAmericaSetupMandatesResponse::ErrorInformation(ref error_response) => {
-                let response = Err(types::ErrorResponse::foreign_from((error_response, item.http_code)));
+                let response = Err(types::ErrorResponse::foreign_from((
+                    error_response,
+                    item.http_code,
+                )));
                 Ok(Self {
                     response,
                     status: enums::AttemptStatus::Failure,
@@ -2055,7 +2058,10 @@ impl<F>
                 }
             }
             BankOfAmericaPreProcessingResponse::ErrorInformation(ref error_response) => {
-                let response = Err(types::ErrorResponse::foreign_from((error_response, item.http_code)));
+                let response = Err(types::ErrorResponse::foreign_from((
+                    error_response,
+                    item.http_code,
+                )));
                 Ok(Self {
                     response,
                     status: enums::AttemptStatus::AuthenticationFailed,

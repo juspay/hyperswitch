@@ -6,7 +6,10 @@ use crate::{
     core::errors,
     services,
     types::{
-        api::{self, verify_connector::{self as types, VerifyConnector}},
+        api::{
+            self,
+            verify_connector::{self as types, VerifyConnector},
+        },
         transformers::ForeignInto,
     },
     utils::verify_connector as utils,

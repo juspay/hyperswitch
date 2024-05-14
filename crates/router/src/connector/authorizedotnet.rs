@@ -1,5 +1,4 @@
 pub mod transformers;
-use crate::types::transformers::ForeignTryFrom;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
@@ -24,6 +23,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
+        transformers::ForeignTryFrom,
     },
     utils::BytesExt,
 };

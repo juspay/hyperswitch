@@ -2,7 +2,6 @@ mod requests;
 use super::utils as connector_utils;
 mod response;
 pub mod transformers;
-use crate::types::transformers::ForeignTryFrom;
 use std::fmt::Debug;
 
 use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
@@ -35,6 +34,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
+        transformers::ForeignTryFrom,
         ErrorResponse,
     },
     utils::{crypto, BytesExt},

@@ -591,7 +591,10 @@ fn log_session_response_if_error(
 }
 
 #[async_trait]
-pub trait RouterDataSession where Self: Sized{
+pub trait RouterDataSession
+where
+    Self: Sized,
+{
     async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::AppState,

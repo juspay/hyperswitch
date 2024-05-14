@@ -88,7 +88,9 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
-    fn get_recurring_mandate_payment_data(&self) -> Result<types::RecurringMandatePaymentData, Error>;
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
@@ -413,7 +415,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
-    fn get_recurring_mandate_payment_data(&self) -> Result<types::RecurringMandatePaymentData, Error> {
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error> {
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))

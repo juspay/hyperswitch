@@ -3,7 +3,7 @@ use common_utils::pii::{Email, IpAddress};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use crate::types::transformers::ForeignFrom;
+
 use crate::{
     connector::utils::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
@@ -11,7 +11,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, domain, storage::enums},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]

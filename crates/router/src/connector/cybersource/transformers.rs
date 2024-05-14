@@ -1822,11 +1822,13 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => Ok(Self::foreign_from((
-                &error_response.clone(),
-                item,
-                Some(enums::AttemptStatus::Failure),
-            ))),
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
+                Ok(Self::foreign_from((
+                    &error_response.clone(),
+                    item,
+                    Some(enums::AttemptStatus::Failure),
+                )))
+            }
         }
     }
 }
@@ -2315,11 +2317,13 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => Ok(Self::foreign_from((
-                &error_response.clone(),
-                item,
-                Some(enums::AttemptStatus::Failure),
-            ))),
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
+                Ok(Self::foreign_from((
+                    &error_response.clone(),
+                    item,
+                    Some(enums::AttemptStatus::Failure),
+                )))
+            }
         }
     }
 }

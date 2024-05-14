@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use crate::types::transformers::ForeignTryFrom;
+
 use base64::Engine;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
@@ -30,6 +30,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignTryFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,

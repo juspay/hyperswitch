@@ -8,7 +8,7 @@ use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as square;
-use crate::types::transformers::ForeignFrom;
+
 use super::utils::{self as super_utils, RefundsRequestData};
 use crate::{
     configs::settings,
@@ -27,6 +27,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,

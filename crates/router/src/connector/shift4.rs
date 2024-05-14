@@ -6,7 +6,7 @@ use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use transformers as shift4;
-use crate::types::transformers::ForeignFrom;
+
 use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
@@ -25,6 +25,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse,
     },
     utils::BytesExt,

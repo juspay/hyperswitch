@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use crate::types::transformers::ForeignFrom;
+
 use ::common_utils::{
     crypto,
     errors::ReportSwitchExt,
@@ -26,6 +26,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, InitPayment},
         storage::enums,
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::ByteSliceExt,

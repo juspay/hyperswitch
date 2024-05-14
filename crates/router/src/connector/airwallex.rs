@@ -1,5 +1,4 @@
 pub mod transformers;
-use crate::types::transformers::ForeignFrom;
 use std::fmt::Debug;
 
 use common_utils::{
@@ -28,6 +27,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, Response, RouterData,
     },
     utils::{crypto, BytesExt},
