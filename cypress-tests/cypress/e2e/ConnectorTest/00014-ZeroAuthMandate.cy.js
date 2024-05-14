@@ -21,12 +21,20 @@ describe("Card - SingleUse Mandates flow test", () => {
     })
 
     context("Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test", () => {
+        let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+        beforeEach(function () { 
+            if(!should_continue) {
+                this.skip();
+            }
+        });
 
         it("Confirm No 3DS CIT", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DS"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 0, true, "automatic", "setup_mandate", globalState);
+            if(should_continue) should_continue = should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -34,12 +42,20 @@ describe("Card - SingleUse Mandates flow test", () => {
         });
     });
     context("Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test", () => {
+        let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+        beforeEach(function () { 
+            if(!should_continue) {
+                this.skip();
+            }
+        });
 
         it("Confirm No 3DS CIT", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DS"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 0, true, "automatic", "setup_mandate", globalState);
+            if(should_continue) should_continue = should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -51,3 +67,12 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
 });
+
+function should_continue_further(res_data) {
+    if(res_data.body.error !== undefined || res_data.body.error_code !== undefined || res_data.body.error_message !== undefined){
+        return false;
+    }
+    else {
+        return true;
+    }
+  }

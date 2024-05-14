@@ -109,9 +109,6 @@ card_pm:{
             "status": 200,
             "body": {
                 "status": "succeeded",
-                // "amount": 6500,
-                // "amount_capturable": 0,
-                // "amount_received": 100,
             }
 
         }
