@@ -8,10 +8,17 @@ use api_models::payments::CardToken;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use diesel_models::enums;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 
 use crate::{
-    core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
+    consts,
+    core::{
+        errors::{self, RouterResult},
+        payments::helpers,
+        pm_auth as core_pm_auth,
+    },
+    db,
     routes::AppState,
     types::{
         api::{self, payments},
@@ -253,4 +260,61 @@ impl PaymentMethodRetrieve for Oss {
         };
         Ok(token)
     }
+}
+
+fn generate_task_id_for_payment_method_status_workflow(
+    key_id: &str,
+    runner: &storage::ProcessTrackerRunner,
+    task: &str,
+) -> String {
+    format!("{runner}_{task}_{key_id}")
+}
+
+pub async fn add_payment_method_status_update_task(
+    db: &dyn db::StorageInterface,
+    payment_method: &diesel_models::PaymentMethod,
+    merchant_id: &str,
+) -> Result<(), errors::ProcessTrackerError> {
+    let created_at = payment_method.created_at;
+    let schedule_time =
+        created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+    let tracking_data = storage::PaymentMethodStatusTrackingData {
+        payment_method_id: payment_method.payment_method_id.clone(),
+        status: payment_method.status,
+        merchant_id: merchant_id.to_string(),
+    };
+
+    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
+    let task = "PAYMENT_METHOD_STATUS_UPDATE";
+    let tag = ["PAYMENT_METHOD_STATUS"];
+
+    let process_tracker_id = generate_task_id_for_payment_method_status_workflow(
+        payment_method.payment_method_id.as_str(),
+        &runner,
+        task,
+    );
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
+
+    db
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
+                payment_method.payment_method_id.clone()
+            )
+        })?;
+
+    Ok(())
 }
