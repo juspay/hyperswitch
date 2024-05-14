@@ -27,7 +27,7 @@ use crate::{
     utils::BytesExt,
 };
 #[cfg(feature = "payouts")]
-use crate::{core::payments, routes};
+use crate::{core::payments, routes, types::transformers::ForeignFrom};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
