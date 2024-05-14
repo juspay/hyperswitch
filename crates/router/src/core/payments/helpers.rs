@@ -1370,6 +1370,22 @@ fn validate_options_for_inequality<T: PartialEq>(
     )
 }
 
+pub fn validate_max_amount(
+    amount: api_models::payments::Amount,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match amount {
+        api_models::payments::Amount::Value(value) => {
+            //max_amount allowed is 999999999 in minor units
+            utils::when(value.get() > 999999999, || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "amount should not be more than 999999999".to_string()
+                }))
+            })
+        }
+        api_models::payments::Amount::Zero => Ok(()),
+    }
+}
+
 // Checks if the customer details are passed in both places
 // If so, raise an error
 pub fn validate_customer_details_in_request(
