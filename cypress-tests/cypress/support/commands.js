@@ -156,6 +156,7 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
     body: request,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
+    console.log(response);
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
@@ -214,6 +215,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
     body: confirmBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
+    console.log(response);
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
@@ -273,6 +275,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
     body: createConfirmPaymentBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
+    console.log(response);
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
@@ -339,8 +342,7 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, 
   })
     .then((response) => {
       logRequestId(response.headers['x-request-id']);
-
-      // console.log(`res_here ${response.body.error.message}`)
+      console.log(response);
 
       expect(res_data.status).to.equal(response.status);
       expect(response.headers["content-type"]).to.include("application/json");

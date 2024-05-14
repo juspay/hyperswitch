@@ -5,15 +5,28 @@
   "card_cvc": "card_cvc",
   "billing": {
     "address": {
-      "state": "New York",
-      "city": "New York",
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
       "country": "US",
       "first_name": "john",
-      "last_name": "doe",
-      "zip": "10001",
-      "line1": "123 Main Street Apt 4B",
-      "line2": "123 Main Street Apt 4B",
-      "line3": "123 Main Street Apt 4B"
+      "last_name": "doe"
+    }
+  },
+  "shipping": {
+    "address": {
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
+      "country": "US",
+      "first_name": "john",
+      "last_name": "doe"
     }
   },
   "browser_info": {
