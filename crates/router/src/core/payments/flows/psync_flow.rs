@@ -196,7 +196,8 @@ impl RouterDataPSync
         } else {
             // in trigger, call connector for every capture_id
             for connector_capture_id in pending_connector_capture_id_list {
-                // TEMPORARY FIX: remove the clone on router data after moving this function as an impl on
+                // TEMPORARY FIX: remove the clone on router data after removing this function as an impl on trait RouterDataPSync
+                // TRACKING ISSUE: https://github.com/juspay/hyperswitch/issues/4644
                 let mut cloned_router_data = self.clone();
                 cloned_router_data.request.connector_transaction_id =
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());

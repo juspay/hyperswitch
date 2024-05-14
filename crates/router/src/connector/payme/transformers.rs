@@ -885,9 +885,9 @@ impl<F, T>
         item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_token: Some(types::PaymentMethodToken::Token(Secret::new(
-                item.response.buyer_key.clone().expose(),
-            ))),
+            payment_method_token: Some(types::PaymentMethodToken::Token(
+                item.response.buyer_key.clone(),
+            )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key.expose(),
             }),
