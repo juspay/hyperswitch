@@ -51,30 +51,7 @@ pub struct RefundRequest {
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<ChargeRefunds>)]
-    pub charges: Option<ChargeRefunds>,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct ChargeRefunds {
-    pub charge_id: String,
-    pub options: ChargeRefundsOptions,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum ChargeRefundsOptions {
-    Direct(DirectChargeRefund),
-    Destination(DestinationChargeRefund),
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DirectChargeRefund {
-    pub revert_platform_fee: bool,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DestinationChargeRefund {
-    pub revert_transfer: bool,
+    pub charges: Option<common_enums::ChargeRefunds>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]

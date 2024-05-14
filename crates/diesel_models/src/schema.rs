@@ -1083,10 +1083,7 @@ diesel::table! {
         updated_by -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        charge_id -> Nullable<Varchar>,
-        revert_platform_fee -> Nullable<Bool>,
-        revert_transfer -> Nullable<Bool>,
+        charges -> Nullable<Jsonb>,
     }
 }
 
