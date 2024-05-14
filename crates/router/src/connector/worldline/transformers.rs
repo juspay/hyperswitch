@@ -372,13 +372,7 @@ fn make_bank_redirect_request(
             {
                 PaymentMethodSpecificData::PaymentProduct816SpecificInput(Box::new(Giropay {
                     bank_account_iban: BankAccountIban {
-                        account_holder_name: req
-                            .get_optional_billing_full_name()
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_details.billing_name",
-                            })?
-                            .to_owned(),
+                        account_holder_name: req.get_billing_full_name()?.to_owned(),
                         iban: bank_account_iban.clone(),
                     },
                 }))

@@ -1814,10 +1814,10 @@ pub enum BankRedirectData {
     },
     Interac {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
         country: Option<api_enums::CountryAlpha2>,
 
-        #[schema(value_type = String, example = "john.doe@example.com")]
+        #[schema(value_type = Option<String>, example = "john.doe@example.com")]
         email: Option<Email>,
     },
     OnlineBankingCzechRepublic {

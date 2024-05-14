@@ -282,16 +282,8 @@ fn get_payment_source(
     match bank_redirection_data {
         domain::BankRedirectData::Eps { bank_name: _ } => {
             Ok(PaymentSourceItem::Eps(RedirectRequest {
-                name: item.get_optional_billing_full_name().clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.name",
-                    },
-                )?,
-                country_code: item.get_optional_billing_country().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.country",
-                    },
-                )?,
+                name: item.get_billing_full_name()?,
+                country_code: item.get_billing_country()?,
                 experience_context: ContextStruct {
                     return_url: item.request.complete_authorize_url.clone(),
                     cancel_url: item.request.complete_authorize_url.clone(),
@@ -306,16 +298,8 @@ fn get_payment_source(
         }
         domain::BankRedirectData::Giropay { .. } => {
             Ok(PaymentSourceItem::Giropay(RedirectRequest {
-                name: item.get_optional_billing_full_name().clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.name",
-                    },
-                )?,
-                country_code: item.get_optional_billing_country().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.country",
-                    },
-                )?,
+                name: item.get_billing_full_name()?,
+                country_code: item.get_billing_country()?,
                 experience_context: ContextStruct {
                     return_url: item.request.complete_authorize_url.clone(),
                     cancel_url: item.request.complete_authorize_url.clone(),
@@ -330,16 +314,8 @@ fn get_payment_source(
         }
         domain::BankRedirectData::Ideal { bank_name: _, .. } => {
             Ok(PaymentSourceItem::IDeal(RedirectRequest {
-                name: item.get_optional_billing_full_name().clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.name",
-                    },
-                )?,
-                country_code: item.get_optional_billing_country().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.country",
-                    },
-                )?,
+                name: item.get_billing_full_name()?,
+                country_code: item.get_billing_country()?,
                 experience_context: ContextStruct {
                     return_url: item.request.complete_authorize_url.clone(),
                     cancel_url: item.request.complete_authorize_url.clone(),
@@ -355,16 +331,8 @@ fn get_payment_source(
         domain::BankRedirectData::Sofort {
             preferred_language: _,
         } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
-            name: item.get_optional_billing_full_name().clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.name",
-                },
-            )?,
-            country_code: item.get_optional_billing_country().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.country",
-                },
-            )?,
+            name: item.get_billing_full_name()?,
+            country_code: item.get_billing_country()?,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
                 cancel_url: item.request.complete_authorize_url.clone(),

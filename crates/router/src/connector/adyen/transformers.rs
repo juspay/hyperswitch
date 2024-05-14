@@ -2285,11 +2285,7 @@ impl<'a>
                             field_name: "bancontact_card.card_exp_year",
                         })?
                         .clone(),
-                    holder_name: item.get_optional_billing_full_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.card_holder_name",
-                        },
-                    )?,
+                    holder_name: item.get_billing_full_name()?,
                 },
             ))),
             domain::BankRedirectData::Bizum { .. } => {
@@ -2954,25 +2950,18 @@ impl<'a>
 
 fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError> {
+) -> errors::CustomResult<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError>
+{
     match item.request.payment_method_data {
         domain::PaymentMethodData::BankRedirect(ref redirect_data) => match redirect_data {
             domain::BankRedirectData::Sofort {
                 preferred_language, ..
             } => {
-                let country = item.get_optional_billing_country().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "country",
-                    },
-                )?;
+                let country = item.get_billing_country()?;
                 Ok((preferred_language.clone(), Some(country)))
             }
             domain::BankRedirectData::OpenBankingUk { .. } => {
-                let country = item.get_optional_billing_country().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "country",
-                    },
-                )?;
+                let country = item.get_billing_country()?;
                 Ok((None, Some(country)))
             }
             _ => Ok((None, None)),
