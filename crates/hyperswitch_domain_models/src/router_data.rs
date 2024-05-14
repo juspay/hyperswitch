@@ -109,7 +109,7 @@ pub struct AccessToken {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub enum PaymentMethodToken {
-    Token(String),
+    Token(Secret<String>),
     ApplePayDecrypt(Box<ApplePayPredecryptData>),
 }
 
@@ -186,7 +186,7 @@ impl Default for ErrorResponse {
             code: "HE_00".to_string(),
             message: "Something went wrong".to_string(),
             reason: None,
-            status_code: 500,
+            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
         }

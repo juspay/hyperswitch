@@ -175,7 +175,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                             CreditCardMethodData {
                                 billing_address: get_billing_details(item.router_data)?,
                                 shipping_address: get_shipping_details(item.router_data)?,
-                                card_token: Some(Secret::new(match pm_token {
+                                card_token: Some(match pm_token {
                                     types::PaymentMethodToken::Token(token) => token,
                                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                         Err(unimplemented_payment_method!(
@@ -184,7 +184,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                             "Mollie"
                                         ))?
                                     }
-                                })),
+                                }),
                             },
                         )))
                     }
@@ -497,7 +497,7 @@ impl<F, T>
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
             payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.card_token.clone().expose(),
+                item.response.card_token.clone(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),

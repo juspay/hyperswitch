@@ -71,7 +71,7 @@ pub struct MandateRequest {
 pub struct Pay3dsRequest {
     buyer_name: Secret<String>,
     buyer_email: pii::Email,
-    buyer_key: String,
+    buyer_key: Secret<String>,
     payme_sale_id: String,
     meta_data_jwt: Secret<String>,
 }
@@ -884,9 +884,9 @@ impl<F, T>
         item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_token: Some(types::PaymentMethodToken::Token(
+            payment_method_token: Some(types::PaymentMethodToken::Token(Secret::new(
                 item.response.buyer_key.clone().expose(),
-            )),
+            ))),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key.expose(),
             }),

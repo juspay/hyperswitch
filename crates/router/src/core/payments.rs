@@ -1391,8 +1391,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -1512,7 +1511,9 @@ where
         .await?;
     if let Some(payment_method_token) = pm_token.clone() {
         router_data.payment_method_token = Some(
-            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(payment_method_token),
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
+                payment_method_token,
+            )),
         );
     };
 
@@ -2315,7 +2316,7 @@ where
                     TokenizationAction::TokenizeInConnector
                 }
                 TokenizationAction::ConnectorToken(token) => {
-                    payment_data.pm_token = Some(token);
+                    payment_data.pm_token = Some(token.into());
                     TokenizationAction::SkipConnectorTokenization
                 }
                 TokenizationAction::SkipConnectorTokenization => {
@@ -2424,7 +2425,7 @@ where
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
-    pub pm_token: Option<String>,
+    pub pm_token: Option<Secret<String>>,
     pub connector_customer_id: Option<String>,
     pub recurring_mandate_payment_data:
         Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
