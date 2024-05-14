@@ -143,12 +143,12 @@ pub type RecipientCreateRouterData =
     PaymentAuthRouterData<RecipientCreate, RecipientCreateRequest, RecipientCreateResponse>;
 
 pub type PaymentAuthLinkTokenType =
-    dyn self::api::ConnectorIntegration<LinkToken, LinkTokenRequest, LinkTokenResponse>;
+    dyn api::ConnectorIntegration<LinkToken, LinkTokenRequest, LinkTokenResponse>;
 
 pub type PaymentAuthExchangeTokenType =
-    dyn self::api::ConnectorIntegration<ExchangeToken, ExchangeTokenRequest, ExchangeTokenResponse>;
+    dyn api::ConnectorIntegration<ExchangeToken, ExchangeTokenRequest, ExchangeTokenResponse>;
 
-pub type PaymentAuthBankAccountDetailsType = dyn self::api::ConnectorIntegration<
+pub type PaymentAuthBankAccountDetailsType = dyn api::ConnectorIntegration<
     BankAccountCredentials,
     BankAccountCredentialsRequest,
     BankAccountCredentialsResponse,

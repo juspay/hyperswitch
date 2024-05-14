@@ -74,7 +74,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
         payments::CallConnectorAction::Trigger
     };
     let payments_response = match webhook_details.object_reference_id {
-        api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
+        webhooks::ObjectReferenceId::PaymentId(id) => {
             let payment_id = get_payment_id(
                 state.store.as_ref(),
                 &id,
@@ -84,7 +84,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
             .await?;
 
             let lock_action = api_locking::LockAction::Hold {
-                input: super::api_locking::LockingInput {
+                input: api_locking::LockingInput {
                     unique_locking_key: payment_id,
                     api_identifier: lock_utils::ApiIdentifier::Payments,
                     override_lock_retries: None,
@@ -213,13 +213,13 @@ pub async fn refunds_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     connector_name: &str,
     source_verified: bool,
-    event_type: api_models::webhooks::IncomingWebhookEvent,
+    event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     //find refund by connector refund id
     let refund = match webhook_details.object_reference_id {
-        api_models::webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
-            api_models::webhooks::RefundIdType::RefundId(id) => db
+        webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
+            webhooks::RefundIdType::RefundId(id) => db
                 .find_refund_by_merchant_id_refund_id(
                     &merchant_account.merchant_id,
                     &id,
@@ -228,7 +228,7 @@ pub async fn refunds_incoming_webhook_flow(
                 .await
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
                 .attach_printable("Failed to fetch the refund")?,
-            api_models::webhooks::RefundIdType::ConnectorRefundId(id) => db
+            webhooks::RefundIdType::ConnectorRefundId(id) => db
                 .find_refund_by_merchant_id_connector_refund_id_connector(
                     &merchant_account.merchant_id,
                     &id,
@@ -305,10 +305,12 @@ pub async fn refunds_incoming_webhook_flow(
 
 pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
-    object_reference_id: api_models::webhooks::ObjectReferenceId,
+    object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<data_models::payments::payment_attempt::PaymentAttempt, errors::ApiErrorResponse>
-{
+) -> CustomResult<
+    hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    errors::ApiErrorResponse,
+> {
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
@@ -346,8 +348,8 @@ pub async fn get_or_update_dispute_object(
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
-    event_type: api_models::webhooks::IncomingWebhookEvent,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    event_type: webhooks::IncomingWebhookEvent,
     business_profile: &diesel_models::business_profile::BusinessProfile,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
@@ -423,7 +425,7 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     source_verified: bool,
-    event_type: api_models::webhooks::IncomingWebhookEvent,
+    event_type: webhooks::IncomingWebhookEvent,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
     connector: &(dyn api::Connector + Sync),
     object_ref_id: api::ObjectReferenceId,
@@ -490,8 +492,10 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
-            // Merchant doesn't have pull mechanism enabled, so we have to authorize whenever we receive a ARes webhook
+            // Merchant doesn't have pull mechanism enabled and if it's challenge flow, we have to authorize whenever we receive a ARes webhook
             if !is_pull_mechanism_enabled
+                && updated_authentication.authentication_type
+                    == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             {
                 let payment_confirm_req = api::PaymentsRequest {
@@ -532,6 +536,24 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                         let status = payments_response.status;
                         let event_type: Option<enums::EventType> =
                             payments_response.status.foreign_into();
+                        // Set poll_id as completed in redis to allow the fetch status of poll through retrieve_poll_status api from client
+                        let poll_id = super::utils::get_poll_id(
+                            merchant_account.merchant_id.clone(),
+                            super::utils::get_external_authentication_request_poll_id(&payment_id),
+                        );
+                        let redis_conn = state
+                            .store
+                            .get_redis_conn()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get redis connection")?;
+                        redis_conn
+                            .set_key_without_modifying_ttl(
+                                &poll_id,
+                                api_models::poll::PollStatus::Completed.to_string(),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add poll_id in redis")?;
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
@@ -579,7 +601,7 @@ pub async fn mandates_incoming_webhook_flow(
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-    event_type: api_models::webhooks::IncomingWebhookEvent,
+    event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let db = &*state.store;
@@ -669,7 +691,7 @@ pub async fn disputes_incoming_webhook_flow(
     source_verified: bool,
     connector: &(dyn api::Connector + Sync),
     request_details: &api::IncomingWebhookRequestDetails<'_>,
-    event_type: api_models::webhooks::IncomingWebhookEvent,
+    event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
@@ -1590,7 +1612,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
     let is_webhook_event_supported = !matches!(
         event_type,
-        api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+        webhooks::IncomingWebhookEvent::EventNotSupported
     );
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &*state.clone().store,
@@ -2080,7 +2102,7 @@ pub(crate) fn get_outgoing_webhook_request(
         >(
             outgoing_webhook, payment_response_hash_key
         ),
-        _ => get_outgoing_webhook_request_inner::<api_models::webhooks::OutgoingWebhook>(
+        _ => get_outgoing_webhook_request_inner::<webhooks::OutgoingWebhook>(
             outgoing_webhook,
             payment_response_hash_key,
         ),

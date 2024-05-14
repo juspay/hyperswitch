@@ -114,6 +114,7 @@ pub struct ConnectorAuthenticationRequestData {
     pub email: Option<Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub three_ds_requestor_url: String,
+    pub webhook_url: String,
 }
 
 #[derive(Clone, Debug)]

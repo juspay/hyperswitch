@@ -194,6 +194,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDeleteResponse,
         api_models::admin::MerchantConnectorResponse,
         api_models::admin::AuthenticationConnectorDetails,
+        api_models::admin::ExtendedCardInfoConfig,
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerDeleteResponse,
         api_models::payment_methods::PaymentMethodCreate,
@@ -391,6 +392,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
         api_models::payments::GooglePaySessionResponse,
+        api_models::payments::GpayBillingAddressParameters,
+        api_models::payments::GpayBillingAddressFormat,
         api_models::payments::SepaBankTransferInstructions,
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,
@@ -409,7 +412,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payments::ThreeDsData,
         api_models::payments::ThreeDsMethodData,
+        api_models::payments::PollConfigResponse,
         api_models::payments::ExternalAuthenticationDetailsResponse,
+        api_models::payments::ExtendedCardInfo,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
@@ -419,6 +424,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::TimeRange,
+        api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,
@@ -431,9 +437,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::Card,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
+        api_models::payouts::Venmo,
         api_models::payouts::AchBankTransfer,
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,
+        api_models::payouts::PixBankTransfer,
         api_models::payouts::PayoutRequest,
         api_models::payouts::PayoutAttemptResponse,
         api_models::payouts::PayoutActionRequest,
@@ -473,6 +481,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
+        api_models::payments::ExtendedCardInfoResponse,
         api_models::routing::RoutingConfigRequest,
         api_models::routing::RoutingDictionaryRecord,
         api_models::routing::RoutingKind,
@@ -512,6 +521,8 @@ Never share your secret api keys. Keep them guarded and secure.
     )),
     modifiers(&SecurityAddon)
 )]
+// Bypass clippy lint for not being constructed
+#[allow(dead_code)]
 pub struct ApiDoc;
 
 struct SecurityAddon;

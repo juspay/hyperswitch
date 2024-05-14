@@ -11,9 +11,13 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     headers, logger,
-    routes::{self, metrics},
+    routes::{self, app::settings, metrics},
     services,
-    types::{self, api, domain},
+    types::{
+        self,
+        api::{self, enums},
+        domain,
+    },
     utils::OptionExt,
 };
 
@@ -53,12 +57,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
-        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -68,14 +68,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
                 connector.connector_name.to_string(),
             )],
         );
-        self.decide_flow(
-            state,
-            connector,
-            customer,
-            Some(true),
-            call_connector_action,
-        )
-        .await
+        self.decide_flow(state, connector, Some(true), call_connector_action)
+            .await
     }
 
     async fn add_access_token<'a>(
@@ -86,6 +80,39 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
+}
+
+/// This function checks if for a given connector, payment_method and payment_method_type,
+/// the list of required_field_type is present in dynamic fields
+fn is_dynamic_fields_required(
+    required_fields: &settings::RequiredFields,
+    payment_method: enums::PaymentMethod,
+    payment_method_type: enums::PaymentMethodType,
+    connector: &types::Connector,
+    required_field_type: Vec<enums::FieldType>,
+) -> bool {
+    required_fields
+        .0
+        .get(&payment_method)
+        .and_then(|pm_type| pm_type.0.get(&payment_method_type))
+        .and_then(|required_fields_for_connector| {
+            required_fields_for_connector.fields.get(connector)
+        })
+        .map(|required_fields_final| {
+            required_fields_final
+                .non_mandate
+                .iter()
+                .any(|(_, val)| required_field_type.contains(&val.field_type))
+                || required_fields_final
+                    .mandate
+                    .iter()
+                    .any(|(_, val)| required_field_type.contains(&val.field_type))
+                || required_fields_final
+                    .common
+                    .iter()
+                    .any(|(_, val)| required_field_type.contains(&val.field_type))
+        })
+        .unwrap_or(false)
 }
 
 fn get_applepay_metadata(
@@ -121,8 +148,8 @@ fn get_applepay_metadata(
 fn build_apple_pay_session_request(
     state: &routes::AppState,
     request: payment_types::ApplepaySessionRequest,
-    apple_pay_merchant_cert: String,
-    apple_pay_merchant_cert_key: String,
+    apple_pay_merchant_cert: masking::Secret<String>,
+    apple_pay_merchant_cert_key: masking::Secret<String>,
 ) -> RouterResult<services::Request> {
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
@@ -198,16 +225,14 @@ async fn create_applepay_session_token(
                         .applepay_decrypt_keys
                         .get_inner()
                         .apple_pay_merchant_cert
-                        .clone()
-                        .expose();
+                        .clone();
 
                     let apple_pay_merchant_cert_key = state
                         .conf
                         .applepay_decrypt_keys
                         .get_inner()
                         .apple_pay_merchant_cert_key
-                        .clone()
-                        .expose();
+                        .clone();
 
                     (
                         payment_request_data,
@@ -259,6 +284,20 @@ async fn create_applepay_session_token(
             router_data.request.to_owned(),
         )?;
 
+        let billing_variants = enums::FieldType::get_billing_variants();
+
+        let required_billing_contact_fields = if is_dynamic_fields_required(
+            &state.conf.required_fields,
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            &connector.connector_name,
+            billing_variants,
+        ) {
+            Some(vec!["postalAddress".to_string()])
+        } else {
+            None
+        };
+
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
             amount_info,
@@ -266,6 +305,7 @@ async fn create_applepay_session_token(
             router_data.request.to_owned(),
             apple_pay_session_request.merchant_identifier.as_str(),
             merchant_business_country,
+            required_billing_contact_fields,
         )?;
 
         let applepay_session_request = build_apple_pay_session_request(
@@ -366,6 +406,7 @@ fn get_apple_pay_payment_request(
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
     merchant_business_country: Option<api_models::enums::CountryAlpha2>,
+    required_billing_contact_fields: Option<Vec<String>>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
         country_code: merchant_business_country.or(session_data.country).ok_or(
@@ -378,6 +419,7 @@ fn get_apple_pay_payment_request(
         merchant_capabilities: Some(payment_request_data.merchant_capabilities),
         supported_networks: Some(payment_request_data.supported_networks),
         merchant_identifier: Some(merchant_identifier.to_string()),
+        required_billing_contact_fields,
     };
     Ok(applepay_payment_request)
 }
@@ -455,6 +497,38 @@ fn create_gpay_session_token(
                 expected_format: "gpay_metadata_format".to_string(),
             })?;
 
+        let billing_variants = enums::FieldType::get_billing_variants();
+
+        let is_billing_details_required = is_dynamic_fields_required(
+            &state.conf.required_fields,
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            &connector.connector_name,
+            billing_variants,
+        );
+
+        let billing_address_parameters =
+            is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
+                phone_number_required: is_billing_details_required,
+                format: payment_types::GpayBillingAddressFormat::FULL,
+            });
+
+        let gpay_allowed_payment_methods = gpay_data
+            .data
+            .allowed_payment_methods
+            .into_iter()
+            .map(
+                |allowed_payment_methods| payment_types::GpayAllowedPaymentMethods {
+                    parameters: payment_types::GpayAllowedMethodsParameters {
+                        billing_address_required: Some(is_billing_details_required),
+                        billing_address_parameters: billing_address_parameters.clone(),
+                        ..allowed_payment_methods.parameters
+                    },
+                    ..allowed_payment_methods
+                },
+            )
+            .collect();
+
         let session_data = router_data.request.clone();
         let transaction_info = payment_types::GpayTransactionInfo {
             country_code: session_data.country.unwrap_or_default(),
@@ -478,7 +552,7 @@ fn create_gpay_session_token(
                     payment_types::GpaySessionTokenResponse::GooglePaySession(
                         payment_types::GooglePaySessionResponse {
                             merchant_info: gpay_data.data.merchant_info,
-                            allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                            allowed_payment_methods: gpay_allowed_payment_methods,
                             transaction_info,
                             connector: connector.connector_name.to_string(),
                             sdk_next_action: payment_types::SdkNextAction {
@@ -521,7 +595,6 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,
-        _customer: &Option<domain::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {

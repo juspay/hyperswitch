@@ -1,4 +1,8 @@
-use std::{hash::Hash, rc::Rc};
+use std::{
+    fmt::{Display, Formatter},
+    hash::Hash,
+    rc::Rc,
+};
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -24,15 +28,16 @@ enum Comparison {
     LessThanEqual,
 }
 
-impl ToString for Comparison {
-    fn to_string(&self) -> String {
-        match self {
-            Self::LessThan => "< ".to_string(),
-            Self::Equal => String::new(),
-            Self::GreaterThanEqual => ">= ".to_string(),
-            Self::LessThanEqual => "<= ".to_string(),
-            Self::GreaterThan => "> ".to_string(),
-        }
+impl Display for Comparison {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let symbol = match self {
+            Self::LessThan => "< ",
+            Self::Equal => return Ok(()),
+            Self::GreaterThanEqual => ">= ",
+            Self::LessThanEqual => "<= ",
+            Self::GreaterThan => "> ",
+        };
+        write!(f, "{}", symbol)
     }
 }
 
@@ -69,7 +74,7 @@ impl ValueType {
             Self::Any => format!("{key}(any)"),
             Self::EnumVariant(s) => format!("{key}({s})"),
             Self::Number { number, comparison } => {
-                format!("{}({}{})", key, comparison.to_string(), number)
+                format!("{}({}{})", key, comparison, number)
             }
         }
     }
@@ -104,9 +109,9 @@ struct Atom {
     value: ValueType,
 }
 
-impl ToString for Atom {
-    fn to_string(&self) -> String {
-        self.value.to_string(&self.key)
+impl Display for Atom {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value.to_string(&self.key))
     }
 }
 
@@ -317,31 +322,28 @@ impl Parse for Scope {
     }
 }
 
-impl ToString for Scope {
-    fn to_string(&self) -> String {
+impl Display for Scope {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Crate => "crate".to_string(),
-            Self::Extern => "euclid".to_string(),
+            Self::Crate => write!(f, "crate"),
+            Self::Extern => write!(f, "euclid"),
         }
     }
 }
-
 #[derive(Clone)]
 struct Program {
     rules: Vec<Rc<Rule>>,
-    scope: Scope,
 }
 
 impl Parse for Program {
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
-        let scope: Scope = input.parse()?;
         let mut rules: Vec<Rc<Rule>> = Vec::new();
 
         while !input.is_empty() {
             rules.push(Rc::new(input.parse::<Rule>()?));
         }
 
-        Ok(Self { rules, scope })
+        Ok(Self { rules })
     }
 }
 
@@ -502,12 +504,12 @@ impl GenContext {
             let key = format_ident!("{}", &atom.key);
             let the_value = match &atom.value {
                 ValueType::Any => quote! {
-                    NodeValue::Key(DirKey::new(DirKeyKind::#key,None))
+                    cgraph::NodeValue::Key(DirKey::new(DirKeyKind::#key,None))
                 },
                 ValueType::EnumVariant(variant) => {
                     let variant = format_ident!("{}", variant);
                     quote! {
-                        NodeValue::Value(DirValue::#key(#key::#variant))
+                        cgraph::NodeValue::Value(DirValue::#key(#key::#variant))
                     }
                 }
                 ValueType::Number { number, comparison } => {
@@ -530,7 +532,7 @@ impl GenContext {
                     };
 
                     quote! {
-                        NodeValue::Value(DirValue::#key(NumValue {
+                        cgraph::NodeValue::Value(DirValue::#key(NumValue {
                             number: #number,
                             refinement: #comp_type,
                         }))
@@ -539,7 +541,7 @@ impl GenContext {
             };
 
             let compiled = quote! {
-                let #identifier = graph.make_value_node(#the_value, None, Vec::new(), None::<()>).expect("NodeId derivation failed");
+                let #identifier = graph.make_value_node(#the_value, None, None::<()>);
             };
 
             tokens.extend(compiled);
@@ -581,7 +583,6 @@ impl GenContext {
                         Vec::from_iter([#(#values_tokens),*]),
                         None,
                         None::<()>,
-                        Vec::new(),
                     ).expect("Failed to make In aggregator");
                 };
 
@@ -606,7 +607,7 @@ impl GenContext {
             for (from_node, relation) in &node_details {
                 let relation = format_ident!("{}", relation.to_string());
                 tokens.extend(quote! {
-                    graph.make_edge(#from_node, #rhs_ident, Strength::#strength, Relation::#relation)
+                    graph.make_edge(#from_node, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::#relation, None::<cgraph::DomainId>)
                         .expect("Failed to make edge");
                 });
             }
@@ -614,16 +615,18 @@ impl GenContext {
             let mut all_agg_nodes: Vec<TokenStream> = Vec::with_capacity(node_details.len());
             for (from_node, relation) in &node_details {
                 let relation = format_ident!("{}", relation.to_string());
-                all_agg_nodes.push(quote! { (#from_node, Relation::#relation, Strength::Strong) });
+                all_agg_nodes.push(
+                    quote! { (#from_node, cgraph::Relation::#relation, cgraph::Strength::Strong) },
+                );
             }
 
             let strength = format_ident!("{}", rule.strength.to_string());
             let (agg_node_ident, _) = self.next_node_ident();
             tokens.extend(quote! {
-                let #agg_node_ident = graph.make_all_aggregator(&[#(#all_agg_nodes),*], None, None::<()>, Vec::new())
+                let #agg_node_ident = graph.make_all_aggregator(&[#(#all_agg_nodes),*], None, None::<()>, None)
                     .expect("Failed to make all aggregator node");
 
-                graph.make_edge(#agg_node_ident, #rhs_ident, Strength::#strength, Relation::Positive)
+                graph.make_edge(#agg_node_ident, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::Positive, None::<cgraph::DomainId>)
                     .expect("Failed to create all aggregator edge");
 
             });
@@ -638,21 +641,10 @@ impl GenContext {
             self.compile_rule(rule, &mut tokens)?;
         }
 
-        let scope = match &program.scope {
-            Scope::Crate => quote! { crate },
-            Scope::Extern => quote! { euclid },
-        };
-
         let compiled = quote! {{
-            use #scope::{
-                dssa::graph::*,
-                types::*,
-                frontend::dir::{*, enums::*},
-            };
+            use euclid_graph_prelude::*;
 
-            use rustc_hash::{FxHashMap, FxHashSet};
-
-            let mut graph = KnowledgeGraphBuilder::new();
+            let mut graph = cgraph::ConstraintGraphBuilder::new();
 
             #tokens
 

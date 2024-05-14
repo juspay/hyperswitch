@@ -70,7 +70,7 @@ async fn should_authorize_card_payment() {
             .psync_retry_till_status_matches(
                 enums::AttemptStatus::Authorized,
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
                     ..Default::default()
@@ -115,7 +115,7 @@ async fn should_authorize_gpay_payment() {
         let sync_response = Payu {}
             .sync_payment(
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
                     ..Default::default()
@@ -148,7 +148,7 @@ async fn should_capture_already_authorized_payment() {
             .psync_retry_till_status_matches(
                 enums::AttemptStatus::Authorized,
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
                     ..Default::default()
@@ -167,7 +167,7 @@ async fn should_capture_already_authorized_payment() {
             .psync_retry_till_status_matches(
                 enums::AttemptStatus::Charged,
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id,
                     ),
                     ..Default::default()
@@ -203,7 +203,7 @@ async fn should_sync_payment() {
             .psync_retry_till_status_matches(
                 enums::AttemptStatus::Authorized,
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id,
                     ),
                     ..Default::default()
@@ -246,7 +246,7 @@ async fn should_void_already_authorized_payment() {
             .psync_retry_till_status_matches(
                 enums::AttemptStatus::Voided,
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id,
                     ),
                     ..Default::default()
@@ -280,7 +280,7 @@ async fn should_refund_succeeded_payment() {
             .psync_retry_till_status_matches(
                 enums::AttemptStatus::Authorized,
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
                     ..Default::default()
@@ -301,7 +301,7 @@ async fn should_refund_succeeded_payment() {
             .psync_retry_till_status_matches(
                 enums::AttemptStatus::Charged,
                 Some(types::PaymentsSyncData {
-                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
                     ..Default::default()
