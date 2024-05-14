@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.10.0-hotfix1
+
+### Refactors
+
+- **connector:** [BOA/CYBS] refund error handling ([#4639](https://github.com/juspay/hyperswitch/pull/4639)) ([`f7d5965`](https://github.com/juspay/hyperswitch/commit/f7d59658cb630a25de812d41c89a7852529de2e6))
+
+- - -
+
 ## 2024.05.10.0
 
 ### Features
