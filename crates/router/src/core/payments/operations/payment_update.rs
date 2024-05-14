@@ -97,11 +97,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-        payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
         payment_intent.order_details = request
             .get_order_details_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -236,6 +231,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
+        payment_attempt.payment_method_billing_address_id = payment_method_billing
+            .as_ref()
+            .map(|payment_method_billing| payment_method_billing.address_id.clone());
 
         payment_intent.allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
@@ -348,16 +346,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 (Box::new(self), amount)
             };
 
-        payment_intent.status = match request.payment_method_data.as_ref() {
-            Some(_) => {
-                if request.confirm.unwrap_or(false) {
-                    payment_intent.status
-                } else {
-                    storage_enums::IntentStatus::RequiresConfirmation
-                }
+        payment_intent.status = if request
+            .payment_method_data
+            .as_ref()
+            .is_some_and(|payment_method_data| payment_method_data.payment_method_data.is_some())
+        {
+            if request.confirm.unwrap_or(false) {
+                payment_intent.status
+            } else {
+                storage_enums::IntentStatus::RequiresConfirmation
             }
-            None => storage_enums::IntentStatus::RequiresPaymentMethod,
+        } else {
+            storage_enums::IntentStatus::RequiresPaymentMethod
         };
+
         payment_intent.request_external_three_ds_authentication = request
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
@@ -622,6 +624,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
+        let payment_method_billing_address_id = payment_data
+            .payment_attempt
+            .payment_method_billing_address_id
+            .clone();
 
         let surcharge_amount = payment_data
             .surcharge_details
@@ -651,6 +657,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     surcharge_amount,
                     tax_amount,
                     fingerprint_id: None,
+                    payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,

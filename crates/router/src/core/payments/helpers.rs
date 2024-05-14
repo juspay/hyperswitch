@@ -12,6 +12,7 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
@@ -214,6 +215,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 )
             }
@@ -225,38 +227,39 @@ pub async fn create_or_update_address_for_payment_by_request(
                     merchant_key_store,
                     storage_scheme,
                 )
-                .await,
+                .await
+                .map(|payment_address| payment_address.address),
             )
             .transpose()
             .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
         },
         None => match req_address {
             Some(address) => {
-                // generate a new address here
-                let address_details = address.address.clone().unwrap_or_default();
+                let address = get_domain_address(address, merchant_id, key, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address while insert")?;
+
+                let payment_address = domain::PaymentAddress {
+                    address,
+                    payment_id: payment_id.to_string(),
+                    customer_id: customer_id.cloned(),
+                };
+
                 Some(
                     db.insert_address_for_payments(
                         payment_id,
-                        get_domain_address_for_payments(
-                            address_details,
-                            address,
-                            merchant_id,
-                            customer_id,
-                            payment_id,
-                            key,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while encrypting address while insert")?,
+                        payment_address,
                         merchant_key_store,
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while inserting new address")?,
                 )
             }
+
             None => None,
         },
     })
@@ -285,34 +288,34 @@ pub async fn create_or_find_address_for_payment_by_request(
                 merchant_key_store,
                 storage_scheme,
             )
-            .await,
+            .await
+            .map(|payment_address| payment_address.address),
         )
         .transpose()
         .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
         None => match req_address {
             Some(address) => {
                 // generate a new address here
+                let address = get_domain_address(address, merchant_id, key, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address while insert")?;
 
-                let address_details = address.address.clone().unwrap_or_default();
+                let payment_address = domain::PaymentAddress {
+                    address,
+                    payment_id: payment_id.to_string(),
+                    customer_id: customer_id.cloned(),
+                };
+
                 Some(
                     db.insert_address_for_payments(
                         payment_id,
-                        get_domain_address_for_payments(
-                            address_details,
-                            address,
-                            merchant_id,
-                            customer_id,
-                            payment_id,
-                            key,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while encrypting address while insert")?,
+                        payment_address,
                         merchant_key_store,
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while inserting new address")?,
                 )
@@ -322,16 +325,14 @@ pub async fn create_or_find_address_for_payment_by_request(
     })
 }
 
-pub async fn get_domain_address_for_payments(
-    address_details: api_models::payments::AddressDetails,
+pub async fn get_domain_address(
     address: &api_models::payments::Address,
     merchant_id: &str,
-    customer_id: Option<&String>,
-    payment_id: &str,
     key: &[u8],
     storage_scheme: enums::MerchantStorageScheme,
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
+        let address_details = address.address.as_ref();
         Ok(domain::Address {
             id: None,
             phone_number: address
@@ -341,42 +342,40 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
-            customer_id: customer_id.cloned(),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
-            city: address_details.city,
-            country: address_details.country,
+            city: address_details.and_then(|address_details| address_details.city.clone()),
+            country: address_details.and_then(|address_details| address_details.country),
             line1: address_details
-                .line1
+                .and_then(|address_details| address_details.line1.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             line2: address_details
-                .line2
+                .and_then(|address_details| address_details.line2.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             line3: address_details
-                .line3
+                .and_then(|address_details| address_details.line3.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             state: address_details
-                .state
+                .and_then(|address_details| address_details.state.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             created_at: common_utils::date_time::now(),
             first_name: address_details
-                .first_name
+                .and_then(|address_details| address_details.first_name.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             last_name: address_details
-                .last_name
+                .and_then(|address_details| address_details.last_name.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             modified_at: common_utils::date_time::now(),
             zip: address_details
-                .zip
+                .and_then(|address_details| address_details.zip.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
-            payment_id: Some(payment_id.to_owned()),
             updated_by: storage_scheme.to_string(),
             email: address
                 .email
@@ -408,6 +407,7 @@ pub async fn get_address_by_id(
                 storage_scheme,
             )
             .await
+            .map(|payment_address| payment_address.address)
             .ok()),
     }
 }
@@ -461,7 +461,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             mandate_generic_data.recurring_mandate_payment_data,
                             mandate_generic_data.mandate_connector,
-                            None,
+                            mandate_generic_data.payment_method_info,
                         )
                     }
                     RecurringDetails::PaymentMethodId(payment_method_id) => {
@@ -515,7 +515,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             mandate_generic_data.recurring_mandate_payment_data,
                             mandate_generic_data.mandate_connector,
-                            None,
+                            mandate_generic_data.payment_method_info,
                         )
                     } else {
                         (
@@ -673,7 +673,7 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: None,
+            payment_method_info: Some(payment_method),
         })
     } else {
         Ok(MandateGenericData {
@@ -687,7 +687,7 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: None,
+            payment_method_info: Some(payment_method),
         })
     }
 }
@@ -3078,27 +3078,31 @@ pub async fn insert_merchant_connector_creds_to_config(
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
-        match db
-            .insert_config(storage::ConfigNew {
-                key: format!(
-                    "mcd_{merchant_id}_{}",
-                    merchant_connector_details.creds_identifier
-                ),
-                config: encoded_data.peek().to_owned(),
-            })
+        let redis = &db
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let key = format!(
+            "mcd_{merchant_id}_{}",
+            merchant_connector_details.creds_identifier
+        );
+
+        redis
+            .serialize_and_set_key_with_expiry(
+                key.as_str(),
+                &encoded_data.peek(),
+                crate::consts::CONNECTOR_CREDS_TOKEN_TTL,
+            )
             .await
-        {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    Ok(())
-                } else {
-                    Err(err
+            .map_or_else(
+                |e| {
+                    Err(e
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to insert connector_creds to config"))
-                }
-            }
-        }
+                },
+                |_| Ok(()),
+            )
     } else {
         Ok(())
     }
@@ -3171,14 +3175,49 @@ pub async fn get_merchant_connector_account(
     let db = &*state.store;
     match creds_identifier {
         Some(creds_identifier) => {
-            let mca_config = db
-                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+            let key = format!("mcd_{merchant_id}_{creds_identifier}");
+            let redis_fetch = || async {
+                db.get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")
+                    .async_and_then(|redis| async move {
+                        redis
+                            .get_and_deserialize_key(key.as_str(), "String")
+                            .await
+                            .change_context(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: key.clone(),
+                                },
+                            )
+                            .attach_printable(key + ": Not found in Redis")
+                    })
+                    .await
+            };
+
+            let db_fetch = || async {
+                db.find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!("mcd_{merchant_id}_{creds_identifier}"),
+                        },
+                    )
+            };
+
+            let mca_config: String = redis_fetch()
                 .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("mcd_{merchant_id}_{creds_identifier}"),
+                .map_or_else(
+                    |_| {
+                        Either::Left(async {
+                            match db_fetch().await {
+                                Ok(config_entry) => Ok(config_entry.config),
+                                Err(e) => Err(e),
+                            }
+                        })
                     },
-                )?;
+                    |result| Either::Right(async { Ok(result) }),
+                )
+                .await?;
 
             let private_key = state
                 .conf
@@ -3188,7 +3227,7 @@ pub async fn get_merchant_connector_account(
                 .peek()
                 .as_bytes();
 
-            let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
+            let decrypted_mca = services::decrypt_jwe(mca_config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
                                         message: "decoding merchant_connector_details failed due to invalid data format!".into()})

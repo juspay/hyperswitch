@@ -295,12 +295,12 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
 });
 
 // This is consequent saved card payment confirm call test(Using payment token)
-Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody, det, globalState) => {
+Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody,det,globalState) => {
   const paymentIntentID = globalState.get("paymentID");
-  confirmBody.card_cvc = det.card.card_cvc;
-  confirmBody.payment_token = globalState.get("paymentToken");
-  confirmBody.client_secret = globalState.get("clientSecret");
-  console.log("configured connector ->" + globalState.get("connectorId"));
+  SaveCardConfirmBody.card_cvc = det.card_cvc;
+  SaveCardConfirmBody.payment_token = globalState.get("paymentToken");
+  SaveCardConfirmBody.client_secret = globalState.get("clientSecret");
+  console.log("conf conn ->" + globalState.get("connectorId"));
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
@@ -308,7 +308,7 @@ Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody, det, globalState) 
       "Content-Type": "application/json",
       "api-key": globalState.get("publishableKey"),
     },
-    body: confirmBody,
+    body: SaveCardConfirmBody,
   })
     .then((response) => {
       logRequestId(response.headers['x-request-id']);
@@ -731,5 +731,8 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.data).to.be.an('array').and.not.empty;
+  
+    });
   });
-});
+
+  

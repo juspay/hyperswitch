@@ -333,7 +333,7 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
-                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
+                .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -716,7 +716,8 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
-                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)));
+                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
+                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)));
         }
         #[cfg(feature = "oltp")]
         {
@@ -1192,6 +1193,11 @@ impl User {
             // TODO: Remove this endpoint once migration to /merchants/list is done
             .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
+            // The route is utilized to select an invitation from a list of merchants in an intermediate state
+            .service(
+                web::resource("/merchants_select/list")
+                    .route(web::get().to(list_merchants_for_user_with_spt)),
+            )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
@@ -1241,7 +1247,11 @@ impl User {
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
-                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(
+                    web::resource("/invite/accept")
+                        .route(web::post().to(merchant_select))
+                        .route(web::put().to(accept_invitation)),
+                )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
                 .service(
                     web::resource("/transfer_ownership")

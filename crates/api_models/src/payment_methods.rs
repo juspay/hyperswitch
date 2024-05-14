@@ -537,7 +537,7 @@ impl From<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>> for SurchargePercen
     }
 }
 /// Required fields info used while listing the payment_method_data
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema, Hash)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 pub struct RequiredFieldInfo {
     /// Required field for a payment_method through a payment_method_type
     pub required_field: String,
@@ -951,6 +951,10 @@ pub struct CustomerPaymentMethod {
     /// Indicates if the payment method has been set to default or not
     #[schema(example = true)]
     pub default_payment_method_set: bool,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
