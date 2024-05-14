@@ -68,6 +68,4 @@ pub enum RedisError {
     OnMessageError,
     #[error("Got an unknown result from redis")]
     UnknownResult,
-    #[error("Kv Operation is disabled")]
-    KvSoftKillMode,
 }
