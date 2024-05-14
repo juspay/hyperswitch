@@ -848,7 +848,7 @@ pub async fn create_payment_connector(
     };
 
     // Validate Merchant api details and return error if not in correct format
-    let auth: hyperswitch_domain_models::router_data::ConnectorAuthType = req
+    let auth: types::ConnectorAuthType = req
         .connector_account_details
         .clone()
         .parse_value("ConnectorAuthType")
@@ -1189,7 +1189,7 @@ pub async fn update_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
-    let auth: hyperswitch_domain_models::router_data::ConnectorAuthType = req
+    let auth: types::ConnectorAuthType = req
         .connector_account_details
         .clone()
         .unwrap_or(mca.connector_account_details.clone().into_inner())
@@ -1784,7 +1784,7 @@ pub async fn connector_agnostic_mit_toggle(
 
 pub(crate) fn validate_auth_and_metadata_type(
     connector_name: api_models::enums::Connector,
-    val: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    val: &types::ConnectorAuthType,
     connector_meta_data: &Option<pii::SecretSerdeValue>,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     use crate::connector::*;
@@ -2076,13 +2076,13 @@ pub async fn validate_dummy_connector_enabled(
 pub fn validate_status_and_disabled(
     status: Option<api_enums::ConnectorStatus>,
     disabled: Option<bool>,
-    auth: hyperswitch_domain_models::router_data::ConnectorAuthType,
+    auth: types::ConnectorAuthType,
     current_status: api_enums::ConnectorStatus,
 ) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
     let connector_status = match (status, auth) {
         (
             Some(common_enums::ConnectorStatus::Active),
-            hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth,
+            types::ConnectorAuthType::TemporaryAuth,
         ) => {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Connector status cannot be active when using TemporaryAuth".to_string(),
@@ -2090,7 +2090,7 @@ pub fn validate_status_and_disabled(
             .into());
         }
         (Some(status), _) => status,
-        (None, hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth) => {
+        (None, types::ConnectorAuthType::TemporaryAuth) => {
             common_enums::ConnectorStatus::Inactive
         }
         (None, _) => current_status,

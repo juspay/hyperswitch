@@ -4,7 +4,6 @@ use api_models::payments;
 use common_enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payment_address::PaymentAddress;
 
 use crate::{
     core::{
@@ -80,7 +79,7 @@ pub fn construct_authentication_router_data(
         authentication_connector,
         payment_method,
         business_profile.merchant_id.clone(),
-        PaymentAddress::default(),
+        types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
     )
@@ -104,7 +103,7 @@ pub fn construct_post_authentication_router_data(
         authentication_connector,
         PaymentMethod::default(),
         business_profile.merchant_id.clone(),
-        PaymentAddress::default(),
+        types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
     )
@@ -123,7 +122,7 @@ pub fn construct_pre_authentication_router_data(
         authentication_connector,
         PaymentMethod::default(),
         merchant_id,
-        PaymentAddress::default(),
+        types::PaymentAddress::default(),
         router_request,
         merchant_connector_account,
     )
@@ -133,17 +132,17 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     authentication_connector_name: String,
     payment_method: PaymentMethod,
     merchant_id: String,
-    address: PaymentAddress,
+    address: types::PaymentAddress,
     request_data: Req,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
-) -> RouterResult<hyperswitch_domain_models::router_data::RouterData<F, Req, Res>> {
+) -> RouterResult<types::RouterData<F, Req, Res>> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
+    let auth_type: types::ConnectorAuthType =
         merchant_connector_account
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    Ok(hyperswitch_domain_models::router_data::RouterData {
+    Ok(types::router_data::RouterData {
         flow: PhantomData,
         merchant_id,
         customer_id: None,
@@ -169,7 +168,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method_balance: None,
         connector_api_version: None,
         request: request_data,
-        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        response: Err(types::ErrorResponse::default()),
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         #[cfg(feature = "payouts")]
