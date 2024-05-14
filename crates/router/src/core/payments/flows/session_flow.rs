@@ -653,6 +653,7 @@ where
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self>;
 }
 
