@@ -755,7 +755,7 @@ where
     Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1391,7 +1391,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
         Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1857,7 +1857,7 @@ async fn complete_preprocessing_steps_if_required<F, Req, Q>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
     operation: &BoxedOperation<'_, F, Q>,
     should_continue_payment: bool,
 ) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
