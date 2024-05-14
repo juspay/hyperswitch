@@ -25,7 +25,7 @@ use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
 use crate::{
     configs::settings::SchedulerSettings, db::process_tracker::ProcessTrackerInterface, errors,
-    metrics, utils as pt_utils, SchedulerAppState, SchedulerSessionState, SchedulerInterface,
+    metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface, SchedulerSessionState,
 };
 
 // Valid consumer business statuses

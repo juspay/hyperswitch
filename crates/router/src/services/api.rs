@@ -1015,14 +1015,26 @@ where
         .get("x-tenant-id")
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| {
-            errors::ApiErrorResponse::InvalidRequestData { message: "Missing tenant Id".to_string() }
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "Missing tenant Id".to_string(),
+            }
             .switch()
-        }).map(|tenant_id| if !state.conf.multitenancy.get_tenant_names().contains(&tenant_id.to_string()) {
-            Err(errors::ApiErrorResponse::InvalidTenant { tenant_id: tenant_id.to_string() }
-            .switch())
-        } else {
-            Ok(tenant_id)
-        } )??;
+        })
+        .map(|tenant_id| {
+            if !state
+                .conf
+                .multitenancy
+                .get_tenant_names()
+                .contains(&tenant_id.to_string())
+            {
+                Err(errors::ApiErrorResponse::InvalidTenant {
+                    tenant_id: tenant_id.to_string(),
+                }
+                .switch())
+            } else {
+                Ok(tenant_id)
+            }
+        })??;
     // let tenant_id = "public";
     let mut session_state =
         SessionState::from_app_state(Arc::new(app_state.clone()), tenant_id, || {

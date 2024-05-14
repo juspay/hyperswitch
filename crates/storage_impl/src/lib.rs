@@ -30,6 +30,7 @@ use database::store::PgPool;
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
+
 pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
