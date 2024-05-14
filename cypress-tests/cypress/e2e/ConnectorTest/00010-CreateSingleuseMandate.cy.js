@@ -60,29 +60,29 @@ describe("Card - SingleUse Mandates flow test", () => {
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
-            cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 7000, true, "manual", "new_mandate", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 6500, true, "manual", "new_mandate", globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
         });
 
         it("cit-capture-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
-            cy.captureCallTest(captureBody, req_data, res_data, 7000, globalState);
+            cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
-            cy.mitForMandatesCallTest(mitConfirmBody, 7000, true, "manual", globalState);
+            cy.mitForMandatesCallTest(mitConfirmBody, 6500, true, "manual", globalState);
         });
 
         it("mit-capture-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSAutoCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
-            cy.captureCallTest(captureBody, req_data, res_data, 7000, globalState);
+            cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
         });
 
@@ -100,9 +100,9 @@ describe("Card - SingleUse Mandates flow test", () => {
             }
         });
 
-        it("Confirm No 3DS CIT", () => {
+        it("Create No 3DS CIT", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUse3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSManualCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
@@ -111,7 +111,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         });
 
         it("cit-capture-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUse3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);

@@ -558,9 +558,9 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
         for(const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
         }
-      } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+      } 
+      for(const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
       }
     }
     else if (response.body.capture_method === "manual") {
@@ -568,10 +568,8 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
       }
-      else if (response.body.authentication_type === "no_three_ds") {
-        expect(response.body.status).to.equal("requires_capture");
-      } else {
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+      for(const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
       }
     }
     else{
