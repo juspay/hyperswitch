@@ -18,7 +18,7 @@ use external_services::{
     },
 };
 use hyperswitch_interfaces::secrets_interface::secret_state::{
-    SecretState, SecretStateContainer, SecuredSecret,
+    SecretState, SecretStateContainer, SecuredSecret, RawSecret
 };
 use masking::Secret;
 use redis_interface::RedisSettings;
@@ -757,6 +757,17 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         Ok(())
+    }
+}
+
+
+impl Settings<RawSecret>{
+    pub fn is_kv_soft_kill_mode(&self) -> bool {
+        if cfg!(feature="kv_store") {
+            self.kv_config.soft_kill.unwrap_or(false)
+        } else {
+            false
+        }
     }
 }
 
