@@ -775,6 +775,14 @@ pub async fn update_customer_payment_method(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+        if let Some(cs) = &req.client_secret {
+            let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
+
+            if is_client_secret_expired {
+                return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
+            };
+        };
+
         if pm.status == enums::PaymentMethodStatus::AwaitingData {
             return Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Payment method is awaiting data so it cannot be updated".into()
@@ -849,18 +857,15 @@ pub async fn update_customer_payment_method(
                 payment_method_issuer: pm.payment_method_issuer.clone(),
                 payment_method_issuer_code: pm.payment_method_issuer_code,
                 #[cfg(feature = "payouts")]
-                bank_transfer: req.bank_transfer,
+                bank_transfer: None,
                 card: Some(updated_card_details.clone()),
                 #[cfg(feature = "payouts")]
-                wallet: req.wallet,
-                metadata: req.metadata,
+                wallet: None,
+                metadata: None,
                 customer_id: Some(pm.customer_id.clone()),
                 client_secret: pm.client_secret.clone(),
                 payment_method_data: None,
-                card_network: req
-                    .card_network
-                    .as_ref()
-                    .map(|card_network| card_network.to_string()),
+                card_network: None,
             };
             new_pm.validate()?;
 
