@@ -493,12 +493,19 @@ pub async fn sync_refund_with_gateway(
     };
 
     let refund_update = match router_data_res.response {
-        Err(error_message) => storage::RefundUpdate::ErrorUpdate {
-            refund_status: None,
-            refund_error_message: error_message.reason.or(Some(error_message.message)),
-            refund_error_code: Some(error_message.code),
-            updated_by: storage_scheme.to_string(),
-        },
+        Err(error_message) => {
+            let refund_status = match error_message.status_code {
+                // marking failure for 2xx because this is genuine refund failure
+                200..=299 => Some(enums::RefundStatus::Failure),
+                _ => None,
+            };
+            storage::RefundUpdate::ErrorUpdate {
+                refund_status,
+                refund_error_message: error_message.reason.or(Some(error_message.message)),
+                refund_error_code: Some(error_message.code),
+                updated_by: storage_scheme.to_string(),
+            }
+        }
         Ok(response) => storage::RefundUpdate::Update {
             connector_refund_id: response.connector_refund_id,
             refund_status: response.refund_status,
