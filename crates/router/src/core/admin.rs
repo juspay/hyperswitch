@@ -16,7 +16,6 @@ use futures::future::try_join_all;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
-use serde_json;
 use uuid::Uuid;
 
 use crate::{
@@ -2158,7 +2157,7 @@ async fn process_open_banking_connectors(
     // incorporate a connector check as well
     if connector_type != &api_enums::ConnectorType::PaymentProcessor {
         return Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
-            config: "OpenBankingAuth type needs to be coupled with a payment connector".to_string(),
+            config: "OpenBanking connector should be a payment processor".to_string(),
         }
         .into());
     }
@@ -2195,10 +2194,6 @@ async fn process_open_banking_connectors(
                         .await
                     }
                     .attach_printable("failed to get recipient_id")?;
-
-                    // data.merchant_data = api_models::admin::MerchantRecipientData::RecipientID(
-                    //     Secret::new(recipient_id),
-                    // );
 
                     let conn_recipient_id = if let Some(_con) = contains {
                         Some(types::RecipientIdType::LockerId(Secret::new(recipient_id)))
@@ -2410,12 +2405,12 @@ async fn locker_recipient_create_call(
 
     let enc_data = async {
         serde_json::to_value(data.to_owned())
+            .change_context(errors::VaultError::SavePaymentMethodFailed)
+            .attach_printable("Unable to encode merchant bank account data")
             .map_err(|err| {
                 crate::logger::error!("Error while encoding merchant bank account data: {}", err);
                 errors::VaultError::SavePaymentMethodFailed
             })
-            .change_context(errors::VaultError::SavePaymentMethodFailed)
-            .attach_printable("Unable to encode merchant bank account data")
             .ok()
             .map(|v| {
                 let secret: Secret<String> = Secret::new(v.to_string());
