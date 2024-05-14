@@ -2232,8 +2232,9 @@ pub async fn list_payment_methods(
                                 }
 
                                 let should_send_shipping_details =
-                                    business_profile.clone().and_then(|bp| {
-                                        bp.collect_shipping_details_from_wallet_connector
+                                    business_profile.clone().and_then(|business_profile| {
+                                        business_profile
+                                            .collect_shipping_details_from_wallet_connector
                                     });
 
                                 // Remove shipping fields from required fields based on business profile configuration

@@ -294,39 +294,33 @@ async fn create_applepay_session_token(
 
         let billing_variants = enums::FieldType::get_billing_variants();
 
-        let required_billing_contact_fields = if is_dynamic_fields_required(
+        let required_billing_contact_fields = is_dynamic_fields_required(
             &state.conf.required_fields,
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
             &connector.connector_name,
             billing_variants,
-        ) {
-            Some(vec![
-                payment_types::ApplePayAddressParameters::PostalAddress,
-            ])
-        } else {
-            None
-        };
+        )
+        .then_some(payment_types::ApplePayBillingContactFields(vec![
+            payment_types::ApplePayAddressParameters::PostalAddress,
+        ]));
 
         let required_shipping_contact_fields =
             if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
                 let shipping_variants = enums::FieldType::get_shipping_variants();
 
-                if is_dynamic_fields_required(
+                is_dynamic_fields_required(
                     &state.conf.required_fields,
                     enums::PaymentMethod::Wallet,
                     enums::PaymentMethodType::ApplePay,
                     &connector.connector_name,
                     shipping_variants,
-                ) {
-                    Some(vec![
-                        payment_types::ApplePayAddressParameters::PostalAddress,
-                        payment_types::ApplePayAddressParameters::Phone,
-                        payment_types::ApplePayAddressParameters::Email,
-                    ])
-                } else {
-                    None
-                }
+                )
+                .then_some(payment_types::ApplePayShippingContactFields(vec![
+                    payment_types::ApplePayAddressParameters::PostalAddress,
+                    payment_types::ApplePayAddressParameters::Phone,
+                    payment_types::ApplePayAddressParameters::Email,
+                ]))
             } else {
                 None
             };
@@ -440,8 +434,8 @@ fn get_apple_pay_payment_request(
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
     merchant_business_country: Option<api_models::enums::CountryAlpha2>,
-    required_billing_contact_fields: Option<Vec<payment_types::ApplePayAddressParameters>>,
-    required_shipping_contact_fields: Option<Vec<payment_types::ApplePayAddressParameters>>,
+    required_billing_contact_fields: Option<payment_types::ApplePayBillingContactFields>,
+    required_shipping_contact_fields: Option<payment_types::ApplePayShippingContactFields>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
         country_code: merchant_business_country.or(session_data.country).ok_or(
