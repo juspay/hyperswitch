@@ -630,4 +630,3 @@ sdk_eligible_payment_methods = "card"
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080"}
-zurich = { name = "zurich", base_url = "http://localhost:9090"}
