@@ -31,8 +31,9 @@ use crate::{
 
 pub struct SavePaymentMethodData<Req> {
     request: Req,
-    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
-    payment_method_token: Option<types::PaymentMethodToken>,
+    response:
+        Result<types::PaymentsResponseData, hyperswitch_domain_models::router_data::ErrorResponse>,
+    payment_method_token: Option<PaymentMethodToken>,
     payment_method: PaymentMethod,
     attempt_status: common_enums::AttemptStatus,
 }
@@ -756,8 +757,10 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
 
-            let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-                Err(types::ErrorResponse::default());
+            let pm_token_response_data: Result<
+                types::PaymentsResponseData,
+                hyperswitch_domain_models::router_data::ErrorResponse,
+            > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
 
             let mut pm_token_router_data = payments::helpers::router_data_type_conversion::<
                 _,

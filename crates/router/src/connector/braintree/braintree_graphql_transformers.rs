@@ -290,7 +290,7 @@ impl<F>
 fn build_error_response<T>(
     response: &[ErrorDetails],
     http_code: u16,
-) -> Result<T, types::ErrorResponse> {
+) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
     let error_messages = response
         .iter()
         .map(|error| error.message.to_string())
@@ -319,8 +319,8 @@ fn get_error_response<T>(
     error_msg: Option<String>,
     error_reason: Option<String>,
     http_code: u16,
-) -> Result<T, types::ErrorResponse> {
-    Err(types::ErrorResponse {
+) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
+    Err(hyperswitch_domain_models::router_data::ErrorResponse {
         code: error_code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
         message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: error_reason,
@@ -1427,7 +1427,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
 
 fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
-    payment_method_token: types::PaymentMethodToken,
+    payment_method_token: hyperswitch_domain_models::router_data::PaymentMethodToken,
     card_details: domain::PaymentMethodData,
 ) -> Result<services::RedirectForm, error_stack::Report<errors::ConnectorError>> {
     Ok(services::RedirectForm::Braintree {

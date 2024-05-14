@@ -292,14 +292,14 @@ fn get_iatpay_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.status);
     let error = if connector_util::is_payment_failure(status) {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .failure_code
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -457,7 +457,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
                     .response
                     .failure_code
@@ -495,7 +495,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
                     .response
                     .failure_code

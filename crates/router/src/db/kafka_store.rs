@@ -9,12 +9,13 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+use hyperswitch_domain_models::{
+    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
+    router_data::AccessToken,
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -70,7 +71,6 @@ use crate::{
     types::{
         domain,
         storage::{self, business_profile},
-        AccessToken,
     },
 };
 

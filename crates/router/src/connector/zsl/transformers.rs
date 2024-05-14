@@ -355,7 +355,7 @@ impl<F, T>
                 // When the signature check fails
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
-                    response: Err(types::ErrorResponse {
+                    response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_string(),
                         message: auth_error::INVALID_SIGNATURE.to_string(),
                         reason: Some(auth_error::INVALID_SIGNATURE.to_string()),
@@ -371,7 +371,7 @@ impl<F, T>
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),
                     reason: Some(error_reason.clone()),
@@ -445,7 +445,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::Pa
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),
                     reason: Some(error_reason.clone()),

@@ -27,9 +27,8 @@ use common_utils::{pii, pii::Email};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
-    router_data::RouterData,
+    router_data::{ErrorResponse, RouterData},
 };
-use hyperwitch_domain_models::router_data::ErrorResponse;
 use masking::Secret;
 use serde::Serialize;
 

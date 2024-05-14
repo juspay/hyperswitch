@@ -515,7 +515,7 @@ pub trait ConnectorActions: Connector {
             return_url: info.clone().and_then(|a| a.return_url),
             payment_method_status: None,
             request: req,
-            response: Err(types::ErrorResponse::default()),
+            response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
             address: info
                 .clone()
                 .and_then(|a| a.address)
@@ -1049,7 +1049,10 @@ impl Default for TokenType {
 }
 
 pub fn get_connector_transaction_id(
-    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+    response: Result<
+        types::PaymentsResponseData,
+        hyperswitch_domain_models::router_data::ErrorResponse,
+    >,
 ) -> Option<String> {
     match response {
         Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
@@ -1069,7 +1072,10 @@ pub fn get_connector_transaction_id(
 }
 
 pub fn get_connector_metadata(
-    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+    response: Result<
+        types::PaymentsResponseData,
+        hyperswitch_domain_models::router_data::ErrorResponse,
+    >,
 ) -> Option<serde_json::Value> {
     match response {
         Ok(types::PaymentsResponseData::TransactionResponse {

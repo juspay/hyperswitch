@@ -93,7 +93,7 @@ pub async fn construct_webhook_router_data<'a>(
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,

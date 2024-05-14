@@ -667,7 +667,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             item.data.request.capture_method,
         ));
         let error_response = if status == enums::AttemptStatus::Failure {
-            Some(types::ErrorResponse {
+            Some(hyperswitch_domain_models::router_data::ErrorResponse {
                 status_code: item.http_code,
                 code: item
                     .response
@@ -719,7 +719,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         let status =
             enums::AttemptStatus::foreign_from((item.response.status, checkout_meta.psync_flow));
         let error_response = if status == enums::AttemptStatus::Failure {
-            Some(types::ErrorResponse {
+            Some(hyperswitch_domain_models::router_data::ErrorResponse {
                 status_code: item.http_code,
                 code: item
                     .response

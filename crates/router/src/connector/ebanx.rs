@@ -95,7 +95,8 @@ impl ConnectorCommon for Ebanx {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         let response: ebanx::EbanxErrorResponse =
             res.response
                 .parse_struct("EbanxErrorResponse")
@@ -104,7 +105,7 @@ impl ConnectorCommon for Ebanx {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(types::ErrorResponse {
+        Ok(hyperswitch_domain_models::router_data::ErrorResponse {
             status_code: res.status_code,
             code: response.status_code,
             message: response.code,
@@ -190,7 +191,8 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -275,7 +277,8 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -350,7 +353,8 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }

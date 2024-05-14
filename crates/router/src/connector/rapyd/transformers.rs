@@ -459,7 +459,7 @@ impl<F, T>
                 match attempt_status {
                     diesel_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
-                        Err(types::ErrorResponse {
+                        Err(hyperswitch_domain_models::router_data::ErrorResponse {
                             code: data
                                 .failure_code
                                 .to_owned()
@@ -505,7 +505,7 @@ impl<F, T>
             }
             None => (
                 enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: item.response.status.error_code,
                     status_code: item.http_code,
                     message: item.response.status.status.unwrap_or_default(),

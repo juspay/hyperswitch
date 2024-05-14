@@ -8,7 +8,7 @@ use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_address::PaymentAddress;
+use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
 use maud::{html, PreEscaped};
@@ -29,7 +29,7 @@ use crate::{
     types::{
         self, domain,
         storage::{self, enums},
-        ErrorResponse, PollConfig,
+        PollConfig,
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
@@ -568,7 +568,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -659,7 +659,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
         request: submit_evidence_request_data,
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -758,7 +758,7 @@ pub async fn construct_upload_file_router_data<'a>(
             file_type: create_file_request.file_type.clone(),
             file_size: create_file_request.file_size,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -944,7 +944,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing provider file id")?,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,

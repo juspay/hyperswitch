@@ -436,7 +436,7 @@ impl<F>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: item.response.response_code,
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -486,7 +486,7 @@ impl<F, T>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -536,7 +536,7 @@ impl<F, T>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::VoidFailed,
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -644,7 +644,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -684,7 +684,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),

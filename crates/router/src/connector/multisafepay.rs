@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use common_enums::AttemptStatus;
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data::ErrorResponse;
 use masking::ExposeInterface;
 use transformers as multisafepay;
 

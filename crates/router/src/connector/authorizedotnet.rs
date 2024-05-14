@@ -237,7 +237,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         get_error_response(res, event_builder)
     }
 }
@@ -323,7 +324,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         get_error_response(res, event_builder)
     }
 }
@@ -429,7 +431,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         get_error_response(res, event_builder)
     }
 }
@@ -514,7 +517,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         get_error_response(res, event_builder)
     }
 }
@@ -612,7 +616,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         get_error_response(res, event_builder)
     }
 }
@@ -705,7 +710,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         get_error_response(res, event_builder)
     }
 }
@@ -810,7 +816,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         get_error_response(res, event_builder)
     }
 }
@@ -919,7 +926,7 @@ fn get_error_response(
         ..
     }: types::Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError> {
     let response: authorizedotnet::AuthorizedotnetPaymentsResponse = response
         .parse_struct("AuthorizedotnetPaymentsResponse")
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -933,16 +940,18 @@ fn get_error_response(
         )) => Ok(payment_response
             .errors
             .and_then(|errors| {
-                errors.into_iter().next().map(|error| types::ErrorResponse {
-                    code: error.error_code,
-                    message: error.error_text.to_owned(),
-                    reason: Some(error.error_text),
-                    status_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
+                errors.into_iter().next().map(|error| {
+                    hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: error.error_code,
+                        message: error.error_text.to_owned(),
+                        reason: Some(error.error_text),
+                        status_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    }
                 })
             })
-            .unwrap_or_else(|| types::ErrorResponse {
+            .unwrap_or_else(|| hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(), // authorizedotnet sends 200 in case of bad request so this are hard coded to NO_ERROR_CODE and NO_ERROR_MESSAGE
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
@@ -958,7 +967,7 @@ fn get_error_response(
                 .first()
                 .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                 .text;
-            Ok(types::ErrorResponse {
+            Ok(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: message.to_string(),
                 reason: Some(message.to_string()),

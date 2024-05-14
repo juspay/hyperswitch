@@ -274,7 +274,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let error_response = if item.response.error.is_some() || item.response.error_state.is_some()
         {
-            Some(types::ErrorResponse {
+            Some(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
                     .response
                     .error_state

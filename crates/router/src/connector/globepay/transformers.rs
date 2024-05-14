@@ -294,8 +294,8 @@ fn get_error_response(
     return_code: GlobepayReturnCode,
     return_msg: Option<String>,
     status_code: u16,
-) -> types::ErrorResponse {
-    types::ErrorResponse {
+) -> hyperswitch_domain_models::router_data::ErrorResponse {
+    hyperswitch_domain_models::router_data::ErrorResponse {
         code: return_code.to_string(),
         message: consts::NO_ERROR_MESSAGE.to_string(),
         reason: return_msg,

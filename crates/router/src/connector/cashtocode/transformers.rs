@@ -261,7 +261,7 @@ impl<F>
         let (status, response) = match item.response {
             CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
                 enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: error_data.error.to_string(),
                     status_code: item.http_code,
                     message: error_data.error_description,

@@ -117,7 +117,7 @@ impl
                 )
             }
             ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
-                Err(types::ErrorResponse {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: error_response.error_code,
                     message: error_response
                         .error_description
@@ -196,7 +196,7 @@ impl
             }
             ThreedsecureioAuthenticationResponse::Error(err_response) => match *err_response {
                 ThreedsecureioErrorResponseWrapper::ErrorResponse(resp) => {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: resp.error_code,
                         message: resp
                             .error_description
@@ -209,7 +209,7 @@ impl
                     })
                 }
                 ThreedsecureioErrorResponseWrapper::ErrorString(error) => {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: error.clone(),
                         message: error.clone(),
                         reason: Some(error),

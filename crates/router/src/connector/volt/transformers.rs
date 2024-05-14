@@ -367,7 +367,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
-                        Err(types::ErrorResponse {
+                        Err(hyperswitch_domain_models::router_data::ErrorResponse {
                             code: payment_response.status.clone().to_string(),
                             message: payment_response.status.clone().to_string(),
                             reason: Some(payment_response.status.to_string()),
@@ -399,7 +399,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
-                        Err(types::ErrorResponse {
+                        Err(hyperswitch_domain_models::router_data::ErrorResponse {
                             code: detailed_status
                                 .clone()
                                 .map(|volt_status| volt_status.to_string())

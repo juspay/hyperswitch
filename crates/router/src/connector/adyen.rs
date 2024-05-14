@@ -66,7 +66,8 @@ impl ConnectorCommon for Adyen {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         let response: adyen::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
@@ -75,7 +76,7 @@ impl ConnectorCommon for Adyen {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(types::ErrorResponse {
+        Ok(hyperswitch_domain_models::router_data::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
             message: response.message.to_owned(),
@@ -402,14 +403,16 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -522,14 +525,16 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -707,7 +712,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 
@@ -720,7 +726,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -834,7 +841,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 
@@ -842,7 +850,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -948,7 +957,7 @@ impl
 
         if response.balance.currency != currency || response.balance.value < amount {
             Ok(hyperswitch_domain_models::router_data::RouterData {
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: consts::NO_ERROR_MESSAGE.to_string(),
                     reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
@@ -974,7 +983,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 
@@ -982,7 +992,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1079,14 +1090,16 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1193,14 +1206,16 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1298,14 +1313,16 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1408,14 +1425,16 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1531,14 +1550,16 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1645,14 +1666,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
     fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }

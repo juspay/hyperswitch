@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data::ErrorResponse;
 use masking::PeekInterface;
 use transformers as mollie;
 

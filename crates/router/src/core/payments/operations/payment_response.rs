@@ -5,7 +5,9 @@ use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::Encode;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+use hyperswitch_domain_models::{
+    payments::payment_attempt::PaymentAttempt, router_data::ErrorResponse,
+};
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
@@ -35,7 +37,7 @@ use crate::{
         self, api, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-        CaptureSyncResponse, ErrorResponse,
+        CaptureSyncResponse,
     },
     utils,
 };

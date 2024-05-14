@@ -169,7 +169,7 @@ impl<F, T>
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
         let response = if is_payment_failure(status) {
             let payment_response = &item.response.data;
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: payment_response
                     .name
                     .clone()

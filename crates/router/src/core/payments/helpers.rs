@@ -47,7 +47,6 @@ use crate::{
     routes::{metrics, payment_methods, AppState},
     services,
     types::{
-        self as core_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
@@ -4134,7 +4133,7 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
 
 pub fn add_connector_response_to_additional_payment_data(
     additional_payment_data: api_models::payments::AdditionalPaymentData,
-    connector_response_payment_method_data: core_types::AdditionalPaymentMethodConnectorResponse,
+    connector_response_payment_method_data: AdditionalPaymentMethodConnectorResponse,
 ) -> api_models::payments::AdditionalPaymentData {
     match (
         &additional_payment_data,
@@ -4142,7 +4141,7 @@ pub fn add_connector_response_to_additional_payment_data(
     ) {
         (
             api_models::payments::AdditionalPaymentData::Card(additional_card_data),
-            core_types::AdditionalPaymentMethodConnectorResponse::Card {
+            AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data,
                 payment_checks,
             },
@@ -4159,7 +4158,7 @@ pub fn add_connector_response_to_additional_payment_data(
 
 pub fn update_additional_payment_data_with_connector_response_pm_data(
     additional_payment_data: Option<serde_json::Value>,
-    connector_response_pm_data: Option<core_types::AdditionalPaymentMethodConnectorResponse>,
+    connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let parsed_additional_payment_method_data = additional_payment_data
         .as_ref()

@@ -3260,10 +3260,12 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
-            payment_method_balance: Some(types::PaymentMethodBalance {
-                amount: item.response.balance.value,
-                currency: item.response.balance.currency,
-            }),
+            payment_method_balance: Some(
+                hyperswitch_domain_models::router_data::PaymentMethodBalance {
+                    amount: item.response.balance.value,
+                    currency: item.response.balance.currency,
+                },
+            ),
             ..item.data
         })
     }
@@ -3277,7 +3279,7 @@ pub fn get_adyen_response(
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -3285,7 +3287,7 @@ pub fn get_adyen_response(
     let status =
         storage_enums::AttemptStatus::foreign_from((is_capture_manual, response.result_code, pmt));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .refusal_reason_code
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -3335,7 +3337,7 @@ pub fn get_webhook_response(
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -3345,7 +3347,7 @@ pub fn get_webhook_response(
         response.status.clone(),
     ))?;
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .refusal_reason_code
                 .clone()
@@ -3398,7 +3400,7 @@ pub fn get_redirection_response(
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -3409,7 +3411,7 @@ pub fn get_redirection_response(
         pmt,
     ));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .refusal_reason_code
                 .clone()
@@ -3469,7 +3471,7 @@ pub fn get_present_to_shopper_response(
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -3480,7 +3482,7 @@ pub fn get_present_to_shopper_response(
         pmt,
     ));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .refusal_reason_code
                 .clone()
@@ -3526,7 +3528,7 @@ pub fn get_qr_code_response(
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -3537,7 +3539,7 @@ pub fn get_qr_code_response(
         pmt,
     ));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .refusal_reason_code
                 .clone()
@@ -3582,14 +3584,14 @@ pub fn get_redirection_error_response(
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status =
         storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code, pmt));
-    let error = Some(types::ErrorResponse {
+    let error = Some(hyperswitch_domain_models::router_data::ErrorResponse {
         code: status.to_string(),
         message: response.refusal_reason.clone(),
         reason: Some(response.refusal_reason),

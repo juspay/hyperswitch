@@ -279,8 +279,10 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         let preprocessing_request_data =
             types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
 
-        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-            Err(types::ErrorResponse::default());
+        let preprocessing_response_data: Result<
+            types::PaymentsResponseData,
+            hyperswitch_domain_models::router_data::ErrorResponse,
+        > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
 
         let preprocessing_router_data =
             payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(

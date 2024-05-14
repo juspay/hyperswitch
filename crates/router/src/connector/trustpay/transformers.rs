@@ -702,7 +702,7 @@ fn handle_cards_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -721,7 +721,7 @@ fn handle_cards_response(
             form_fields,
         });
     let error = if msg.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .payment_status
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -753,7 +753,7 @@ fn handle_bank_redirects_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -783,13 +783,13 @@ fn handle_bank_redirects_error_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::AuthorizationFailed;
-    let error = Some(types::ErrorResponse {
+    let error = Some(hyperswitch_domain_models::router_data::ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),
@@ -816,7 +816,7 @@ fn handle_bank_redirects_sync_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -827,7 +827,7 @@ fn handle_bank_redirects_sync_response(
             .payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -876,7 +876,7 @@ pub fn handle_webhook_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -886,7 +886,7 @@ pub fn handle_webhook_response(
         let reason_info = payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -923,7 +923,7 @@ pub fn get_trustpay_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -1017,7 +1017,7 @@ impl<F, T>
                 ..item.data
             }),
             _ => Ok(Self {
-                response: Err(types::ErrorResponse {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: item.response.result_info.result_code.to_string(),
                     // message vary for the same code, so relying on code alone as it is unique
                     message: item.response.result_info.result_code.to_string(),
@@ -1491,11 +1491,16 @@ pub enum RefundResponse {
 fn handle_cards_refund_response(
     response: CardsRefundResponse,
     status_code: u16,
-) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
-{
+) -> CustomResult<
+    (
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        types::RefundsResponseData,
+    ),
+    errors::ConnectorError,
+> {
     let (refund_status, msg) = get_refund_status(&response.payment_status)?;
     let error = if msg.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response.payment_status,
             message: msg
                 .clone()
@@ -1518,12 +1523,17 @@ fn handle_cards_refund_response(
 fn handle_webhooks_refund_response(
     response: WebhookPaymentInformation,
     status_code: u16,
-) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
-{
+) -> CustomResult<
+    (
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        types::RefundsResponseData,
+    ),
+    errors::ConnectorError,
+> {
     let refund_status = diesel_models::enums::RefundStatus::try_from(response.status)?;
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -1555,10 +1565,13 @@ fn handle_webhooks_refund_response(
 fn handle_bank_redirects_refund_response(
     response: BankRedirectRefundResponse,
     status_code: u16,
-) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
+) -> (
+    Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+    types::RefundsResponseData,
+) {
     let (refund_status, msg) = get_refund_status_from_result_info(response.result_info.result_code);
     let error = if msg.is_some() {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response.result_info.result_code.to_string(),
             // message vary for the same code, so relying on code alone as it is unique
             message: response.result_info.result_code.to_string(),
@@ -1580,14 +1593,17 @@ fn handle_bank_redirects_refund_response(
 fn handle_bank_redirects_refund_sync_response(
     response: SyncResponseBankRedirect,
     status_code: u16,
-) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
+) -> (
+    Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+    types::RefundsResponseData,
+) {
     let refund_status = enums::RefundStatus::from(response.payment_information.status);
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response
             .payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -1616,8 +1632,11 @@ fn handle_bank_redirects_refund_sync_response(
 fn handle_bank_redirects_refund_sync_error_response(
     response: ErrorResponseBankRedirect,
     status_code: u16,
-) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
-    let error = Some(types::ErrorResponse {
+) -> (
+    Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+    types::RefundsResponseData,
+) {
+    let error = Some(hyperswitch_domain_models::router_data::ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),

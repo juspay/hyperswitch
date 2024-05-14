@@ -172,7 +172,10 @@ pub async fn update_connector_mandate_id(
     merchant_account: String,
     mandate_ids_opt: Option<String>,
     payment_method_id: Option<String>,
-    resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
+    resp: Result<
+        types::PaymentsResponseData,
+        hyperswitch_domain_models::router_data::ErrorResponse,
+    >,
     storage_scheme: MerchantStorageScheme,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate_details = Option::foreign_from(resp);
@@ -506,10 +509,17 @@ pub async fn retrieve_mandates_list(
     Ok(services::ApplicationResponse::Json(mandates_list))
 }
 
-impl ForeignFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
-    for Option<types::MandateReference>
+impl
+    ForeignFrom<
+        Result<types::PaymentsResponseData, hyperswitch_domain_models::router_data::ErrorResponse>,
+    > for Option<types::MandateReference>
 {
-    fn foreign_from(resp: Result<types::PaymentsResponseData, types::ErrorResponse>) -> Self {
+    fn foreign_from(
+        resp: Result<
+            types::PaymentsResponseData,
+            hyperswitch_domain_models::router_data::ErrorResponse,
+        >,
+    ) -> Self {
         match resp {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 mandate_reference, ..

@@ -23,6 +23,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_domain_models::router_data::ErrorResponse;
 use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
@@ -52,7 +53,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse,
     },
 };
 

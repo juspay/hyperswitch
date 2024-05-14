@@ -692,14 +692,16 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if utils::is_payment_failure(status) {
-                        Err(types::ErrorResponse::from((
-                            payment_response.data.reason_code,
-                            payment_response.data.reason.clone(),
-                            payment_response.data.reason,
-                            item.http_code,
-                            Some(status),
-                            Some(payment_response.data.order_id),
-                        )))
+                        Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                            (
+                                payment_response.data.reason_code,
+                                payment_response.data.reason.clone(),
+                                payment_response.data.reason,
+                                item.http_code,
+                                Some(status),
+                                Some(payment_response.data.order_id),
+                            ),
+                        ))
                     } else {
                         Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
@@ -728,14 +730,16 @@ impl<F, T>
             MultisafepayAuthResponse::ErrorResponse(error_response) => {
                 let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
                 Ok(Self {
-                    response: Err(types::ErrorResponse::from((
-                        Some(error_response.error_code.to_string()),
-                        Some(error_response.error_info.clone()),
-                        Some(error_response.error_info),
-                        item.http_code,
-                        attempt_status,
-                        None,
-                    ))),
+                    response: Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                        (
+                            Some(error_response.error_code.to_string()),
+                            Some(error_response.error_info.clone()),
+                            Some(error_response.error_info),
+                            item.http_code,
+                            attempt_status,
+                            None,
+                        ),
+                    )),
                     ..item.data
                 })
             }
@@ -839,7 +843,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
             MultisafepayRefundResponse::ErrorResponse(error_response) => {
                 let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
                 Ok(Self {
-                    response: Err(types::ErrorResponse {
+                    response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: error_response.error_code.to_string(),
                         message: error_response.error_info.clone(),
                         reason: Some(error_response.error_info),
@@ -878,14 +882,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
                 })
             }
             MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse::from((
-                    Some(error_response.error_code.to_string()),
-                    Some(error_response.error_info.clone()),
-                    Some(error_response.error_info),
-                    item.http_code,
-                    None,
-                    None,
-                ))),
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                    (
+                        Some(error_response.error_code.to_string()),
+                        Some(error_response.error_info.clone()),
+                        Some(error_response.error_info),
+                        item.http_code,
+                        None,
+                        None,
+                    ),
+                )),
                 ..item.data
             }),
         }

@@ -241,7 +241,7 @@ impl
                 enums::AttemptStatus::AuthenticationPending,
             ),
             Response::Declined | Response::Error => (
-                Err(types::ErrorResponse {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: item.response.response_code,
                     message: item.response.responsetext.to_owned(),
                     reason: Some(item.response.responsetext),
@@ -400,10 +400,12 @@ impl
                 },
             ),
             Response::Declined | Response::Error => (
-                Err(types::ErrorResponse::foreign_from((
-                    item.response,
-                    item.http_code,
-                ))),
+                Err(
+                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
+                        item.response,
+                        item.http_code,
+                    )),
+                ),
                 enums::AttemptStatus::Failure,
             ),
         };
@@ -415,7 +417,9 @@ impl
     }
 }
 
-impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
+impl ForeignFrom<(NmiCompleteResponse, u16)>
+    for hyperswitch_domain_models::router_data::ErrorResponse
+{
     fn foreign_from((response, http_code): (NmiCompleteResponse, u16)) -> Self {
         Self {
             code: response.response_code,
@@ -777,10 +781,12 @@ impl
                 enums::AttemptStatus::CaptureInitiated,
             ),
             Response::Declined | Response::Error => (
-                Err(types::ErrorResponse::foreign_from((
-                    item.response,
-                    item.http_code,
-                ))),
+                Err(
+                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
+                        item.response,
+                        item.http_code,
+                    )),
+                ),
                 enums::AttemptStatus::CaptureFailed,
             ),
         };
@@ -876,10 +882,12 @@ impl<T>
                 enums::AttemptStatus::Charged,
             ),
             Response::Declined | Response::Error => (
-                Err(types::ErrorResponse::foreign_from((
-                    item.response,
-                    item.http_code,
-                ))),
+                Err(
+                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
+                        item.response,
+                        item.http_code,
+                    )),
+                ),
                 enums::AttemptStatus::Failure,
             ),
         };
@@ -891,7 +899,9 @@ impl<T>
     }
 }
 
-impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
+impl ForeignFrom<(StandardResponse, u16)>
+    for hyperswitch_domain_models::router_data::ErrorResponse
+{
     fn foreign_from((response, http_code): (StandardResponse, u16)) -> Self {
         Self {
             code: response.response_code,
@@ -942,10 +952,12 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                 },
             ),
             Response::Declined | Response::Error => (
-                Err(types::ErrorResponse::foreign_from((
-                    item.response,
-                    item.http_code,
-                ))),
+                Err(
+                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
+                        item.response,
+                        item.http_code,
+                    )),
+                ),
                 enums::AttemptStatus::Failure,
             ),
         };
@@ -990,10 +1002,12 @@ impl<T>
                 enums::AttemptStatus::VoidInitiated,
             ),
             Response::Declined | Response::Error => (
-                Err(types::ErrorResponse::foreign_from((
-                    item.response,
-                    item.http_code,
-                ))),
+                Err(
+                    hyperswitch_domain_models::router_data::ErrorResponse::foreign_from((
+                        item.response,
+                        item.http_code,
+                    )),
+                ),
                 enums::AttemptStatus::VoidFailed,
             ),
         };

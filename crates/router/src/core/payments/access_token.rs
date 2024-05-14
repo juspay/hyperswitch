@@ -95,8 +95,8 @@ pub async fn add_access_token<
 
                 let refresh_token_response_data: Result<
                     hyperswitch_domain_models::router_data::AccessToken,
-                    types::ErrorResponse,
-                > = Err(types::ErrorResponse::default());
+                    hyperswitch_domain_models::router_data::ErrorResponse,
+                > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
                 let refresh_token_router_data = payments::helpers::router_data_type_conversion::<
                     _,
                     api_types::AccessTokenAuth,
@@ -147,7 +147,9 @@ pub async fn add_access_token<
         })
     } else {
         Ok(types::AddAccessTokenResult {
-            access_token_result: Err(types::ErrorResponse::default()),
+            access_token_result: Err(
+                hyperswitch_domain_models::router_data::ErrorResponse::default(),
+            ),
             connector_supports_access_token: false,
         })
     }
@@ -162,8 +164,12 @@ pub async fn refresh_connector_auth(
         types::AccessTokenRequestData,
         hyperswitch_domain_models::router_data::AccessToken,
     >,
-) -> RouterResult<Result<hyperswitch_domain_models::router_data::AccessToken, types::ErrorResponse>>
-{
+) -> RouterResult<
+    Result<
+        hyperswitch_domain_models::router_data::AccessToken,
+        hyperswitch_domain_models::router_data::ErrorResponse,
+    >,
+> {
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api_types::AccessTokenAuth,
@@ -187,7 +193,7 @@ pub async fn refresh_connector_auth(
             // the error has to be handled gracefully by updating the payment status to failed.
             // further payment flow will not be continued
             if connector_error.current_context().is_connector_timeout() {
-                let error_response = types::ErrorResponse {
+                let error_response = hyperswitch_domain_models::router_data::ErrorResponse {
                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
                     message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),

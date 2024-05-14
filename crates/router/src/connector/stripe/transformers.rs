@@ -8,7 +8,12 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::mandates::AcceptanceType;
+use hyperswitch_domain_models::{
+    mandates::AcceptanceType,
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, PaymentMethodToken,
+    },
+};
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -1297,7 +1302,7 @@ fn get_bank_debit_data(
 fn create_stripe_payment_method(
     payment_method_data: &domain::PaymentMethodData,
     auth_type: enums::AuthenticationType,
-    payment_method_token: Option<types::PaymentMethodToken>,
+    payment_method_token: Option<PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
 ) -> Result<
@@ -1528,13 +1533,15 @@ impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
     }
 }
 
-impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for StripePaymentMethodData {
+impl
+    TryFrom<(
+        &domain::WalletData,
+        Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    )> for StripePaymentMethodData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (wallet_data, payment_method_token): (
-            &domain::WalletData,
-            Option<types::PaymentMethodToken>,
-        ),
+        (wallet_data, payment_method_token): (&domain::WalletData, Option<PaymentMethodToken>),
     ) -> Result<Self, Self::Error> {
         match wallet_data {
             domain::WalletData::ApplePay(applepay_data) => {
@@ -2378,7 +2385,7 @@ pub struct AdditionalPaymentMethodDetails {
     pub authentication_details: Option<Value>,
 }
 
-impl From<AdditionalPaymentMethodDetails> for types::AdditionalPaymentMethodConnectorResponse {
+impl From<AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorResponse {
     fn from(item: AdditionalPaymentMethodDetails) -> Self {
         Self::Card {
             authentication_data: item.authentication_details,
@@ -2479,7 +2486,7 @@ pub struct SetupIntentResponse {
 
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
-) -> Option<types::ConnectorResponseData> {
+) -> Option<ConnectorResponseData> {
     if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
         charge_object
             .payment_method_details
@@ -2488,13 +2495,13 @@ fn extract_payment_method_connector_response_from_latest_charge(
     } else {
         None
     }
-    .map(types::AdditionalPaymentMethodConnectorResponse::from)
-    .map(types::ConnectorResponseData::with_additional_payment_method_data)
+    .map(AdditionalPaymentMethodConnectorResponse::from)
+    .map(ConnectorResponseData::with_additional_payment_method_data)
 }
 
 fn extract_payment_method_connector_response_from_latest_attempt(
     stripe_latest_attempt: &LatestAttempt,
-) -> Option<types::ConnectorResponseData> {
+) -> Option<ConnectorResponseData> {
     if let LatestAttempt::PaymentIntentAttempt(intent_attempt) = stripe_latest_attempt {
         intent_attempt
             .payment_method_details
@@ -2503,8 +2510,8 @@ fn extract_payment_method_connector_response_from_latest_attempt(
     } else {
         None
     }
-    .map(types::AdditionalPaymentMethodConnectorResponse::from)
-    .map(types::ConnectorResponseData::with_additional_payment_method_data)
+    .map(AdditionalPaymentMethodConnectorResponse::from)
+    .map(ConnectorResponseData::with_additional_payment_method_data)
 }
 
 impl<F, T>
@@ -3063,7 +3070,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: item
                     .response
@@ -3098,7 +3105,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if connector_util::is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: item
                     .response
@@ -3428,7 +3435,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let status = enums::AttemptStatus::from(item.response.status);
         let response = if connector_util::is_payment_failure(status) {
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
                     .response
                     .failure_code
@@ -4019,7 +4026,7 @@ fn get_transaction_metadata(
 }
 
 impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
-    type Error = types::ErrorResponse;
+    type Error = hyperswitch_domain_models::router_data::ErrorResponse;
     fn try_from(
         (response, http_code, response_id): (&Option<ErrorDetails>, u16, String),
     ) -> Result<Self, Self::Error> {
@@ -4040,7 +4047,7 @@ impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseDa
             ),
         };
 
-        Err(types::ErrorResponse {
+        Err(hyperswitch_domain_models::router_data::ErrorResponse {
             code,
             message: error_message.clone(),
             reason: response.clone().and_then(|res| {

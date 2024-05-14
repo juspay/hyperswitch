@@ -200,7 +200,9 @@ impl<F, T>
         let status = enums::AttemptStatus::from(item.response.sale_status.clone());
         let response = if is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::from((&item.response, item.http_code)))
+            Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                (&item.response, item.http_code),
+            ))
         } else {
             Ok(types::PaymentsResponseData::try_from(&item.response)?)
         };
@@ -212,7 +214,7 @@ impl<F, T>
     }
 }
 
-impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
+impl From<(&PaymePaySaleResponse, u16)> for hyperswitch_domain_models::router_data::ErrorResponse {
     fn from((pay_sale_response, http_code): (&PaymePaySaleResponse, u16)) -> Self {
         let code = pay_sale_response
             .status_error_code
@@ -278,10 +280,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
         let status = enums::AttemptStatus::from(transaction_response.sale_status.clone());
         let response = if is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::from((
-                &transaction_response,
-                item.http_code,
-            )))
+            Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                (&transaction_response, item.http_code),
+            ))
         } else {
             Ok(types::PaymentsResponseData::from(&transaction_response))
         };
@@ -293,7 +294,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
     }
 }
 
-impl From<(&SaleQuery, u16)> for types::ErrorResponse {
+impl From<(&SaleQuery, u16)> for hyperswitch_domain_models::router_data::ErrorResponse {
     fn from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
         Self {
             code: sale_query_response
@@ -1003,7 +1004,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
             let status_error_code = payme_response
                 .status_error_code
                 .map(|error_code| error_code.to_string());
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: status_error_code
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -1090,7 +1091,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
             let status_error_code = payme_response
                 .status_error_code
                 .map(|error_code| error_code.to_string());
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: status_error_code
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -1154,7 +1155,7 @@ impl<F, T>
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
         let refund_status = enums::RefundStatus::try_from(pay_sale_response.sale_status.clone())?;
         let response = if is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::NO_ERROR_CODE.to_string(),
                 reason: None,

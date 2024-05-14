@@ -2,6 +2,9 @@ use api_models::payments;
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data::{
+    AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData, ConnectorResponseData,
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -22,7 +25,6 @@ use crate::{
         domain,
         storage::enums,
         transformers::ForeignFrom,
-        ApplePayPredecryptData,
     },
     unimplemented_payment_method,
 };
@@ -383,8 +385,8 @@ impl<F, T>
                 let connector_response = info_response
                     .processor_information
                     .as_ref()
-                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
-                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
+                    .map(AdditionalPaymentMethodConnectorResponse::from)
+                    .map(ConnectorResponseData::with_additional_payment_method_data);
 
                 Ok(Self {
                     status: mandate_status,
@@ -413,7 +415,9 @@ impl<F, T>
                 })
             }
             BankOfAmericaSetupMandatesResponse::ErrorInformation(ref error_response) => {
-                let response = Err(types::ErrorResponse::from((error_response, item.http_code)));
+                let response = Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                    (error_response, item.http_code),
+                ));
                 Ok(Self {
                     response,
                     status: enums::AttemptStatus::Failure,
@@ -1335,7 +1339,7 @@ impl<F, T>
             .to_owned()
             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
         let error_message = error_response.error_information.reason.to_owned();
-        let response = Err(types::ErrorResponse {
+        let response = Err(hyperswitch_domain_models::router_data::ErrorResponse {
             code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -1365,14 +1369,16 @@ fn get_error_response_if_failure(
         enums::AttemptStatus,
         u16,
     ),
-) -> Option<types::ErrorResponse> {
+) -> Option<hyperswitch_domain_models::router_data::ErrorResponse> {
     if utils::is_payment_failure(status) {
-        Some(types::ErrorResponse::from((
-            &info_response.error_information,
-            &info_response.risk_information,
-            http_code,
-            info_response.id.clone(),
-        )))
+        Some(hyperswitch_domain_models::router_data::ErrorResponse::from(
+            (
+                &info_response.error_information,
+                &info_response.risk_information,
+                http_code,
+                info_response.id.clone(),
+            ),
+        ))
     } else {
         None
     }
@@ -1384,7 +1390,7 @@ fn get_payment_response(
         enums::AttemptStatus,
         u16,
     ),
-) -> Result<types::PaymentsResponseData, types::ErrorResponse> {
+) -> Result<types::PaymentsResponseData, hyperswitch_domain_models::router_data::ErrorResponse> {
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
         Some(error) => Err(error),
@@ -1476,7 +1482,7 @@ impl<F, T>
                     .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
                 let error_message = error_response.error_information.reason;
                 Ok(Self {
-                    response: Err(types::ErrorResponse {
+                    response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: error_message
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -1770,12 +1776,14 @@ impl<F>
                 let status = enums::AttemptStatus::from(info_response.status);
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
-                    let response = Err(types::ErrorResponse::from((
-                        &info_response.error_information,
-                        &risk_info,
-                        item.http_code,
-                        info_response.id.clone(),
-                    )));
+                    let response = Err(
+                        hyperswitch_domain_models::router_data::ErrorResponse::from((
+                            &info_response.error_information,
+                            &risk_info,
+                            item.http_code,
+                            info_response.id.clone(),
+                        )),
+                    );
 
                     Ok(Self {
                         status,
@@ -1831,7 +1839,9 @@ impl<F>
                 }
             }
             BankOfAmericaPreProcessingResponse::ErrorInformation(ref error_response) => {
-                let response = Err(types::ErrorResponse::from((error_response, item.http_code)));
+                let response = Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                    (error_response, item.http_code),
+                ));
                 Ok(Self {
                     response,
                     status: enums::AttemptStatus::AuthenticationFailed,
@@ -1877,8 +1887,8 @@ impl<F>
                 let connector_response = info_response
                     .processor_information
                     .as_ref()
-                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
-                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
+                    .map(AdditionalPaymentMethodConnectorResponse::from)
+                    .map(ConnectorResponseData::with_additional_payment_method_data);
                 Ok(Self {
                     status,
                     response,
@@ -1931,8 +1941,8 @@ impl<F>
                 let connector_response = info_response
                     .processor_information
                     .as_ref()
-                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
-                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
+                    .map(AdditionalPaymentMethodConnectorResponse::from)
+                    .map(ConnectorResponseData::with_additional_payment_method_data);
 
                 Ok(Self {
                     status,
@@ -1952,7 +1962,7 @@ impl<F>
     }
 }
 
-impl From<&ClientProcessorInformation> for types::AdditionalPaymentMethodConnectorResponse {
+impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorResponse {
     fn from(processor_information: &ClientProcessorInformation) -> Self {
         let payment_checks = Some(
             serde_json::json!({"avs_response": processor_information.avs, "card_verification": processor_information.card_verification}),
@@ -2104,12 +2114,14 @@ impl<F>
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
                     Ok(Self {
-                        response: Err(types::ErrorResponse::from((
-                            &app_response.error_information,
-                            &risk_info,
-                            item.http_code,
-                            app_response.id.clone(),
-                        ))),
+                        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::from(
+                            (
+                                &app_response.error_information,
+                                &risk_info,
+                                item.http_code,
+                                app_response.id.clone(),
+                            ),
+                        )),
                         status: enums::AttemptStatus::Failure,
                         ..item.data
                     })
@@ -2417,7 +2429,7 @@ impl
         &Option<ClientRiskInformation>,
         u16,
         String,
-    )> for types::ErrorResponse
+    )> for hyperswitch_domain_models::router_data::ErrorResponse
 {
     fn from(
         (error_data, risk_information, status_code, transaction_id): (
@@ -2678,7 +2690,9 @@ impl From<&domain::GooglePayWalletData> for PaymentInformation {
     }
 }
 
-impl From<(&BankOfAmericaErrorInformationResponse, u16)> for types::ErrorResponse {
+impl From<(&BankOfAmericaErrorInformationResponse, u16)>
+    for hyperswitch_domain_models::router_data::ErrorResponse
+{
     fn from((error_response, status_code): (&BankOfAmericaErrorInformationResponse, u16)) -> Self {
         let error_reason = error_response
             .error_information

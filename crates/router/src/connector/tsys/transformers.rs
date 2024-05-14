@@ -201,8 +201,8 @@ pub enum TsysPaymentsResponse {
 fn get_error_response(
     connector_response: TsysErrorResponse,
     status_code: u16,
-) -> types::ErrorResponse {
-    types::ErrorResponse {
+) -> hyperswitch_domain_models::router_data::ErrorResponse {
+    hyperswitch_domain_models::router_data::ErrorResponse {
         code: connector_response.response_code,
         message: connector_response.response_message.clone(),
         reason: Some(connector_response.response_message),

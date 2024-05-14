@@ -669,13 +669,17 @@ impl<F, T>
                     is_auto_capture,
                 ));
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| types::ErrorResponse {
-                        code: error.error_code.clone(),
-                        message: error.error_text.clone(),
-                        reason: None,
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                    errors.iter().next().map(|error| {
+                        hyperswitch_domain_models::router_data::ErrorResponse {
+                            code: error.error_code.clone(),
+                            message: error.error_text.clone(),
+                            reason: None,
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(
+                                transaction_response.transaction_id.clone(),
+                            ),
+                        }
                     })
                 });
                 let metadata = transaction_response
@@ -747,13 +751,17 @@ impl<F, T>
             Some(transaction_response) => {
                 let status = enums::AttemptStatus::from(transaction_response.response_code.clone());
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| types::ErrorResponse {
-                        code: error.error_code.clone(),
-                        message: error.error_text.clone(),
-                        reason: None,
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                    errors.iter().next().map(|error| {
+                        hyperswitch_domain_models::router_data::ErrorResponse {
+                            code: error.error_code.clone(),
+                            message: error.error_text.clone(),
+                            reason: None,
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(
+                                transaction_response.transaction_id.clone(),
+                            ),
+                        }
                     })
                 });
                 let metadata = transaction_response
@@ -893,14 +901,16 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
         let transaction_response = &item.response.transaction_response;
         let refund_status = enums::RefundStatus::from(transaction_response.response_code.clone());
         let error = transaction_response.errors.clone().and_then(|errors| {
-            errors.first().map(|error| types::ErrorResponse {
-                code: error.error_code.clone(),
-                message: error.error_text.clone(),
-                reason: None,
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-            })
+            errors.first().map(
+                |error| hyperswitch_domain_models::router_data::ErrorResponse {
+                    code: error.error_code.clone(),
+                    message: error.error_text.clone(),
+                    reason: None,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                },
+            )
         });
 
         Ok(Self {
@@ -1169,12 +1179,12 @@ impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
 fn get_err_response(
     status_code: u16,
     message: ResponseMessages,
-) -> Result<types::ErrorResponse, errors::ConnectorError> {
+) -> Result<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError> {
     let response_message = message
         .message
         .first()
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-    Ok(types::ErrorResponse {
+    Ok(hyperswitch_domain_models::router_data::ErrorResponse {
         code: response_message.code.clone(),
         message: response_message.text.clone(),
         reason: None,

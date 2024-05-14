@@ -921,7 +921,7 @@ fn get_zen_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
         types::PaymentsResponseData,
     ),
     errors::ConnectorError,
@@ -938,7 +938,7 @@ fn get_zen_response(
     };
     let status = enums::AttemptStatus::foreign_try_from((response.status, action))?;
     let error = if utils::is_payment_failure(status) {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .reject_code
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -1079,11 +1079,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 fn get_zen_refund_response(
     response: RefundResponse,
     status_code: u16,
-) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
-{
+) -> CustomResult<
+    (
+        Option<hyperswitch_domain_models::router_data::ErrorResponse>,
+        types::RefundsResponseData,
+    ),
+    errors::ConnectorError,
+> {
     let refund_status = enums::RefundStatus::from(response.status);
     let error = if utils::is_refund_failure(refund_status) {
-        Some(types::ErrorResponse {
+        Some(hyperswitch_domain_models::router_data::ErrorResponse {
             code: response
                 .reject_code
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),

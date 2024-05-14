@@ -130,7 +130,8 @@ impl ConnectorCommon for Fiserv {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         let response: fiserv::ErrorResponse = res
             .response
             .parse_struct("Fiserv ErrorResponse")
@@ -144,9 +145,8 @@ impl ConnectorCommon for Fiserv {
         Ok(error
             .or(details)
             .and_then(|error_details| {
-                error_details
-                    .first()
-                    .map(|first_error| types::ErrorResponse {
+                error_details.first().map(|first_error| {
+                    hyperswitch_domain_models::router_data::ErrorResponse {
                         code: first_error
                             .code
                             .to_owned()
@@ -156,9 +156,10 @@ impl ConnectorCommon for Fiserv {
                         status_code: res.status_code,
                         attempt_status: None,
                         connector_transaction_id: None,
-                    })
+                    }
+                })
             })
-            .unwrap_or(types::ErrorResponse {
+            .unwrap_or(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
@@ -320,7 +321,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -406,7 +408,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -500,7 +503,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -604,7 +608,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -692,7 +697,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -776,7 +782,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }

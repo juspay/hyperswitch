@@ -61,7 +61,8 @@ impl ConnectorCommon for Klarna {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -75,7 +76,7 @@ impl ConnectorCommon for Klarna {
             .error_messages
             .map(|messages| messages.join(" & "))
             .or(response.error_message);
-        Ok(types::ErrorResponse {
+        Ok(hyperswitch_domain_models::router_data::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
             message: consts::NO_ERROR_MESSAGE.to_string(),
@@ -213,7 +214,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }
@@ -498,7 +500,8 @@ impl
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::router_data::ErrorResponse, errors::ConnectorError>
+    {
         self.build_error_response(res, event_builder)
     }
 }

@@ -1393,7 +1393,7 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
 fn build_error_response<T>(
     response: &NuveiPaymentsResponse,
     http_code: u16,
-) -> Option<Result<T, types::ErrorResponse>> {
+) -> Option<Result<T, hyperswitch_domain_models::router_data::ErrorResponse>> {
     match response.status {
         NuveiPaymentStatus::Error => Some(get_error_response(
             response.err_code,
@@ -1643,7 +1643,7 @@ fn get_refund_response(
     response: NuveiPaymentsResponse,
     http_code: u16,
     txn_id: String,
-) -> Result<types::RefundsResponseData, types::ErrorResponse> {
+) -> Result<types::RefundsResponseData, hyperswitch_domain_models::router_data::ErrorResponse> {
     let refund_status = response
         .transaction_status
         .clone()
@@ -1669,8 +1669,8 @@ fn get_error_response<T>(
     error_code: Option<i64>,
     error_msg: &Option<String>,
     http_code: u16,
-) -> Result<T, types::ErrorResponse> {
-    Err(types::ErrorResponse {
+) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
+    Err(hyperswitch_domain_models::router_data::ErrorResponse {
         code: error_code
             .map(|c| c.to_string())
             .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),

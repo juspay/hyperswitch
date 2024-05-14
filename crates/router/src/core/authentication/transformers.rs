@@ -169,7 +169,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method_balance: None,
         connector_api_version: None,
         request: request_data,
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         #[cfg(feature = "payouts")]

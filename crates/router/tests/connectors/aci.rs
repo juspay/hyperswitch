@@ -76,7 +76,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             authentication_data: None,
             customer_acceptance: None,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         address: PaymentAddress::new(
             None,
             None,
@@ -152,7 +152,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_refund_id: None,
             browser_info: None,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         address: PaymentAddress::default(),
         connector_meta_data: None,
         amount_captured: None,

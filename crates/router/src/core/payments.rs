@@ -1510,7 +1510,9 @@ where
         };
 
         let apple_pay_predecrypt = apple_pay_data
-            .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
+            .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
+                "ApplePayPredecryptData",
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         logger::debug!(?apple_pay_predecrypt);

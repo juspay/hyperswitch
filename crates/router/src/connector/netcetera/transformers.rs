@@ -105,7 +105,7 @@ impl
                 )
             }
             NetceteraPreAuthenticationResponse::Failure(error_response) => {
-                Err(types::ErrorResponse {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: error_response.error_details.error_code,
                     message: error_response.error_details.error_detail,
                     reason: Some(error_response.error_details.error_description),
@@ -172,14 +172,16 @@ impl
                     },
                 )
             }
-            NetceteraAuthenticationResponse::Error(error_response) => Err(types::ErrorResponse {
-                code: error_response.error_details.error_code,
-                message: error_response.error_details.error_detail,
-                reason: Some(error_response.error_details.error_description),
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: None,
-            }),
+            NetceteraAuthenticationResponse::Error(error_response) => {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    code: error_response.error_details.error_code,
+                    message: error_response.error_details.error_detail,
+                    reason: Some(error_response.error_details.error_description),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
         };
         Ok(Self {
             response,
