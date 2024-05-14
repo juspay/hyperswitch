@@ -4968,6 +4968,20 @@
           }
         ]
       },
+      "ApplePayAddressParameters": {
+        "type": "string",
+        "enum": [
+          "postalAddress",
+          "phone",
+          "email"
+        ]
+      },
+      "ApplePayBillingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -5006,11 +5020,19 @@
             "nullable": true
           },
           "required_billing_contact_fields": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "The required billing contact fields for connector",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayBillingContactFields"
+              }
+            ],
+            "nullable": true
+          },
+          "required_shipping_contact_fields": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayShippingContactFields"
+              }
+            ],
             "nullable": true
           }
         }
@@ -5032,6 +5054,12 @@
             "nullable": true
           }
         ]
+      },
+      "ApplePayShippingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayThirdPartySdkData": {
         "type": "object"
@@ -6739,6 +6767,11 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },
@@ -9102,6 +9135,64 @@
           {
             "type": "string",
             "enum": [
+              "user_shipping_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_state"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_shipping_address_country"
+            ],
+            "properties": {
+              "user_shipping_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_blik_code"
             ]
           },
@@ -9340,6 +9431,9 @@
         "type": "object",
         "required": [
           "merchant_info",
+          "shipping_address_required",
+          "email_required",
+          "shipping_address_parameters",
           "allowed_payment_methods",
           "transaction_info",
           "delayed_session_token",
@@ -9349,6 +9443,17 @@
         "properties": {
           "merchant_info": {
             "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "shipping_address_required": {
+            "type": "boolean",
+            "description": "Is shipping address required"
+          },
+          "email_required": {
+            "type": "boolean",
+            "description": "Is email required"
+          },
+          "shipping_address_parameters": {
+            "$ref": "#/components/schemas/GpayShippingAddressParameters"
           },
           "allowed_payment_methods": {
             "type": "array",
@@ -9535,6 +9640,18 @@
             "$ref": "#/components/schemas/GooglePaySessionResponse"
           }
         ]
+      },
+      "GpayShippingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is shipping phone number required"
+          }
+        }
       },
       "GpayTokenParameters": {
         "type": "object",

@@ -422,6 +422,13 @@ pub enum FieldType {
     UserAddressPincode,
     UserAddressState,
     UserAddressCountry { options: Vec<String> },
+    UserShippingName,
+    UserShippingAddressLine1,
+    UserShippingAddressLine2,
+    UserShippingAddressCity,
+    UserShippingAddressPincode,
+    UserShippingAddressState,
+    UserShippingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
     Text,
@@ -438,6 +445,18 @@ impl FieldType {
             Self::UserAddressPincode,
             Self::UserAddressState,
             Self::UserAddressCountry { options: vec![] },
+        ]
+    }
+
+    pub fn get_shipping_variants() -> Vec<Self> {
+        vec![
+            Self::UserShippingName,
+            Self::UserShippingAddressLine1,
+            Self::UserShippingAddressLine2,
+            Self::UserShippingAddressCity,
+            Self::UserShippingAddressPincode,
+            Self::UserShippingAddressState,
+            Self::UserShippingAddressCountry { options: vec![] },
         ]
     }
 }
@@ -477,6 +496,15 @@ impl PartialEq for FieldType {
             (Self::UserAddressPincode, Self::UserAddressPincode) => true,
             (Self::UserAddressState, Self::UserAddressState) => true,
             (Self::UserAddressCountry { .. }, Self::UserAddressCountry { .. }) => true,
+            (Self::UserShippingName, Self::UserShippingName) => true,
+            (Self::UserShippingAddressLine1, Self::UserShippingAddressLine1) => true,
+            (Self::UserShippingAddressLine2, Self::UserShippingAddressLine2) => true,
+            (Self::UserShippingAddressCity, Self::UserShippingAddressCity) => true,
+            (Self::UserShippingAddressPincode, Self::UserShippingAddressPincode) => true,
+            (Self::UserShippingAddressState, Self::UserShippingAddressState) => true,
+            (Self::UserShippingAddressCountry { .. }, Self::UserShippingAddressCountry { .. }) => {
+                true
+            }
             (Self::UserBlikCode, Self::UserBlikCode) => true,
             (Self::UserBank, Self::UserBank) => true,
             (Self::Text, Self::Text) => true,
