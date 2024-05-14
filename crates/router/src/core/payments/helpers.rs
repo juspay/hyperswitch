@@ -2,12 +2,13 @@ use std::{borrow::Cow, str::FromStr};
 
 use api_models::{
     mandates::RecurringDetails,
-    payments::{CardToken, GetPaymentMethodType, MinorUnit, RequestSurchargeDetails},
+    payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails},
 };
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
+    types::MinorUnit,
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()

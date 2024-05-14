@@ -1,12 +1,14 @@
 //! Types that can be used in other crates
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, primitive::i64, str::FromStr};
 
 use diesel::{
     backend::Backend,
+    deserialize,
     deserialize::FromSql,
     serialize::{Output, ToSql},
+    sql_types,
     sql_types::Jsonb,
-    AsExpression, FromSqlRow,
+    AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
 use semver::Version;
@@ -210,5 +212,112 @@ where
         // please refer to the diesel migration blog:
         // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
         <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+/// This Unit struct represents MinorUnit in which core amount works
+#[derive(
+    Default, Debug, serde::Deserialize, AsExpression, serde::Serialize, Clone, Copy, PartialEq, Eq,
+)]
+#[diesel(sql_type = diesel::sql_types::BigInt)]
+pub struct MinorUnit(i64); //core
+
+impl MinorUnit {
+    /// gets amount as i64 value
+    pub fn get_amount_as_i64(&self) -> i64 {
+        // will be removed in future
+        self.0
+    }
+
+    /// checks if the amount is zero value
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
+
+    /// adds two minor unit amout
+    pub fn add(&self, a2: Self) -> Self {
+        Self::new(self.0 + a2.0)
+    }
+
+    /// substract two minor unit amount
+    pub fn substract(&self, a2: Self) -> Self {
+        Self::new(self.0 - a2.0)
+    }
+
+    /// gets optional amount from minor unit
+    pub fn get_optional_amount_as_i64(optional_amount: Option<Self>) -> Option<i64> {
+        // remove in future
+        optional_amount.map(|amount| amount.0)
+    }
+
+    /// forms a new minor unit from amount
+    pub fn new(value: i64) -> Self {
+        // remove in future
+        Self(value)
+    }
+
+    /// gets optional minor unit from amount
+    pub fn optional_new_from_i64_amount(value: i64) -> Option<Self> {
+        Some(Self(value))
+    }
+
+    /// forms a new optional minor unit from optional amount
+    pub fn new_from_optional_i64_amount(value: Option<i64>) -> Option<Self> {
+        // remove in future
+        value.map(Self)
+    }
+
+    /// checks if both the values are equal
+    pub fn is_equal(&self, a2: Self) -> bool {
+        self.0 == a2.0
+    }
+
+    /// checks if both the values are not equal
+    pub fn is_not_equal(&self, a2: Self) -> bool {
+        !self.is_equal(a2)
+    }
+
+    /// checks if one value is greater than the other
+    pub fn is_greater_than(&self, a2: Self) -> bool {
+        self.0 > a2.0
+    }
+}
+
+impl Display for MinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<DB> FromSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: FromSql<sql_types::BigInt, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = i64::from_sql(value)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: ToSql<sql_types::BigInt, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    Self: FromSql<sql_types::BigInt, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
     }
 }

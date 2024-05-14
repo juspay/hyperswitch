@@ -485,7 +485,7 @@ impl<F, T>
                     .or(Some(order.order_id.clone())),
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: Some(api_models::payments::MinorUnit::new(
+            amount_captured: Some(common_utils::types::MinorUnit::new(
                 order
                     .total_amount
                     .parse::<i64>()

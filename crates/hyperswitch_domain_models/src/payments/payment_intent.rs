@@ -1,8 +1,8 @@
-use api_models::payments::MinorUnit;
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     pii,
+    types::MinorUnit,
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

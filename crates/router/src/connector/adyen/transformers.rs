@@ -3926,7 +3926,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: Some(api_models::payments::MinorUnit::new(0)),
+            amount_captured: Some(common_utils::types::MinorUnit::new(0)),
             ..item.data
         })
     }

@@ -1,5 +1,5 @@
 // use diesel_models::enums::MandateDetails;
-use api_models::payments::MinorUnit;
+use common_utils::types::MinorUnit;
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::{
     mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,

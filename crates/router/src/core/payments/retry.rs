@@ -1,7 +1,6 @@
 use std::{str::FromStr, vec::IntoIter};
 
-use api_models::payments::MinorUnit;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use router_env::{

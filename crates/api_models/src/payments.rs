@@ -10,6 +10,7 @@ use common_utils::{
     crypto,
     ext_traits::{ConfigExt, Encode},
     pii::{self, Email},
+    types::MinorUnit,
 };
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -692,50 +693,6 @@ impl PaymentsRequest {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
-pub struct MinorUnit(i64);
-
-impl MinorUnit {
-    pub fn get_amount_as_i64(&self) -> i64 {
-        self.0
-    }
-
-    pub fn add(&self, a2: Self) -> Self {
-        Self::new(self.get_amount_as_i64() + a2.get_amount_as_i64())
-    }
-
-    pub fn substract(&self, a2: Self) -> Self {
-        Self::new(self.get_amount_as_i64() - a2.get_amount_as_i64())
-    }
-
-    pub fn get_optional_amount_as_i64(optional_amount: Option<Self>) -> Option<i64> {
-        optional_amount.map(|amount| amount.get_amount_as_i64())
-    }
-
-    pub fn new(value: i64) -> Self {
-        Self(value)
-    }
-    pub fn optional_new_from_i64_amount(value: i64) -> Option<Self> {
-        Some(Self(value))
-    }
-
-    pub fn new_from_optional_i64_amount(value: Option<i64>) -> Option<Self> {
-        value.map(Self)
-    }
-
-    pub fn is_equal(&self, a2: Self) -> bool {
-        self.get_amount_as_i64() == a2.get_amount_as_i64()
-    }
-
-    pub fn is_not_equal(&self, a2: Self) -> bool {
-        !self.is_equal(a2)
-    }
-
-    pub fn is_greater_than(&self, a2: Self) -> bool {
-        self.get_amount_as_i64() > a2.get_amount_as_i64()
-    }
-}
-
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
     Value(NonZeroI64),
     #[default]
@@ -751,15 +708,9 @@ impl From<Amount> for MinorUnit {
     }
 }
 
-impl fmt::Display for MinorUnit {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl From<MinorUnit> for Amount {
     fn from(minor_unit: MinorUnit) -> Self {
-        match minor_unit.0 {
+        match minor_unit.get_amount_as_i64() {
             0 => Self::Zero,
             val => NonZeroI64::new(val).map_or(Self::Zero, Self::Value),
         }

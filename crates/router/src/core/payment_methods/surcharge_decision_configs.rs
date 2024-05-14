@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use api_models::{
     payment_methods::SurchargeDetailsResponse,
-    payments,
-    payments::MinorUnit,
-    routing,
+    payments, routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
 use common_utils::{ext_traits::StringExt, static_cache::StaticCache, types as common_utils_types};
@@ -381,9 +379,9 @@ fn get_surcharge_details_from_surcharge_output(
             }
         },
         tax_on_surcharge: surcharge_details.tax_on_surcharge,
-        surcharge_amount: MinorUnit::new(surcharge_amount),
-        tax_on_surcharge_amount: MinorUnit::new(tax_on_surcharge_amount),
-        final_amount: MinorUnit::new(
+        surcharge_amount: common_utils_types::MinorUnit::new(surcharge_amount),
+        tax_on_surcharge_amount: common_utils_types::MinorUnit::new(tax_on_surcharge_amount),
+        final_amount: common_utils_types::MinorUnit::new(
             payment_attempt.amount.get_amount_as_i64() + surcharge_amount + tax_on_surcharge_amount,
         ),
     })

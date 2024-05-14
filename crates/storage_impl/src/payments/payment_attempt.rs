@@ -1,8 +1,5 @@
-use api_models::{
-    enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType},
-    payments::MinorUnit,
-};
-use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
+use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
+use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found, types::MinorUnit};
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,

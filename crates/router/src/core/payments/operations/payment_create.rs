@@ -2,10 +2,12 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
-    payments::MinorUnit,
 };
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    types::MinorUnit,
+};
 use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
@@ -889,7 +891,7 @@ impl PaymentCreate {
                 attempt_id,
                 status,
                 currency,
-                amount: api_models::payments::MinorUnit::from(amount),
+                amount: common_utils::types::MinorUnit::from(amount),
                 payment_method,
                 capture_method: request.capture_method,
                 capture_on: request.capture_on,
@@ -1007,7 +1009,7 @@ impl PaymentCreate {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
             status,
-            amount: api_models::payments::MinorUnit::from(amount),
+            amount: common_utils::types::MinorUnit::from(amount),
             currency,
             description: request.description.clone(),
             created_at,
@@ -1119,7 +1121,7 @@ async fn create_payment_link(
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
         link_to_pay: payment_link.clone(),
-        amount: api_models::payments::MinorUnit::from(amount).get_amount_as_i64(),
+        amount: common_utils::types::MinorUnit::from(amount).get_amount_as_i64(),
         currency: request.currency,
         created_at,
         last_modified_at,

@@ -1,5 +1,4 @@
-use api_models::payments::MinorUnit;
-use common_utils::pii;
+use common_utils::{self, pii, types::MinorUnit};
 use time::PrimitiveDateTime;
 
 pub mod payment_attempt;

@@ -23,7 +23,7 @@ impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
         Ok(Self {
             link_to_pay: payment_link.link_to_pay,
             payment_link_id: payment_link.payment_link_id,
-            amount: api_models::payments::MinorUnit::new(payment_link.amount),
+            amount: common_utils::types::MinorUnit::new(payment_link.amount),
             description: payment_link.description,
             created_at: payment_link.created_at,
             merchant_id: payment_link.merchant_id,

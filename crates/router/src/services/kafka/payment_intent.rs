@@ -1,4 +1,4 @@
-use api_models::payments::MinorUnit;
+use common_utils::types::MinorUnit;
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;

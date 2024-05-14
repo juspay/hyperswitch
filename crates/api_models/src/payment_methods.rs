@@ -5,7 +5,7 @@ use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
     pii,
-    types::{Percentage, Surcharge},
+    types::{MinorUnit, Percentage, Surcharge},
 };
 use serde::de;
 use utoipa::{schema, ToSchema};
@@ -14,7 +14,7 @@ use utoipa::{schema, ToSchema};
 use crate::payouts;
 use crate::{
     admin, enums as api_enums,
-    payments::{self, BankCodeResponse, MinorUnit},
+    payments::{self, BankCodeResponse},
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

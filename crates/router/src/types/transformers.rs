@@ -1,7 +1,7 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
 use api_models::{
-    enums as api_enums, gsm as gsm_api_types, payment_methods, payments, payments::MinorUnit,
+    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
     routing::ConnectorSelection,
 };
 use common_utils::{
@@ -10,6 +10,7 @@ use common_utils::{
     ext_traits::{StringExt, ValueExt},
     fp_utils::when,
     pii,
+    types::MinorUnit,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};

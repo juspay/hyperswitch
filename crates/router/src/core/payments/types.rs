@@ -1,9 +1,6 @@
 use std::{collections::HashMap, num::TryFromIntError};
 
-use api_models::{
-    payment_methods::SurchargeDetailsResponse,
-    payments::{MinorUnit, RequestSurchargeDetails},
-};
+use api_models::{payment_methods::SurchargeDetailsResponse, payments::RequestSurchargeDetails};
 use common_utils::{
     consts,
     errors::CustomResult,
@@ -83,8 +80,8 @@ impl MultipleCaptureData {
                 .and_modify(|capture| *capture = updated_capture.clone());
         }
     }
-    pub fn get_total_blocked_amount(&self) -> MinorUnit {
-        MinorUnit::new(self.all_captures.iter().fold(0, |accumulator, capture| {
+    pub fn get_total_blocked_amount(&self) -> common_types::MinorUnit {
+        common_types::MinorUnit::new(self.all_captures.iter().fold(0, |accumulator, capture| {
             accumulator
                 + match capture.1.status {
                     storage_enums::CaptureStatus::Charged
@@ -94,8 +91,8 @@ impl MultipleCaptureData {
                 }
         }))
     }
-    pub fn get_total_charged_amount(&self) -> MinorUnit {
-        MinorUnit::new(self.all_captures.iter().fold(0, |accumulator, capture| {
+    pub fn get_total_charged_amount(&self) -> common_types::MinorUnit {
+        common_types::MinorUnit::new(self.all_captures.iter().fold(0, |accumulator, capture| {
             accumulator
                 + match capture.1.status {
                     storage_enums::CaptureStatus::Charged => capture.1.amount,
@@ -126,7 +123,10 @@ impl MultipleCaptureData {
                 accumulator
             })
     }
-    pub fn get_attempt_status(&self, authorized_amount: MinorUnit) -> storage_enums::AttemptStatus {
+    pub fn get_attempt_status(
+        &self,
+        authorized_amount: common_types::MinorUnit,
+    ) -> storage_enums::AttemptStatus {
         let total_captured_amount = self.get_total_charged_amount();
         if authorized_amount.is_equal(total_captured_amount) {
             return storage_enums::AttemptStatus::Charged;
@@ -185,18 +185,18 @@ impl MultipleCaptureData {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SurchargeDetails {
     /// original_amount
-    pub original_amount: MinorUnit,
+    pub original_amount: common_types::MinorUnit,
     /// surcharge value
     pub surcharge: common_types::Surcharge,
     /// tax on surcharge value
     pub tax_on_surcharge:
         Option<common_types::Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>>,
     /// surcharge amount for this payment
-    pub surcharge_amount: MinorUnit,
+    pub surcharge_amount: common_types::MinorUnit,
     /// tax on surcharge amount for this payment
-    pub tax_on_surcharge_amount: MinorUnit,
+    pub tax_on_surcharge_amount: common_types::MinorUnit,
     /// sum of original amount,
-    pub final_amount: MinorUnit,
+    pub final_amount: common_types::MinorUnit,
 }
 
 impl From<(&RequestSurchargeDetails, &PaymentAttempt)> for SurchargeDetails {
@@ -267,7 +267,7 @@ impl SurchargeDetails {
                 .unwrap_or_default()
                 .is_equal(self.tax_on_surcharge_amount)
     }
-    pub fn get_total_surcharge_amount(&self) -> MinorUnit {
+    pub fn get_total_surcharge_amount(&self) -> common_types::MinorUnit {
         self.surcharge_amount.add(self.tax_on_surcharge_amount)
     }
 }

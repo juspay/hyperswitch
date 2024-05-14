@@ -706,7 +706,7 @@ pub fn is_operation_allowed<Op: Debug>(operation: &Op) -> bool {
 impl From<PaymentToFrmData> for PaymentDetails {
     fn from(payment_data: PaymentToFrmData) -> Self {
         Self {
-            amount: api_models::payments::MinorUnit::from(payment_data.amount).get_amount_as_i64(),
+            amount: common_utils::types::MinorUnit::from(payment_data.amount).get_amount_as_i64(),
             currency: payment_data.payment_attempt.currency,
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,

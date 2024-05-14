@@ -1,11 +1,12 @@
 use std::str::FromStr;
 
-use api_models::{payments, payments::MinorUnit};
+use api_models::payments;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};

@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use api_models::payments::MinorUnit;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;

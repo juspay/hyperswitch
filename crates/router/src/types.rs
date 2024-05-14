@@ -18,13 +18,12 @@ pub mod transformers;
 
 use std::{collections::HashMap, marker::PhantomData};
 
-use api_models::payments::MinorUnit;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
-pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
+pub use common_utils::{request::RequestContent, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 use masking::Secret;

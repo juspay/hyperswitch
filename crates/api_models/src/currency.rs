@@ -1,6 +1,4 @@
-use common_utils::events::ApiEventMetric;
-
-use crate::payments::MinorUnit;
+use common_utils::{events::ApiEventMetric, types::MinorUnit};
 
 /// QueryParams to be send to convert the amount -> from_currency -> to_currency
 #[derive(Debug, serde::Deserialize)]

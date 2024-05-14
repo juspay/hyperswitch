@@ -1,12 +1,10 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::{
-    FrmMessage, GetAddressFromPaymentMethodData, MinorUnit, RequestSurchargeDetails,
-};
+use api_models::payments::{FrmMessage, GetAddressFromPaymentMethodData, RequestSurchargeDetails};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::Maskable;

@@ -1,12 +1,13 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion,
-    mandates::RecurringDetails,
-    payments::{MinorUnit, RequestSurchargeDetails},
+    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    types::MinorUnit,
+};
 use error_stack::{report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};

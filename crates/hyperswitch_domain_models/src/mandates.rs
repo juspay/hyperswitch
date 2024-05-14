@@ -1,10 +1,10 @@
 use api_models::payments::{
     AcceptanceType as ApiAcceptanceType, CustomerAcceptance as ApiCustomerAcceptance,
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
-    MinorUnit, OnlineMandate as ApiOnlineMandate,
+    OnlineMandate as ApiOnlineMandate,
 };
 use common_enums::Currency;
-use common_utils::{date_time, errors::ParsingError, pii};
+use common_utils::{date_time, errors::ParsingError, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;

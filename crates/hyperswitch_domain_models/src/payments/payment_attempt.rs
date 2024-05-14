@@ -1,5 +1,6 @@
-use api_models::{enums::Connector, payments::MinorUnit};
+use api_models::enums::Connector;
 use common_enums as storage_enums;
+use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

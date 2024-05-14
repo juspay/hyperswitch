@@ -368,7 +368,7 @@ pub async fn payouts_update_core(
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
-    let amount = api_models::payments::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
+    let amount = common_utils::types::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
         .get_amount_as_i64();
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
@@ -1966,7 +1966,7 @@ pub async fn payout_create_db_entries(
     } else {
         None
     };
-    let amount = api_models::payments::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
+    let amount = common_utils::types::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
         .get_amount_as_i64();
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),

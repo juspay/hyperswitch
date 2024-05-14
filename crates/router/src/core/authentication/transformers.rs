@@ -32,7 +32,7 @@ pub fn construct_authentication_router_data(
     billing_address: payments::Address,
     shipping_address: Option<payments::Address>,
     browser_details: Option<types::BrowserInformation>,
-    amount: api_models::payments::MinorUnit,
+    amount: common_utils::types::MinorUnit,
     currency: Option<common_enums::Currency>,
     message_category: types::api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,

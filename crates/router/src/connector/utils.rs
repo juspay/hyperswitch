@@ -4,13 +4,14 @@ use std::collections::{HashMap, HashSet};
 use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, MinorUnit, OrderDetailsWithAmount},
+    payments::{self, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
+    types::MinorUnit,
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
