@@ -197,7 +197,7 @@ impl RouterDataPSync
             let resp = services::execute_connector_processing_step(
                 state,
                 connector_integration.clone(),
-                &self,
+                self,
                 call_connector_action.clone(),
                 None,
             )
