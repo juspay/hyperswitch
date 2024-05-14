@@ -2197,6 +2197,7 @@ pub async fn list_payment_methods(
     let mut bank_transfer_consolidated_hm =
         HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
+    // All the required fields will be stored here and later filtered out based on business profile config
     let mut required_fields_hm = HashMap::<
         api_enums::PaymentMethod,
         HashMap<api_enums::PaymentMethodType, HashMap<String, RequiredFieldInfo>>,
@@ -2235,6 +2236,31 @@ pub async fn list_payment_methods(
                                     }
                                 }
 
+                                let should_send_shipping_details =
+                                    business_profile.clone().and_then(|business_profile| {
+                                        business_profile
+                                            .collect_shipping_details_from_wallet_connector
+                                    });
+
+                                // Remove shipping fields from required fields based on business profile configuration
+                                if should_send_shipping_details != Some(true) {
+                                    let shipping_variants =
+                                        api_enums::FieldType::get_shipping_variants();
+
+                                    let keys_to_be_removed = required_fields_hs
+                                        .iter()
+                                        .filter(|(_key, value)| {
+                                            shipping_variants.contains(&value.field_type)
+                                        })
+                                        .map(|(key, _value)| key.to_string())
+                                        .collect::<Vec<_>>();
+
+                                    keys_to_be_removed.iter().for_each(|key_to_be_removed| {
+                                        required_fields_hs.remove(key_to_be_removed);
+                                    });
+                                }
+
+                                // get the config, check the enums while adding
                                 {
                                     for (key, val) in &mut required_fields_hs {
                                         let temp = req_val

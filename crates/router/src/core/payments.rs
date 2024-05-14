@@ -299,6 +299,7 @@ where
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
                         None,
+                        &business_profile,
                     )
                     .await?;
 
@@ -368,6 +369,7 @@ where
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
                         None,
+                        &business_profile,
                     )
                     .await?;
 
@@ -400,6 +402,7 @@ where
                                 frm_info.as_ref().and_then(|fi| fi.suggested_action),
                                 #[cfg(not(feature = "frm"))]
                                 None,
+                                &business_profile,
                             )
                             .await?;
                         };
@@ -453,6 +456,7 @@ where
                         payment_data,
                         &customer,
                         session_surcharge_details,
+                        &business_profile,
                     ))
                     .await?
                 }
@@ -1384,7 +1388,8 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+    business_profile: &storage::business_profile::BusinessProfile,
+) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
@@ -1585,7 +1590,13 @@ where
         // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
-            .decide_flows(state, &connector, call_connector_action, connector_request)
+            .decide_flows(
+                state,
+                &connector,
+                call_connector_action,
+                connector_request,
+                business_profile,
+            )
             .await
     } else {
         Ok(router_data)
@@ -1646,6 +1657,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
     session_surcharge_details: Option<api::SessionSurchargeDetails>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -1708,6 +1720,7 @@ where
             &session_connector_data.connector,
             CallConnectorAction::Trigger,
             None,
+            business_profile,
         );
 
         join_handlers.push(res);
