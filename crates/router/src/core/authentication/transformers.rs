@@ -141,7 +141,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    Ok(types::router_data::RouterData {
+    Ok(types::RouterData {
         flow: PhantomData,
         merchant_id,
         customer_id: None,

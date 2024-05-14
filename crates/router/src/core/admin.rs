@@ -29,7 +29,7 @@ use crate::{
     routes::{metrics, AppState},
     services::{self, api as service_api},
     types::{
-        api,
+        self, api,
         domain::{
             self,
             types::{self as domain_types, AsyncLift},
