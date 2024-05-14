@@ -287,7 +287,7 @@ mod storage {
                 customer_id: &customer_id,
             };
             let field = format!("payment_method_id_{}", payment_method.payment_method_id);
-            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Update(key, &field, None)).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Update(key.clone(), &field, (&payment_method).updated_by.as_ref().map(|x| x.as_str()))).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -297,10 +297,6 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdCustomerId {
-                        merchant_id: &merchant_id,
-                        customer_id: &customer_id,
-                    };
                     let key_str = key.to_string();
 
                     let p_update: PaymentMethodUpdateInternal = payment_method_update.convert_to_payment_method_update(storage_scheme);

@@ -134,7 +134,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             payout_id: &this.payout_id,
         };
         let field = format!("po_{}", this.payout_id);
-        let storage_scheme = decide_storage_scheme::<_,DieselPayouts>(&self,storage_scheme, Op::Update(key, &field,None)).await;
+        let storage_scheme = decide_storage_scheme::<_,DieselPayouts>(&self,storage_scheme, Op::Update(key.clone(), &field,None)).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -142,10 +142,6 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPayoutId {
-                    merchant_id: &this.merchant_id,
-                    payout_id: &this.payout_id,
-                };
                 let key_str = key.to_string();
 
                 let diesel_payout_update = payout_update.to_storage_model();

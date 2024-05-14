@@ -401,7 +401,7 @@ mod storage {
                 payment_id: &payment_id,
             };
             let field = format!("add_{}", address.address_id);
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Address>(&self,storage_scheme, Op::Update(key, &field, Some((&address).updated_by.as_str()))).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Address>(&self,storage_scheme, Op::Update(key.clone(), &field, Some((&address).updated_by.as_str()))).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     address
@@ -417,10 +417,6 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &merchant_id,
-                        payment_id: &payment_id,
-                    };
                     let updated_address = AddressUpdateInternal::from(address_update.clone())
                         .create_address(address.clone());
                     let redis_value = serde_json::to_string(&updated_address)
