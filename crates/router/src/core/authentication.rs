@@ -5,13 +5,15 @@ pub mod types;
 
 use api_models::payments;
 use common_enums::Currency;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{Encode, StringExt, ValueExt},
+};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::errors;
 use crate::{
-    consts::POLL_ID_TTL,
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
@@ -38,6 +40,7 @@ pub async fn perform_authentication(
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
+    webhook_url: String,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
@@ -57,6 +60,7 @@ pub async fn perform_authentication(
         sdk_information,
         threeds_method_comp_ind,
         email,
+        webhook_url,
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
@@ -155,31 +159,6 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             if !(authentication_status == api_models::enums::AuthenticationStatus::Success) {
                 *should_continue_confirm_transaction = false;
             }
-            // When authentication status is non-terminal, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
-            if !authentication_status.is_terminal_status() {
-                let req_poll_id = super::utils::get_external_authentication_request_poll_id(
-                    &payment_data.payment_intent.payment_id,
-                );
-                let poll_id = super::utils::get_poll_id(
-                    business_profile.merchant_id.clone(),
-                    req_poll_id.clone(),
-                );
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
-                redis_conn
-                    .set_key_with_expiry(
-                        &poll_id,
-                        api_models::poll::PollStatus::Pending.to_string(),
-                        POLL_ID_TTL,
-                    )
-                    .await
-                    .change_context(errors::StorageError::KVError)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add poll_id in redis")?;
-            }
         }
         types::PostAuthenthenticationFlowInput::PaymentMethodAuthNFlow { other_fields: _ } => {
             // todo!("Payment method post authN operation");
@@ -232,9 +211,12 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 &three_ds_connector_account,
                 business_profile.merchant_id.clone(),
             )?;
-            let router_data =
-                utils::do_auth_connector_call(state, authentication_connector_name, router_data)
-                    .await?;
+            let router_data = utils::do_auth_connector_call(
+                state,
+                authentication_connector_name.clone(),
+                router_data,
+            )
+            .await?;
             let acquirer_details: types::AcquirerDetails = payment_connector_account
                 .get_metadata()
                 .get_required_value("merchant_connector_account.metadata")?
@@ -255,6 +237,27 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 || authentication.authentication_status.is_failed()
             {
                 *should_continue_confirm_transaction = false;
+                // If flow is going through external authentication, set the poll_config in payment_data which can be fetched while sending next_action block in confirm response
+                let default_poll_config = core_types::PollConfig::default();
+                let default_config_str = default_poll_config
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while stringifying default poll config")?;
+                let poll_config = state
+                    .store
+                    .find_config_by_key_unwrap_or(
+                        &core_types::PollConfig::get_poll_config_key(authentication_connector_name),
+                        Some(default_config_str),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("The poll config was not found in the DB")?;
+                let poll_config: core_types::PollConfig = poll_config
+                    .config
+                    .parse_struct("PollConfig")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while parsing PollConfig")?;
+                payment_data.poll_config = Some(poll_config)
             }
             payment_data.authentication = Some(authentication);
         }

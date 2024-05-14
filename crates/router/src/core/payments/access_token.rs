@@ -10,7 +10,7 @@ use crate::{
         payments,
     },
     routes::{metrics, AppState},
-    services,
+    services::{self, logger},
     types::{self, api as api_types, domain},
 };
 
@@ -64,8 +64,20 @@ pub async fn add_access_token<
     {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
+
+        // `merchant_connector_id` may not be present in the below cases
+        // - when straight through routing is used without passing the `merchant_connector_id`
+        // - when creds identifier is passed
+        //
+        // In these cases fallback to `connector_name`.
+        // We cannot use multiple merchant connector account in these cases
+        let merchant_connector_id_or_connector_name = connector
+            .merchant_connector_id
+            .clone()
+            .unwrap_or(connector.connector_name.to_string());
+
         let old_access_token = store
-            .get_access_token(merchant_id, connector.connector.id())
+            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -103,19 +115,24 @@ pub async fn add_access_token<
                 )
                 .await?
                 .async_map(|access_token| async {
-                    //Store the access token in db
+                    // Store the access token in redis with expiry
+                    // The expiry should be adjusted for network delays from the connector
                     let store = &*state.store;
-                    // This error should not be propagated, we don't want payments to fail once we have
-                    // the access token, the next request will create new access token
-                    let _ = store
+                    if let Err(access_token_set_error) = store
                         .set_access_token(
                             merchant_id,
-                            connector.connector.id(),
+                            &merchant_connector_id_or_connector_name,
                             access_token.clone(),
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("DB error when setting the access token");
+                        .attach_printable("DB error when setting the access token")
+                    {
+                        // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
+                        // Payments should not fail, once the access token is successfully created
+                        // The next request will create new access token, if required
+                        logger::error!(access_token_set_error=?access_token_set_error);
+                    }
                     Some(access_token)
                 })
                 .await

@@ -484,6 +484,7 @@ pub trait ConnectorActions: Connector {
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
                 }),
+                vendor_details: None,
             },
             payment_info,
         )
@@ -502,7 +503,6 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
-            payment_method_id: None,
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -997,6 +997,7 @@ impl Default for PaymentSyncType {
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
             payment_method_type: None,
+            currency: enums::Currency::USD,
         };
         Self(data)
     }

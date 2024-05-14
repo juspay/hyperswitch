@@ -1,16 +1,5 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
-use data_models::{
-    errors,
-    mandates::{MandateAmountData, MandateDataType, MandateDetails},
-    payments::{
-        payment_attempt::{
-            PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
-            PaymentListFilters,
-        },
-        PaymentIntent,
-    },
-};
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
@@ -24,6 +13,17 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    errors,
+    mandates::{MandateAmountData, MandateDataType, MandateDetails},
+    payments::{
+        payment_attempt::{
+            PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
+            PaymentListFilters,
+        },
+        PaymentIntent,
+    },
+};
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
@@ -1433,11 +1433,19 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 updated_by,
             },
+            Self::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            },
             Self::ConfirmUpdate {
                 amount,
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1465,6 +1473,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1737,6 +1746,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1764,6 +1774,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1805,6 +1816,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
+            },
+            DieselPaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => Self::PaymentMethodDetailsUpdate {
+                payment_method_id,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::ResponseUpdate {

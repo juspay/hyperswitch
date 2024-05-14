@@ -114,8 +114,8 @@ impl DashboardRequestPayload {
                                         maximum_amount: Some(68607706),
                                         recurring_enabled: true,
                                         installment_payment_enabled: false,
-                                        accepted_currencies: None,
-                                        accepted_countries: None,
+                                        accepted_currencies: method.accepted_currencies,
+                                        accepted_countries: method.accepted_countries,
                                         payment_experience: None,
                                     };
                                     card_payment_method_types.push(data)
@@ -192,6 +192,9 @@ impl DashboardRequestPayload {
             merchant_name: None,
             acquirer_bin: None,
             acquirer_merchant_id: None,
+            three_ds_requestor_name: None,
+            three_ds_requestor_id: None,
+            pull_mechanism_for_external_3ds_enabled: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -211,6 +214,10 @@ impl DashboardRequestPayload {
         let merchant_name = meta_data.merchant_name;
         let acquirer_bin = meta_data.acquirer_bin;
         let acquirer_merchant_id = meta_data.acquirer_merchant_id;
+        let three_ds_requestor_name = meta_data.three_ds_requestor_name;
+        let three_ds_requestor_id = meta_data.three_ds_requestor_id;
+        let pull_mechanism_for_external_3ds_enabled =
+            meta_data.pull_mechanism_for_external_3ds_enabled;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -227,6 +234,9 @@ impl DashboardRequestPayload {
             merchant_name,
             acquirer_bin,
             acquirer_merchant_id,
+            three_ds_requestor_name,
+            three_ds_requestor_id,
+            pull_mechanism_for_external_3ds_enabled,
         })
     }
 

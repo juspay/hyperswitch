@@ -4,7 +4,7 @@ use api_models::user as user_api;
 use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
@@ -180,7 +180,7 @@ pub async fn get_user_from_db_by_email(
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .store
-        .find_user_by_email(email.get_secret().expose().as_str())
+        .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)
 }

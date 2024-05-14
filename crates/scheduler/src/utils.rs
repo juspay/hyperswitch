@@ -315,10 +315,7 @@ pub fn get_schedule_time(
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
-        get_delay(
-            retry_count,
-            mapping.count.iter().zip(mapping.frequency.iter()),
-        )
+        get_delay(retry_count, &mapping.frequencies)
     }
 }
 
@@ -335,10 +332,7 @@ pub fn get_pm_schedule_time(
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
-        get_delay(
-            retry_count,
-            mapping.count.iter().zip(mapping.frequency.iter()),
-        )
+        get_delay(retry_count, &mapping.frequencies)
     }
 }
 
@@ -356,25 +350,22 @@ pub fn get_outgoing_webhook_retry_schedule_time(
     if retry_count == 0 {
         Some(retry_mapping.start_after)
     } else {
-        get_delay(
-            retry_count,
-            retry_mapping
-                .count
-                .iter()
-                .zip(retry_mapping.frequency.iter()),
-        )
+        get_delay(retry_count, &retry_mapping.frequencies)
     }
 }
 
 /// Get the delay based on the retry count
-fn get_delay<'a>(retry_count: i32, array: impl Iterator<Item = (&'a i32, &'a i32)>) -> Option<i32> {
+fn get_delay<'a>(
+    retry_count: i32,
+    frequencies: impl IntoIterator<Item = &'a (i32, i32)>,
+) -> Option<i32> {
     // Preferably, fix this by using unsigned ints
     if retry_count <= 0 {
         return None;
     }
 
     let mut cumulative_count = 0;
-    for (&count, &frequency) in array {
+    for &(frequency, count) in frequencies.into_iter() {
         cumulative_count += count;
         if cumulative_count >= retry_count {
             return Some(frequency);
@@ -423,8 +414,7 @@ mod tests {
 
     #[test]
     fn test_get_delay() {
-        let count = [10, 5, 3, 2];
-        let frequency = [300, 600, 1800, 3600];
+        let frequency_count = vec![(300, 10), (600, 5), (1800, 3), (3600, 2)];
 
         let retry_counts_and_expected_delays = [
             (-4, None),
@@ -442,7 +432,7 @@ mod tests {
         ];
 
         for (retry_count, expected_delay) in retry_counts_and_expected_delays {
-            let delay = get_delay(retry_count, count.iter().zip(frequency.iter()));
+            let delay = get_delay(retry_count, &frequency_count);
 
             assert_eq!(
                 delay, expected_delay,

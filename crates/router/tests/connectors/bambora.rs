@@ -109,6 +109,7 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 payment_method_type: None,
+                currency: enums::Currency::USD,
             }),
             None,
         )
@@ -224,6 +225,7 @@ async fn should_sync_auto_captured_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 payment_method_type: None,
+                currency: enums::Currency::USD,
             }),
             None,
         )

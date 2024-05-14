@@ -11,14 +11,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
 use crate::{
-    connector::utils::{to_connector_meta, AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},
+    connector::utils::{get_card_details, to_connector_meta, AddressDetailsData, CardData},
     consts::{BASE64_ENGINE, NO_ERROR_MESSAGE},
     core::errors,
     types::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
-        domain,
     },
     utils::OptionExt,
 };
@@ -244,18 +243,6 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
     }
 }
 
-fn get_card_details(
-    payment_method_data: domain::PaymentMethodData,
-) -> Result<domain::payments::Card, errors::ConnectorError> {
-    match payment_method_data {
-        domain::PaymentMethodData::Card(details) => Ok(details),
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: "threedsecureio",
-        })?,
-    }
-}
-
 impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
     for ThreedsecureioAuthenticationRequest
 {
@@ -277,7 +264,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }
             }
         }?;
-        let card_details = get_card_details(request.payment_method_data.clone())?;
+        let card_details = get_card_details(request.payment_method_data.clone(), "threedsecureio")?;
         let currency = request
             .currency
             .map(|currency| currency.to_string())
@@ -417,7 +404,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
-            message_version: pre_authentication_data.message_version.clone(),
+            message_version: pre_authentication_data.message_version.to_string(),
             purchase_amount: item.amount.clone(),
             purchase_currency: purchase_currency.numeric().to_string(),
             trans_type: "01".to_string(),

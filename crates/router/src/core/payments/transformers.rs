@@ -141,7 +141,6 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data
             .address
             .unify_with_payment_method_data_billing(payment_method_data_billing),
@@ -570,6 +569,8 @@ where
                             Some(authentication) => {
                                 if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
+                                    let poll_config = payment_data.poll_config.unwrap_or_default();
+                                    let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
                                     let payment_connector_name = payment_attempt.connector
                                         .as_ref()
                                         .get_required_value("connector")?;
@@ -592,6 +593,7 @@ where
                                                     three_ds_method_data: None,
                                                     three_ds_method_url: None,
                                             }),
+                                            poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
                                         },
                                     })
                                 }else{
@@ -659,10 +661,10 @@ where
                         customer_acceptance: d.customer_acceptance.map(|d| {
                             api::CustomerAcceptance {
                                 acceptance_type: match d.acceptance_type {
-                                    data_models::mandates::AcceptanceType::Online => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                                         api::AcceptanceType::Online
                                     }
-                                    data_models::mandates::AcceptanceType::Offline => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                                         api::AcceptanceType::Offline
                                     }
                                 },
@@ -674,7 +676,7 @@ where
                             }
                         }),
                         mandate_type: d.mandate_type.map(|d| match d {
-                            data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                                 api::MandateType::MultiUse(Some(api::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -683,7 +685,7 @@ where
                                     metadata: i.metadata,
                                 }))
                             }
-                            data_models::mandates::MandateDataType::SingleUse(i) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
                                 api::MandateType::SingleUse(api::payments::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -692,7 +694,7 @@ where
                                     metadata: i.metadata,
                                 })
                             }
-                            data_models::mandates::MandateDataType::MultiUse(None) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
                                 api::MandateType::MultiUse(None)
                             }
                         }),
@@ -1220,6 +1222,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 None => types::SyncRequestType::SinglePaymentSync,
             },
             payment_method_type: payment_data.payment_attempt.payment_method_type,
+            currency: payment_data.currency,
         })
     }
 }

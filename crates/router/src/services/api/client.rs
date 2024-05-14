@@ -83,8 +83,8 @@ fn get_base_client(
 pub(super) fn create_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
-    client_certificate: Option<String>,
-    client_certificate_key: Option<String>,
+    client_certificate: Option<masking::Secret<String>>,
+    client_certificate_key: Option<masking::Secret<String>>,
 ) -> CustomResult<reqwest::Client, ApiClientError> {
     match (client_certificate, client_certificate_key) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
@@ -154,8 +154,8 @@ where
         &self,
         method: Method,
         url: String,
-        certificate: Option<String>,
-        certificate_key: Option<String>,
+        certificate: Option<masking::Secret<String>>,
+        certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 
     async fn send_request(
@@ -223,8 +223,8 @@ impl ProxyClient {
     pub fn get_reqwest_client(
         &self,
         base_url: String,
-        client_certificate: Option<String>,
-        client_certificate_key: Option<String>,
+        client_certificate: Option<masking::Secret<String>>,
+        client_certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
             (Some(certificate), Some(certificate_key)) => {
@@ -323,8 +323,8 @@ impl ApiClient for ProxyClient {
         &self,
         method: Method,
         url: String,
-        certificate: Option<String>,
-        certificate_key: Option<String>,
+        certificate: Option<masking::Secret<String>>,
+        certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         let client_builder = self
             .get_reqwest_client(url.clone(), certificate, certificate_key)
@@ -378,8 +378,8 @@ impl ApiClient for MockApiClient {
         &self,
         _method: Method,
         _url: String,
-        _certificate: Option<String>,
-        _certificate_key: Option<String>,
+        _certificate: Option<masking::Secret<String>>,
+        _certificate_key: Option<masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())

@@ -39,18 +39,18 @@ pub mod user_role;
 
 use std::collections::HashMap;
 
-pub use data_models::payments::{
+pub use diesel_models::{
+    ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
+};
+pub use hyperswitch_domain_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     PaymentIntent,
 };
 #[cfg(feature = "payouts")]
-pub use data_models::payouts::{
+pub use hyperswitch_domain_models::payouts::{
     payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
-};
-pub use diesel_models::{
-    ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
 };
 pub use scheduler::db::process_tracker;
 
