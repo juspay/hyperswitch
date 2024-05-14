@@ -275,7 +275,7 @@ impl KafkaProducer {
         if let Some(negative_event) = old_attempt {
             self.log_event(&KafkaEvent::old(
                 &KafkaPaymentAttempt::from_storage(&negative_event),
-                tenant_id,
+                tenant_id.clone(),
             ))
             .attach_printable_lazy(|| {
                 format!("Failed to add negative attempt event {negative_event:?}")
@@ -283,7 +283,7 @@ impl KafkaProducer {
         };
         self.log_event(&KafkaEvent::new(
             &KafkaPaymentAttempt::from_storage(attempt),
-            tenant_id,
+            tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add positive attempt event {attempt:?}"))
     }
@@ -291,10 +291,11 @@ impl KafkaProducer {
     pub async fn log_payment_attempt_delete(
         &self,
         delete_old_attempt: &PaymentAttempt,
+        tenant_id: TenantID,
     ) -> MQResult<()> {
         self.log_event(&KafkaEvent::old(
             &KafkaPaymentAttempt::from_storage(delete_old_attempt),
-            TenantID("default".to_string()),
+            tenant_id.clone(),
         ))
         .attach_printable_lazy(|| {
             format!("Failed to add negative attempt event {delete_old_attempt:?}")
@@ -305,11 +306,12 @@ impl KafkaProducer {
         &self,
         intent: &PaymentIntent,
         old_intent: Option<PaymentIntent>,
+        tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_intent {
             self.log_event(&KafkaEvent::old(
                 &KafkaPaymentIntent::from_storage(&negative_event),
-                TenantID("default".to_string()),
+                tenant_id.clone(),
             ))
             .attach_printable_lazy(|| {
                 format!("Failed to add negative intent event {negative_event:?}")
@@ -317,7 +319,7 @@ impl KafkaProducer {
         };
         self.log_event(&KafkaEvent::new(
             &KafkaPaymentIntent::from_storage(intent),
-            TenantID("default".to_string()),
+            tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add positive intent event {intent:?}"))
     }
@@ -325,21 +327,27 @@ impl KafkaProducer {
     pub async fn log_payment_intent_delete(
         &self,
         delete_old_intent: &PaymentIntent,
+        tenant_id: TenantID,
     ) -> MQResult<()> {
         self.log_event(&KafkaEvent::old(
             &KafkaPaymentIntent::from_storage(delete_old_intent),
-            TenantID("default".to_string()),
+            tenant_id.clone(),
         ))
         .attach_printable_lazy(|| {
             format!("Failed to add negative intent event {delete_old_intent:?}")
         })
     }
 
-    pub async fn log_refund(&self, refund: &Refund, old_refund: Option<Refund>) -> MQResult<()> {
+    pub async fn log_refund(
+        &self,
+        refund: &Refund,
+        old_refund: Option<Refund>,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
         if let Some(negative_event) = old_refund {
             self.log_event(&KafkaEvent::old(
                 &KafkaRefund::from_storage(&negative_event),
-                TenantID("default".to_string()),
+                tenant_id.clone(),
             ))
             .attach_printable_lazy(|| {
                 format!("Failed to add negative refund event {negative_event:?}")
@@ -347,15 +355,19 @@ impl KafkaProducer {
         };
         self.log_event(&KafkaEvent::new(
             &KafkaRefund::from_storage(refund),
-            TenantID("default".to_string()),
+            tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add positive refund event {refund:?}"))
     }
 
-    pub async fn log_refund_delete(&self, delete_old_refund: &Refund) -> MQResult<()> {
+    pub async fn log_refund_delete(
+        &self,
+        delete_old_refund: &Refund,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
         self.log_event(&KafkaEvent::old(
             &KafkaRefund::from_storage(delete_old_refund),
-            TenantID("default".to_string()),
+            tenant_id.clone(),
         ))
         .attach_printable_lazy(|| {
             format!("Failed to add negative refund event {delete_old_refund:?}")
@@ -366,11 +378,12 @@ impl KafkaProducer {
         &self,
         dispute: &Dispute,
         old_dispute: Option<Dispute>,
+        tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_dispute {
             self.log_event(&KafkaEvent::old(
                 &KafkaDispute::from_storage(&negative_event),
-                TenantID("default".to_string()),
+                tenant_id.clone(),
             ))
             .attach_printable_lazy(|| {
                 format!("Failed to add negative dispute event {negative_event:?}")
@@ -378,7 +391,7 @@ impl KafkaProducer {
         };
         self.log_event(&KafkaEvent::new(
             &KafkaDispute::from_storage(dispute),
-            TenantID("default".to_string()),
+            tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add positive dispute event {dispute:?}"))
     }
@@ -388,29 +401,28 @@ impl KafkaProducer {
         &self,
         payout: &KafkaPayout<'_>,
         old_payout: Option<KafkaPayout<'_>>,
+        tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_payout {
-            self.log_event(&KafkaEvent::old(
-                &negative_event,
-                TenantID("default".to_string()),
-            ))
-            .attach_printable_lazy(|| {
-                format!("Failed to add negative payout event {negative_event:?}")
-            })?;
+            self.log_event(&KafkaEvent::old(&negative_event, tenant_id.clone()))
+                .attach_printable_lazy(|| {
+                    format!("Failed to add negative payout event {negative_event:?}")
+                })?;
         };
-        self.log_event(&KafkaEvent::new(payout, TenantID("default".to_string())))
+        self.log_event(&KafkaEvent::new(payout, tenant_id.clone()))
             .attach_printable_lazy(|| format!("Failed to add positive payout event {payout:?}"))
     }
 
     #[cfg(feature = "payouts")]
-    pub async fn log_payout_delete(&self, delete_old_payout: &KafkaPayout<'_>) -> MQResult<()> {
-        self.log_event(&KafkaEvent::old(
-            delete_old_payout,
-            TenantID("default".to_string()),
-        ))
-        .attach_printable_lazy(|| {
-            format!("Failed to add negative payout event {delete_old_payout:?}")
-        })
+    pub async fn log_payout_delete(
+        &self,
+        delete_old_payout: &KafkaPayout<'_>,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
+        self.log_event(&KafkaEvent::old(delete_old_payout, tenant_id.clone()))
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative payout event {delete_old_payout:?}")
+            })
     }
 
     pub fn get_topic(&self, event: EventType) -> &str {
