@@ -25,6 +25,7 @@ use crate::{
         api::{self, CardDetailFromLocker, CardDetailsPaymentMethod, PaymentMethodCreateExt},
         domain,
         storage::{self, enums as storage_enums},
+        PaymentMethodToken,
     },
     utils::{generate_id, OptionExt},
 };

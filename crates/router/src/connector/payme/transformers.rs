@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
-
+use crate::types::transformers::ForeignFrom;
 use crate::{
     connector::utils::{
         self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
@@ -17,7 +17,10 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
+    types::{
+        self, api, domain, domain::PaymentMethodData, storage::enums,
+        MandateReference,
+    },
     unimplemented_payment_method,
 };
 
@@ -188,7 +191,7 @@ impl<F, T>
         let status = enums::AttemptStatus::from(item.response.sale_status.clone());
         let response = if is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::from((&item.response, item.http_code)))
+            Err(types::ErrorResponse::foreign_from((&item.response, item.http_code)))
         } else {
             Ok(types::PaymentsResponseData::try_from(&item.response)?)
         };
@@ -200,8 +203,8 @@ impl<F, T>
     }
 }
 
-impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
-    fn from((pay_sale_response, http_code): (&PaymePaySaleResponse, u16)) -> Self {
+impl ForeignFrom<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
+    fn foreign_from((pay_sale_response, http_code): (&PaymePaySaleResponse, u16)) -> Self {
         let code = pay_sale_response
             .status_error_code
             .map(|error_code| error_code.to_string())
@@ -266,7 +269,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
         let status = enums::AttemptStatus::from(transaction_response.sale_status.clone());
         let response = if is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::from((
+            Err(types::ErrorResponse::foreign_from((
                 &transaction_response,
                 item.http_code,
             )))
@@ -281,8 +284,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
     }
 }
 
-impl From<(&SaleQuery, u16)> for types::ErrorResponse {
-    fn from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
+impl ForeignFrom<(&SaleQuery, u16)> for types::ErrorResponse {
+    fn foreign_from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
         Self {
             code: sale_query_response
                 .sale_error_code

@@ -7,7 +7,7 @@ use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use transformers as multisafepay;
-
+use crate::types::transformers::ForeignFrom;
 use crate::{
     configs::settings,
     connector::utils::{is_mandate_supported, PaymentMethodDataType},
@@ -88,7 +88,7 @@ impl ConnectorCommon for Multisafepay {
 
         let attempt_status = Option::<AttemptStatus>::from(response.clone());
 
-        Ok(ErrorResponse::from((
+        Ok(ErrorResponse::foreign_from((
             Some(response.error_code.to_string()),
             Some(response.error_info.clone()),
             Some(response.error_info),

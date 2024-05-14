@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-
+use crate::types::transformers::ForeignTryFrom;
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
@@ -1600,7 +1600,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),

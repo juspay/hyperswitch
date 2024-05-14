@@ -6,7 +6,7 @@ use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use transformers as shift4;
-
+use crate::types::transformers::ForeignFrom;
 use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
@@ -229,7 +229,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                       + Sync
                       + 'static),
             > = Box::new(&Self);
-            let init_data = &types::PaymentsInitRouterData::from((
+            let init_data = &types::PaymentsInitRouterData::foreign_from((
                 &router_data.to_owned(),
                 router_data.request.clone(),
             ));

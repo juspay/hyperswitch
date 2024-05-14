@@ -25,9 +25,14 @@ use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    mandates::{CustomerAcceptance, MandateData},
-    router_data::{ErrorResponse, RouterData},
+use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+pub use hyperswitch_domain_models::{
+    payment_address::PaymentAddress,
+    router_data::{
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
+        ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
+        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+    },
 };
 use masking::Secret;
 use serde::Serialize;
@@ -1199,8 +1204,8 @@ pub struct MandateRevokeResponseData {
 //     NoKey,
 // }
 
-impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
-    fn from(value: api_models::admin::ConnectorAuthType) -> Self {
+impl ForeignFrom<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn foreign_from(value: api_models::admin::ConnectorAuthType) -> Self {
         match value {
             api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
             api_models::admin::ConnectorAuthType::HeaderKey { api_key } => {
@@ -1297,35 +1302,6 @@ pub struct Response {
     pub status_code: u16,
 }
 
-// #[derive(Clone, Debug, serde::Serialize)]
-// pub struct ErrorResponse {
-//     pub code: String,
-//     pub message: String,
-//     pub reason: Option<String>,
-//     pub status_code: u16,
-//     pub attempt_status: Option<storage_enums::AttemptStatus>,
-//     pub connector_transaction_id: Option<String>,
-// }
-
-impl ErrorResponse {
-    pub fn get_not_implemented() -> Self {
-        Self {
-            code: errors::ApiErrorResponse::NotImplemented {
-                message: errors::api_error_response::NotImplementedMessage::Default,
-            }
-            .error_code(),
-            message: errors::ApiErrorResponse::NotImplemented {
-                message: errors::api_error_response::NotImplementedMessage::Default,
-            }
-            .error_message(),
-            reason: None,
-            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            attempt_status: None,
-            connector_transaction_id: None,
-        }
-    }
-}
-
 impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
     fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
@@ -1367,12 +1343,6 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
             attempt_status: None,
             connector_transaction_id: None,
         }
-    }
-}
-
-impl Default for ErrorResponse {
-    fn default() -> Self {
-        Self::from(errors::ApiErrorResponse::InternalServerError)
     }
 }
 

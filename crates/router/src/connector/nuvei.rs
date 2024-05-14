@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-
+use crate::types::transformers::ForeignFrom;
 use ::common_utils::{
     crypto,
     errors::ReportSwitchExt,
@@ -536,7 +536,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
             types::AuthorizeSessionTokenData::from(&router_data),
         ));
@@ -564,7 +564,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                               + Sync
                               + 'static),
                     > = Box::new(&Self);
-                    let init_data = &types::PaymentsInitRouterData::from((
+                    let init_data = &types::PaymentsInitRouterData::foreign_from((
                         &router_data.to_owned(),
                         router_data.request.clone(),
                     ));

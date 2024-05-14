@@ -15,7 +15,7 @@ use crate::{
         domain,
         fraud_check::{FraudCheckResponseData, FraudCheckSaleData, FrmSaleRouterData},
         storage::enums as storage_enums,
-        ConnectorAuthType, ResponseId,
+        ConnectorAuthType, ResponseId, RouterData,
     },
     AppState,
 };

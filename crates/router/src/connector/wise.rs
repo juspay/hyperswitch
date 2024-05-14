@@ -1,6 +1,6 @@
 pub mod transformers;
 use std::fmt::Debug;
-
+use crate::types::transformers::ForeignFrom;
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
@@ -510,7 +510,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     ) -> CustomResult<(), errors::ConnectorError> {
         // Create a quote
         let quote_router_data =
-            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
+            &types::PayoutsRouterData::foreign_from((&router_data, router_data.request.clone()));
         let quote_connector_integration: Box<
             &(dyn services::ConnectorIntegration<
                 api::PoQuote,

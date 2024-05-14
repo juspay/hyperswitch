@@ -2,7 +2,7 @@ use pm_auth::types::{self as pm_auth_types};
 
 use crate::{core::errors, types::transformers::ForeignTryFrom};
 
-impl ForeignTryFrom<yperswitch_domain_models::router_data::ConnectorAuthType>
+impl ForeignTryFrom<hyperswitch_domain_models::router_data::ConnectorAuthType>
     for pm_auth_types::ConnectorAuthType
 {
     type Error = errors::ConnectorError;

@@ -58,7 +58,7 @@ use crate::{
             self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
         },
         transformers::{ForeignFrom, ForeignTryFrom},
-        ErrorResponse, MandateReference,
+        AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
     },
     utils::{
         self,
@@ -665,7 +665,7 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: Some(token),
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
+            recurring_mandate_payment_data: Some(hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
@@ -679,7 +679,7 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: None,
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
+            recurring_mandate_payment_data: Some(hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,

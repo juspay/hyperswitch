@@ -590,8 +590,9 @@ fn log_session_response_if_error(
         .map(|res| res.as_ref().map_err(|error| logger::error!(?error)));
 }
 
-pub trait RouterDataSession {
-    fn decide_flow<'a, 'b>(
+#[async_trait]
+pub trait RouterDataSession where Self: Sized{
+    async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,
@@ -600,6 +601,7 @@ pub trait RouterDataSession {
     ) -> RouterResult<Self>;
 }
 
+#[async_trait]
 impl RouterDataSession for types::PaymentsSessionRouterData {
     async fn decide_flow<'a, 'b>(
         &'b self,

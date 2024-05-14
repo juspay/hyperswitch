@@ -150,6 +150,16 @@ pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
 }
 
+impl ConnectorResponseData {
+    pub fn with_additional_payment_method_data(
+        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
+    ) -> Self {
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AdditionalPaymentMethodConnectorResponse {
     Card {
@@ -168,6 +178,32 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+}
+
+impl Default for ErrorResponse {
+    fn default() -> Self {
+        Self {
+            code: "HE_00".to_string(),
+            message: "Something went wrong".to_string(),
+            reason: None,
+            status_code: 500,
+            attempt_status: None,
+            connector_transaction_id: None,
+        }
+    }
+}
+
+impl ErrorResponse {
+    pub fn get_not_implemented() -> Self {
+        Self {
+            code: "IR_00".to_string(),
+            message: "This API is under development and will be made available soon.".to_string(),
+            reason: None,
+            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            attempt_status: None,
+            connector_transaction_id: None,
+        }
+    }
 }
 
 // #[derive(Debug, Clone)]

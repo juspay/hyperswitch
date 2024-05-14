@@ -8,7 +8,7 @@ use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as square;
-
+use crate::types::transformers::ForeignFrom;
 use super::utils::{self as super_utils, RefundsRequestData};
 use crate::{
     configs::settings,
@@ -214,7 +214,7 @@ impl
             amount: router_data.request.amount,
         };
 
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
             authorize_session_token_data,
         ));
