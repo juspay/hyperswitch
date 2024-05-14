@@ -74,7 +74,11 @@ pub enum JWTFlow {
 }
 
 impl JWTFlow {
-    async fn is_required(&self, _user: &UserFromStorage, _state: &SessionState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        _user: &UserFromStorage,
+        _state: &SessionState,
+    ) -> UserResult<bool> {
         Ok(true)
     }
 

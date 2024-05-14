@@ -114,7 +114,7 @@ impl SessionState {
             #[cfg(feature = "email")]
             email_client: Arc::clone(&state.email_client),
             #[cfg(feature = "olap")]
-            opensearch_client: Arc::clone(&state.opensearch_client)
+            opensearch_client: Arc::clone(&state.opensearch_client),
         })
     }
 }
@@ -259,11 +259,12 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let opensearch_client = Arc::new(conf
-                .opensearch
-                .get_opensearch_client()
-                .await
-                .expect("Failed to create opensearch client"));
+            let opensearch_client = Arc::new(
+                conf.opensearch
+                    .get_opensearch_client()
+                    .await
+                    .expect("Failed to create opensearch client"),
+            );
 
             let mut pools = HashMap::new();
             let mut stores = HashMap::new();

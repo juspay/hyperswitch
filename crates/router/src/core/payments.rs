@@ -3987,11 +3987,8 @@ pub async fn payment_external_authentication(
         &payment_attempt.clone(),
         payment_connector_name,
     ));
-    let webhook_url = helpers::create_webhook_url(
-        &state.base_url,
-        merchant_id,
-        &authentication_connector,
-    );
+    let webhook_url =
+        helpers::create_webhook_url(&state.base_url, merchant_id, &authentication_connector);
 
     let business_profile = state
         .store
