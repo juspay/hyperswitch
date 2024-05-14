@@ -20,7 +20,7 @@ use wiremock::{Mock, MockServer};
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
 
-    fn get_auth_token(&self) -> hyperswitch_domain_models::router_data::ConnectorAuthType;
+    fn get_auth_token(&self) -> types::ConnectorAuthType;
 
     fn get_name(&self) -> String;
 
@@ -516,7 +516,7 @@ pub trait ConnectorActions: Connector {
             return_url: info.clone().and_then(|a| a.return_url),
             payment_method_status: None,
             request: req,
-            response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+            response: Err(types::ErrorResponse::default()),
             address: info
                 .clone()
                 .and_then(|a| a.address)
@@ -529,10 +529,9 @@ pub trait ConnectorActions: Connector {
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: info.clone().and_then(|a| {
-                a.payment_method_token
-                    .map(hyperswitch_domain_models::router_data::PaymentMethodToken::Token)
-            }),
+            payment_method_token: info
+                .clone()
+                .and_then(|a| a.payment_method_token.map(types::PaymentMethodToken::Token)),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
 
@@ -1050,10 +1049,7 @@ impl Default for TokenType {
 }
 
 pub fn get_connector_transaction_id(
-    response: Result<
-        types::PaymentsResponseData,
-        hyperswitch_domain_models::router_data::ErrorResponse,
-    >,
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> Option<String> {
     match response {
         Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
@@ -1073,10 +1069,7 @@ pub fn get_connector_transaction_id(
 }
 
 pub fn get_connector_metadata(
-    response: Result<
-        types::PaymentsResponseData,
-        hyperswitch_domain_models::router_data::ErrorResponse,
-    >,
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> Option<serde_json::Value> {
     match response {
         Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1092,21 +1085,17 @@ pub fn get_connector_metadata(
     }
 }
 
-pub fn to_connector_auth_type(
-    auth_type: ConnectorAuthType,
-) -> hyperswitch_domain_models::router_data::ConnectorAuthType {
+pub fn to_connector_auth_type(auth_type: ConnectorAuthType) -> types::ConnectorAuthType {
     match auth_type {
-        ConnectorAuthType::HeaderKey { api_key } => {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key }
-        }
+        ConnectorAuthType::HeaderKey { api_key } => types::ConnectorAuthType::HeaderKey { api_key },
         ConnectorAuthType::BodyKey { api_key, key1 } => {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey { api_key, key1 }
+            types::ConnectorAuthType::BodyKey { api_key, key1 }
         }
         ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
-        } => hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+        } => types::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -1116,12 +1105,12 @@ pub fn to_connector_auth_type(
             key1,
             api_secret,
             key2,
-        } => hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey {
+        } => types::ConnectorAuthType::MultiAuthKey {
             api_key,
             key1,
             api_secret,
             key2,
         },
-        _ => hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey,
+        _ => types::ConnectorAuthType::NoKey,
     }
 }

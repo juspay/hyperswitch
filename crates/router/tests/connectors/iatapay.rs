@@ -22,7 +22,7 @@ impl Connector for IatapayTest {
         }
     }
 
-    fn get_auth_token(&self) -> hyperswitch_domain_models::router_data::ConnectorAuthType {
+    fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .iatapay
@@ -39,7 +39,7 @@ impl Connector for IatapayTest {
 fn get_access_token() -> Option<AccessToken> {
     let connector = IatapayTest {};
     match connector.get_auth_token() {
-        hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+        types::ConnectorAuthType::SignatureKey {
             api_key,
             key1: _,
             api_secret: _,

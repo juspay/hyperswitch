@@ -19,7 +19,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
-    hyperswitch_domain_models::router_data::RouterData {
+    types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
         customer_id: Some(String::from("aci")),
@@ -76,7 +76,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             authentication_data: None,
             customer_acceptance: None,
         },
-        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::new(
             None,
             None,
@@ -126,7 +126,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
-    hyperswitch_domain_models::router_data::RouterData {
+    types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
         customer_id: Some(String::from("aci")),
@@ -153,7 +153,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_refund_id: None,
             browser_info: None,
         },
-        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
         connector_meta_data: None,
         amount_captured: None,
