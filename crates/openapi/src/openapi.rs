@@ -344,6 +344,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::SecretInfoToInitiateSdk,
         api_models::payments::ApplePayPaymentRequest,
+        api_models::payments::ApplePayBillingContactFields,
+        api_models::payments::ApplePayShippingContactFields,
         api_models::payments::ApplePayAddressParameters,
         api_models::payments::AmountInfo,
         api_models::payments::ProductType,

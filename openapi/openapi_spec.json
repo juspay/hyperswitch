@@ -4971,6 +4971,12 @@
           "email"
         ]
       },
+      "ApplePayBillingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -5009,19 +5015,19 @@
             "nullable": true
           },
           "required_billing_contact_fields": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ApplePayAddressParameters"
-            },
-            "description": "The required billing contact fields for connector",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayBillingContactFields"
+              }
+            ],
             "nullable": true
           },
           "required_shipping_contact_fields": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ApplePayAddressParameters"
-            },
-            "description": "The required shipping contacht fields for connector",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayShippingContactFields"
+              }
+            ],
             "nullable": true
           }
         }
@@ -5043,6 +5049,12 @@
             "nullable": true
           }
         ]
+      },
+      "ApplePayShippingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayThirdPartySdkData": {
         "type": "object"
