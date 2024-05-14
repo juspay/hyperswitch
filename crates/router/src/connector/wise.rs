@@ -23,7 +23,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignFrom,
     },
     utils::BytesExt,
 };
