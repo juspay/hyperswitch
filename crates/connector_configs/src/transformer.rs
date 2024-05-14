@@ -291,6 +291,8 @@ impl DashboardRequestPayload {
                                     "MASTERCARD".to_string(),
                                     "VISA".to_string(),
                                 ],
+                                billing_address_required: None,
+                                billing_address_parameters: None,
                             };
                         let allowed_payment_methods = payments::GpayAllowedPaymentMethods {
                             payment_method_type: String::from("CARD"),
