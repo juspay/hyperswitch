@@ -6998,7 +6998,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.first_name".to_string(),
+                                                        required_field: "shipping.address.first_name".to_string(),
                                                         display_name: "billing_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7007,7 +7007,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.last_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.last_name".to_string(),
+                                                        required_field: "shipping.address.last_name".to_string(),
                                                         display_name: "shipping_last_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7016,7 +7016,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.city".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.city".to_string(),
+                                                        required_field: "shipping.address.city".to_string(),
                                                         display_name: "city".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCity,
                                                         value: None,
@@ -7025,7 +7025,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.state".to_string(),
+                                                        required_field: "shipping.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressState,
                                                         value: None,
@@ -7034,7 +7034,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.zip".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.zip".to_string(),
+                                                        required_field: "shipping.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressPincode,
                                                         value: None,
@@ -7043,7 +7043,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.country".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.country".to_string(),
+                                                        required_field: "shipping.address.country".to_string(),
                                                         display_name: "country".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCountry{
                                                             options: vec![
@@ -7056,7 +7056,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.line1".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.line1".to_string(),
+                                                        required_field: "shipping.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressLine1,
                                                         value: None,
@@ -7152,7 +7152,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.first_name".to_string(),
+                                                        required_field: "shipping.address.first_name".to_string(),
                                                         display_name: "billing_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7161,7 +7161,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.last_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.last_name".to_string(),
+                                                        required_field: "shipping.address.last_name".to_string(),
                                                         display_name: "shipping_last_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7170,7 +7170,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.city".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.city".to_string(),
+                                                        required_field: "shipping.address.city".to_string(),
                                                         display_name: "city".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCity,
                                                         value: None,
@@ -7179,7 +7179,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.state".to_string(),
+                                                        required_field: "shipping.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressState,
                                                         value: None,
@@ -7188,7 +7188,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.zip".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.zip".to_string(),
+                                                        required_field: "shipping.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressPincode,
                                                         value: None,
@@ -7197,7 +7197,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.country".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.country".to_string(),
+                                                        required_field: "shipping.address.country".to_string(),
                                                         display_name: "country".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCountry{
                                                             options: vec![
@@ -7210,7 +7210,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.line1".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.line1".to_string(),
+                                                        required_field: "shipping.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressLine1,
                                                         value: None,
@@ -7321,7 +7321,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.first_name".to_string(),
+                                                        required_field: "shipping.address.first_name".to_string(),
                                                         display_name: "billing_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7330,7 +7330,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.last_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.last_name".to_string(),
+                                                        required_field: "shipping.address.last_name".to_string(),
                                                         display_name: "shipping_last_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7339,7 +7339,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.city".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.city".to_string(),
+                                                        required_field: "shipping.address.city".to_string(),
                                                         display_name: "city".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCity,
                                                         value: None,
@@ -7348,7 +7348,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.state".to_string(),
+                                                        required_field: "shipping.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressState,
                                                         value: None,
@@ -7357,7 +7357,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.zip".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.zip".to_string(),
+                                                        required_field: "shipping.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressPincode,
                                                         value: None,
@@ -7366,7 +7366,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.country".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.country".to_string(),
+                                                        required_field: "shipping.address.country".to_string(),
                                                         display_name: "country".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCountry{
                                                             options: vec![
@@ -7379,7 +7379,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.line1".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.line1".to_string(),
+                                                        required_field: "shipping.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressLine1,
                                                         value: None,
@@ -7615,7 +7615,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.first_name".to_string(),
+                                                        required_field: "shipping.address.first_name".to_string(),
                                                         display_name: "billing_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7624,7 +7624,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.last_name".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.last_name".to_string(),
+                                                        required_field: "shipping.address.last_name".to_string(),
                                                         display_name: "shipping_last_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
@@ -7633,7 +7633,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.city".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.city".to_string(),
+                                                        required_field: "shipping.address.city".to_string(),
                                                         display_name: "city".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCity,
                                                         value: None,
@@ -7642,7 +7642,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.state".to_string(),
+                                                        required_field: "shipping.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressState,
                                                         value: None,
@@ -7651,7 +7651,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.zip".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.zip".to_string(),
+                                                        required_field: "shipping.address.zip".to_string(),
                                                         display_name: "zip".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressPincode,
                                                         value: None,
@@ -7660,7 +7660,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.country".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.country".to_string(),
+                                                        required_field: "shipping.address.country".to_string(),
                                                         display_name: "country".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressCountry{
                                                             options: vec![
@@ -7673,7 +7673,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.line1".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.shipping.address.line1".to_string(),
+                                                        required_field: "shipping.address.line1".to_string(),
                                                         display_name: "line1".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressLine1,
                                                         value: None,
@@ -7709,7 +7709,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                             "shipping.address.first_name".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.shipping.address.first_name".to_string(),
+                                                required_field: "shipping.address.first_name".to_string(),
                                                 display_name: "billing_first_name".to_string(),
                                                 field_type: enums::FieldType::UserShippingName,
                                                 value: None,
@@ -7718,7 +7718,7 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "shipping.address.last_name".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.shipping.address.last_name".to_string(),
+                                                required_field: "shipping.address.last_name".to_string(),
                                                 display_name: "shipping_last_name".to_string(),
                                                 field_type: enums::FieldType::UserShippingName,
                                                 value: None,
@@ -7727,7 +7727,7 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "shipping.address.city".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.shipping.address.city".to_string(),
+                                                required_field: "shipping.address.city".to_string(),
                                                 display_name: "city".to_string(),
                                                 field_type: enums::FieldType::UserShippingAddressCity,
                                                 value: None,
@@ -7736,7 +7736,7 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "shipping.address.state".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.shipping.address.state".to_string(),
+                                                required_field: "shipping.address.state".to_string(),
                                                 display_name: "state".to_string(),
                                                 field_type: enums::FieldType::UserShippingAddressState,
                                                 value: None,
@@ -7745,7 +7745,7 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "shipping.address.zip".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.shipping.address.zip".to_string(),
+                                                required_field: "shipping.address.zip".to_string(),
                                                 display_name: "zip".to_string(),
                                                 field_type: enums::FieldType::UserShippingAddressPincode,
                                                 value: None,
@@ -7754,7 +7754,7 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "shipping.address.country".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.shipping.address.country".to_string(),
+                                                required_field: "shipping.address.country".to_string(),
                                                 display_name: "country".to_string(),
                                                 field_type: enums::FieldType::UserShippingAddressCountry{
                                                     options: vec![
@@ -7767,7 +7767,7 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "shipping.address.line1".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.shipping.address.line1".to_string(),
+                                                required_field: "shipping.address.line1".to_string(),
                                                 display_name: "line1".to_string(),
                                                 field_type: enums::FieldType::UserShippingAddressLine1,
                                                 value: None,
