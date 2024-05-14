@@ -37,6 +37,4 @@ pub enum StorageError {
     // TODO: deprecate this error type to use a domain error instead
     #[error("RedisError: {0:?}")]
     RedisError(String),
-    #[error("Redis Operation Disabled")]
-    RedisOperationDisabled,
 }

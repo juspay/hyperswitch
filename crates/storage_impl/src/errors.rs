@@ -143,9 +143,6 @@ impl RedisErrorExt for error_stack::Report<RedisError> {
                     key: Some(key.to_string()),
                 })
             }
-            RedisError::KvSoftKillMode => {
-                self.change_context(DataStorageError::RedisOperationDisabled)
-            }
             _ => self.change_context(DataStorageError::KVError),
         }
     }
