@@ -2612,6 +2612,47 @@
           }
         ]
       },
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Delete",
+        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
+        "operationId": "Delete a Payment method",
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payment_methods/{method_id}/update": {
       "post": {
         "tags": [
           "Payment Methods"
@@ -2658,45 +2699,9 @@
         "security": [
           {
             "api_key": []
-          }
-        ]
-      },
-      "delete": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Delete",
-        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
-        "operationId": "Delete a Payment method",
-        "parameters": [
-          {
-            "name": "method_id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment Method deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
-                }
-              }
-            }
           },
-          "404": {
-            "description": "Payment Method does not exist in records"
-          }
-        },
-        "security": [
           {
-            "api_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -13256,35 +13261,6 @@
                 "$ref": "#/components/schemas/CardDetailUpdate"
               }
             ],
-            "nullable": true
-          },
-          "card_network": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardNetwork"
-              }
-            ],
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
-            "nullable": true
-          },
-          "wallet": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Wallet"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
           "client_secret": {
