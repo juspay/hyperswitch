@@ -153,7 +153,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 }
 
 #[async_trait]
-pub trait RouterDataPSync where Self: Sized {
+pub trait RouterDataPSync
+where
+    Self: Sized,
+{
     async fn execute_connector_processing_step_for_each_capture(
         &self,
         _state: &AppState,
@@ -165,7 +168,7 @@ pub trait RouterDataPSync where Self: Sized {
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    ) -> RouterResult<Self> ;
+    ) -> RouterResult<Self>;
 }
 
 #[async_trait]
@@ -204,7 +207,7 @@ impl RouterDataPSync
         } else {
             // in trigger, call connector for every capture_id
             for connector_capture_id in pending_connector_capture_id_list {
-                // TEMPORARY FIX: remove the clone on router data after moving this function as an impl on 
+                // TEMPORARY FIX: remove the clone on router data after moving this function as an impl on
                 let mut cloned_router_data = self.clone();
                 cloned_router_data.request.connector_transaction_id =
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
@@ -234,9 +237,10 @@ impl RouterDataPSync
                 };
             }
             let mut cloned_router_data = self.clone();
-            cloned_router_data.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-                capture_sync_response_list: capture_sync_response_map,
-            });
+            cloned_router_data.response =
+                Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list: capture_sync_response_map,
+                });
             Ok(cloned_router_data)
         }
     }
