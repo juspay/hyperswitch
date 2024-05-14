@@ -189,14 +189,10 @@ mod storage {
                 customer_id: customer_id.as_str(),
             };
             let field = format!("cust_{}", customer_id);
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Customer>(&self,storage_scheme, Op::Update(key, &field, (&customer).updated_by.as_ref().map(|x| x.as_str()))).await;
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Customer>(&self,storage_scheme, Op::Update(key.clone(), &field, (&customer).updated_by.as_ref().map(|x| x.as_str()))).await;
             let updated_object = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdCustomerId {
-                        merchant_id: merchant_id.as_str(),
-                        customer_id: customer_id.as_str(),
-                    };
                     let updated_customer =
                         diesel_models::CustomerUpdateInternal::from(customer_update.clone())
                             .apply_changeset(customer.clone());

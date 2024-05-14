@@ -192,7 +192,7 @@ mod storage {
                 mandate_id,
             };
             let field = format!("mandate_{}", mandate_id);
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(&self,storage_scheme, Op::Update(key, &field,None)).await;
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(&self,storage_scheme, Op::Update(key.clone(), &field,(&mandate).updated_by.as_ref().map(|x| x.as_str()))).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     storage_types::Mandate::update_by_merchant_id_mandate_id(
@@ -205,10 +205,6 @@ mod storage {
                     .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdMandateId {
-                        merchant_id,
-                        mandate_id,
-                    };
                     let key_str = key.to_string();
 
                     if let diesel_models::MandateUpdate::ConnectorMandateIdUpdate {

@@ -20,6 +20,7 @@ pub trait KvStorePartition {
 }
 
 #[allow(unused)]
+#[derive(Clone)]
 pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
         merchant_id: &'a str,
@@ -247,37 +248,36 @@ where
     D : de::DeserializeOwned + serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
     T : crate::database::store::DatabaseStore,
 {
-    match operation{
-        Op::Insert => if store.soft_kill_mode {
-            MerchantStorageScheme::PostgresOnly
-        } else{
-            storage_scheme
-        },
-        Op::Find => if store.soft_kill_mode {
-            MerchantStorageScheme::RedisKv
-        } else{
-            storage_scheme
-        },
-        Op::Update(partition_key, field, Some(updated_by)) if updated_by == "redis_kv" => if store.soft_kill_mode{
-           match kv_wrapper::<D,_,_>(
-                           store,
-                           KvOperation::<D>::HGet(field),
-                           partition_key,
-                       )
-                       .await      
+    if store.soft_kill_mode {
+        let updated_scheme =  match operation
             {
-                Ok(_) => MerchantStorageScheme::RedisKv,
-                Err(_) => MerchantStorageScheme::PostgresOnly
-            }
-            
-        } else{
-            storage_scheme
-        },
-        Op::Update(_,_,None) => if store.soft_kill_mode {
-            MerchantStorageScheme::PostgresOnly
-        } else{
-            storage_scheme
-        },
-        _ => storage_scheme
+                Op::Insert =>  MerchantStorageScheme::PostgresOnly,
+                Op::Find => MerchantStorageScheme::RedisKv,
+                Op::Update(partition_key, field, Some(updated_by)) if updated_by == "redis_kv" => 
+                    match kv_wrapper::<D,_,_>(
+                                    store,
+                                    KvOperation::<D>::HGet(field),
+                                    partition_key,
+                                )
+                                .await      
+                        {
+                            Ok(_) => MerchantStorageScheme::RedisKv,
+                            Err(_) => MerchantStorageScheme::PostgresOnly
+                        }
+                    
+                ,
+                Op::Update(_,_,None) => MerchantStorageScheme::PostgresOnly, //
+                _ => storage_scheme
+            };
+        if updated_scheme != storage_scheme {
+            let type_name = std::any::type_name::<D>();
+            println!("[decide_storage_scheme] output: {} for entity {}", updated_scheme, type_name);
+        }
+        updated_scheme
     }
+    else {
+        storage_scheme
+    }
+    
+    
 }

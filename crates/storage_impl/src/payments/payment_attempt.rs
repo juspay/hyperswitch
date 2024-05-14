@@ -474,7 +474,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             payment_id: &this.payment_id,
         };
         let field = format!("pa_{}", this.attempt_id);
-        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Update(key, &field, Some(&this.updated_by))).await;
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentAttempt>(&self,storage_scheme, Op::Update(key.clone(), &field, Some(&this.updated_by))).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -482,10 +482,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: &this.merchant_id,
-                    payment_id: &this.payment_id,
-                };
                 let key_str = key.to_string();
                 let old_connector_transaction_id = &this.connector_transaction_id;
                 let old_preprocessing_id = &this.preprocessing_step_id;

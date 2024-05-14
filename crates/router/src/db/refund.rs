@@ -536,7 +536,7 @@ mod storage {
                 payment_id: &payment_id,
             };
             let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Update(key, &field,Some(&this.updated_by))).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Update(key.clone(), &field,Some(&this.updated_by))).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -545,10 +545,6 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &merchant_id,
-                        payment_id: &payment_id,
-                    };
                     let key_str = key.to_string();
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 

@@ -162,7 +162,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             payment_id: &payment_id,
         };
         let field = format!("pi_{}", this.payment_id);
-        let storage_scheme = decide_storage_scheme::<_,DieselPaymentIntent>(&self,storage_scheme, Op::Update(key, &field, Some(&this.updated_by))).await;
+        let storage_scheme = decide_storage_scheme::<_,DieselPaymentIntent>(&self,storage_scheme, Op::Update(key.clone(), &field, Some(&this.updated_by))).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -170,10 +170,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: &merchant_id,
-                    payment_id: &payment_id,
-                };
                 let key_str = key.to_string();
 
                 let diesel_intent_update = payment_intent_update.to_storage_model();
