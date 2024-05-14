@@ -6999,7 +6999,7 @@ impl Default for super::settings::RequiredFields {
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "shipping.address.first_name".to_string(),
-                                                        display_name: "billing_first_name".to_string(),
+                                                        display_name: "shipping_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
                                                     }
@@ -7153,7 +7153,7 @@ impl Default for super::settings::RequiredFields {
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "shipping.address.first_name".to_string(),
-                                                        display_name: "billing_first_name".to_string(),
+                                                        display_name: "shipping_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
                                                     }
@@ -7322,7 +7322,7 @@ impl Default for super::settings::RequiredFields {
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "shipping.address.first_name".to_string(),
-                                                        display_name: "billing_first_name".to_string(),
+                                                        display_name: "shipping_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
                                                     }
@@ -7616,7 +7616,7 @@ impl Default for super::settings::RequiredFields {
                                                     "shipping.address.first_name".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "shipping.address.first_name".to_string(),
-                                                        display_name: "billing_first_name".to_string(),
+                                                        display_name: "shipping_first_name".to_string(),
                                                         field_type: enums::FieldType::UserShippingName,
                                                         value: None,
                                                     }
@@ -7710,7 +7710,7 @@ impl Default for super::settings::RequiredFields {
                                             "shipping.address.first_name".to_string(),
                                             RequiredFieldInfo {
                                                 required_field: "shipping.address.first_name".to_string(),
-                                                display_name: "billing_first_name".to_string(),
+                                                display_name: "shipping_first_name".to_string(),
                                                 field_type: enums::FieldType::UserShippingName,
                                                 value: None,
                                             }
