@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::recon as recon_api;
-use common_enums::ReconStatus;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::Flow;
@@ -195,7 +194,7 @@ pub async fn recon_merchant_account_update(
         subject: "Approval of Recon Request - Access Granted to Recon Dashboard",
     };
 
-    if req.recon_status == ReconStatus::Active {
+    if req.recon_status == enums::ReconStatus::Active {
         let _is_email_sent = state
             .email_client
             .compose_and_send_email(

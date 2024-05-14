@@ -525,10 +525,10 @@ pub async fn convert_currency(
     .await
     .change_context(ForexCacheError::ApiError)?;
 
-    let to_currency = api_models::enums::Currency::from_str(to_currency.as_str())
+    let to_currency = enums::Currency::from_str(to_currency.as_str())
         .change_context(ForexCacheError::CurrencyNotAcceptable)?;
 
-    let from_currency = api_models::enums::Currency::from_str(from_currency.as_str())
+    let from_currency = enums::Currency::from_str(from_currency.as_str())
         .change_context(ForexCacheError::CurrencyNotAcceptable)?;
 
     let converted_amount =

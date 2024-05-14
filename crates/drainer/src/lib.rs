@@ -24,7 +24,7 @@ use router_env::{
 };
 use tokio::sync::mpsc;
 
-pub(crate) type Settings = crate::settings::Settings<RawSecret>;
+pub(crate) type Settings = settings::Settings<RawSecret>;
 
 use crate::{
     connection::pg_connection, services::Store, settings::DrainerSettings, types::StreamData,

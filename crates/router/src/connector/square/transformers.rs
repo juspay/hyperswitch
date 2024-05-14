@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
-    types::{
-        self, api, domain,
-        storage::{self, enums},
-    },
+    types::{self, api, domain, storage::enums},
     unimplemented_payment_method,
 };
 
@@ -199,7 +196,7 @@ impl<F, T>
         item: types::ResponseRouterData<F, SquareSessionResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: storage::enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Pending,
             session_token: Some(item.response.session_id.clone().expose()),
             response: Ok(types::PaymentsResponseData::SessionTokenResponse {
                 session_token: item.response.session_id.expose(),
@@ -313,13 +310,13 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),
             }),
-
             types::ConnectorAuthType::HeaderKey { .. }
             | types::ConnectorAuthType::SignatureKey { .. }
             | types::ConnectorAuthType::MultiAuthKey { .. }
             | types::ConnectorAuthType::CurrencyAuthKey { .. }
             | types::ConnectorAuthType::TemporaryAuth { .. }
-            | types::ConnectorAuthType::NoKey { .. } => {
+            | types::ConnectorAuthType::NoKey { .. }
+            | types::ConnectorAuthType::CertificateAuth { .. } => {
                 Err(errors::ConnectorError::FailedToObtainAuthType.into())
             }
         }

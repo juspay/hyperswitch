@@ -93,6 +93,26 @@ pub trait ConnectorValidation: ConnectorCommon {
         }
     }
 
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        _pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
+
     fn validate_psync_reference_id(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -275,7 +295,7 @@ pub enum CaptureSyncMethod {
 pub async fn execute_connector_processing_step<
     'b,
     'a,
-    T: 'static,
+    T,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
@@ -286,7 +306,7 @@ pub async fn execute_connector_processing_step<
     connector_request: Option<Request>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
-    T: Clone + Debug,
+    T: Clone + Debug + 'static,
     // BoxedConnectorIntegration<T, Req, Resp>: 'b,
 {
     // If needed add an error stack as follows
@@ -388,7 +408,6 @@ where
                             .await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::info!(raw_connector_request=?masked_request_body);
-                    logger::info!(raw_connector_response=?response);
                     let status_code = response
                         .as_ref()
                         .map(|i| {
@@ -654,7 +673,7 @@ pub async fn send_request(
         }
         .add_headers(headers)
         .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
+            option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
         ))
     };
 
@@ -876,6 +895,7 @@ pub struct RedirectionFormData {
 pub enum PaymentAction {
     PSync,
     CompleteAuthorize,
+    PaymentAuthenticateCompleteAuthorize,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -922,7 +942,7 @@ pub enum RedirectForm {
 
 impl From<(url::Url, Method)> for RedirectForm {
     fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
-        let form_fields = std::collections::HashMap::from_iter(
+        let form_fields = HashMap::from_iter(
             redirect_url
                 .query_pairs()
                 .map(|(key, value)| (key.to_string(), value.to_string())),
@@ -1151,10 +1171,7 @@ where
                 if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
                     acc.insert(key.clone(), value.clone());
                 } else {
-                    acc.insert(
-                        key.clone(),
-                        http::header::HeaderValue::from_static("**MASKED**"),
-                    );
+                    acc.insert(key.clone(), HeaderValue::from_static("**MASKED**"));
                 }
                 acc
             });

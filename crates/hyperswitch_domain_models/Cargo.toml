@@ -1,0 +1,29 @@
+[package]
+name = "hyperswitch_domain_models"
+description = "Represents the data/domain models used by the business layer"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
+
+[features]
+default = ["olap", "payouts"]
+olap = []
+payouts = ["api_models/payouts"]
+
+[dependencies]
+# First party deps
+api_models = { version = "0.1.0", path = "../api_models" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
+masking = { version = "0.1.0", path = "../masking" }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
+
+# Third party deps
+async-trait = "0.1.79"
+error-stack = "0.4.1"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+thiserror = "1.0.58"
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }

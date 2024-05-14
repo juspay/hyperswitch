@@ -76,6 +76,10 @@ async fn deep_health_check_func(
         })
     })?;
 
+    logger::debug!("Locker health check end");
+
+    logger::debug!("Analytics health check begin");
+
     #[cfg(feature = "olap")]
     let analytics_status = state.health_check_analytics().await.map_err(|err| {
         error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
@@ -84,6 +88,22 @@ async fn deep_health_check_func(
         })
     })?;
 
+    logger::debug!("Analytics health check end");
+
+    logger::debug!("Opensearch health check begin");
+
+    #[cfg(feature = "olap")]
+    let opensearch_status = state.health_check_opensearch().await.map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Opensearch",
+            message: err.to_string()
+        })
+    })?;
+
+    logger::debug!("Opensearch health check end");
+
+    logger::debug!("Outgoing Request health check begin");
+
     let outgoing_check = state.health_check_outgoing().await.map_err(|err| {
         error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
             component: "Outgoing Request",
@@ -91,7 +111,7 @@ async fn deep_health_check_func(
         })
     })?;
 
-    logger::debug!("Locker health check end");
+    logger::debug!("Outgoing Request health check end");
 
     let response = RouterHealthCheckResponse {
         database: db_status.into(),
@@ -99,6 +119,8 @@ async fn deep_health_check_func(
         vault: locker_status.into(),
         #[cfg(feature = "olap")]
         analytics: analytics_status.into(),
+        #[cfg(feature = "olap")]
+        opensearch: opensearch_status.into(),
         outgoing_request: outgoing_check.into(),
     };
 

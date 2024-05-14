@@ -7,8 +7,8 @@ pub use api_models::enums::Connector;
 use api_models::payments::CardToken;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
+use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 
 use crate::{
     core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},

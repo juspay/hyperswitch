@@ -14,9 +14,8 @@ pub mod recon;
 pub mod email;
 
 use std::sync::Arc;
-
-use data_models::errors::StorageResult;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::StorageResult;
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;

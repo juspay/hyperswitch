@@ -3,10 +3,10 @@ pub use api_models::payments::{
     CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
     MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
     PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
-    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
-    PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+    PaymentListFilters, PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2,
+    PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
+    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
     PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
     PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
@@ -20,20 +20,6 @@ use crate::{
     services::api,
     types::{self, api as api_types},
 };
-
-pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTransactionType>;
-}
-
-impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTransactionType> {
-        match (&self.mandate_data, &self.mandate_id) {
-            (None, None) => None,
-            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
-            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
-        }
-    }
-}
 
 impl super::Router for PaymentsRequest {}
 
@@ -261,7 +247,7 @@ mod payments_test {
         PaymentsRequest {
             amount: Some(Amount::from(200)),
             payment_method_data: Some(PaymentMethodDataRequest {
-                payment_method_data: PaymentMethodData::Card(card()),
+                payment_method_data: Some(PaymentMethodData::Card(card())),
                 billing: None,
             }),
             ..PaymentsRequest::default()

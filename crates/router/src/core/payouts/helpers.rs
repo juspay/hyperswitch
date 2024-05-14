@@ -1,4 +1,4 @@
-use api_models::{enums, payouts};
+use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
@@ -14,9 +14,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
-            transformers::{
-                self, DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq,
-            },
+            transformers::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{
@@ -212,7 +210,7 @@ pub async fn save_payout_data_to_locker(
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
                     merchant_id: merchant_account.merchant_id.as_ref(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
-                    card: transformers::Card {
+                    card: Card {
                         card_number: card.card_number.to_owned(),
                         name_on_card: card.card_holder_name.to_owned(),
                         card_exp_month: card.expiry_month.to_owned(),
@@ -378,9 +376,9 @@ pub async fn save_payout_data_to_locker(
                 .map(|c| c.card_number.clone().get_card_isin());
 
             let mut payment_method = api::PaymentMethodCreate {
-                payment_method: api_enums::PaymentMethod::foreign_from(
+                payment_method: Some(api_enums::PaymentMethod::foreign_from(
                     payout_method_data.to_owned(),
-                ),
+                )),
                 payment_method_type: Some(payment_method_type),
                 payment_method_issuer: None,
                 payment_method_issuer_code: None,
@@ -390,6 +388,8 @@ pub async fn save_payout_data_to_locker(
                 metadata: None,
                 customer_id: Some(payout_attempt.customer_id.to_owned()),
                 card_network: None,
+                client_secret: None,
+                payment_method_data: None,
             };
 
             let pm_data = card_isin
@@ -403,7 +403,9 @@ pub async fn save_payout_data_to_locker(
                 .await
                 .flatten()
                 .map(|card_info| {
-                    payment_method.payment_method_issuer = card_info.card_issuer.clone();
+                    payment_method
+                        .payment_method_issuer
+                        .clone_from(&card_info.card_issuer);
                     payment_method.card_network =
                         card_info.card_network.clone().map(|cn| cn.to_string());
                     api::payment_methods::PaymentMethodsData::Card(
@@ -450,16 +452,16 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await,
+                cards::create_encrypted_data(key_store, Some(pm_data)).await,
                 payment_method,
             )
         } else {
             (
                 None,
                 api::PaymentMethodCreate {
-                    payment_method: api_enums::PaymentMethod::foreign_from(
+                    payment_method: Some(api_enums::PaymentMethod::foreign_from(
                         payout_method_data.to_owned(),
-                    ),
+                    )),
                     payment_method_type: Some(payment_method_type),
                     payment_method_issuer: None,
                     payment_method_issuer_code: None,
@@ -469,6 +471,8 @@ pub async fn save_payout_data_to_locker(
                     metadata: None,
                     customer_id: Some(payout_attempt.customer_id.to_owned()),
                     card_network: None,
+                    client_secret: None,
+                    payment_method_data: None,
                 },
             )
         };
@@ -489,7 +493,9 @@ pub async fn save_payout_data_to_locker(
             key_store,
             None,
             None,
+            None,
             merchant_account.storage_scheme,
+            None,
         )
         .await?;
     }
@@ -638,7 +644,7 @@ pub async fn decide_payout_connector(
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
-    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
 ) -> RouterResult<api::ConnectorCallType> {
     // 1. For existing attempts, use stored connector
     let payout_attempt = &payout_data.payout_attempt;

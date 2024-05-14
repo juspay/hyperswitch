@@ -2,7 +2,7 @@ pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, Card as CardPayout, PayoutActionRequest,
     PayoutCreateRequest, PayoutCreateResponse, PayoutListConstraints, PayoutListFilterConstraints,
     PayoutListFilters, PayoutListResponse, PayoutMethodData, PayoutRequest, PayoutRetrieveBody,
-    PayoutRetrieveRequest, SepaBankTransfer, Wallet as WalletPayout,
+    PayoutRetrieveRequest, PixBankTransfer, SepaBankTransfer, Wallet as WalletPayout,
 };
 
 use crate::{services::api, types};
@@ -24,6 +24,9 @@ pub struct PoQuote;
 
 #[derive(Debug, Clone)]
 pub struct PoRecipient;
+
+#[derive(Debug, Clone)]
+pub struct PoRecipientAccount;
 
 pub trait PayoutCancel:
     api::ConnectorIntegration<PoCancel, types::PayoutsData, types::PayoutsResponseData>
@@ -52,5 +55,10 @@ pub trait PayoutQuote:
 
 pub trait PayoutRecipient:
     api::ConnectorIntegration<PoRecipient, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
+pub trait PayoutRecipientAccount:
+    api::ConnectorIntegration<PoRecipientAccount, types::PayoutsData, types::PayoutsResponseData>
 {
 }

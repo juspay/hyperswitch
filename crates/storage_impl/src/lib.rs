@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use data_models::errors::{StorageError, StorageResult};
 use diesel_models as store;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 mod address;
@@ -12,6 +12,7 @@ pub mod customers;
 pub mod database;
 pub mod errors;
 mod lookup;
+pub mod mandate;
 pub mod metrics;
 pub mod mock_db;
 pub mod payment_method;
@@ -24,12 +25,11 @@ mod reverse_lookup;
 mod utils;
 
 use common_utils::errors::CustomResult;
-#[cfg(not(feature = "payouts"))]
-use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use database::store::PgPool;
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
-
 pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
@@ -232,7 +232,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         partition_key: redis::kv_store::PartitionKey<'_>,
     ) -> error_stack::Result<(), RedisError>
     where
-        R: crate::redis::kv_store::KvStorePartition,
+        R: redis::kv_store::KvStorePartition,
     {
         let global_id = format!("{}", partition_key);
         let request_id = self.request_id.clone().unwrap_or_default();
@@ -385,6 +385,15 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
     fn table_name(&self) -> &str {
         "PaymentMethod"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Mandate {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("mand_{}_{}", self.merchant_id, self.mandate_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Mandate"
     }
 }
 

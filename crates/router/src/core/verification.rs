@@ -22,8 +22,8 @@ pub async fn verify_merchant_creds_for_applepay(
         .common_merchant_identifier
         .clone()
         .expose();
-    let cert_data = applepay_merchant_configs.merchant_cert.clone().expose();
-    let key_data = applepay_merchant_configs.merchant_cert_key.clone().expose();
+    let cert_data = applepay_merchant_configs.merchant_cert.clone();
+    let key_data = applepay_merchant_configs.merchant_cert_key.clone();
     let applepay_endpoint = &applepay_merchant_configs.applepay_endpoint;
 
     let request_body = verifications::ApplepayMerchantVerificationConfigs {
@@ -89,7 +89,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
     merchant_id: String,
     merchant_connector_id: String,
 ) -> CustomResult<
-    services::ApplicationResponse<api_models::verifications::ApplepayVerifiedDomainsResponse>,
+    services::ApplicationResponse<verifications::ApplepayVerifiedDomainsResponse>,
     api_error_response::ApiErrorResponse,
 > {
     let db = state.store.as_ref();
@@ -110,6 +110,6 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .unwrap_or_default();
 
     Ok(services::api::ApplicationResponse::Json(
-        api_models::verifications::ApplepayVerifiedDomainsResponse { verified_domains },
+        verifications::ApplepayVerifiedDomainsResponse { verified_domains },
     ))
 }

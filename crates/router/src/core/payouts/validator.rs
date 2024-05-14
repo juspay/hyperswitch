@@ -1,7 +1,7 @@
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-pub use data_models::errors::StorageError;
 use error_stack::{report, ResultExt};
+pub use hyperswitch_domain_models::errors::StorageError;
 use router_env::{instrument, tracing};
 
 use super::helpers;

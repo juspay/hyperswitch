@@ -334,6 +334,7 @@ pub(crate) async fn fetch_raw_secrets(
         dummy_connector: conf.dummy_connector,
         #[cfg(feature = "email")]
         email: conf.email,
+        user: conf.user,
         mandates: conf.mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
@@ -365,6 +366,7 @@ pub(crate) async fn fetch_raw_secrets(
         connector_onboarding,
         cors: conf.cors,
         unmasked_headers: conf.unmasked_headers,
+        saved_payment_methods: conf.saved_payment_methods,
         multitenancy: conf.multitenancy,
     }
 }

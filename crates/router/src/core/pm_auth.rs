@@ -16,9 +16,9 @@ use common_utils::{
     ext_traits::AsyncExt,
     generate_id,
 };
-use data_models::payments::PaymentIntent;
 use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{
     connector::plaid::transformers::PlaidAuthType,
@@ -61,7 +61,7 @@ pub async fn create_link_token(
 
     let redis_conn = db
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
@@ -72,7 +72,7 @@ pub async fn create_link_token(
             "Vec<PaymentMethodAuthConnectorChoice>",
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get payment method auth choices from redis")?;
 
     let selected_config = pm_auth_configs
@@ -129,7 +129,7 @@ pub async fn create_link_token(
             &key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_account.merchant_id.clone(),
         })?;
 
@@ -142,7 +142,7 @@ pub async fn create_link_token(
         request: pm_auth_types::LinkTokenRequest {
             client_name: "HyperSwitch".to_string(),
             country_codes: Some(vec![billing_country.ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
+                ApiErrorResponse::MissingRequiredField {
                     field_name: "billing_country",
                 },
             )?]),
@@ -213,8 +213,7 @@ pub async fn exchange_token_core(
 
     let connector_name = config.connector_name.as_str();
 
-    let connector =
-        pm_auth_types::api::PaymentAuthConnectorData::get_connector_by_name(connector_name)?;
+    let connector = PaymentAuthConnectorData::get_connector_by_name(connector_name)?;
 
     let merchant_connector_account = state
         .store
@@ -224,7 +223,7 @@ pub async fn exchange_token_core(
             &key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_account.merchant_id.clone(),
         })?;
 
@@ -308,7 +307,7 @@ async fn store_bank_details_in_payment_methods(
     > = HashMap::new();
 
     for pm in payment_methods {
-        if pm.payment_method == enums::PaymentMethod::BankDebit {
+        if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
             let bank_details_pm_data = decrypt::<serde_json::Value, masking::WithType>(
                 pm.payment_method_data.clone(),
                 key,
@@ -402,9 +401,7 @@ async fn store_bank_details_in_payment_methods(
             connector_details: vec![payment_methods::BankAccountConnectorDetails {
                 connector: connector_name.to_string(),
                 mca_id: mca_id.clone(),
-                access_token: payment_methods::BankAccountAccessCreds::AccessToken(
-                    access_token.clone(),
-                ),
+                access_token: BankAccountAccessCreds::AccessToken(access_token.clone()),
                 account_id: creds.account_id,
             }],
         };
@@ -420,7 +417,7 @@ async fn store_bank_details_in_payment_methods(
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_payment_method_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
@@ -431,21 +428,42 @@ async fn store_bank_details_in_payment_methods(
         } else {
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_payment_method_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
+            let now = common_utils::date_time::now();
             let pm_new = storage::PaymentMethodNew {
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_account.merchant_id.clone(),
                 payment_method_id: pm_id,
-                payment_method: enums::PaymentMethod::BankDebit,
+                payment_method: Some(enums::PaymentMethod::BankDebit),
                 payment_method_type: Some(creds.payment_method_type),
+                status: enums::PaymentMethodStatus::Active,
                 payment_method_issuer: None,
                 scheme: None,
                 metadata: None,
                 payment_method_data: Some(encrypted_data),
-                ..storage::PaymentMethodNew::default()
+                payment_method_issuer_code: None,
+                accepted_currency: None,
+                token: None,
+                cardholder_name: None,
+                issuer_name: None,
+                issuer_country: None,
+                payer_country: None,
+                is_stored: None,
+                swift_code: None,
+                direct_debit_token: None,
+                created_at: now,
+                last_modified: now,
+                locker_id: None,
+                last_used_at: now,
+                connector_mandate_details: None,
+                customer_acceptance: None,
+
+                network_transaction_id: None,
+                client_secret: None,
+                payment_method_billing_address: None,
             };
 
             new_entries.push(pm_new);
@@ -609,7 +627,7 @@ async fn get_selected_config_from_redis(
 ) -> RouterResult<api_models::pm_auth::PaymentMethodAuthConnectorChoice> {
     let redis_conn = db
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
     let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
@@ -620,7 +638,7 @@ async fn get_selected_config_from_redis(
             "Vec<PaymentMethodAuthConnectorChoice>",
         )
         .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        .change_context(ApiErrorResponse::GenericNotFoundError {
             message: "payment method auth connector name not found".to_string(),
         })
         .attach_printable("Failed to get payment method auth choices from redis")?;
@@ -648,14 +666,14 @@ pub async fn retrieve_payment_method_from_auth_service(
 ) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 
-    let connector = pm_auth_types::api::PaymentAuthConnectorData::get_connector_by_name(
+    let connector = PaymentAuthConnectorData::get_connector_by_name(
         auth_token.connector_details.connector.as_str(),
     )?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&payment_intent.merchant_id, key_store)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -664,7 +682,7 @@ pub async fn retrieve_payment_method_from_auth_service(
             key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: auth_token.connector_details.mca_id.clone(),
         })
         .attach_printable(
@@ -694,7 +712,7 @@ pub async fn retrieve_payment_method_from_auth_service(
             acc.payment_method_type == auth_token.payment_method_type
                 && acc.payment_method == auth_token.payment_method
         })
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("Bank account details not found")?;
 
     let mut bank_type = None;
@@ -717,7 +735,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     let name = address
         .as_ref()
         .and_then(|addr| addr.first_name.clone().map(|name| name.into_inner()))
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+        .ok_or(ApiErrorResponse::GenericNotFoundError {
             message: "billing_first_name not found".to_string(),
         })
         .attach_printable("billing_first_name not found")?;
@@ -751,15 +769,15 @@ pub async fn retrieve_payment_method_from_auth_service(
         .get_required_value("email")?;
 
     let billing_details = BankDebitBilling {
-        name,
-        email,
+        name: Some(name),
+        email: Some(email),
         address: address_details,
     };
 
     let payment_method_data = match &bank_account.account_details {
         pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 account_number: ach.account_number.clone(),
                 routing_number: ach.routing_number.clone(),
                 card_holder_name: None,
@@ -771,7 +789,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         }
         pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => {
             PaymentMethodData::BankDebit(BankDebitData::BacsBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 account_number: bacs.account_number.clone(),
                 sort_code: bacs.sort_code.clone(),
                 bank_account_holder_name: None,
@@ -779,7 +797,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         }
         pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
             PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 iban: sepa.iban.clone(),
                 bank_account_holder_name: None,
             })
