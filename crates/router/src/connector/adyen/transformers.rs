@@ -1746,8 +1746,7 @@ fn get_line_items(
 ) -> Option<Vec<LineItem>> {
     order_details.clone().map(|od| {
         od.iter()
-            .enumerate()
-            .map(|(i, data)| LineItem {
+            .map(|(data)| LineItem {
                 amount_including_tax: Some(data.amount),
                 amount_excluding_tax: data.amount_excluding_tax,
                 description: Some(data.product_name.clone()),
@@ -3895,9 +3894,11 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptu
         let line_items = get_line_items(&item.router_data.request.order_details);
         let additional_data = if item.amount < item.router_data.request.payment_amount {
             Some(AdditionalData {
-                ..default()
+                ..Default::default()
             })
-        } else {None}
+        } else {
+            None
+        };
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             reference,
