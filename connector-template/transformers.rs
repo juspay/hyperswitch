@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use masking::Secret;
-use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self,api, storage::enums}};
+use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self, domain, api, storage::enums}};
 
 //TODO: Fill the struct with respective fields
 pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
@@ -53,7 +53,7 @@ impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::Paymen
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self,Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let card = {{project-name | downcase | pascal_case}}Card {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
@@ -77,11 +77,11 @@ pub struct {{project-name | downcase | pascal_case}}AuthType {
     pub(super) api_key: Secret<String>
 }
 
-impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
+impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -116,7 +116,7 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {
     id: String,
 }
 
-impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>> for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData> {
+impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
