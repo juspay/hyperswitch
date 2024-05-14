@@ -119,6 +119,8 @@ pub struct AdditionalData {
     #[cfg(feature = "payouts")]
     payout_eligible: Option<PayoutEligibility>,
     funds_availability: Option<String>,
+    #[serde(flatten)]
+    open_invoice_data: Option<serde_json::Value>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -148,6 +150,7 @@ pub struct LineItem {
     id: Option<String>,
     tax_amount: Option<i64>,
     quantity: Option<u16>,
+    product_url: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -1738,34 +1741,23 @@ fn get_address_info(
     })
 }
 
-fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -> Vec<LineItem> {
-    let order_details: Option<Vec<payments::OrderDetailsWithAmount>> =
-        item.router_data.request.order_details.clone();
-    match order_details {
-        Some(od) => od
-            .iter()
+fn get_line_items(
+    order_details: &Option<Vec<payments::OrderDetailsWithAmount>>,
+) -> Option<Vec<LineItem>> {
+    order_details.clone().map(|od| {
+        od.iter()
             .enumerate()
             .map(|(i, data)| LineItem {
                 amount_including_tax: Some(data.amount),
-                amount_excluding_tax: Some(data.amount),
+                amount_excluding_tax: data.amount_excluding_tax,
                 description: Some(data.product_name.clone()),
-                id: Some(format!("Items #{i}")),
-                tax_amount: None,
+                id: data.product_id.clone(),
+                tax_amount: data.amount_excluding_tax.map(|amt| data.amount - amt),
                 quantity: Some(data.quantity),
+                product_url: data.product_img_link.clone(),
             })
-            .collect(),
-        None => {
-            let line_item = LineItem {
-                amount_including_tax: Some(item.amount.to_owned()),
-                amount_excluding_tax: Some(item.amount.to_owned()),
-                description: item.router_data.description.clone(),
-                id: Some(String::from("Items #1")),
-                tax_amount: None,
-                quantity: Some(1),
-            };
-            vec![line_item]
-        }
-    }
+            .collect()
+    })
 }
 
 fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Secret<String>> {
@@ -2910,7 +2902,7 @@ impl<'a>
         let payment_method =
             AdyenPaymentMethod::try_from((bank_redirect_data, item.router_data.test_mode))?;
         let (shopper_locale, country) = get_redirect_extra_details(item.router_data)?;
-        let line_items = Some(get_line_items(item));
+        let line_items = get_line_items(&item.router_data.request.order_details);
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3070,7 +3062,7 @@ impl<'a>
             get_address_info(item.router_data.get_optional_billing()).transpose()?;
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).transpose()?;
-        let line_items = Some(get_line_items(item));
+        let line_items = get_line_items(&item.router_data.request.order_details);
         let telephone_number = get_telephone_number(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((
             paylater_data,
@@ -3878,12 +3870,14 @@ impl<F, Req>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCaptureRequest {
     merchant_account: Secret<String>,
     amount: Amount,
     reference: String,
+    line_items: Option<Vec<LineItem>>,
+    additional_data: Option<AdditionalData>,
 }
 
 impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptureRequest {
@@ -3898,6 +3892,12 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptu
             // if single capture request, send connector_request_reference_id(attempt_id)
             None => item.router_data.connector_request_reference_id.clone(),
         };
+        let line_items = get_line_items(&item.router_data.request.order_details);
+        let additional_data = if item.amount < item.router_data.request.payment_amount {
+            Some(AdditionalData {
+                ..default()
+            })
+        } else {None}
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             reference,
@@ -3905,6 +3905,8 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptu
                 currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
+            line_items,
+            additional_data,
         })
     }
 }

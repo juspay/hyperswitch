@@ -1020,6 +1020,7 @@ pub fn change_order_details_to_new_type(
         sub_category: order_details.sub_category,
         brand: order_details.brand,
         product_type: order_details.product_type,
+        amount_excluding_tax: order_details.amount_excluding_tax,
     }])
 }
 
@@ -1304,7 +1305,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data;
+        let payment_data = additional_data.payment_data.clone();
         let connector = api::ConnectorData::get_connector_by_name(
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
@@ -1324,6 +1325,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+
+        let order_details = additional_data
+            .payment_data
+            .payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
         Ok(Self {
             amount_to_capture,
@@ -1346,6 +1366,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             },
             browser_info,
             metadata: payment_data.payment_intent.metadata,
+            order_details,
         })
     }
 }
