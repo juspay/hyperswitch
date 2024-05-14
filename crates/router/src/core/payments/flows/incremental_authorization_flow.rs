@@ -46,7 +46,7 @@ impl
 
 #[async_trait]
 impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizationData>
-    for hyperswitch_domain_models::router_data::RouterData<
+    for types::RouterData<
         api::IncrementalAuthorization,
         types::PaymentsIncrementalAuthorizationData,
         types::PaymentsResponseData,

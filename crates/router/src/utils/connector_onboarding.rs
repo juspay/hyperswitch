@@ -14,14 +14,12 @@ pub mod paypal;
 pub fn get_connector_auth(
     connector: enums::Connector,
     connector_data: &settings::ConnectorOnboarding,
-) -> RouterResult<hyperswitch_domain_models::router_data::ConnectorAuthType> {
+) -> RouterResult<types::ConnectorAuthType> {
     match connector {
-        enums::Connector::Paypal => Ok(
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key: connector_data.paypal.client_secret.clone(),
-                key1: connector_data.paypal.client_id.clone(),
-            },
-        ),
+        enums::Connector::Paypal => Ok(types::ConnectorAuthType::BodyKey {
+            api_key: connector_data.paypal.client_secret.clone(),
+            key1: connector_data.paypal.client_id.clone(),
+        }),
         _ => Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(format!(
                 "Onboarding is not implemented for {}",

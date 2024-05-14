@@ -29,7 +29,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
-        hyperswitch_domain_models::router_data::RouterData<
+        types::RouterData<
             api::CompleteAuthorize,
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
@@ -53,7 +53,7 @@ impl
 
 #[async_trait]
 impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
-    for hyperswitch_domain_models::router_data::RouterData<
+    for types::RouterData<
         api::CompleteAuthorize,
         types::CompleteAuthorizeData,
         types::PaymentsResponseData,
@@ -153,20 +153,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
 pub async fn complete_authorize_preprocessing_steps<F: Clone>(
     state: &AppState,
-    router_data: &hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    >,
+    router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
     confirm: bool,
     connector: &api::ConnectorData,
-) -> RouterResult<
-    hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-> {
+) -> RouterResult<types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>> {
     if confirm {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -178,10 +168,8 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
         let preprocessing_request_data =
             types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
 
-        let preprocessing_response_data: Result<
-            types::PaymentsResponseData,
-            hyperswitch_domain_models::router_data::ErrorResponse,
-        > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
+        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
 
         let preprocessing_router_data =
             helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(

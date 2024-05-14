@@ -55,11 +55,7 @@ use crate::{
 pub struct AccessTokenAuth;
 
 pub trait ConnectorAccessToken:
-    ConnectorIntegration<
-    AccessTokenAuth,
-    types::AccessTokenRequestData,
-    hyperswitch_domain_models::router_data::AccessToken,
->
+    ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
 }
 
@@ -120,7 +116,7 @@ pub trait ConnectorCommon {
     /// HTTP header used for authorization.
     fn get_auth_header(
         &self,
-        _auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+        _auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -161,7 +157,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     /// common header builder when every request for the connector have same headers
     fn build_headers(
         &self,
-        _req: &hyperswitch_domain_models::router_data::RouterData<Flow, Req, Resp>,
+        _req: &types::RouterData<Flow, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())

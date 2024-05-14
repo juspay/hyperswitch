@@ -77,10 +77,8 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
                     "Could not create access token request, invalid connector account credentials",
                 )?;
 
-                let refresh_token_response_data: Result<
-                    hyperswitch_domain_models::router_data::AccessToken,
-                    hyperswitch_domain_models::router_data::ErrorResponse,
-                > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
+                let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
+                    Err(types::ErrorResponse::default());
                 let refresh_token_router_data = payments::helpers::router_data_type_conversion::<
                     _,
                     api_types::AccessTokenAuth,
@@ -126,9 +124,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
         })
     } else {
         Ok(types::AddAccessTokenResult {
-            access_token_result: Err(
-                hyperswitch_domain_models::router_data::ErrorResponse::default(),
-            ),
+            access_token_result: Err(types::ErrorResponse::default()),
             connector_supports_access_token: false,
         })
     }
@@ -139,22 +135,17 @@ pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,
     _merchant_account: &domain::MerchantAccount,
-    router_data: &hyperswitch_domain_models::router_data::RouterData<
+    router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
+        types::AccessToken,
     >,
-) -> RouterResult<
-    Result<
-        hyperswitch_domain_models::router_data::AccessToken,
-        hyperswitch_domain_models::router_data::ErrorResponse,
-    >,
-> {
+) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
-        hyperswitch_domain_models::router_data::AccessToken,
+        types::AccessToken,
     > = connector.connector.get_connector_integration();
 
     let access_token_router_data_result = services::execute_connector_processing_step(
@@ -173,7 +164,7 @@ pub async fn refresh_connector_auth(
             // the error has to be handled gracefully by updating the payment status to failed.
             // further payment flow will not be continued
             if connector_error.current_context().is_connector_timeout() {
-                let error_response = hyperswitch_domain_models::router_data::ErrorResponse {
+                let error_response = types::ErrorResponse {
                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
                     message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),

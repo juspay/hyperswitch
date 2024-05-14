@@ -3,11 +3,10 @@ use std::marker::PhantomData;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::Mandate;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payment_address::PaymentAddress;
 
 use crate::{
     core::{errors, payments::helpers},
-    types::{self, domain},
+    types::{self, domain, PaymentAddress},
 };
 const IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW: &str =
     "irrelevant_payment_id_in_mandate_revoke_flow";
@@ -23,12 +22,11 @@ pub async fn construct_mandate_revoke_router_data(
     merchant_account: &domain::MerchantAccount,
     mandate: Mandate,
 ) -> CustomResult<types::MandateRevokeRouterData, errors::ApiErrorResponse> {
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id: Some(mandate.customer_id),
@@ -60,7 +58,7 @@ pub async fn construct_mandate_revoke_router_data(
             mandate_id: mandate.mandate_id,
             connector_mandate_id: mandate.connector_mandate_id,
         },
-        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::get_not_implemented()),
+        response: Err(types::ErrorResponse::get_not_implemented()),
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         test_mode: None,

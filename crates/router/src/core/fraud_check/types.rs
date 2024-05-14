@@ -6,10 +6,7 @@ use api_models::{
 };
 use common_enums::FrmSuggestion;
 use common_utils::pii::Email;
-use hyperswitch_domain_models::{
-    payment_address::PaymentAddress,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-};
+use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use masking::Serialize;
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -20,6 +17,7 @@ use crate::{
     types::{
         domain::MerchantAccount,
         storage::{enums as storage_enums, fraud_check::FraudCheck},
+        PaymentAddress,
     },
 };
 

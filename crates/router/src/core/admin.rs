@@ -2080,19 +2080,14 @@ pub fn validate_status_and_disabled(
     current_status: api_enums::ConnectorStatus,
 ) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
     let connector_status = match (status, auth) {
-        (
-            Some(common_enums::ConnectorStatus::Active),
-            types::ConnectorAuthType::TemporaryAuth,
-        ) => {
+        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Connector status cannot be active when using TemporaryAuth".to_string(),
             }
             .into());
         }
         (Some(status), _) => status,
-        (None, types::ConnectorAuthType::TemporaryAuth) => {
-            common_enums::ConnectorStatus::Inactive
-        }
+        (None, types::ConnectorAuthType::TemporaryAuth) => common_enums::ConnectorStatus::Inactive,
         (None, _) => current_status,
     };
 

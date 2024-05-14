@@ -87,11 +87,10 @@ pub async fn construct_payout_router_data<'a, F>(
     )
     .await?;
     payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
-    let connector_auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let billing = payout_data.billing_address.to_owned();
 
@@ -149,7 +148,7 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
         customer_id: None,
@@ -248,11 +247,10 @@ pub async fn construct_refund_router_data<'a, F>(
     )
     .await?;
 
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let status = payment_attempt.status;
 
@@ -301,7 +299,7 @@ pub async fn construct_refund_router_data<'a, F>(
             field_name: "browser_info",
         })?;
 
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id: payment_intent.customer_id.to_owned(),
@@ -540,15 +538,14 @@ pub async fn construct_accept_dispute_router_data<'a>(
     .await?;
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: dispute.connector.to_string(),
@@ -635,15 +632,14 @@ pub async fn construct_submit_evidence_router_data<'a>(
     .await?;
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
@@ -728,15 +724,14 @@ pub async fn construct_upload_file_router_data<'a>(
     .await?;
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
@@ -825,15 +820,14 @@ pub async fn construct_defend_dispute_router_data<'a>(
     .await?;
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
@@ -914,12 +908,11 @@ pub async fn construct_retrieve_file_router_data<'a>(
     .await?;
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),

@@ -16,7 +16,6 @@ use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-    router_data::RouterData,
 };
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
@@ -59,6 +58,7 @@ use crate::{
         },
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
+        RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -665,13 +665,11 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: Some(token),
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(
-                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
-                    payment_method_type,
-                    original_payment_authorized_amount,
-                    original_payment_authorized_currency,
-                },
-            ),
+            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
+                payment_method_type,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
+            }),
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
@@ -681,13 +679,11 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: None,
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(
-                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
-                    payment_method_type,
-                    original_payment_authorized_amount,
-                    original_payment_authorized_currency,
-                },
-            ),
+            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
+                payment_method_type,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
+            }),
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,

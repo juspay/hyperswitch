@@ -46,6 +46,7 @@ use crate::{
         ApplicationResponse,
     },
     types::{
+        self,
         domain::{self, types::decrypt},
         storage,
         transformers::ForeignTryFrom,
@@ -187,20 +188,17 @@ pub async fn create_link_token(
     Ok(ApplicationResponse::Json(response))
 }
 
-impl ForeignTryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType> for PlaidAuthType {
+impl ForeignTryFrom<&types::ConnectorAuthType> for PlaidAuthType {
     type Error = errors::ConnectorError;
 
-    fn foreign_try_from(
-        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
-    ) -> Result<Self, Self::Error> {
+    fn foreign_try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok::<Self, errors::ConnectorError>(Self {
-                client_id: api_key.to_owned(),
-                secret: key1.to_owned(),
-            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Ok::<Self, errors::ConnectorError>(Self {
+                    client_id: api_key.to_owned(),
+                    secret: key1.to_owned(),
+                })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType),
         }
     }

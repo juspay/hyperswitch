@@ -16,6 +16,7 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
+        self as core_types,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums, payment_attempt::PaymentAttemptExt},
@@ -202,7 +203,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_acceptance: None,
             token: None,
             token_data: None,
-            address: hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            address: core_types::PaymentAddress::new(
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
                 payment_method_billing.as_ref().map(From::from),

@@ -25,31 +25,22 @@ use crate::{
         api::{self, CardDetailFromLocker, CardDetailsPaymentMethod, PaymentMethodCreateExt},
         domain,
         storage::{self, enums as storage_enums},
-        PaymentMethodToken,
     },
     utils::{generate_id, OptionExt},
 };
 
 pub struct SavePaymentMethodData<Req> {
     request: Req,
-    response:
-        Result<types::PaymentsResponseData, hyperswitch_domain_models::router_data::ErrorResponse>,
-    payment_method_token: Option<PaymentMethodToken>,
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+    payment_method_token: Option<types::PaymentMethodToken>,
     payment_method: PaymentMethod,
     attempt_status: common_enums::AttemptStatus,
 }
 
-impl<F, Req: Clone>
-    From<&hyperswitch_domain_models::router_data::RouterData<F, Req, types::PaymentsResponseData>>
+impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>>
     for SavePaymentMethodData<Req>
 {
-    fn from(
-        router_data: &hyperswitch_domain_models::router_data::RouterData<
-            F,
-            Req,
-            types::PaymentsResponseData,
-        >,
-    ) -> Self {
+    fn from(router_data: &types::RouterData<F, Req, types::PaymentsResponseData>) -> Self {
         Self {
             request: router_data.request.clone(),
             response: router_data.response.clone(),
@@ -120,14 +111,12 @@ where
                     .to_owned()
                     .get_required_value("payment_token")?;
                 let token = match tokens {
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
-                        connector_token,
-                    ) => connector_token,
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                        _,
-                    ) => Err(errors::ApiErrorResponse::NotSupported {
-                        message: "Apple Pay Decrypt token is not supported".to_string(),
-                    })?,
+                    types::PaymentMethodToken::Token(connector_token) => connector_token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Apple Pay Decrypt token is not supported".to_string(),
+                        })?
+                    }
                 };
                 Some((connector_name, token))
             } else {
@@ -733,11 +722,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,
-    router_data: &mut hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        types::PaymentsResponseData,
-    >,
+    router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
@@ -750,10 +735,8 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
 
-            let pm_token_response_data: Result<
-                types::PaymentsResponseData,
-                hyperswitch_domain_models::router_data::ErrorResponse,
-            > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
+            let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+                Err(types::ErrorResponse::default());
 
             let mut pm_token_router_data =
                 helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(

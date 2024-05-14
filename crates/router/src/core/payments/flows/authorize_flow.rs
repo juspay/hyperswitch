@@ -34,7 +34,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
-        hyperswitch_domain_models::router_data::RouterData<
+        types::RouterData<
             api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -267,20 +267,10 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
 pub async fn authorize_preprocessing_steps<F: Clone>(
     state: &AppState,
-    router_data: &hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     confirm: bool,
     connector: &api::ConnectorData,
-) -> RouterResult<
-    hyperswitch_domain_models::router_data::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-> {
+) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
     if confirm {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -292,10 +282,8 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         let preprocessing_request_data =
             types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
 
-        let preprocessing_response_data: Result<
-            types::PaymentsResponseData,
-            hyperswitch_domain_models::router_data::ErrorResponse,
-        > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
+        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
 
         let preprocessing_router_data =
             helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
@@ -347,23 +335,13 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
     }
 }
 
-impl<F>
-    TryFrom<
-        &hyperswitch_domain_models::router_data::RouterData<
-            F,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::ConnectorCustomerData
+impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for types::ConnectorCustomerData
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(
-        data: &hyperswitch_domain_models::router_data::RouterData<
-            F,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),

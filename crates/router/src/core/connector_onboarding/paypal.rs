@@ -9,7 +9,7 @@ use crate::{
         errors::{ApiErrorResponse, RouterResult},
     },
     services::{send_request, ApplicationResponse, Request},
-    types::{api as oss_api_types, api::connector_onboarding as types},
+    types::{self as oss_types, api as oss_api_types, api::connector_onboarding as types},
     utils::connector_onboarding as utils,
     AppState,
 };
@@ -115,7 +115,7 @@ pub async fn sync_merchant_onboarding_status(
 async fn find_paypal_merchant_by_tracking_id(
     state: AppState,
     tracking_id: String,
-    access_token: &hyperswitch_domain_models::router_data::AccessToken,
+    access_token: &oss_types::AccessToken,
 ) -> RouterResult<Option<types::paypal::SellerStatusResponse>> {
     let seller_status_request = utils::paypal::build_paypal_get_request(
         merchant_onboarding_status_url(state.clone(), tracking_id),
@@ -142,7 +142,7 @@ pub async fn update_mca(
     state: &AppState,
     merchant_id: String,
     connector_id: String,
-    auth_details: hyperswitch_domain_models::router_data::ConnectorAuthType,
+    auth_details: oss_types::ConnectorAuthType,
 ) -> RouterResult<oss_api_types::MerchantConnectorResponse> {
     let connector_auth_json = auth_details
         .encode_to_value()

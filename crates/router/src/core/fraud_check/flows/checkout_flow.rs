@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::router_data::RouterData;
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
@@ -18,7 +17,7 @@ use crate::{
         domain,
         fraud_check::{FraudCheckCheckoutData, FraudCheckResponseData, FrmCheckoutRouterData},
         storage::enums as storage_enums,
-        BrowserInformation, ConnectorAuthType, ResponseId,
+        BrowserInformation, ConnectorAuthType, ResponseId, RouterData,
     },
     AppState,
 };

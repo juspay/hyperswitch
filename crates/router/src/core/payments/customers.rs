@@ -15,11 +15,7 @@ use crate::{
 pub async fn create_connector_customer<F: Clone, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
-    router_data: &hyperswitch_domain_models::router_data::RouterData<
-        F,
-        T,
-        types::PaymentsResponseData,
-    >,
+    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     customer_request_data: types::ConnectorCustomerData,
 ) -> RouterResult<Option<String>> {
     let connector_integration: services::BoxedConnectorIntegration<
@@ -29,10 +25,8 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
 
-    let customer_response_data: Result<
-        types::PaymentsResponseData,
-        hyperswitch_domain_models::router_data::ErrorResponse,
-    > = Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
+    let customer_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+        Err(types::ErrorResponse::default());
 
     let customer_router_data = payments::helpers::router_data_type_conversion::<
         _,

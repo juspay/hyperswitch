@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payment_address::PaymentAddress;
 
 use crate::{
     core::{
@@ -11,7 +10,7 @@ use crate::{
     },
     db::{get_and_deserialize_key, StorageInterface},
     services::logger,
-    types::{self, api, domain},
+    types::{self, api, domain, PaymentAddress},
 };
 
 const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
@@ -66,13 +65,13 @@ pub async fn construct_webhook_router_data<'a>(
     connector_wh_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
+    let auth_type: types::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account.clone())
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let router_data = hyperswitch_domain_models::router_data::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_name.to_string(),
@@ -93,7 +92,7 @@ pub async fn construct_webhook_router_data<'a>(
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
         },
-        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        response: Err(types::ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,

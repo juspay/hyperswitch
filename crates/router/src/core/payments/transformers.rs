@@ -39,13 +39,10 @@ pub async fn construct_payment_router_data<'a, F, T>(
     _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
-) -> RouterResult<
-    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>,
->
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
-    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>:
-        Feature<F, T>,
+    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
     F: Clone,
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
@@ -58,12 +55,11 @@ where
 
     let test_mode = merchant_connector_account.is_test_mode_on();
 
-    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
-        merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     payment_method = payment_data
         .payment_attempt
@@ -133,7 +129,7 @@ where
         .as_ref()
         .and_then(|payment_method_data| payment_method_data.get_billing_address());
 
-    router_data = hyperswitch_domain_models::router_data::RouterData {
+    router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id,
@@ -160,9 +156,7 @@ where
         session_token: None,
         reference_id: None,
         payment_method_status: payment_data.payment_method_info.map(|info| info.status),
-        payment_method_token: payment_data
-            .pm_token
-            .map(hyperswitch_domain_models::router_data::PaymentMethodToken::Token),
+        payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(

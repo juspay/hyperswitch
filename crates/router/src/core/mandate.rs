@@ -172,10 +172,7 @@ pub async fn update_connector_mandate_id(
     merchant_account: String,
     mandate_ids_opt: Option<String>,
     payment_method_id: Option<String>,
-    resp: Result<
-        types::PaymentsResponseData,
-        hyperswitch_domain_models::router_data::ErrorResponse,
-    >,
+    resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
     storage_scheme: MerchantStorageScheme,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate_details = Option::foreign_from(resp);
@@ -263,11 +260,7 @@ pub async fn get_customer_mandates(
 }
 
 fn get_insensitive_payment_method_data_if_exists<F, FData>(
-    router_data: &hyperswitch_domain_models::router_data::RouterData<
-        F,
-        FData,
-        types::PaymentsResponseData,
-    >,
+    router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
 ) -> Option<domain::PaymentMethodData>
 where
     FData: MandateBehaviour,
@@ -279,14 +272,12 @@ where
 }
 pub async fn update_mandate_procedure<F, FData>(
     state: &AppState,
-    resp: hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>,
+    resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     mandate: Mandate,
     merchant_id: &str,
     pm_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResult<
-    hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>,
->
+) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
 {
@@ -352,11 +343,7 @@ where
 
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
-    resp: &hyperswitch_domain_models::router_data::RouterData<
-        F,
-        FData,
-        types::PaymentsResponseData,
-    >,
+    resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
     customer_id: &Option<String>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
@@ -509,17 +496,10 @@ pub async fn retrieve_mandates_list(
     Ok(services::ApplicationResponse::Json(mandates_list))
 }
 
-impl
-    ForeignFrom<
-        Result<types::PaymentsResponseData, hyperswitch_domain_models::router_data::ErrorResponse>,
-    > for Option<types::MandateReference>
+impl ForeignFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
+    for Option<types::MandateReference>
 {
-    fn foreign_from(
-        resp: Result<
-            types::PaymentsResponseData,
-            hyperswitch_domain_models::router_data::ErrorResponse,
-        >,
-    ) -> Self {
+    fn foreign_from(resp: Result<types::PaymentsResponseData, types::ErrorResponse>) -> Self {
         match resp {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 mandate_reference, ..
