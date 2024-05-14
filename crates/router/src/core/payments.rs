@@ -2316,7 +2316,7 @@ where
                     TokenizationAction::TokenizeInConnector
                 }
                 TokenizationAction::ConnectorToken(token) => {
-                    payment_data.pm_token = Some(token.into());
+                    payment_data.pm_token = Some(token);
                     TokenizationAction::SkipConnectorTokenization
                 }
                 TokenizationAction::SkipConnectorTokenization => {
@@ -2425,7 +2425,7 @@ where
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
-    pub pm_token: Option<Secret<String>>,
+    pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
     pub recurring_mandate_payment_data:
         Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
