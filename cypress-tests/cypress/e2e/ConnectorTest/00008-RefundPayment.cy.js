@@ -319,7 +319,7 @@ describe("Card - Refund flow test", () => {
         it("Confirm No 3DS CIT", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateMultiUseNo3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody, 7000, det,true, "automatic", "new_mandate", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, 7000, det, true, "automatic", "new_mandate", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -440,7 +440,6 @@ describe("Card - Refund flow test", () => {
     context("Partially Refund Card-ThreeDS payment flow test Create+Confirm", () => {
 
         it("create+confirm-payment-call-test", () => {
-          console.log("confirm -> " + globalState.get("connectorId"));
           let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
           cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"three_ds", "automatic", globalState);
         });
@@ -484,9 +483,7 @@ describe("Card - Refund flow test", () => {
 
 
         it("confirm-call-test", () => {
-            console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.confirmCallTest(confirmBody, det, true, globalState);
         });
 
@@ -502,7 +499,6 @@ describe("Card - Refund flow test", () => {
 
         it("capture-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
         });
 
@@ -533,9 +529,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("confirm-call-test", () => {
-            console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.confirmCallTest(confirmBody, det, true, globalState);
         });
 
@@ -550,7 +544,6 @@ describe("Card - Refund flow test", () => {
 
         it("capture-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
         });
 
@@ -586,9 +579,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("confirm-call-test", () => {
-            console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.confirmCallTest(confirmBody, det, true, globalState);
         });
 
@@ -603,7 +594,6 @@ describe("Card - Refund flow test", () => {
 
         it("capture-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 4000, det.paymentSuccessfulStatus, globalState);
         });
 
@@ -634,9 +624,7 @@ describe("Card - Refund flow test", () => {
         });
     
         it("confirm-call-test", () => {
-            console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.confirmCallTest(confirmBody, det, true, globalState);
         });
 
@@ -651,7 +639,6 @@ describe("Card - Refund flow test", () => {
     
         it("capture-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 4000, det.paymentSuccessfulStatus, globalState);
         });
     
