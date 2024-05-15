@@ -13,12 +13,12 @@ struct Globalpay;
 impl ConnectorActions for Globalpay {}
 static CONNECTOR: Globalpay = Globalpay {};
 impl Connector for Globalpay {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Globalpay;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Globalpay),
             connector_name: types::Connector::Globalpay,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
@@ -42,7 +42,7 @@ impl Connector for Globalpay {
 }
 
 fn get_access_token() -> Option<AccessToken> {
-    match utils::Connector::get_auth_token(&CONNECTOR) {
+    match Connector::get_auth_token(&CONNECTOR) {
         ConnectorAuthType::BodyKey { api_key, key1: _ } => Some(AccessToken {
             token: api_key,
             expires: 18600,
@@ -67,6 +67,7 @@ impl Globalpay {
                     phone: None,
                     ..Default::default()
                 }),
+                None,
                 None,
             )),
             access_token: get_access_token(),
@@ -120,7 +121,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -137,7 +138,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
@@ -345,7 +346,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -367,7 +368,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -410,7 +411,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()

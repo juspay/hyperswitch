@@ -1,4 +1,4 @@
-use common_enums::{PermissionGroup, RoleScope};
+use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
@@ -91,6 +91,11 @@ pub struct ResetPasswordRequest {
     pub password: Secret<String>,
 }
 
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct RotatePasswordRequest {
+    pub password: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct InviteUserRequest {
     pub email: pii::Email,
@@ -149,13 +154,25 @@ pub struct UserDetails {
     pub last_modified_at: time::PrimitiveDateTime,
 }
 
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct GetUserDetailsResponse {
+    pub merchant_id: String,
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub verification_days_left: Option<i64>,
+    pub role_id: String,
+    // This field is added for audit/debug reasons
+    #[serde(skip_serializing)]
+    pub user_id: String,
+    pub org_id: String,
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetUserDetailsRequest {
+pub struct GetUserRoleDetailsRequest {
     pub email: pii::Email,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct GetUserDetailsResponse {
+pub struct GetUserRoleDetailsResponse {
     pub email: pii::Email,
     pub name: Secret<String>,
     pub role_id: String,
@@ -200,4 +217,43 @@ pub struct VerifyTokenResponse {
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
     pub preferred_merchant_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TokenOnlyQueryParam {
+    pub token_only: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TokenResponse {
+    pub token: Secret<String>,
+    pub token_type: TokenPurpose,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum TokenOrPayloadResponse<T> {
+    Token(TokenResponse),
+    Payload(T),
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserFromEmailRequest {
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct BeginTotpResponse {
+    pub secret: Option<TotpSecret>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TotpSecret {
+    pub secret: Secret<String>,
+    pub totp_url: Secret<String>,
+    pub recovery_codes: Vec<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyTotpRequest {
+    pub totp: Option<Secret<String>>,
 }

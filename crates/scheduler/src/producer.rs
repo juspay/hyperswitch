@@ -43,11 +43,10 @@ where
 
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
-    let mut interval = tokio::time::interval(std::time::Duration::from_millis(
-        scheduler_settings.loop_interval,
-    ));
+    let mut interval =
+        tokio::time::interval(Duration::from_millis(scheduler_settings.loop_interval));
 
-    let mut shutdown_interval = tokio::time::interval(std::time::Duration::from_millis(
+    let mut shutdown_interval = tokio::time::interval(Duration::from_millis(
         scheduler_settings.graceful_shutdown_interval,
     ));
 

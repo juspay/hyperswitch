@@ -1,0 +1,16 @@
+[package]
+name = "hyperswitch_constraint_graph"
+description = "Constraint Graph Framework for modeling Domain-Specific Constraints"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+erased-serde = "0.3.28"
+rustc-hash = "1.1.0"
+serde = { version = "1.0.163", features = ["derive", "rc"] }
+serde_json = "1.0.96"
+strum = { version = "0.25", features = ["derive"] }
+thiserror = "1.0.43"

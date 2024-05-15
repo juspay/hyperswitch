@@ -81,10 +81,10 @@ where
     )
     .await?;
 
-    frm_data.payment_attempt.connector_transaction_id = payment_data
+    frm_data
         .payment_attempt
         .connector_transaction_id
-        .clone();
+        .clone_from(&payment_data.payment_attempt.connector_transaction_id);
 
     let mut router_data = frm_data
         .construct_router_data(
@@ -243,10 +243,11 @@ where
                                 })
                                 .collect::<Vec<_>>()
                                 .concat();
+
                             let additional_payment_data = match &payment_data.payment_method_data {
                                 Some(pmd) => {
                                     let additional_payment_data =
-                                        get_additional_payment_data(pmd, db).await;
+                                        get_additional_payment_data(pmd, db, &profile_id).await;
                                     Some(additional_payment_data)
                                 }
                                 None => payment_data
@@ -436,7 +437,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn pre_payment_frm_core<'a, F, Req, Ctx>(
+pub async fn pre_payment_frm_core<'a, F, Req>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
@@ -446,7 +447,7 @@ pub async fn pre_payment_frm_core<'a, F, Req, Ctx>(
     should_continue_transaction: &mut bool,
     should_continue_capture: &mut bool,
     key_store: domain::MerchantKeyStore,
-    operation: &BoxedOperation<'_, F, Req, Ctx>,
+    operation: &BoxedOperation<'_, F, Req>,
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
@@ -615,9 +616,9 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn call_frm_before_connector_call<'a, F, Req, Ctx>(
+pub async fn call_frm_before_connector_call<'a, F, Req>(
     db: &dyn StorageInterface,
-    operation: &BoxedOperation<'_, F, Req, Ctx>,
+    operation: &BoxedOperation<'_, F, Req>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
     state: &AppState,
@@ -675,7 +676,7 @@ where
     if matches!(fraud_capture_method, Some(Some(CaptureMethod::Manual)))
         && matches!(
             payment_data.payment_attempt.status,
-            api_models::enums::AttemptStatus::Unresolved
+            AttemptStatus::Unresolved
         )
     {
         if let Some(info) = frm_info {

@@ -7,7 +7,7 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::Maskable;
+use masking::{Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
@@ -156,7 +156,9 @@ where
         session_token: None,
         reference_id: None,
         payment_method_status: payment_data.payment_method_info.map(|info| info.status),
-        payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
+        payment_method_token: payment_data
+            .pm_token
+            .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
@@ -463,14 +465,17 @@ where
     let payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
-    let payment_method_data_response = payment_method_data.map(|payment_method_data| {
-        api_models::payments::PaymentMethodDataResponseWithBilling {
-            payment_method_data,
-            billing: payment_data
-                .address
-                .get_request_payment_method_billing()
-                .cloned(),
-        }
+    let payment_method_data_response = (payment_method_data.is_some()
+        || payment_data
+            .address
+            .get_request_payment_method_billing()
+            .is_some())
+    .then_some(api_models::payments::PaymentMethodDataResponseWithBilling {
+        payment_method_data,
+        billing: payment_data
+            .address
+            .get_request_payment_method_billing()
+            .cloned(),
     });
 
     let mut headers = connector_http_status_code
@@ -661,10 +666,10 @@ where
                         customer_acceptance: d.customer_acceptance.map(|d| {
                             api::CustomerAcceptance {
                                 acceptance_type: match d.acceptance_type {
-                                    data_models::mandates::AcceptanceType::Online => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                                         api::AcceptanceType::Online
                                     }
-                                    data_models::mandates::AcceptanceType::Offline => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                                         api::AcceptanceType::Offline
                                     }
                                 },
@@ -676,7 +681,7 @@ where
                             }
                         }),
                         mandate_type: d.mandate_type.map(|d| match d {
-                            data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                                 api::MandateType::MultiUse(Some(api::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -685,7 +690,7 @@ where
                                     metadata: i.metadata,
                                 }))
                             }
-                            data_models::mandates::MandateDataType::SingleUse(i) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
                                 api::MandateType::SingleUse(api::payments::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -694,7 +699,7 @@ where
                                     metadata: i.metadata,
                                 })
                             }
-                            data_models::mandates::MandateDataType::MultiUse(None) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
                                 api::MandateType::MultiUse(None)
                             }
                         }),
@@ -1014,6 +1019,7 @@ pub fn change_order_details_to_new_type(
         requires_shipping: order_details.requires_shipping,
         product_id: order_details.product_id,
         category: order_details.category,
+        sub_category: order_details.sub_category,
         brand: order_details.brand,
         product_type: order_details.product_type,
     }])
@@ -1546,8 +1552,8 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 ..
             } => Ok(Self::ErrorUpdate {
                 status: match status_code {
-                    500..=511 => storage::enums::CaptureStatus::Pending,
-                    _ => storage::enums::CaptureStatus::Failed,
+                    500..=511 => enums::CaptureStatus::Pending,
+                    _ => enums::CaptureStatus::Failed,
                 },
                 error_code: Some(code),
                 error_message: Some(message),

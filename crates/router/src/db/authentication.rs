@@ -143,7 +143,6 @@ impl AuthenticationInterface for MockDb {
             challenge_request: authentication.challenge_request,
             acs_reference_number: authentication.acs_reference_number,
             acs_trans_id: authentication.acs_trans_id,
-            three_ds_server_trans_id: authentication.three_dsserver_trans_id,
             acs_signed_content: authentication.acs_signed_content,
             profile_id: authentication.profile_id,
             payment_id: authentication.payment_id,
