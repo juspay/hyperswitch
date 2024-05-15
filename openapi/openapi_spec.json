@@ -10599,6 +10599,11 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Whether to enable KV or not",
+            "nullable": true
           }
         },
         "additionalProperties": false

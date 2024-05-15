@@ -394,6 +394,7 @@ impl NewUserMerchant {
                 payment_response_hash_key: None,
                 enable_payment_response_hash: None,
                 redirect_to_merchant_with_http_post: None,
+                kv_enabled: None,
             },
         ))
         .await

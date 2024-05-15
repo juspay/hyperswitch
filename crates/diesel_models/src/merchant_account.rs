@@ -71,6 +71,7 @@ pub struct MerchantAccountNew {
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
+    pub storage_scheme: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
