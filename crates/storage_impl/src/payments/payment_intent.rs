@@ -899,7 +899,7 @@ impl DataModelExt for PaymentIntent {
             status: self.status,
             amount: self.amount,
             currency: self.currency,
-            amount_captured: self.amount_captured.map(|capture_amt| capture_amt),
+            amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
             return_url: self.return_url,
@@ -1071,7 +1071,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 session_expiry,
                 request_external_three_ds_authentication,
             } => DieselPaymentIntentUpdate::Update {
-                amount: amount,
+                amount,
                 currency,
                 setup_future_usage,
                 status,
@@ -1138,7 +1138,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 updated_by,
             },
             Self::IncrementalAuthorizationAmountUpdate { amount } => {
-                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount: amount }
+                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
             }
             Self::AuthorizationCountUpdate {
                 authorization_count,

@@ -34,9 +34,12 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+use hyperswitch_domain_models::{
+    mandates::{CustomerAcceptance, MandateData},
+    payment_address::PaymentAddress,
+    router_data::RouterData,
+};
 use masking::{ExposeInterface, Secret};
-pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
@@ -69,7 +72,6 @@ use crate::{
     core::{
         authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::PaymentMethodRetrieve,
         utils,
     },
     db::StorageInterface,
@@ -93,7 +95,7 @@ use crate::{
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
-pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
+pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
@@ -114,22 +116,21 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
 where
     F: Send + Clone + Sync,
     Req: Authenticate + Clone,
-    Op: Operation<F, Req, Ctx> + Send + Sync,
+    Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData, Ctx>,
+    PaymentResponse: Operation<F, FData>,
     FData: Send + Sync + Clone,
-    Ctx: PaymentMethodRetrieve,
 {
-    let operation: BoxedOperation<'_, F, Req, Ctx> = Box::new(operation);
+    let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
     tracing::Span::current().record("merchant_id", merchant_account.merchant_id.as_str());
     let (operation, validate_result) = operation
@@ -298,6 +299,7 @@ where
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
                         None,
+                        &business_profile,
                     )
                     .await?;
 
@@ -367,6 +369,7 @@ where
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
                         None,
+                        &business_profile,
                     )
                     .await?;
 
@@ -399,6 +402,7 @@ where
                                 frm_info.as_ref().and_then(|fi| fi.suggested_action),
                                 #[cfg(not(feature = "frm"))]
                                 None,
+                                &business_profile,
                             )
                             .await?;
                         };
@@ -452,6 +456,7 @@ where
                         payment_data,
                         &customer,
                         session_surcharge_details,
+                        &business_profile,
                     ))
                     .await?
                 }
@@ -736,7 +741,7 @@ where
     }
 }
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
+pub async fn payments_core<F, Res, Req, Op, FData>(
     state: AppState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
@@ -751,20 +756,19 @@ pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
 where
     F: Send + Clone + Sync,
     FData: Send + Sync + Clone,
-    Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
+    Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
-    Ctx: PaymentMethodRetrieve,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData, Ctx>,
+    PaymentResponse: Operation<F, FData>,
 {
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
         connectors
@@ -773,7 +777,7 @@ where
             .collect()
     });
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
-        payments_operation_core::<_, _, _, _, Ctx>(
+        payments_operation_core::<_, _, _, _>(
             &state,
             req_state,
             merchant_account,
@@ -816,7 +820,7 @@ pub struct PaymentsRedirectResponseData {
 }
 
 #[async_trait::async_trait]
-pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
+pub trait PaymentRedirectFlow: Sync {
     // Associated type for call_payment_flow response
     type PaymentFlowResponse;
 
@@ -914,7 +918,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
 pub struct PaymentRedirectCompleteAuthorize;
 
 #[async_trait::async_trait]
-impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCompleteAuthorize {
+impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
 
     #[allow(clippy::too_many_arguments)]
@@ -946,7 +950,6 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             _,
             _,
             _,
-            Ctx,
         >(
             state.clone(),
             req_state,
@@ -1045,7 +1048,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
 pub struct PaymentRedirectSync;
 
 #[async_trait::async_trait]
-impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSync {
+impl PaymentRedirectFlow for PaymentRedirectSync {
     type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
 
     #[allow(clippy::too_many_arguments)]
@@ -1076,14 +1079,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             expand_attempts: None,
             expand_captures: None,
         };
-        let response = Box::pin(payments_core::<
-            api::PSync,
-            api::PaymentsResponse,
-            _,
-            _,
-            _,
-            Ctx,
-        >(
+        let response = Box::pin(payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state.clone(),
             req_state,
             merchant_account,
@@ -1143,7 +1139,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
 pub struct PaymentAuthenticateCompleteAuthorize;
 
 #[async_trait::async_trait]
-impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticateCompleteAuthorize {
+impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     type PaymentFlowResponse = router_types::AuthenticatePaymentFlowResponse;
 
     #[allow(clippy::too_many_arguments)]
@@ -1237,7 +1233,6 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                 _,
                 _,
                 _,
-                Ctx,
             >(
                 state.clone(),
                 req_state,
@@ -1268,14 +1263,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                 expand_attempts: None,
                 expand_captures: None,
             };
-            Box::pin(payments_core::<
-                api::PSync,
-                api::PaymentsResponse,
-                _,
-                _,
-                _,
-                Ctx,
-            >(
+            Box::pin(payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 state.clone(),
                 req_state,
                 merchant_account.clone(),
@@ -1388,13 +1376,13 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
+pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     req_state: ReqState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector: api::ConnectorData,
-    operation: &BoxedOperation<'_, F, ApiRequest, Ctx>,
+    operation: &BoxedOperation<'_, F, ApiRequest>,
     payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
@@ -1402,17 +1390,15 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+    business_profile: &storage::business_profile::BusinessProfile,
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send,
-    Ctx: PaymentMethodRetrieve,
-
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -1513,23 +1499,29 @@ where
         };
 
         let apple_pay_predecrypt = apple_pay_data
-            .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
+            .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
+                "ApplePayPredecryptData",
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         logger::debug!(?apple_pay_predecrypt);
 
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
-            Box::new(apple_pay_predecrypt),
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(Box::new(
+                apple_pay_predecrypt,
+            )),
+        );
     }
 
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
     if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
-            payment_method_token,
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
+                payment_method_token,
+            )),
+        );
     };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
@@ -1600,7 +1592,13 @@ where
         // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
-            .decide_flows(state, &connector, call_connector_action, connector_request)
+            .decide_flows(
+                state,
+                &connector,
+                call_connector_action,
+                connector_request,
+                business_profile,
+            )
             .await
     } else {
         Ok(router_data)
@@ -1613,15 +1611,14 @@ where
     router_data_res
 }
 
-async fn blocklist_guard<F, ApiRequest, Ctx>(
+async fn blocklist_guard<F, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    operation: &BoxedOperation<'_, F, ApiRequest, Ctx>,
+    operation: &BoxedOperation<'_, F, ApiRequest>,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
-    Ctx: PaymentMethodRetrieve,
 {
     let merchant_id = &payment_data.payment_attempt.merchant_id;
     let blocklist_enabled_key = format!("guard_blocklist_for_{merchant_id}");
@@ -1653,7 +1650,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
+pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -1662,6 +1659,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
     session_surcharge_details: Option<api::SessionSurchargeDetails>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -1669,15 +1667,14 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
 
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
-    Ctx: PaymentMethodRetrieve,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req, Ctx>,
+    PaymentResponse: Operation<F, Req>,
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
@@ -1725,6 +1722,7 @@ where
             &session_connector_data.connector,
             CallConnectorAction::Trigger,
             None,
+            business_profile,
         );
 
         join_handlers.push(res);
@@ -1783,7 +1781,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1871,21 +1869,18 @@ where
     }
 }
 
-async fn complete_preprocessing_steps_if_required<F, Req, Q, Ctx>(
+async fn complete_preprocessing_steps_if_required<F, Req, Q>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
-    operation: &BoxedOperation<'_, F, Q, Ctx>,
+    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
+    operation: &BoxedOperation<'_, F, Q>,
     should_continue_payment: bool,
-) -> RouterResult<(
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
-    bool,
-)>
+) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
@@ -2236,9 +2231,9 @@ pub enum TokenizationAction {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, Ctx>(
+pub async fn get_connector_tokenization_action_when_confirm_true<F, Req>(
     state: &AppState,
-    operation: &BoxedOperation<'_, F, Req, Ctx>,
+    operation: &BoxedOperation<'_, F, Req>,
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
@@ -2247,7 +2242,6 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, Ctx>(
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
-    Ctx: PaymentMethodRetrieve,
 {
     let connector = payment_data.payment_attempt.connector.to_owned();
 
@@ -2361,9 +2355,9 @@ where
     Ok(payment_data_and_tokenization_action)
 }
 
-pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req, Ctx>(
+pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req>(
     state: &AppState,
-    operation: &BoxedOperation<'_, F, Req, Ctx>,
+    operation: &BoxedOperation<'_, F, Req>,
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -2371,7 +2365,6 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
-    Ctx: PaymentMethodRetrieve,
 {
     // On confirm is false and only router related
     let is_external_authentication_requested = payment_data
@@ -2412,91 +2405,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-pub mod payment_address {
-    use super::*;
-
-    #[derive(Clone, Default, Debug)]
-    pub struct PaymentAddress {
-        shipping: Option<api::Address>,
-        billing: Option<api::Address>,
-        unified_payment_method_billing: Option<api::Address>,
-        payment_method_billing: Option<api::Address>,
-    }
-
-    impl PaymentAddress {
-        pub fn new(
-            shipping: Option<api::Address>,
-            billing: Option<api::Address>,
-            payment_method_billing: Option<api::Address>,
-            should_unify_address: Option<bool>,
-        ) -> Self {
-            // billing -> .billing, this is the billing details passed in the root of payments request
-            // payment_method_billing -> payment_method_data.billing
-
-            let unified_payment_method_billing = if should_unify_address.unwrap_or(true) {
-                // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
-                // The unified payment_method_billing will be used as billing address and passed to the connector module
-                // This unification is required in order to provide backwards compatibility
-                // so that if `payment.billing` is passed it should be sent to the connector module
-                // Unify the billing details with `payment_method_data.billing`
-                payment_method_billing
-                    .as_ref()
-                    .map(|payment_method_billing| {
-                        payment_method_billing
-                            .clone()
-                            .unify_address(billing.as_ref())
-                    })
-                    .or(billing.clone())
-            } else {
-                payment_method_billing.clone()
-            };
-
-            Self {
-                shipping,
-                billing,
-                unified_payment_method_billing,
-                payment_method_billing,
-            }
-        }
-
-        pub fn get_shipping(&self) -> Option<&api::Address> {
-            self.shipping.as_ref()
-        }
-
-        pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
-            self.unified_payment_method_billing.as_ref()
-        }
-
-        /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
-        pub fn unify_with_payment_method_data_billing(
-            self,
-            payment_method_data_billing: Option<api::Address>,
-        ) -> Self {
-            // Unify the billing details with `payment_method_data.billing_details`
-            let unified_payment_method_billing = payment_method_data_billing
-                .map(|payment_method_data_billing| {
-                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
-                })
-                .or(self.get_payment_method_billing().cloned());
-
-            Self {
-                shipping: self.shipping,
-                billing: self.billing,
-                unified_payment_method_billing,
-                payment_method_billing: self.payment_method_billing,
-            }
-        }
-
-        pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
-            self.payment_method_billing.as_ref()
-        }
-
-        pub fn get_payment_billing(&self) -> Option<&api::Address> {
-            self.billing.as_ref()
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct MandateConnectorDetails {
     pub connector: String,
@@ -2534,7 +2442,8 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
-    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
+    pub recurring_mandate_payment_data:
+        Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<types::SurchargeDetails>,
@@ -2583,13 +2492,6 @@ pub struct IncrementalAuthorizationDetails {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct RecurringMandatePaymentData {
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
-    pub original_payment_authorized_amount: Option<i64>,
-    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
-}
-
-#[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,
@@ -2614,16 +2516,15 @@ impl CustomerDetailsExt for CustomerDetails {
     }
 }
 
-pub fn if_not_create_change_operation<'a, Op, F, Ctx>(
+pub fn if_not_create_change_operation<'a, Op, F>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
-) -> BoxedOperation<'_, F, api::PaymentsRequest, Ctx>
+) -> BoxedOperation<'_, F, api::PaymentsRequest>
 where
     F: Send + Clone,
-    Op: Operation<F, api::PaymentsRequest, Ctx> + Send + Sync,
-    &'a Op: Operation<F, api::PaymentsRequest, Ctx>,
-    Ctx: PaymentMethodRetrieve,
+    Op: Operation<F, api::PaymentsRequest> + Send + Sync,
+    &'a Op: Operation<F, api::PaymentsRequest>,
 {
     if confirm.unwrap_or(false) {
         Box::new(PaymentConfirm)
@@ -2637,16 +2538,15 @@ where
     }
 }
 
-pub fn is_confirm<'a, F: Clone + Send, R, Op, Ctx>(
+pub fn is_confirm<'a, F: Clone + Send, R, Op>(
     operation: &'a Op,
     confirm: Option<bool>,
-) -> BoxedOperation<'_, F, R, Ctx>
+) -> BoxedOperation<'_, F, R>
 where
-    PaymentConfirm: Operation<F, R, Ctx>,
-    &'a PaymentConfirm: Operation<F, R, Ctx>,
-    Op: Operation<F, R, Ctx> + Send + Sync,
-    &'a Op: Operation<F, R, Ctx>,
-    Ctx: PaymentMethodRetrieve,
+    PaymentConfirm: Operation<F, R>,
+    &'a PaymentConfirm: Operation<F, R>,
+    Op: Operation<F, R> + Send + Sync,
+    &'a Op: Operation<F, R>,
 {
     if confirm.unwrap_or(false) {
         Box::new(&PaymentConfirm)
@@ -3030,8 +2930,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn get_connector_choice<F, Req, Ctx>(
-    operation: &BoxedOperation<'_, F, Req, Ctx>,
+pub async fn get_connector_choice<F, Req>(
+    operation: &BoxedOperation<'_, F, Req>,
     state: &AppState,
     req: &Req,
     merchant_account: &domain::MerchantAccount,
@@ -3043,7 +2943,6 @@ pub async fn get_connector_choice<F, Req, Ctx>(
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
-    Ctx: PaymentMethodRetrieve,
 {
     let connector_choice = operation
         .to_domain()?
@@ -3523,7 +3422,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                     },
                                 ));
                             payment_data.recurring_mandate_payment_data =
-                                Some(RecurringMandatePaymentData {
+                                Some(hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                                     payment_method_type: mandate_reference_record
                                         .payment_method_type,
                                     original_payment_authorized_amount: mandate_reference_record

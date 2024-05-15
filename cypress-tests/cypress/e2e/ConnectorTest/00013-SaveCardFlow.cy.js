@@ -3,7 +3,7 @@ import confirmBody from "../../fixtures/confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
 import customerCreateBody from "../../fixtures/create-customer-body.json";
-import SaveCardConfirmBody from "../../fixtures/save-card-confirm-body.json";
+import saveCardConfirmBody from "../../fixtures/save-card-confirm-body.json";
 import getConnectorDetails from "../ConnectorUtils/utils";
 import State from "../../utils/State";
 let globalState;
@@ -44,7 +44,7 @@ describe("Card - SaveCard payment flow test", () => {
 
       it ("confirm-save-card-payment-call-test", () => {
         let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-        cy.saveCardConfirmCallTest(SaveCardConfirmBody,det,globalState);
+        cy.saveCardConfirmCallTest(saveCardConfirmBody,det,globalState);
       });
       
     });
@@ -75,7 +75,7 @@ describe("Card - SaveCard payment flow test", () => {
   
         it ("confirm-save-card-payment-call-test", () => {
           let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.saveCardConfirmCallTest(SaveCardConfirmBody,det,globalState);
+          cy.saveCardConfirmCallTest(saveCardConfirmBody,det,globalState);
         });
         
         it("capture-call-test", () => {
@@ -110,7 +110,7 @@ describe("Card - SaveCard payment flow test", () => {
   
         it ("confirm-save-card-payment-call-test", () => {
           let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DS"];
-          cy.saveCardConfirmCallTest(SaveCardConfirmBody,det,globalState);
+          cy.saveCardConfirmCallTest(saveCardConfirmBody,det,globalState);
         });
         
         it("capture-call-test", () => {

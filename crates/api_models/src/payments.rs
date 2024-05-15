@@ -3581,9 +3581,11 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmountFilter {
+    /// The start amount to filter list of transactions which are greater than or equal to the start amount
     pub start_amount: Option<i64>,
+    /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
 }
 
@@ -3872,6 +3874,24 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
+    /// Is billing address required
+    pub billing_address_required: Option<bool>,
+    /// Billing address parameters
+    pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GpayBillingAddressParameters {
+    /// Is billing phone number required
+    pub phone_number_required: bool,
+    /// Billing address format
+    pub format: GpayBillingAddressFormat,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum GpayBillingAddressFormat {
+    FULL,
+    MIN,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4083,6 +4103,12 @@ pub struct GooglePayThirdPartySdk {
 pub struct GooglePaySessionResponse {
     /// The merchant info
     pub merchant_info: GpayMerchantInfo,
+    /// Is shipping address required
+    pub shipping_address_required: bool,
+    /// Is email required
+    pub email_required: bool,
+    /// Shipping address parameters
+    pub shipping_address_parameters: GpayShippingAddressParameters,
     /// List of the allowed payment meythods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
@@ -4095,6 +4121,13 @@ pub struct GooglePaySessionResponse {
     pub sdk_next_action: SdkNextAction,
     /// Secrets for sdk display and payment
     pub secrets: Option<SecretInfoToInitiateSdk>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GpayShippingAddressParameters {
+    /// Is shipping phone number required
+    pub phone_number_required: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4218,6 +4251,23 @@ pub struct ApplePayPaymentRequest {
     /// The list of supported networks
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
+    /// The required billing contact fields for connector
+    pub required_billing_contact_fields: Option<ApplePayBillingContactFields>,
+    /// The required shipping contacht fields for connector
+    pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayBillingContactFields(pub Vec<ApplePayAddressParameters>);
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayShippingContactFields(pub Vec<ApplePayAddressParameters>);
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ApplePayAddressParameters {
+    PostalAddress,
+    Phone,
+    Email,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
