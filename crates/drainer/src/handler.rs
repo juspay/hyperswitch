@@ -128,10 +128,10 @@ impl Handler {
         match redis_conn_clone {
             None => {
                 logger::error!("No redis connection found");
-                Err(errors::DrainerError::UnexpectedError(
-                    "No redis connection found".to_string(),
+                Err(
+                    errors::DrainerError::UnexpectedError("No redis connection found".to_string())
+                        .into(),
                 )
-                .into())
             }
             Some(redis_conn_clone) => {
                 // Spawn a task to monitor if redis is down or not

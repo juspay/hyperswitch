@@ -30,7 +30,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
         domain,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -364,7 +364,7 @@ impl
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let authorize_req = types::PaymentsAuthorizeRouterData::from((
+        let authorize_req = types::PaymentsAuthorizeRouterData::foreign_from((
             req,
             types::PaymentsAuthorizeData::from(req),
         ));
@@ -419,7 +419,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -703,7 +703,7 @@ impl
             types::SyncRequestType::MultipleCaptureSync(_) => true,
             types::SyncRequestType::SinglePaymentSync => false,
         };
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -830,7 +830,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),

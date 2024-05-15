@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use std::fmt::Debug;
 
 use common_utils::{
@@ -28,6 +27,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, Response, RouterData,
     },
     utils::{crypto, BytesExt},
@@ -349,7 +349,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsInitRouterData::from((
+        let authorize_data = &types::PaymentsInitRouterData::foreign_from((
             &router_data.to_owned(),
             router_data.request.clone(),
         ));

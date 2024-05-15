@@ -111,7 +111,7 @@ where
                     .to_owned()
                     .get_required_value("payment_token")?;
                 let token = match tokens {
-                    types::PaymentMethodToken::Token(connector_token) => connector_token,
+                    types::PaymentMethodToken::Token(connector_token) => connector_token.expose(),
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ApiErrorResponse::NotSupported {
                             message: "Apple Pay Decrypt token is not supported".to_string(),

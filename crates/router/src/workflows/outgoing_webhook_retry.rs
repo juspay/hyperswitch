@@ -329,7 +329,6 @@ async fn get_outgoing_webhook_content_and_event_type(
         core::{
             disputes::retrieve_dispute,
             mandate::get_mandate,
-            payment_methods::Oss,
             payments::{payments_core, CallConnectorAction, PaymentStatus},
             refunds::refund_retrieve_core,
         },
@@ -351,7 +350,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             };
 
             let payments_response =
-                match Box::pin(payments_core::<PSync, PaymentsResponse, _, _, _, Oss>(
+                match Box::pin(payments_core::<PSync, PaymentsResponse, _, _, _>(
                     state,
                     req_state,
                     merchant_account,

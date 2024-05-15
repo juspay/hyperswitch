@@ -154,7 +154,7 @@ Cypress.Commands.add("createPaymentIntentTest", (request, det, authentication_ty
     body: request,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
+    console.log(response);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("client_secret");
     const clientSecret = response.body.client_secret;
@@ -208,7 +208,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalSt
     body: confirmBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
+    console.log(response);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", paymentIntentID);
     if (response.body.capture_method === "automatic") {
@@ -260,7 +260,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
     body: createConfirmPaymentBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
+    console.log(response);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("status");
     globalState.set("paymentAmount", createConfirmPaymentBody.amount);
@@ -295,11 +295,11 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
 });
 
 // This is consequent saved card payment confirm call test(Using payment token)
-Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody,det,globalState) => {
+Cypress.Commands.add("saveCardConfirmCallTest", (saveCardConfirmBody,det,globalState) => {
   const paymentIntentID = globalState.get("paymentID");
-  SaveCardConfirmBody.card_cvc = det.card_cvc;
-  SaveCardConfirmBody.payment_token = globalState.get("paymentToken");
-  SaveCardConfirmBody.client_secret = globalState.get("clientSecret");
+  saveCardConfirmBody.card_cvc = det.card.card_cvc;
+  saveCardConfirmBody.payment_token = globalState.get("paymentToken");
+  saveCardConfirmBody.client_secret = globalState.get("clientSecret");
   console.log("conf conn ->" + globalState.get("connectorId"));
   cy.request({
     method: "POST",
@@ -308,11 +308,12 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody,det,globalS
       "Content-Type": "application/json",
       "api-key": globalState.get("publishableKey"),
     },
-    body: SaveCardConfirmBody,
+    body: saveCardConfirmBody,
+
   })
     .then((response) => {
       logRequestId(response.headers['x-request-id']);
-
+      console.log(response);
       expect(response.headers["content-type"]).to.include("application/json");
       globalState.set("paymentID", paymentIntentID);
       if (response.body.capture_method === "automatic") {

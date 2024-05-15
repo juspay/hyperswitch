@@ -3647,6 +3647,7 @@ dependencies = [
  "common_utils",
  "diesel_models",
  "error-stack",
+ "http 0.2.12",
  "masking",
  "serde",
  "serde_json",

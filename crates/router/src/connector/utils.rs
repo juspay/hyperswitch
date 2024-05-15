@@ -27,11 +27,13 @@ use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::{types::AuthenticationData, PaymentData, RecurringMandatePaymentData},
+        payments::{types::AuthenticationData, PaymentData},
     },
     pii::PeekInterface,
     types::{
-        self, api, domain, storage::enums as storage_enums, transformers::ForeignTryFrom,
+        self, api, domain,
+        storage::enums as storage_enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
@@ -86,7 +88,9 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
@@ -411,7 +415,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error> {
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error> {
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
@@ -1545,7 +1551,7 @@ pub trait RecurringMandateData {
     fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
 }
 
-impl RecurringMandateData for RecurringMandatePaymentData {
+impl RecurringMandateData for types::RecurringMandatePaymentData {
     fn get_original_payment_amount(&self) -> Result<i64, Error> {
         self.original_payment_authorized_amount
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
@@ -2181,7 +2187,7 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
 }
 
 impl
-    From<(
+    ForeignFrom<(
         Option<String>,
         Option<String>,
         Option<String>,
@@ -2190,7 +2196,7 @@ impl
         Option<String>,
     )> for types::ErrorResponse
 {
-    fn from(
+    fn foreign_from(
         (code, message, reason, http_code, attempt_status, connector_transaction_id): (
             Option<String>,
             Option<String>,

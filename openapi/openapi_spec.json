@@ -2612,6 +2612,47 @@
           }
         ]
       },
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Delete",
+        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
+        "operationId": "Delete a Payment method",
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payment_methods/{method_id}/update": {
       "post": {
         "tags": [
           "Payment Methods"
@@ -2658,45 +2699,9 @@
         "security": [
           {
             "api_key": []
-          }
-        ]
-      },
-      "delete": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Delete",
-        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
-        "operationId": "Delete a Payment method",
-        "parameters": [
-          {
-            "name": "method_id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment Method deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
-                }
-              }
-            }
           },
-          "404": {
-            "description": "Payment Method does not exist in records"
-          }
-        },
-        "security": [
           {
-            "api_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -4910,6 +4915,23 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmountFilter": {
+        "type": "object",
+        "properties": {
+          "start_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The start amount to filter list of transactions which are greater than or equal to the start amount",
+            "nullable": true
+          },
+          "end_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The end amount to filter list of transactions which are less than or equal to the end amount",
+            "nullable": true
+          }
+        }
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -4945,6 +4967,20 @@
             "format": "date-time"
           }
         ]
+      },
+      "ApplePayAddressParameters": {
+        "type": "string",
+        "enum": [
+          "postalAddress",
+          "phone",
+          "email"
+        ]
+      },
+      "ApplePayBillingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayPaymentRequest": {
         "type": "object",
@@ -4982,6 +5018,22 @@
           "merchant_identifier": {
             "type": "string",
             "nullable": true
+          },
+          "required_billing_contact_fields": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayBillingContactFields"
+              }
+            ],
+            "nullable": true
+          },
+          "required_shipping_contact_fields": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayShippingContactFields"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5002,6 +5054,12 @@
             "nullable": true
           }
         ]
+      },
+      "ApplePayShippingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayThirdPartySdkData": {
         "type": "object"
@@ -6709,6 +6767,11 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },
@@ -9072,6 +9135,64 @@
           {
             "type": "string",
             "enum": [
+              "user_shipping_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_state"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_shipping_address_country"
+            ],
+            "properties": {
+              "user_shipping_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_blik_code"
             ]
           },
@@ -9310,6 +9431,9 @@
         "type": "object",
         "required": [
           "merchant_info",
+          "shipping_address_required",
+          "email_required",
+          "shipping_address_parameters",
           "allowed_payment_methods",
           "transaction_info",
           "delayed_session_token",
@@ -9319,6 +9443,17 @@
         "properties": {
           "merchant_info": {
             "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "shipping_address_required": {
+            "type": "boolean",
+            "description": "Is shipping address required"
+          },
+          "email_required": {
+            "type": "boolean",
+            "description": "Is email required"
+          },
+          "shipping_address_parameters": {
+            "$ref": "#/components/schemas/GpayShippingAddressParameters"
           },
           "allowed_payment_methods": {
             "type": "array",
@@ -9420,6 +9555,19 @@
               "type": "string"
             },
             "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
+          },
+          "billing_address_required": {
+            "type": "boolean",
+            "description": "Is billing address required",
+            "nullable": true
+          },
+          "billing_address_parameters": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayBillingAddressParameters"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9440,6 +9588,29 @@
           },
           "tokenization_specification": {
             "$ref": "#/components/schemas/GpayTokenizationSpecification"
+          }
+        }
+      },
+      "GpayBillingAddressFormat": {
+        "type": "string",
+        "enum": [
+          "FULL",
+          "MIN"
+        ]
+      },
+      "GpayBillingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required",
+          "format"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is billing phone number required"
+          },
+          "format": {
+            "$ref": "#/components/schemas/GpayBillingAddressFormat"
           }
         }
       },
@@ -9469,6 +9640,18 @@
             "$ref": "#/components/schemas/GooglePaySessionResponse"
           }
         ]
+      },
+      "GpayShippingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is shipping phone number required"
+          }
+        }
       },
       "GpayTokenParameters": {
         "type": "object",
@@ -13197,35 +13380,6 @@
             ],
             "nullable": true
           },
-          "card_network": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardNetwork"
-              }
-            ],
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
-            "nullable": true
-          },
-          "wallet": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Wallet"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
           "client_secret": {
             "type": "string",
             "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
@@ -16785,12 +16939,28 @@
                 "description": "The starting point within a list of objects",
                 "nullable": true
               },
+              "amount_filter": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AmountFilter"
+                  }
+                ],
+                "nullable": true
+              },
               "connector": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "description": "The list of connectors to filter refunds list",
+                "nullable": true
+              },
+              "merchant_connector_id": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The list of merchant connector ids to filter the refunds list for selected label",
                 "nullable": true
               },
               "currency": {

@@ -7,7 +7,7 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::Maskable;
+use masking::{Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
@@ -156,7 +156,9 @@ where
         session_token: None,
         reference_id: None,
         payment_method_status: payment_data.payment_method_info.map(|info| info.status),
-        payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
+        payment_method_token: payment_data
+            .pm_token
+            .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use router::{
     configs,
-    core::{payment_methods::Oss, payments},
+    core::payments,
     db::StorageImpl,
     routes, services,
     types::{
@@ -374,7 +374,6 @@ async fn payments_create_core() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),
@@ -558,7 +557,6 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),

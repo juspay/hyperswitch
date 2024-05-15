@@ -27,6 +27,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -214,7 +215,7 @@ impl
             amount: router_data.request.amount,
         };
 
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
             authorize_session_token_data,
         ));
