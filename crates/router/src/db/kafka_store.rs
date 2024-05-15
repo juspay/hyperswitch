@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
@@ -24,7 +26,6 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use std::sync::Arc;
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
