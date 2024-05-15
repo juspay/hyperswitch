@@ -1,12 +1,13 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use diesel_models::enums::MerchantStorageScheme;
 use error_stack::report;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
-use diesel_models::enums::MerchantStorageScheme;
+
 use crate::{metrics, store::kv::TypedSql, KVRouterStore, UniqueConstraints};
 
 pub trait KvStorePartition {
@@ -237,48 +238,52 @@ where
         })
 }
 
-pub enum Op<'a>{
+pub enum Op<'a> {
     Insert,
     Update(PartitionKey<'a>, &'a str, Option<&'a str>),
     Find,
 }
 
-pub async fn decide_storage_scheme<'a, T, D> (store : &KVRouterStore<T>, storage_scheme: MerchantStorageScheme, operation: Op<'a>) -> MerchantStorageScheme
+pub async fn decide_storage_scheme<'a, T, D>(
+    store: &KVRouterStore<T>,
+    storage_scheme: MerchantStorageScheme,
+    operation: Op<'a>,
+) -> MerchantStorageScheme
 where
-    D : de::DeserializeOwned + serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
-    T : crate::database::store::DatabaseStore,
+    D: de::DeserializeOwned
+        + serde::Serialize
+        + Debug
+        + KvStorePartition
+        + UniqueConstraints
+        + Sync,
+    T: crate::database::store::DatabaseStore,
 {
     if store.soft_kill_mode {
-        let updated_scheme =  match operation
-            {
-                Op::Insert =>  MerchantStorageScheme::PostgresOnly,
-                Op::Find => MerchantStorageScheme::RedisKv,
-                Op::Update(partition_key, field, Some("redis_kv")) => 
-                    match kv_wrapper::<D,_,_>(
-                                    store,
-                                    KvOperation::<D>::HGet(field),
-                                    partition_key,
-                                )
-                                .await      
-                        {
-                            Ok(_) => MerchantStorageScheme::RedisKv,
-                            Err(_) => MerchantStorageScheme::PostgresOnly
-                        }
-                    
-                ,
-                Op::Update(_,_,None) => MerchantStorageScheme::PostgresOnly,
-                Op::Update(_,_,Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
-                _ => storage_scheme
-            };
+        let updated_scheme = match operation {
+            Op::Insert => MerchantStorageScheme::PostgresOnly,
+            Op::Find => MerchantStorageScheme::RedisKv,
+            Op::Update(partition_key, field, Some("redis_kv")) => {
+                match kv_wrapper::<D, _, _>(store, KvOperation::<D>::HGet(field), partition_key)
+                    .await
+                {
+                    Ok(_) => MerchantStorageScheme::RedisKv,
+                    Err(_) => MerchantStorageScheme::PostgresOnly,
+                }
+            }
+
+            Op::Update(_, _, None) => MerchantStorageScheme::PostgresOnly,
+            Op::Update(_, _, Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
+            _ => storage_scheme,
+        };
         if updated_scheme != storage_scheme {
             let type_name = std::any::type_name::<D>();
-            println!("[decide_storage_scheme] output: {} for entity {}", updated_scheme, type_name);
+            println!(
+                "[decide_storage_scheme] output: {} for entity {}",
+                updated_scheme, type_name
+            );
         }
         updated_scheme
-    }
-    else {
+    } else {
         storage_scheme
     }
-    
-    
 }

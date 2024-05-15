@@ -38,7 +38,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey, Op, decide_storage_scheme},
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -51,7 +51,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         new: PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
-        let storage_scheme = decide_storage_scheme::<_,DieselPayouts>(self,storage_scheme, Op::Insert).await;
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Insert).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store.insert_payout(new, storage_scheme).await
@@ -134,7 +135,12 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             payout_id: &this.payout_id,
         };
         let field = format!("po_{}", this.payout_id);
-        let storage_scheme = decide_storage_scheme::<_,DieselPayouts>(self,storage_scheme, Op::Update(key.clone(), &field,None)).await;
+        let storage_scheme = decide_storage_scheme::<_, DieselPayouts>(
+            self,
+            storage_scheme,
+            Op::Update(key.clone(), &field, None),
+        )
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -196,7 +202,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
-        let storage_scheme = decide_storage_scheme::<_,DieselPayouts>(self,storage_scheme, Op::Find).await;
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
@@ -239,7 +246,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
-        let storage_scheme = decide_storage_scheme::<_,DieselPayouts>(self,storage_scheme, Op::Find).await;
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 let maybe_payouts = database_call().await?;

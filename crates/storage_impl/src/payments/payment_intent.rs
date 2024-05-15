@@ -43,7 +43,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey, Op, decide_storage_scheme},
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -62,7 +62,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
         };
-        let storage_scheme = decide_storage_scheme::<_,DieselPaymentIntent>(self, storage_scheme,Op::Insert).await;
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Insert).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -70,7 +71,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
 
-            MerchantStorageScheme::RedisKv => {   
+            MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
                 let created_intent = PaymentIntent {
                     id: 0i32,
@@ -162,7 +163,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             payment_id: &payment_id,
         };
         let field = format!("pi_{}", this.payment_id);
-        let storage_scheme = decide_storage_scheme::<_,DieselPaymentIntent>(self,storage_scheme, Op::Update(key.clone(), &field, Some(&this.updated_by))).await;
+        let storage_scheme = decide_storage_scheme::<_, DieselPaymentIntent>(
+            self,
+            storage_scheme,
+            Op::Update(key.clone(), &field, Some(&this.updated_by)),
+        )
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -226,7 +232,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
-        let storage_scheme = decide_storage_scheme::<_,DieselPaymentIntent>(self,storage_scheme, Op::Find).await;
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
