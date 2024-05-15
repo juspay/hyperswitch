@@ -30,20 +30,20 @@ sources:
       codec: json
 
 transforms:
-  buffer_with_reduce:
-    type: reduce
-    inputs:
-      - kafka_payments
-    group_by:
-      - log.log_type
-      - log.merchant_id
-      - log.payment_id
-      - log.attempt_id
-      - log.refund_id
-      - log.dispute_id
-    merge_strategies:
-      log: retain
-    expire_after_ms: 5000
+  # buffer_with_reduce:
+  #   type: reduce
+  #   inputs:
+  #     - kafka_payments
+  #   group_by:
+  #     - log.log_type
+  #     - log.merchant_id
+  #     - log.payment_id
+  #     - log.attempt_id
+  #     - log.refund_id
+  #     - log.dispute_id
+  #   merge_strategies:
+  #     log: retain
+  #   expire_after_ms: 5000
 
   init_sessionizer_vars:
     type: remap
@@ -53,7 +53,8 @@ transforms:
       .sessionizer = {
         "table": "payments",
         "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
-        "id_type": "merchant_payment"
+        "id_type": "merchant_payment",
+        "db_log_type": "intent"
       }
 
   cassandra_get_old_event:
@@ -111,7 +112,7 @@ transforms:
         local sessionizer = event.log.sessionizer
         local data = db_get_wait(sessionizer.table, sessionizer.id, sessionizer.id_type)
 
-        event.log.old_log_type = "intent"
+        event.log.old_log_type = sessionizer.db_log_type
         if #data == 1 then
           event.log.old_log = data[1].state
         end
@@ -243,10 +244,94 @@ transforms:
       events = push(events, .log);
       . = events
 
-  consolidate_events_intents:
+  consolidate_events:
     type: remap
     inputs:
       - generate_signed_events
+    source: >-
+      attempts = object(.attempts) ?? {};
+      attempt_total_count = 0;
+      attempt_total_amount = 0;
+      attempt_success_count = 0;
+      attempt_success_amount = 0;
+
+      for_each(attempts) -> |attempt_id, attempt| {
+
+        attempt_log = object(attempt) ?? {};
+
+        attempt_total_count = attempt_total_count + 1;
+        attempt_total_amount = attempt_total_amount + float(attempt_log.amount) ?? 0;
+        if attempt_log.status == "charged" {
+          attempt_success_count = attempt_success_count + 1;
+          attempt_success_amount = attempt_success_amount + float(attempt_log.amount) ?? 0;
+        }
+
+        refunds = object(attempt_log.refunds) ?? {};
+        refund_total_count = 0;
+        refund_total_amount = 0;
+        refund_success_count = 0;
+        refund_success_amount = 0;
+
+        for_each(refunds) -> |_refund_id, refund| {
+          refund_log = object(refund) ?? {};
+          
+          refund_total_count = refund_total_count + 1;
+          refund_total_amount = refund_total_amount + float(refund_log.amount) ?? 0;
+          if refund_log.status == "succeeded" {
+            refund_success_count = refund_success_count + 1;
+            refund_success_amount = refund_success_amount + float(refund_log.amount) ?? 0;
+          }
+        }
+
+        .refund_total_count = int(.refund_total_count) ?? 0 + refund_total_count;
+        .refund_total_amount = float(.refund_total_amount) ?? 0 + refund_total_amount;
+        .refund_success_count = int(.refund_success_count) ?? 0 + refund_success_count;
+        .refund_success_amount = float(.refund_success_amount) ?? 0 + refund_success_amount;
+
+        attempt_log.refund_total_count = refund_total_count;
+        attempt_log.refund_total_amount = refund_total_amount;
+        attempt_log.refund_success_count = refund_success_count;
+        attempt_log.refund_success_amount = refund_success_amount;
+
+        disputes = object(attempt_log.disputes) ?? {};
+        dispute_total_count = 0;
+        dispute_total_amount = 0;
+        dispute_success_count = 0;
+        dispute_success_amount = 0;
+
+        for_each(disputes) -> |_dispute_id, dispute| {
+          dispute_log = object(dispute) ?? {};
+
+          dispute_total_count = dispute_total_count + 1;
+          dispute_total_amount = dispute_total_amount + float(dispute_log.amount) ?? 0;
+          if dispute_log.dispute_status == "dispute_won" {
+            dispute_success_count = dispute_success_count + 1;
+            dispute_success_amount = dispute_success_amount + float(dispute_log.amount) ?? 0;
+          }
+        }
+
+        .dispute_total_count = int(.dispute_total_count) ?? 0 + dispute_total_count;
+        .dispute_total_amount = float(.dispute_total_amount) ?? 0 + dispute_total_amount;
+        .dispute_success_count = int(.dispute_success_count) ?? 0 + dispute_success_count;
+        .dispute_success_amount = float(.dispute_success_amount) ?? 0 + dispute_success_amount;
+
+        attempt_log.dispute_total_count = dispute_total_count;
+        attempt_log.dispute_total_amount = dispute_total_amount;
+        attempt_log.dispute_success_count = dispute_success_count;
+        attempt_log.dispute_success_amount = dispute_success_amount;
+
+        .attempts = set!(.attempts, [attempt_id], attempt_log)
+      }
+
+      .attempt_total_count = int(.attempt_total_count) ?? 0 + attempt_total_count;
+      .attempt_total_amount = float(.attempt_total_amount) ?? 0 + attempt_total_amount;
+      .attempt_success_count = int(.attempt_success_count) ?? 0 + attempt_success_count;
+      .attempt_success_amount = float(.attempt_success_amount) ?? 0 + attempt_success_amount;
+
+  consolidate_events_intents:
+    type: remap
+    inputs:
+      - consolidate_events
     source: >-
       del(.attempts)
       # .log_type = "intent";
@@ -254,7 +339,7 @@ transforms:
   consolidate_events_attempts:
     type: remap
     inputs:
-      - generate_signed_events
+      - consolidate_events
     source: >-
       . = if exists(.attempts) {
         map_values(values(object!(.attempts))) -> |a| {
@@ -272,7 +357,7 @@ transforms:
   consolidate_events_refunds:
     type: remap
     inputs:
-      - generate_signed_events
+      - consolidate_events
     source: >-
       . = if exists(.attempts) {
         flatten(map_values(values(object!(.attempts))) -> |a| {
@@ -295,7 +380,7 @@ transforms:
   consolidate_events_disputes:
     type: remap
     inputs:
-      - generate_signed_events
+      - consolidate_events
     source: >-
       . = if exists(.attempts) {
         flatten(map_values(values(object!(.attempts))) -> |a| {
