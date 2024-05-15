@@ -22,8 +22,7 @@ pub use self::connect::*;
 use crate::{
     collect_missing_value_keys,
     connector::utils::{
-        self as connector_util, ApplePay, ApplePayDecrypt, BankRedirectBillingData,
-        PaymentsPreProcessingData, RouterData,
+        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
     },
     consts,
     core::errors,
@@ -1057,143 +1056,11 @@ impl From<&domain::BankDebitData> for StripePaymentMethodType {
     }
 }
 
-impl From<&domain::BankDebitBilling> for StripeBillingAddress {
-    fn from(item: &domain::BankDebitBilling) -> Self {
-        Self {
-            email: Some(item.email.to_owned()),
-            country: item
-                .address
-                .as_ref()
-                .and_then(|address| address.country.to_owned()),
-            name: Some(item.name.to_owned()),
-            city: item
-                .address
-                .as_ref()
-                .and_then(|address| address.city.to_owned()),
-            address_line1: item
-                .address
-                .as_ref()
-                .and_then(|address| address.line1.to_owned()),
-            address_line2: item
-                .address
-                .as_ref()
-                .and_then(|address| address.line2.to_owned()),
-            zip_code: item
-                .address
-                .as_ref()
-                .and_then(|address| address.zip.to_owned()),
-            state: None,
-            phone: None,
-        }
-    }
-}
-
-impl TryFrom<(&domain::BankRedirectData, Option<bool>)> for StripeBillingAddress {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (bank_redirection_data, is_customer_initiated_mandate_payment): (
-            &domain::BankRedirectData,
-            Option<bool>,
-        ),
-    ) -> Result<Self, Self::Error> {
-        match bank_redirection_data {
-            domain::BankRedirectData::Eps {
-                billing_details, ..
-            } => Ok({
-                let billing_data = billing_details.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing_details",
-                    },
-                )?;
-                Self {
-                    name: Some(BankRedirectBillingData::get_billing_name(&billing_data)?),
-                    ..Self::default()
-                }
-            }),
-            domain::BankRedirectData::Giropay {
-                billing_details, ..
-            } => Ok(Self {
-                name: Some(
-                    billing_details
-                        .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "giropay.billing_details",
-                        })?
-                        .get_billing_name()?,
-                ),
-                ..Self::default()
-            }),
-            domain::BankRedirectData::Ideal {
-                billing_details, ..
-            } => Ok(get_stripe_sepa_dd_mandate_billing_details(
-                billing_details,
-                is_customer_initiated_mandate_payment,
-            )?),
-            domain::BankRedirectData::Przelewy24 {
-                billing_details, ..
-            } => Ok(Self {
-                email: billing_details.email.clone(),
-                ..Self::default()
-            }),
-            domain::BankRedirectData::BancontactCard {
-                billing_details, ..
-            } => {
-                let billing_details = billing_details.as_ref().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing_details",
-                    },
-                )?;
-                Ok(Self {
-                    name: Some(
-                        billing_details
-                            .billing_name
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_details.billing_name",
-                            })?
-                            .to_owned(),
-                    ),
-                    email: Some(
-                        billing_details
-                            .email
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_details.email",
-                            })?
-                            .to_owned(),
-                    ),
-                    ..Self::default()
-                })
-            }
-            domain::BankRedirectData::Sofort {
-                billing_details, ..
-            } => Ok(get_stripe_sepa_dd_mandate_billing_details(
-                billing_details,
-                is_customer_initiated_mandate_payment,
-            )?),
-
-            domain::BankRedirectData::Bizum {}
-            | domain::BankRedirectData::Blik { .. }
-            | domain::BankRedirectData::Interac { .. }
-            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | domain::BankRedirectData::OnlineBankingFinland { .. }
-            | domain::BankRedirectData::OnlineBankingPoland { .. }
-            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
-            | domain::BankRedirectData::Trustly { .. }
-            | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. }
-            | domain::BankRedirectData::OpenBankingUk { .. } => Ok(Self::default()),
-        }
-    }
-}
-
 fn get_bank_debit_data(
     bank_debit_data: &domain::BankDebitData,
-) -> (StripePaymentMethodType, BankDebitData, StripeBillingAddress) {
+) -> (StripePaymentMethodType, BankDebitData) {
     match bank_debit_data {
         domain::BankDebitData::AchBankDebit {
-            billing_details,
             account_number,
             routing_number,
             ..
@@ -1203,24 +1070,15 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 routing_number: routing_number.to_owned(),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Ach, ach_data, billing_data)
+            (StripePaymentMethodType::Ach, ach_data)
         }
-        domain::BankDebitData::SepaBankDebit {
-            billing_details,
-            iban,
-            ..
-        } => {
+        domain::BankDebitData::SepaBankDebit { iban, .. } => {
             let sepa_data = BankDebitData::Sepa {
                 iban: iban.to_owned(),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Sepa, sepa_data, billing_data)
+            (StripePaymentMethodType::Sepa, sepa_data)
         }
         domain::BankDebitData::BecsBankDebit {
-            billing_details,
             account_number,
             bsb_number,
             ..
@@ -1229,12 +1087,9 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 bsb_number: bsb_number.to_owned(),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Becs, becs_data, billing_data)
+            (StripePaymentMethodType::Becs, becs_data)
         }
         domain::BankDebitData::BacsBankDebit {
-            billing_details,
             account_number,
             sort_code,
             ..
@@ -1243,9 +1098,7 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 sort_code: Secret::new(sort_code.clone().expose().replace('-', "")),
             };
-
-            let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Bacs, bacs_data, billing_data)
+            (StripePaymentMethodType::Bacs, bacs_data)
         }
     }
 }
@@ -1288,12 +1141,19 @@ fn create_stripe_payment_method(
             ))
         }
         domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
-            let billing_address = StripeBillingAddress::try_from((
-                bank_redirect_data,
-                is_customer_initiated_mandate_payment,
-            ))?;
+            let billing_address = if is_customer_initiated_mandate_payment == Some(true) {
+                mandatory_parameters_for_sepa_bank_debit_mandates(
+                    &Some(billing_address.to_owned()),
+                    is_customer_initiated_mandate_payment,
+                )?
+            } else {
+                billing_address
+            };
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
-            let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
+            let bank_redirect_data = StripePaymentMethodData::try_from((
+                bank_redirect_data,
+                Some(billing_address.to_owned()),
+            ))?;
 
             Ok((bank_redirect_data, Some(pm_type), billing_address))
         }
@@ -1308,7 +1168,7 @@ fn create_stripe_payment_method(
             ))
         }
         domain::PaymentMethodData::BankDebit(bank_debit_data) => {
-            let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
+            let (pm_type, bank_debit_data) = get_bank_debit_data(bank_debit_data);
 
             let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
                 bank_specific_data: bank_debit_data,
@@ -1318,74 +1178,63 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
-                domain::BankTransferData::AchBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::AchBankTransfer {} => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
                         Box::new(AchTransferData {
-                            email: billing_details.email.to_owned(),
+                            email: billing_address.email.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "billing_address.email",
+                                },
+                            )?,
                         }),
                     )),
                     None,
                     StripeBillingAddress::default(),
                 )),
-                domain::BankTransferData::MultibancoBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::MultibancoBankTransfer {} => Ok((
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::MultibancoBankTransfers(Box::new(
                             MultibancoTransferData {
-                                email: billing_details.email.to_owned(),
+                                email: billing_address.email.ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "billing_address.email",
+                                    },
+                                )?,
                             },
                         )),
                     ),
                     None,
                     StripeBillingAddress::default(),
                 )),
-                domain::BankTransferData::SepaBankTransfer {
-                    billing_details,
-                    country,
-                } => {
-                    let billing_details = StripeBillingAddress {
-                        email: Some(billing_details.email.clone()),
-                        name: Some(billing_details.name.clone()),
-                        ..Default::default()
-                    };
-                    Ok((
-                        StripePaymentMethodData::BankTransfer(
-                            StripeBankTransferData::SepaBankTransfer(Box::new(
-                                SepaBankTransferData {
-                                    payment_method_data_type:
-                                        StripePaymentMethodType::CustomerBalance,
-                                    bank_transfer_type: BankTransferType::EuBankTransfer,
-                                    balance_funding_type: BankTransferType::BankTransfers,
-                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                    country: country.to_owned(),
+                domain::BankTransferData::SepaBankTransfer {} => Ok((
+                    StripePaymentMethodData::BankTransfer(
+                        StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
+                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                            bank_transfer_type: BankTransferType::EuBankTransfer,
+                            balance_funding_type: BankTransferType::BankTransfers,
+                            payment_method_type: StripePaymentMethodType::CustomerBalance,
+                            country: billing_address.country.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "billing_address.country",
                                 },
-                            )),
-                        ),
-                        Some(StripePaymentMethodType::CustomerBalance),
-                        billing_details,
-                    ))
-                }
-                domain::BankTransferData::BacsBankTransfer { billing_details } => {
-                    let billing_details = StripeBillingAddress {
-                        email: Some(billing_details.email.clone()),
-                        name: Some(billing_details.name.clone()),
-                        ..Default::default()
-                    };
-                    Ok((
-                        StripePaymentMethodData::BankTransfer(
-                            StripeBankTransferData::BacsBankTransfers(Box::new(
-                                BacsBankTransferData {
-                                    payment_method_data_type:
-                                        StripePaymentMethodType::CustomerBalance,
-                                    bank_transfer_type: BankTransferType::GbBankTransfer,
-                                    balance_funding_type: BankTransferType::BankTransfers,
-                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                },
-                            )),
-                        ),
-                        Some(StripePaymentMethodType::CustomerBalance),
-                        billing_details,
-                    ))
-                }
+                            )?,
+                        })),
+                    ),
+                    Some(StripePaymentMethodType::CustomerBalance),
+                    billing_address,
+                )),
+                domain::BankTransferData::BacsBankTransfer {} => Ok((
+                    StripePaymentMethodData::BankTransfer(
+                        StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
+                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                            bank_transfer_type: BankTransferType::GbBankTransfer,
+                            balance_funding_type: BankTransferType::BankTransfers,
+                            payment_method_type: StripePaymentMethodType::CustomerBalance,
+                        })),
+                    ),
+                    Some(StripePaymentMethodType::CustomerBalance),
+                    billing_address,
+                )),
                 domain::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
@@ -1587,9 +1436,16 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
     }
 }
 
-impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodData {
+impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
+    for StripePaymentMethodData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank_redirect_data: &domain::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bank_redirect_data, billing_address): (
+            &domain::BankRedirectData,
+            Option<StripeBillingAddress>,
+        ),
+    ) -> Result<Self, Self::Error> {
         let payment_method_data_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
         match bank_redirect_data {
             domain::BankRedirectData::BancontactCard { .. } => Ok(Self::BankRedirect(
@@ -1643,15 +1499,15 @@ impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodData {
                 ))
             }
             domain::BankRedirectData::Sofort {
-                country,
-                preferred_language,
-                ..
+                preferred_language, ..
             } => Ok(Self::BankRedirect(StripeBankRedirectData::StripeSofort(
                 Box::new(StripeSofort {
                     payment_method_data_type,
-                    country: country.ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "sofort.country",
-                    })?,
+                    country: billing_address
+                        .and_then(|billing_data| billing_data.country)
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing_address.country",
+                        })?,
                     preferred_language: preferred_language.clone(),
                 }),
             ))),
@@ -1885,7 +1741,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 };
                 Some(StripePaymentMethodData::Wallet(
                     StripeWallet::ApplepayPayment(ApplepayPayment {
-                        token: Secret::new(payment_method_token),
+                        token: payment_method_token,
                         payment_method_types: StripePaymentMethodType::Card,
                     }),
                 ))
@@ -2047,11 +1903,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         //Only cards supported for mandates
         let pm_type = StripePaymentMethodType::Card;
-        let payment_data = StripePaymentMethodData::try_from((
-            item.request.payment_method_data.clone(),
-            item.auth_type,
-            pm_type,
-        ))?;
+        let payment_data = StripePaymentMethodData::try_from((item, item.auth_type, pm_type))?;
 
         let meta_data = Some(get_transaction_metadata(
             item.request.metadata.clone(),
@@ -3111,7 +2963,7 @@ pub struct StripeShippingAddress {
     pub phone: Option<Secret<String>>,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
 pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
     pub email: Option<Email>,
@@ -3649,19 +3501,20 @@ pub struct EvidenceDetails {
 
 impl
     TryFrom<(
-        domain::PaymentMethodData,
+        &types::SetupMandateRouterData,
         enums::AuthenticationType,
         StripePaymentMethodType,
     )> for StripePaymentMethodData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (pm_data, auth_type, pm_type): (
-            domain::PaymentMethodData,
+        (item, auth_type, pm_type): (
+            &types::SetupMandateRouterData,
             enums::AuthenticationType,
             StripePaymentMethodType,
         ),
     ) -> Result<Self, Self::Error> {
+        let pm_data = &item.request.payment_method_data;
         match pm_data {
             domain::PaymentMethodData::Card(ref ccard) => {
                 let payment_method_auth_type = match auth_type {
@@ -3674,13 +3527,13 @@ impl
                 payment_method_data_type: pm_type,
             })),
             domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
-                Ok(Self::try_from(bank_redirect_data)?)
+                Ok(Self::try_from((bank_redirect_data, None))?)
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(Self::try_from((wallet_data, None))?)
             }
             domain::PaymentMethodData::BankDebit(bank_debit_data) => {
-                let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
+                let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data);
 
                 Ok(Self::BankDebit(StripeBankDebitData {
                     bank_specific_data: bank_data,
@@ -3689,31 +3542,27 @@ impl
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data
                 .deref()
             {
-                domain::BankTransferData::AchBankTransfer { billing_details } => {
-                    Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
-                        Box::new(AchTransferData {
-                            email: billing_details.email.to_owned(),
-                        }),
-                    )))
-                }
-                domain::BankTransferData::MultibancoBankTransfer { billing_details } => Ok(
-                    Self::BankTransfer(StripeBankTransferData::MultibancoBankTransfers(Box::new(
+                domain::BankTransferData::AchBankTransfer {} => Ok(Self::BankTransfer(
+                    StripeBankTransferData::AchBankTransfer(Box::new(AchTransferData {
+                        email: item.get_billing_email()?,
+                    })),
+                )),
+                domain::BankTransferData::MultibancoBankTransfer {} => Ok(Self::BankTransfer(
+                    StripeBankTransferData::MultibancoBankTransfers(Box::new(
                         MultibancoTransferData {
-                            email: billing_details.email.to_owned(),
+                            email: item.get_billing_email()?,
                         },
-                    ))),
-                ),
-                domain::BankTransferData::SepaBankTransfer { country, .. } => {
-                    Ok(Self::BankTransfer(
-                        StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
-                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            bank_transfer_type: BankTransferType::EuBankTransfer,
-                            balance_funding_type: BankTransferType::BankTransfers,
-                            payment_method_type: StripePaymentMethodType::CustomerBalance,
-                            country: country.to_owned(),
-                        })),
-                    ))
-                }
+                    )),
+                )),
+                domain::BankTransferData::SepaBankTransfer {} => Ok(Self::BankTransfer(
+                    StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
+                        payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                        bank_transfer_type: BankTransferType::EuBankTransfer,
+                        balance_funding_type: BankTransferType::BankTransfers,
+                        payment_method_type: StripePaymentMethodType::CustomerBalance,
+                        country: item.get_billing_country()?,
+                    })),
+                )),
                 domain::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
                     StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
                         payment_method_data_type: StripePaymentMethodType::CustomerBalance,
@@ -3850,13 +3699,13 @@ pub struct Evidence {
 }
 
 // Mandates for bank redirects - ideal and sofort happens through sepa direct debit in stripe
-fn get_stripe_sepa_dd_mandate_billing_details(
-    billing_details: &Option<domain::BankRedirectBilling>,
+fn mandatory_parameters_for_sepa_bank_debit_mandates(
+    billing_details: &Option<StripeBillingAddress>,
     is_customer_initiated_mandate_payment: Option<bool>,
 ) -> Result<StripeBillingAddress, errors::ConnectorError> {
     let billing_name = billing_details
         .clone()
-        .and_then(|billing_data| billing_data.billing_name.clone());
+        .and_then(|billing_data| billing_data.name.clone());
 
     let billing_email = billing_details
         .clone()

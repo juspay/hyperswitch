@@ -440,6 +440,8 @@ pub async fn update_business_profile_cascade(
             session_expiry: None,
             authentication_connector_details: None,
             extended_card_info_config: None,
+            use_billing_as_payment_method_billing: None,
+            collect_shipping_details_from_wallet_connector: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1691,6 +1693,9 @@ pub async fn update_business_profile(
                 field_name: "authentication_connector_details",
             })?,
         extended_card_info_config,
+        use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
+        collect_shipping_details_from_wallet_connector: request
+            .collect_shipping_details_from_wallet_connector,
     };
 
     let updated_business_profile = db
@@ -1788,6 +1793,11 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
+        // api_enums::Connector::Mifinity => {
+        //     mifinity::transformers::MifinityAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
+        // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
         | api_enums::Connector::DummyConnector2
@@ -1897,6 +1907,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Gpayments => {
+        //     gpayments::transformers::GpaymentsAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
         api_enums::Connector::Helcim => {
             helcim::transformers::HelcimAuthType::try_from(val)?;
             Ok(())

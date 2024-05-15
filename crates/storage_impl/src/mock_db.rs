@@ -57,6 +57,7 @@ pub struct MockDb {
     pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
     pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
+    pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
 }
 
 impl MockDb {
@@ -100,6 +101,7 @@ impl MockDb {
             payouts: Default::default(),
             authentications: Default::default(),
             roles: Default::default(),
+            user_key_store: Default::default(),
         })
     }
 }

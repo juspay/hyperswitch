@@ -67,12 +67,12 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(match pm_token {
+                    payment_method_id: match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
-                    }),
+                    },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
@@ -86,12 +86,12 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(match pm_token {
+                    payment_method_id: match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
-                    }),
+                    },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
@@ -227,7 +227,6 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 Ok(Self::Card(stax_card_data))
             }
             domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
-                billing_details,
                 account_number,
                 routing_number,
                 bank_name,
@@ -236,7 +235,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 ..
             }) => {
                 let stax_bank_data = StaxBankTokenizeData {
-                    person_name: billing_details.name,
+                    person_name: item.get_billing_full_name()?,
                     bank_account: account_number,
                     bank_routing: routing_number,
                     bank_name: bank_name.ok_or_else(missing_field_err("bank_name"))?,
