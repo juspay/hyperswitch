@@ -1911,7 +1911,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             shipping: shipping_address,
             billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
-            payment_data: None,
+            payment_data,
             payment_method_options,
             payment_method,
             customer,
