@@ -83,3 +83,30 @@ pub fn populate_ip_into_browser_info(
     payload.browser_info = Some(encoded);
     Ok(())
 }
+
+pub fn populate_sdk_info_into_payload(
+    req: &actix_web::HttpRequest,
+    payload: &mut api::PaymentsRequest,
+) -> RouterResult<()> {
+    // Parse the value from the "X-Client-Source" and "X-Client-Version" headers
+    let sdk_source_from_header = req.headers()
+        .get(headers::X_CLIENT_SOURCE)
+        .map(|val| val.to_str().map(ToOwned::to_owned))
+        .transpose()
+        .unwrap_or_else(|e| {
+            logger::error!(error=?e, message="failed to retrieve value from X-Client-Source header");
+            None
+        });
+
+    let sdk_version_from_header = req.headers()
+        .get(headers::X_CLIENT_VERSION)
+        .map(|val| val.to_str().map(ToOwned::to_owned))
+        .transpose()
+        .unwrap_or_else(|e| {
+            logger::error!(error=?e, message="failed to retrieve value from X-Client-Version header");
+            None
+        });
+    payload.client_source = sdk_source_from_header;
+    payload.client_version = sdk_version_from_header;
+    Ok(())
+}

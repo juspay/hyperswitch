@@ -467,6 +467,16 @@ pub struct PaymentsRequest {
 
     /// Details required for recurring payment
     pub recurring_details: Option<RecurringDetails>,
+
+    /// To be used to specify the client (sdk) source.
+    #[schema(value_type = Option<String>)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest)]
+    pub client_source: Option<String>,
+
+    /// To be used to specify the client (sdk) version.
+    #[schema(value_type = Option<String>)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest)]
+    pub client_version: Option<String>,
 }
 
 impl PaymentsRequest {
