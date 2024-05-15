@@ -23,6 +23,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         storage::enums,
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -88,7 +89,7 @@ impl ConnectorCommon for Multisafepay {
 
         let attempt_status = Option::<AttemptStatus>::from(response.clone());
 
-        Ok(ErrorResponse::from((
+        Ok(ErrorResponse::foreign_from((
             Some(response.error_code.to_string()),
             Some(response.error_info.clone()),
             Some(response.error_info),

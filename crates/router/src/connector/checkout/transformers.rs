@@ -294,7 +294,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 domain::WalletData::GooglePay(_) => Ok(PaymentSource::Wallets(WalletSource {
                     source_type: CheckoutSourceTypes::Token,
                     token: match item.router_data.get_payment_method_token()? {
-                        types::PaymentMethodToken::Token(token) => token.into(),
+                        types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
                         )?,
@@ -306,7 +306,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token.into(),
+                                token: apple_pay_payment_token,
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {

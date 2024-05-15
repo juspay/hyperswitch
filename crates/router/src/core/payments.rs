@@ -34,9 +34,12 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+use hyperswitch_domain_models::{
+    mandates::{CustomerAcceptance, MandateData},
+    payment_address::PaymentAddress,
+    router_data::RouterData,
+};
 use masking::{ExposeInterface, Secret};
-pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
@@ -117,7 +120,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -756,7 +759,7 @@ where
     Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1386,15 +1389,14 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &storage::business_profile::BusinessProfile,
-) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -1495,23 +1497,29 @@ where
         };
 
         let apple_pay_predecrypt = apple_pay_data
-            .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
+            .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
+                "ApplePayPredecryptData",
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         logger::debug!(?apple_pay_predecrypt);
 
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
-            Box::new(apple_pay_predecrypt),
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(Box::new(
+                apple_pay_predecrypt,
+            )),
+        );
     }
 
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
     if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
-            payment_method_token,
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
+                payment_method_token,
+            )),
+        );
     };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
@@ -1657,7 +1665,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1771,7 +1779,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1863,17 +1871,14 @@ async fn complete_preprocessing_steps_if_required<F, Req, Q>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
     operation: &BoxedOperation<'_, F, Q>,
     should_continue_payment: bool,
-) -> RouterResult<(
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
-    bool,
-)>
+) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
@@ -2398,91 +2403,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-pub mod payment_address {
-    use super::*;
-
-    #[derive(Clone, Default, Debug)]
-    pub struct PaymentAddress {
-        shipping: Option<api::Address>,
-        billing: Option<api::Address>,
-        unified_payment_method_billing: Option<api::Address>,
-        payment_method_billing: Option<api::Address>,
-    }
-
-    impl PaymentAddress {
-        pub fn new(
-            shipping: Option<api::Address>,
-            billing: Option<api::Address>,
-            payment_method_billing: Option<api::Address>,
-            should_unify_address: Option<bool>,
-        ) -> Self {
-            // billing -> .billing, this is the billing details passed in the root of payments request
-            // payment_method_billing -> payment_method_data.billing
-
-            let unified_payment_method_billing = if should_unify_address.unwrap_or(true) {
-                // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
-                // The unified payment_method_billing will be used as billing address and passed to the connector module
-                // This unification is required in order to provide backwards compatibility
-                // so that if `payment.billing` is passed it should be sent to the connector module
-                // Unify the billing details with `payment_method_data.billing`
-                payment_method_billing
-                    .as_ref()
-                    .map(|payment_method_billing| {
-                        payment_method_billing
-                            .clone()
-                            .unify_address(billing.as_ref())
-                    })
-                    .or(billing.clone())
-            } else {
-                payment_method_billing.clone()
-            };
-
-            Self {
-                shipping,
-                billing,
-                unified_payment_method_billing,
-                payment_method_billing,
-            }
-        }
-
-        pub fn get_shipping(&self) -> Option<&api::Address> {
-            self.shipping.as_ref()
-        }
-
-        pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
-            self.unified_payment_method_billing.as_ref()
-        }
-
-        /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
-        pub fn unify_with_payment_method_data_billing(
-            self,
-            payment_method_data_billing: Option<api::Address>,
-        ) -> Self {
-            // Unify the billing details with `payment_method_data.billing_details`
-            let unified_payment_method_billing = payment_method_data_billing
-                .map(|payment_method_data_billing| {
-                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
-                })
-                .or(self.get_payment_method_billing().cloned());
-
-            Self {
-                shipping: self.shipping,
-                billing: self.billing,
-                unified_payment_method_billing,
-                payment_method_billing: self.payment_method_billing,
-            }
-        }
-
-        pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
-            self.payment_method_billing.as_ref()
-        }
-
-        pub fn get_payment_billing(&self) -> Option<&api::Address> {
-            self.billing.as_ref()
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct MandateConnectorDetails {
     pub connector: String,
@@ -2520,7 +2440,8 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
-    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
+    pub recurring_mandate_payment_data:
+        Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<types::SurchargeDetails>,
@@ -2566,13 +2487,6 @@ pub struct IncrementalAuthorizationDetails {
     pub total_amount: i64,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct RecurringMandatePaymentData {
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
-    pub original_payment_authorized_amount: Option<i64>,
-    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -3506,7 +3420,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                     },
                                 ));
                             payment_data.recurring_mandate_payment_data =
-                                Some(RecurringMandatePaymentData {
+                                Some(hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                                     payment_method_type: mandate_reference_record
                                         .payment_method_type,
                                     original_payment_authorized_amount: mandate_reference_record
