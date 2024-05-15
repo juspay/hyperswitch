@@ -305,36 +305,17 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_intent.charges.as_ref(),
         payment_attempt.charge_id.as_ref(),
     ) {
-        (Some(charges), Some(charge_id)) => {
+        (Some(charges), Some(_)) => {
             let payment_charges: PaymentCharges = charges
                 .peek()
                 .clone()
                 .parse_value("PaymentCharges")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse charges in to PaymentCharges")?;
-
-            let options = match (refund.revert_platform_fee, refund.revert_transfer) {
-                (None, Some(revert_transfer)) => {
-                    Some(types::api::ChargeRefundsOptions::Destination(
-                        types::api::DestinationChargeRefund { revert_transfer },
-                    ))
-                }
-                (Some(revert_platform_fee), _) => Some(types::api::ChargeRefundsOptions::Direct(
-                    types::api::DirectChargeRefund {
-                        revert_platform_fee,
-                    },
-                )),
-                _ => None,
-            }
-            .get_required_value("options")?;
-            let request = types::api::ChargeRefunds {
-                charge_id: charge_id.clone(),
-                options,
-            };
             Some(ChargeRefunds {
                 charge_type: payment_charges.charge_type,
                 transfer_account_id: payment_charges.transfer_account_id,
-                request,
+                request: refund.charges.clone().get_required_value("charges")?,
             })
         }
         _ => None,

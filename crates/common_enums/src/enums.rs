@@ -2723,27 +2723,3 @@ pub enum TokenPurpose {
     AcceptInvite,
     UserInfo,
 }
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct ChargeRefunds {
-    pub charge_id: String,
-    pub options: Option<ChargeRefundsOptions>,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum ChargeRefundsOptions {
-    Direct(DirectChargeRefund),
-    Destination(DestinationChargeRefund),
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DirectChargeRefund {
-    pub revert_platform_fee: bool,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DestinationChargeRefund {
-    pub revert_platform_fee: bool,
-    pub revert_transfer: bool,
-}

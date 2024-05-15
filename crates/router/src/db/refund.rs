@@ -10,6 +10,47 @@ use crate::{
     types::storage::{self as storage_types, enums},
 };
 
+// impl ForeignTryFrom<storage_types::Refund> for storage_types::Refund {
+//     type Error = error_stack::Report<errors::StorageError>;
+//     fn foreign_try_from(refund: storage_types::Refund) -> Result<Self, Self::Error> {
+//         let charges = refund
+//             .charges
+//             .map(|charge| charge.peek().parse_value("ChargeRefunds"))
+//             .transpose()
+//             .change_context(errors::StorageError::DeserializationFailed)
+//             .attach_printable("Failed to parse to ChargeRefunds")?;
+//         Ok(Self {
+//             internal_reference_id: refund.internal_reference_id,
+//             refund_id: refund.refund_id,
+//             payment_id: refund.payment_id,
+//             merchant_id: refund.merchant_id,
+//             connector_transaction_id: refund.connector_transaction_id,
+//             connector: refund.connector,
+//             connector_refund_id: refund.connector_refund_id,
+//             external_reference_id: refund.external_reference_id,
+//             refund_type: refund.refund_type,
+//             total_amount: refund.total_amount,
+//             currency: refund.currency,
+//             refund_amount: refund.refund_amount,
+//             refund_status: refund.refund_status,
+//             sent_to_gateway: refund.sent_to_gateway,
+//             refund_error_message: refund.refund_error_message,
+//             metadata: refund.metadata,
+//             refund_arn: refund.refund_arn,
+//             created_at: refund.created_at,
+//             updated_at: refund.updated_at,
+//             description: refund.description,
+//             attempt_id: refund.attempt_id,
+//             refund_reason: refund.refund_reason,
+//             refund_error_code: refund.refund_error_code,
+//             profile_id: refund.profile_id,
+//             updated_by: refund.updated_by,
+//             merchant_connector_id: refund.merchant_connector_id,
+//             charges,
+//         })
+//     }
+// }
+
 #[cfg(feature = "olap")]
 const MAX_LIMIT: usize = 100;
 
@@ -386,9 +427,7 @@ mod storage {
                         profile_id: new.profile_id.clone(),
                         updated_by: new.updated_by.clone(),
                         merchant_connector_id: new.merchant_connector_id.clone(),
-                        charge_id: new.charge_id.clone(),
-                        revert_platform_fee: new.revert_platform_fee.clone(),
-                        revert_transfer: new.revert_transfer.clone(),
+                        charges: new.charges.clone(),
                     };
 
                     let field = format!(
@@ -825,9 +864,7 @@ impl RefundInterface for MockDb {
             profile_id: new.profile_id,
             updated_by: new.updated_by,
             merchant_connector_id: new.merchant_connector_id,
-            charge_id: new.charge_id,
-            revert_platform_fee: new.revert_platform_fee,
-            revert_transfer: new.revert_transfer,
+            charges: new.charges,
         };
         refunds.push(refund.clone());
         Ok(refund)

@@ -139,7 +139,7 @@ pub struct RefundResponse {
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<ChargeRefunds>)]
-    pub charges: Option<ChargeRefunds>,
+    pub charges: Option<common_enums::ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

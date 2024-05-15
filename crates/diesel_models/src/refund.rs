@@ -39,7 +39,7 @@ pub struct Refund {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub charges: Option<common_enums::ChargeRefunds>,
 }
 
 #[derive(
@@ -82,65 +82,7 @@ pub struct RefundNew {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
-    pub charges: Option<pii::SecretSerdeValue>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct RefundDomain {
-    pub id: i32,
-    pub internal_reference_id: String,
-    pub refund_id: String,
-    pub payment_id: String,
-    pub merchant_id: String,
-    pub connector_transaction_id: String,
-    pub connector: String,
-    pub connector_refund_id: Option<String>,
-    pub external_reference_id: Option<String>,
-    pub refund_type: storage_enums::RefundType,
-    pub total_amount: i64,
-    pub currency: storage_enums::Currency,
-    pub refund_amount: i64,
-    pub refund_status: storage_enums::RefundStatus,
-    pub sent_to_gateway: bool,
-    pub refund_error_message: Option<String>,
-    pub metadata: Option<pii::SecretSerdeValue>,
-    pub refund_arn: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub updated_at: PrimitiveDateTime,
-    pub description: Option<String>,
-    pub attempt_id: String,
-    pub refund_reason: Option<String>,
-    pub refund_error_code: Option<String>,
-    pub profile_id: Option<String>,
-    pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
     pub charges: Option<common_enums::ChargeRefunds>,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct ChargeRefunds {
-    pub charge_id: String,
-    pub options: Option<ChargeRefundsOptions>,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum ChargeRefundsOptions {
-    Direct(DirectChargeRefund),
-    Destination(DestinationChargeRefund),
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DirectChargeRefund {
-    pub revert_platform_fee: bool,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DestinationChargeRefund {
-    pub revert_platform_fee: bool,
-    pub revert_transfer: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

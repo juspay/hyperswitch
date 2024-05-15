@@ -1,7 +1,6 @@
 pub mod errors;
 pub mod mandates;
 pub mod payments;
-pub mod refund;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 

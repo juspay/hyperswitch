@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-use api_models::{self, enums as api_enums, refunds as refund_api};
+use api_models::{self, enums as api_enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode},
@@ -59,7 +59,7 @@ impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StripeCaptureMethod {
     Manual,
@@ -81,7 +81,7 @@ impl From<Option<enums::CaptureMethod>> for StripeCaptureMethod {
     }
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Auth3ds {
     #[default]
@@ -89,7 +89,7 @@ pub enum Auth3ds {
     Any,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(
     rename_all = "snake_case",
     tag = "mandate_data[customer_acceptance][type]"
@@ -104,13 +104,13 @@ pub enum StripeMandateType {
     Offline,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeMandateRequest {
     #[serde(flatten)]
     mandate_type: StripeMandateType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExpandableObjects {
     LatestCharge,
@@ -118,7 +118,7 @@ pub enum ExpandableObjects {
     LatestAttempt,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBrowserInformation {
     #[serde(rename = "payment_method_data[ip]")]
     pub ip_address: Option<Secret<String, pii::IpAddress>>,
@@ -126,7 +126,7 @@ pub struct StripeBrowserInformation {
     pub user_agent: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentIntentRequest {
     pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
@@ -143,11 +143,9 @@ pub struct PaymentIntentRequest {
     pub description: Option<String>,
     #[serde(flatten)]
     pub shipping: Option<StripeShippingAddress>,
-    // #[serde(flatten)]
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub billing: StripeBillingAddress,
     #[serde(flatten)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: StripeBillingAddress,
+    #[serde(flatten)]
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
     #[serde(flatten)]
@@ -164,14 +162,14 @@ pub struct PaymentIntentRequest {
     pub charges: Option<IntentCharges>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum IntentCharges {
     Direct(DirectCharges),
     Destination(DestinationCharges),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DirectCharges {
     pub application_fee_amount: i64,
     #[serde(skip_serializing_if = "is_false")]
@@ -179,7 +177,7 @@ pub struct DirectCharges {
     pub automatic_payment_methods_enabled: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DestinationCharges {
     pub application_fee_amount: i64,
     #[serde(skip_serializing_if = "is_false")]
@@ -208,7 +206,7 @@ pub struct StripeMetadata {
     pub is_refund_id_as_reference: Option<String>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct SetupIntentRequest {
     pub confirm: bool,
     pub usage: Option<enums::FutureUsage>,
@@ -228,7 +226,7 @@ pub struct SetupIntentRequest {
     pub browser_info: Option<StripeBrowserInformation>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -243,25 +241,25 @@ pub struct StripeCardData {
     #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
     pub payment_method_auth_type: Option<Auth3ds>,
 }
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct TokenRequest {
     #[serde(flatten)]
     pub token_data: StripePaymentMethodData,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeTokenResponse {
     pub id: Secret<String>,
     pub object: String,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct CustomerRequest {
     pub description: Option<String>,
     pub email: Option<Email>,
@@ -270,7 +268,7 @@ pub struct CustomerRequest {
     pub source: Option<Secret<String>>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
@@ -279,7 +277,7 @@ pub struct StripeCustomerResponse {
     pub name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ChargesRequest {
     pub amount: String,
     pub currency: String,
@@ -301,7 +299,7 @@ pub struct ChargesResponse {
     pub failure_message: Option<String>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankName {
     Eps {
@@ -318,7 +316,7 @@ pub enum StripeBankName {
     },
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum BankSpecificData {
     Sofort {
@@ -329,7 +327,7 @@ pub enum BankSpecificData {
     },
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankRedirectData {
     StripeGiropay(Box<StripeGiropay>),
@@ -342,13 +340,13 @@ pub enum StripeBankRedirectData {
     StripeOnlineBankingFpx(Box<StripeOnlineBankingFpx>),
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeGiropay {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeIdeal {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -356,7 +354,7 @@ pub struct StripeIdeal {
     ideal_bank_name: Option<StripeBankNames>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeSofort {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -366,13 +364,13 @@ pub struct StripeSofort {
     country: api_enums::CountryAlpha2,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBancontactCard {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePrezelewy24 {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -380,7 +378,7 @@ pub struct StripePrezelewy24 {
     bank_name: Option<StripeBankNames>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeEps {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -388,7 +386,7 @@ pub struct StripeEps {
     bank_name: Option<StripeBankNames>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBlik {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -396,25 +394,25 @@ pub struct StripeBlik {
     pub code: Secret<String>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeOnlineBankingFpx {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AchTransferData {
     #[serde(rename = "owner[email]")]
     pub email: Email,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct MultibancoTransferData {
     #[serde(rename = "owner[email]")]
     pub email: Email,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct BacsBankTransferData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -426,7 +424,7 @@ pub struct BacsBankTransferData {
     pub payment_method_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct SepaBankTransferData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -442,14 +440,14 @@ pub struct SepaBankTransferData {
     pub country: api_models::enums::CountryAlpha2,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeCreditTransferSourceRequest {
     AchBankTansfer(AchCreditTransferSourceRequest),
     MultibancoBankTansfer(MultibancoCreditTransferSourceRequest),
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AchCreditTransferSourceRequest {
     #[serde(rename = "type")]
     pub transfer_type: StripeCreditTransferTypes,
@@ -458,7 +456,7 @@ pub struct AchCreditTransferSourceRequest {
     pub currency: enums::Currency,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct MultibancoCreditTransferSourceRequest {
     #[serde(rename = "type")]
     pub transfer_type: StripeCreditTransferTypes,
@@ -471,7 +469,7 @@ pub struct MultibancoCreditTransferSourceRequest {
 }
 
 // Remove untagged when Deserialize is added
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
@@ -482,7 +480,7 @@ pub enum StripePaymentMethodData {
     BankTransfer(StripeBankTransferData),
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "payment_method_data[type]")]
 pub enum BankDebitData {
     #[serde(rename = "us_bank_account")]
@@ -515,18 +513,18 @@ pub enum BankDebitData {
     },
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankDebitData {
     #[serde(flatten)]
     pub bank_specific_data: BankDebitData,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct BankTransferData {
     pub email: Email,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankTransferData {
     AchBankTransfer(Box<AchTransferData>),
@@ -535,7 +533,7 @@ pub enum StripeBankTransferData {
     MultibancoBankTransfers(Box<MultibancoTransferData>),
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
@@ -547,7 +545,7 @@ pub enum StripeWallet {
     ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeApplePayPredecrypt {
     #[serde(rename = "card[number]")]
     number: Secret<String>,
@@ -563,7 +561,7 @@ pub struct StripeApplePayPredecrypt {
     tokenization_method: String,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeApplePay {
     pub pk_token: Secret<String>,
     pub pk_token_instrument_name: String,
@@ -571,7 +569,7 @@ pub struct StripeApplePay {
     pub pk_token_transaction_id: Secret<String>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct GooglePayToken {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_type: StripePaymentMethodType,
@@ -579,7 +577,7 @@ pub struct GooglePayToken {
     pub token: Secret<String>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
     pub token: Secret<String>,
@@ -587,19 +585,19 @@ pub struct ApplepayPayment {
     pub payment_method_types: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AlipayPayment {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct CashappPayment {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct WechatpayPayment {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -613,7 +611,7 @@ pub enum WechatClient {
     Web,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct GooglepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
     pub token: Secret<String>,
@@ -655,7 +653,7 @@ pub enum StripePaymentMethodType {
     Cashapp,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[allow(dead_code)]
 pub enum StripeCreditTransferTypes {
@@ -764,7 +762,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
     }
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferType {
     GbBankTransfer,
@@ -773,7 +771,7 @@ pub enum BankTransferType {
     BankTransfers,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeBankNames {
     AbnAmro,
@@ -1984,7 +1982,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             payment_method_types
         };
 
-        let pir = Self {
+        Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
@@ -1998,11 +1996,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             confirm: true, // Stripe requires confirm to be true if return URL is present
             description: item.description.clone(),
             shipping: shipping_address,
-            // billing: None,
+            billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data: None,
             payment_method_options,
-            payment_method: Some("pm_card_visa".to_string()),
+            payment_method,
             customer,
             setup_mandate_details,
             off_session: item.request.off_session,
@@ -2011,16 +2009,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges,
-        };
-
-        match serde_json::to_value(pir.clone()) {
-            Ok(pir) => {
-                router_env::logger::info!("[DEBUG] PIR {:?}", pir);
-            }
-            Err(_) => (),
-        };
-
-        Ok(pir)
+        })
     }
 }
 
@@ -2167,7 +2156,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
@@ -2243,7 +2232,7 @@ pub struct SepaAndBacsReceiver {
     pub amount_remaining: i64,
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct PaymentSyncResponse {
     #[serde(flatten)]
     pub intent_fields: PaymentIntentResponse,
@@ -2265,7 +2254,7 @@ pub struct PaymentIntentSyncResponse {
     pub latest_charge: Option<StripeChargeEnum>,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Clone, Serialize)]
 #[serde(untagged)]
 pub enum StripeChargeEnum {
     ChargeId(String),
@@ -3025,12 +3014,18 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
             .into()),
             Some(charges) => {
                 let (refund_application_fee, reverse_transfer) = match charges.request.options {
-                    refund_api::ChargeRefundsOptions::Direct(refund_api::DirectChargeRefund {
-                        revert_platform_fee,
-                    }) => (Some(revert_platform_fee), None),
-                    refund_api::ChargeRefundsOptions::Destination(
-                        refund_api::DestinationChargeRefund { revert_transfer },
-                    ) => (None, Some(revert_transfer)),
+                    Some(api_enums::ChargeRefundsOptions::Direct(
+                        api_enums::DirectChargeRefund {
+                            revert_platform_fee,
+                        },
+                    )) => (Some(revert_platform_fee), None),
+                    Some(api_enums::ChargeRefundsOptions::Destination(
+                        api_enums::DestinationChargeRefund {
+                            revert_platform_fee,
+                            revert_transfer,
+                        },
+                    )) => (Some(revert_platform_fee), Some(revert_transfer)),
+                    _ => (None, None),
                 };
                 Ok(Self {
                     charge: charges.request.charge_id.clone(),
@@ -3168,12 +3163,12 @@ pub struct PaymentIntentErrorResponse {
     pub id: String,
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub error: ErrorDetails,
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StripeShippingAddress {
     #[serde(rename = "shipping[address][city]")]
     pub city: Option<String>,
@@ -3193,7 +3188,7 @@ pub struct StripeShippingAddress {
     pub phone: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
     pub email: Option<Email>,

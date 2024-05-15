@@ -1029,7 +1029,7 @@ pub struct RefundsData {
 pub struct ChargeRefunds {
     pub charge_type: api_models::enums::PaymentChargeType,
     pub transfer_account_id: String,
-    pub request: api_models::refunds::ChargeRefunds,
+    pub request: api_models::enums::ChargeRefunds,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
