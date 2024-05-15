@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     connector::utils::{
-        AddressDetailsData, BrowserInformationData, CardData as OtherCardData,
+        self, AddressDetailsData, BrowserInformationData, CardData as OtherCardData,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         PaymentsSyncRequestData, RouterData,
     },
@@ -185,7 +185,10 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bambora"),
+                )
+                .into())
             }
         }
     }
