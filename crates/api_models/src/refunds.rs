@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::pii;
+use common_utils::{pii, types::ChargeRefunds};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -56,7 +56,7 @@ pub struct RefundRequest {
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<ChargeRefunds>)]
-    pub charges: Option<common_enums::ChargeRefunds>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -144,7 +144,7 @@ pub struct RefundResponse {
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<ChargeRefunds>)]
-    pub charges: Option<common_enums::ChargeRefunds>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

@@ -23,7 +23,7 @@ pub use api_models::{enums::Connector, mandates};
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
-use common_utils::{pii, pii::Email};
+use common_utils::{pii, pii::Email, types as common_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 pub use hyperswitch_domain_models::{
@@ -912,7 +912,7 @@ pub struct RefundsData {
 pub struct ChargeRefunds {
     pub charge_type: api_models::enums::PaymentChargeType,
     pub transfer_account_id: String,
-    pub request: api_models::enums::ChargeRefunds,
+    pub request: common_types::ChargeRefunds,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
