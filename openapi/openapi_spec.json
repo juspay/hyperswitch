@@ -13893,6 +13893,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14290,6 +14298,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
               }
             ],
             "nullable": true
@@ -14792,6 +14808,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
               }
             ],
             "nullable": true
@@ -15316,6 +15340,14 @@
             "description": "Date time at which payment was updated",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15824,6 +15856,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
               }
             ],
             "nullable": true
@@ -17076,6 +17116,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRefunds"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17156,6 +17204,14 @@
           "merchant_connector_id": {
             "type": "string",
             "description": "The merchant_connector_id of the processor through which this payment went through",
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRefunds"
+              }
+            ],
             "nullable": true
           }
         }
