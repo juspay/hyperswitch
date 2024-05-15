@@ -760,15 +760,17 @@ impl Settings<SecuredSecret> {
     }
 }
 
-
-impl Settings<RawSecret>{
+impl Settings<RawSecret> {
+    #[cfg(feature ="kv_store")]
     pub fn is_kv_soft_kill_mode(&self) -> bool {
-        if cfg!(feature="kv_store") {
-            self.kv_config.soft_kill.unwrap_or(false)
-        } else {
-            false
-        }
+        self.kv_config.soft_kill.unwrap_or(false)
     }
+
+    #[cfg(not(feature ="kv_store"))]
+    pub fn is_kv_soft_kill_mode(&self) -> bool {
+        false
+    }
+
 }
 
 #[cfg(feature = "payouts")]

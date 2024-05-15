@@ -553,11 +553,11 @@ mod storage {
             &self,
             customer_data: domain::Customer,
             key_store: &domain::MerchantKeyStore,
-            storage_scheme: MerchantStorageScheme,
+            _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::Customer, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             customer_data
-                .construct_new(storage_scheme)
+                .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
