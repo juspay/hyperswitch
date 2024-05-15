@@ -1042,7 +1042,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             payment_attempt_update = Some(storage::PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status: multiple_capture_data.get_attempt_status(authorized_amount),
                 amount_capturable: authorized_amount
-                    .substract(multiple_capture_data.get_total_blocked_amount()),
+                    .subtract(multiple_capture_data.get_total_blocked_amount()),
                 updated_by: storage_scheme.to_string(),
             });
             Some(multiple_capture_data)

@@ -234,13 +234,13 @@ impl MinorUnit {
         self.0 == 0
     }
 
-    /// adds two minor unit amout
+    /// adds two minor unit amount
     pub fn add(&self, a2: Self) -> Self {
         Self::new(self.0 + a2.0)
     }
 
-    /// substract two minor unit amount
-    pub fn substract(&self, a2: Self) -> Self {
+    /// subtract two minor unit amount
+    pub fn subtract(&self, a2: Self) -> Self {
         Self::new(self.0 - a2.0)
     }
 

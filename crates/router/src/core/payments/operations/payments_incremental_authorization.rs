@@ -144,7 +144,7 @@ impl<F: Send + Clone>
             frm_message: None,
             payment_link_data: None,
             incremental_authorization_details: Some(IncrementalAuthorizationDetails {
-                additional_amount: request.amount.substract(amount).get_amount_as_i64(),
+                additional_amount: request.amount.subtract(amount).get_amount_as_i64(),
                 total_amount: request.amount.get_amount_as_i64(),
                 reason: request.reason.clone(),
                 authorization_id: None,
