@@ -1859,9 +1859,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 
         let (charges, customer, automatic_payment_methods_enabled) = match &item.request.charges {
             Some(charges) => {
-                let auto_pm_enabled = charges
-                    .automatic_payment_methods_enabled
-                    .unwrap_or(false);
+                let auto_pm_enabled = charges.automatic_payment_methods_enabled.unwrap_or(false);
                 let charges = match &charges.charge_type {
                     api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         api_enums::StripeChargeType::Direct => {
