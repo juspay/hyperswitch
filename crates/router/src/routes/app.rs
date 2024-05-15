@@ -102,7 +102,7 @@ impl SessionState {
             event_handler: state.event_handler.clone(),
             pool: state.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: state.file_storage_client.clone(),
-            request_id: state.request_id.clone(),
+            request_id: state.request_id,
             base_url: state
                 .conf
                 .multitenancy
@@ -268,6 +268,7 @@ impl AppState {
 
             let mut pools = HashMap::new();
             let mut stores = HashMap::new();
+            #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");

@@ -465,7 +465,7 @@ pub async fn rotate_password(
 
 #[cfg(feature = "email")]
 pub async fn reset_password_token_only_flow(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
@@ -970,7 +970,7 @@ pub async fn accept_invite_from_email(
 
 #[cfg(feature = "email")]
 pub async fn accept_invite_from_email_token_only_flow(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::AcceptInviteFromEmailRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
@@ -1413,7 +1413,7 @@ pub async fn verify_email(
 
 #[cfg(feature = "email")]
 pub async fn verify_email_token_only_flow(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
@@ -1584,7 +1584,7 @@ pub async fn update_user_details(
 
 #[cfg(feature = "email")]
 pub async fn user_from_email(
-    state: AppState,
+    state: SessionState,
     req: user_api::UserFromEmailRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let token = req.token.expose();

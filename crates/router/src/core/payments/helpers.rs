@@ -1004,7 +1004,7 @@ pub fn validate_customer_id_mandatory_cases(
 }
 
 pub fn create_startpay_url(
-    base_url: &String,
+    base_url: &str,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> String {
@@ -1028,7 +1028,7 @@ pub fn create_redirect_url(
 }
 
 pub fn create_authentication_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
 ) -> String {
     format!(
@@ -1038,7 +1038,7 @@ pub fn create_authentication_url(
 }
 
 pub fn create_authorize_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
     connector_name: &String,
 ) -> String {

@@ -556,7 +556,7 @@ impl super::RedisConnectionPool {
             .iter()
             .filter_map(|key| key.as_str())
             .map(|k| self.get_tenant_key(k))
-            .map(|i| RedisKey::from(i))
+            .map(RedisKey::from)
             .collect::<Vec<_>>();
         MultipleKeys::from(res)
     }

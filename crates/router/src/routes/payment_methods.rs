@@ -355,7 +355,7 @@ pub async fn default_payment_method_set_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
-            let res = cards::set_default_payment_method(
+            cards::set_default_payment_method(
                 &*state.clone().store,
                 auth.merchant_account.merchant_id,
                 auth.key_store,
@@ -363,8 +363,7 @@ pub async fn default_payment_method_set_api(
                 default_payment_method.payment_method_id,
                 auth.merchant_account.storage_scheme,
             )
-            .await;
-            res
+            .await
         },
         &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,

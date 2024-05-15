@@ -1069,9 +1069,9 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync>(
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
-        return Ok(Box::new(ApiKeyAuth));
+        Ok(Box::new(ApiKeyAuth))
     } else {
-        return Ok(Box::new(EphemeralKeyAuth(customer_id.to_owned())));
+        Ok(Box::new(EphemeralKeyAuth(customer_id.to_owned())))
     }
 }
 

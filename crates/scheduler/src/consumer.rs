@@ -155,7 +155,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
         .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
         .await?;
 
-    if tasks.len() > 0 {
+    if !tasks.is_empty() {
         logger::info!("{} picked {} tasks", consumer_name, tasks.len());
     }
     let mut handler = vec![];

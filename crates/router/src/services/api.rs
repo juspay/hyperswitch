@@ -1032,14 +1032,14 @@ where
                 }
                 .switch())
             } else {
-                Ok(tenant_id)
+                Ok(tenant_id.to_string())
             }
         })??;
     // let tenant_id = "public";
     let mut session_state =
-        SessionState::from_app_state(Arc::new(app_state.clone()), tenant_id, || {
+        SessionState::from_app_state(Arc::new(app_state.clone()), tenant_id.as_str(), || {
             errors::ApiErrorResponse::InvalidTenant {
-                tenant_id: tenant_id.to_string(),
+                tenant_id: tenant_id.clone(),
             }
             .switch()
         })?;
