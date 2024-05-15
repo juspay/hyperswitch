@@ -20,12 +20,6 @@ pub const MAX_CARD_NUMBER_LENGTH: usize = 19;
 #[error("{0}")]
 pub struct CardNumberValidationErr(&'static str);
 
-impl From<core::convert::Infallible> for CardNumberValidationErr {
-    fn from(_: core::convert::Infallible) -> Self {
-        Self("")
-    }
-}
-
 /// Card number
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
@@ -79,7 +73,7 @@ impl FromStr for CardNumber {
         let is_card_valid = sanitize_card_number(&card_number)?;
 
         if valid_test_cards.contains(&card_number.as_str()) || is_card_valid {
-            Ok(Self(StrongSecret::new(Secret::new(card_number))))
+            Ok(Self(StrongSecret::new(card_number)))
         } else {
             Err(CardNumberValidationErr("card number invalid"))
         }
