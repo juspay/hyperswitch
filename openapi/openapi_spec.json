@@ -7265,6 +7265,38 @@
       "CashappQr": {
         "type": "object"
       },
+      "ChargeRefunds": {
+        "type": "object",
+        "description": "Charge object for refunds",
+        "required": [
+          "charge_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment"
+          },
+          "options": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRefundsOptions"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ChargeRefundsOptions": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DirectChargeRefund"
+          },
+          {
+            "$ref": "#/components/schemas/DestinationChargeRefund"
+          }
+        ],
+        "description": "Options for different charge types"
+      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
@@ -8439,12 +8471,43 @@
           }
         }
       },
+      "DestinationChargeRefund": {
+        "type": "object",
+        "description": "Options for destination charge refunds",
+        "required": [
+          "revert_platform_fee",
+          "revert_transfer"
+        ],
+        "properties": {
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the reseller's account."
+          },
+          "revert_transfer": {
+            "type": "boolean",
+            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account."
+          }
+        }
+      },
       "DeviceChannel": {
         "type": "string",
         "enum": [
           "APP",
           "BRW"
         ]
+      },
+      "DirectChargeRefund": {
+        "type": "object",
+        "description": "Options for direct charge refunds",
+        "required": [
+          "revert_platform_fee"
+        ],
+        "properties": {
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the reseller's account."
+          }
+        }
       },
       "DisputeResponse": {
         "type": "object",
@@ -12463,6 +12526,63 @@
             "nullable": true
           }
         }
+      },
+      "PaymentChargeRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe"
+            ],
+            "properties": {
+              "stripe": {
+                "$ref": "#/components/schemas/StripeChargeRequest"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentChargeResponse": {
+        "type": "object",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment",
+            "nullable": true
+          },
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees collected on the payment"
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account where the funds were transferred"
+          }
+        }
+      },
+      "PaymentChargeType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Stripe"
+            ],
+            "properties": {
+              "Stripe": {
+                "$ref": "#/components/schemas/StripeChargeType"
+              }
+            }
+          }
+        ]
       },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
@@ -18228,6 +18348,35 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StripeChargeRequest": {
+        "type": "object",
+        "required": [
+          "charge_type",
+          "fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_type": {
+            "$ref": "#/components/schemas/StripeChargeType"
+          },
+          "fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees to be collected on the payment"
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account to send the funds to"
+          }
+        }
+      },
+      "StripeChargeType": {
+        "type": "string",
+        "enum": [
+          "direct",
+          "destination"
+        ]
       },
       "SurchargeDetailsResponse": {
         "type": "object",

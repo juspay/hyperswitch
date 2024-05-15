@@ -481,10 +481,15 @@ pub enum PaymentChargeRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct StripeChargeRequest {
+    /// Stripe's charge type
+    #[schema(value_type = StripeChargeType, example = "direct")]
     pub charge_type: api_enums::StripeChargeType,
+
+    /// Platform fees to be collected on the payment
     pub fees: i64,
+
+    /// Identifier for the reseller's account to send the funds to
     pub transfer_account_id: String,
-    pub automatic_payment_methods_enabled: Option<bool>,
 }
 
 impl PaymentsRequest {
@@ -3422,9 +3427,17 @@ pub struct PaymentsResponse {
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentChargeResponse {
+    /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
+
+    /// Type of charge (connector specific)
+    #[schema(value_type = PaymentChargeType, example = "direct")]
     pub charge_type: api_enums::PaymentChargeType,
+
+    /// Platform fees collected on the payment
     pub application_fees: i64,
+
+    /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
 }
 

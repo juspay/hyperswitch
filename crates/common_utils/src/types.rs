@@ -214,7 +214,9 @@ where
     }
 }
 
-#[derive(Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
+#[derive(
+    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
 #[diesel(sql_type = Jsonb)]
 /// Charge object for refunds
 pub struct ChargeRefunds {

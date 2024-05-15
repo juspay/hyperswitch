@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use common_utils::{pii, types::ChargeRefunds};
+use common_utils::pii;
+pub use common_utils::types::{
+    ChargeRefunds, ChargeRefundsOptions, DestinationChargeRefund, DirectChargeRefund,
+};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;

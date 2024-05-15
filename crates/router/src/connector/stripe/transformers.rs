@@ -171,23 +171,13 @@ pub enum IntentCharges {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DirectCharges {
     pub application_fee_amount: i64,
-    #[serde(skip_serializing_if = "is_false")]
-    #[serde(rename = "automatic_payment_methods[enabled]")]
-    pub automatic_payment_methods_enabled: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DestinationCharges {
     pub application_fee_amount: i64,
-    #[serde(skip_serializing_if = "is_false")]
-    #[serde(rename = "automatic_payment_methods[enabled]")]
-    pub automatic_payment_methods_enabled: bool,
     #[serde(rename = "transfer_data[destination]")]
     pub destination_account_id: String,
-}
-
-fn is_false(v: &bool) -> bool {
-    !*v
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -1857,39 +1847,26 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None
         };
 
-        let (charges, customer, automatic_payment_methods_enabled) = match &item.request.charges {
+        let (charges, customer) = match &item.request.charges {
             Some(charges) => {
-                let auto_pm_enabled = charges.automatic_payment_methods_enabled.unwrap_or(false);
                 let charges = match &charges.charge_type {
                     api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         api_enums::StripeChargeType::Direct => {
                             Some(IntentCharges::Direct(DirectCharges {
                                 application_fee_amount: charges.fees,
-                                automatic_payment_methods_enabled: auto_pm_enabled,
                             }))
                         }
                         api_enums::StripeChargeType::Destination => {
                             Some(IntentCharges::Destination(DestinationCharges {
                                 application_fee_amount: charges.fees,
                                 destination_account_id: charges.transfer_account_id.clone(),
-                                automatic_payment_methods_enabled: auto_pm_enabled,
                             }))
                         }
                     },
                 };
-                (charges, None, auto_pm_enabled)
+                (charges, None)
             }
-            None => (
-                None,
-                item.connector_customer.to_owned().map(Secret::new),
-                false,
-            ),
-        };
-
-        let payment_method_types = if automatic_payment_methods_enabled {
-            None
-        } else {
-            payment_method_types
+            None => (None, item.connector_customer.to_owned().map(Secret::new)),
         };
 
         Ok(Self {
@@ -2924,13 +2901,13 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
             .into()),
             Some(charges) => {
                 let (refund_application_fee, reverse_transfer) = match charges.request.options {
-                    Some(api_enums::ChargeRefundsOptions::Direct(
-                        api_enums::DirectChargeRefund {
+                    Some(api_models::refunds::ChargeRefundsOptions::Direct(
+                        api_models::refunds::DirectChargeRefund {
                             revert_platform_fee,
                         },
                     )) => (Some(revert_platform_fee), None),
-                    Some(api_enums::ChargeRefundsOptions::Destination(
-                        api_enums::DestinationChargeRefund {
+                    Some(api_models::refunds::ChargeRefundsOptions::Destination(
+                        api_models::refunds::DestinationChargeRefund {
                             revert_platform_fee,
                             revert_transfer,
                         },
