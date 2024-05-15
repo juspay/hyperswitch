@@ -75,12 +75,12 @@ fn compile_pm_graph(
 
             // Making our output node
             let pmt_info = "PaymentMethodType";
-            let dir_node :NodeValue<DirValue> = (pmt.payment_method_type, pm_enabled.payment_method).into_dir_value().map(Into::into)?;
-            let payment_method_type_value_node = builder.make_value_node(
-                dir_node,
-                Some(pmt_info),
-                None::<()>,
-            );
+            let dir_node: NodeValue<DirValue> =
+                (pmt.payment_method_type, pm_enabled.payment_method)
+                    .into_dir_value()
+                    .map(Into::into)?;
+            let payment_method_type_value_node =
+                builder.make_value_node(dir_node, Some(pmt_info), None::<()>);
 
             builder
                 .make_edge(

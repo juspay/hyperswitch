@@ -2818,7 +2818,8 @@ pub async fn filter_payment_methods(
                 //     && filter_amount_based(&payment_method_type_info, req.amount)
                 // {
                 let payment_method_object = payment_method_type_info.clone();
-                let pm_dir_value:DirValue = (payment_method_type_info.payment_method_type, payment_method)
+                let pm_dir_value: DirValue =
+                    (payment_method_type_info.payment_method_type, payment_method)
                         .into_dir_value()
                         .map(Into::into)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
