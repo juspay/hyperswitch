@@ -136,7 +136,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsRetrieve
             | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
-            | Flow::RefundsList => Self::Refunds,
+            | Flow::RefundsList
+            | Flow::RefundsFilters => Self::Refunds,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
@@ -210,7 +211,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VerifyEmail
             | Flow::AcceptInviteFromEmail
             | Flow::VerifyEmailRequest
-            | Flow::UpdateUserAccountDetails => Self::User,
+            | Flow::UpdateUserAccountDetails
+            | Flow::TotpBegin
+            | Flow::TotpVerify => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole
@@ -218,6 +221,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::AcceptInvitation
+            | Flow::MerchantSelect
             | Flow::DeleteUserRole
             | Flow::TransferOrgOwnership
             | Flow::CreateRole

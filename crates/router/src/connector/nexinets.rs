@@ -10,7 +10,7 @@ use crate::{
     configs::settings,
     connector::{
         utils as connector_utils,
-        utils::{to_connector_meta, PaymentsSyncRequestData},
+        utils::{to_connector_meta, PaymentMethodDataType, PaymentsSyncRequestData},
     },
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -155,6 +155,22 @@ impl ConnectorValidation for Nexinets {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::Eps,
+            PaymentMethodDataType::Giropay,
+            PaymentMethodDataType::Ideal,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

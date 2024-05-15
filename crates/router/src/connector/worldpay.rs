@@ -10,10 +10,9 @@ use error_stack::ResultExt;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
-use super::utils::{self, RefundsRequestData};
+use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -713,7 +712,7 @@ impl api::IncomingWebhook for Worldpay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let event_signature =
-            utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
+            connector_utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
             .last()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
