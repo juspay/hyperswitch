@@ -305,7 +305,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -342,7 +342,7 @@ mod storage {
             new: storage_types::RefundNew,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Insert).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(self,storage_scheme, Op::Insert).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -487,7 +487,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -536,7 +536,7 @@ mod storage {
                 payment_id: &payment_id,
             };
             let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Update(key.clone(), &field,Some(&this.updated_by))).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(self,storage_scheme, Op::Update(key.clone(), &field,Some(&this.updated_by))).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -592,7 +592,7 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -642,7 +642,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -691,7 +691,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::Refund>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {

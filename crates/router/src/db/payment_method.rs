@@ -97,7 +97,7 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -141,7 +141,7 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -197,7 +197,7 @@ mod storage {
             mut payment_method_new: storage_types::PaymentMethodNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
-            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Insert).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(self,storage_scheme, Op::Insert).await;
             payment_method_new.update_storage_scheme(storage_scheme);
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
@@ -287,7 +287,7 @@ mod storage {
                 customer_id: &customer_id,
             };
             let field = format!("payment_method_id_{}", payment_method.payment_method_id);
-            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(&self,storage_scheme, Op::Update(key.clone(), &field, (&payment_method).updated_by.as_ref().map(|x| x.as_str()))).await;
+            let storage_scheme = decide_storage_scheme::<_,storage_types::PaymentMethod>(self,storage_scheme, Op::Update(key.clone(), &field, payment_method.updated_by.as_deref())).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;

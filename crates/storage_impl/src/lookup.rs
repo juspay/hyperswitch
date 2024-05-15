@@ -71,7 +71,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
         new: DieselReverseLookupNew,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let storage_scheme = decide_storage_scheme::<_,DieselReverseLookup>(&self,storage_scheme, Op::Insert).await;
+        let storage_scheme = decide_storage_scheme::<_,DieselReverseLookup>(self,storage_scheme, Op::Insert).await;
         match storage_scheme {
             storage_enums::MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -125,7 +125,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                 .get_lookup_by_lookup_id(id, storage_scheme)
                 .await
         };
-        let storage_scheme = decide_storage_scheme::<_,DieselReverseLookup>(&self,storage_scheme, Op::Find).await;
+        let storage_scheme = decide_storage_scheme::<_,DieselReverseLookup>(self,storage_scheme, Op::Find).await;
         match storage_scheme {
             storage_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
             storage_enums::MerchantStorageScheme::RedisKv => {
