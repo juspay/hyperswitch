@@ -76,10 +76,10 @@ impl FromStr for CardNumber {
 
         let card_number = card_number.split_whitespace().collect::<String>();
 
-        let is_card_valid = sanitize_card_number(&card_number)?.then_some(());
+        let is_card_valid = sanitize_card_number(&card_number)?;
 
-        if valid_test_cards.contains(&card_number.as_str()) || is_card_valid.is_some() {
-            Ok(Self(StrongSecret::from_str(&card_number)?))
+        if valid_test_cards.contains(&card_number.as_str()) || is_card_valid {
+            Ok(Self(StrongSecret::new(Secret::new(card_number))))
         } else {
             Err(CardNumberValidationErr("card number invalid"))
         }
