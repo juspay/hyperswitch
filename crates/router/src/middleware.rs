@@ -3,6 +3,8 @@ use router_env::{
     logger,
     tracing::{field::Empty, Instrument},
 };
+
+use crate::headers;
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 
@@ -257,11 +259,30 @@ where
             let (_, mut new_payload) = actix_http::h1::Payload::create(true);
             new_payload.unread_data(bytes.to_vec().clone().into());
             let new_req = actix_web::dev::ServiceRequest::from_parts(http_req, new_payload.into());
+
+            let content_length_header = new_req
+                .headers()
+                .get(headers::CONTENT_LENGTH)
+                .map(ToOwned::to_owned);
             let response_fut = svc.call(new_req);
             let response = response_fut.await?;
             // Log the request_details when we receive 400 status from the application
             if response.status() == 400 {
                 let request_id = request_id_fut.await?.as_hyphenated().to_string();
+                let content_length_header_string = content_length_header
+                    .map(|content_length_header| {
+                        content_length_header.to_str().map(ToOwned::to_owned)
+                    })
+                    .transpose()
+                    .map_err(|error| {
+                        logger::warn!("Could not convert content length to string {error:?}");
+                        error
+                    })
+                    .ok()
+                    .flatten();
+
+                logger::info!("Content length: {content_length_header_string:?}");
+
                 if !bytes.is_empty() {
                     let value_result: Result<serde_json::Value, serde_json::Error> =
                         serde_json::from_slice(&bytes);
