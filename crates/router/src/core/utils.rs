@@ -1168,7 +1168,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     try {{
                                         // if inside iframe, send post message to parent for redirection
                                         if (window.self !== window.parent) {{
-                                            window.top.postMessage({{openurl: return_url}}, '*')
+                                            window.top.postMessage({{openurl_if_required: return_url}}, '*')
                                         // if parent, redirect self to return_url
                                         }} else {{
                                             window.location.href = return_url
@@ -1176,7 +1176,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     }}
                                     catch(err) {{
                                         // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
-                                        window.top.postMessage({{openurl: return_url}}, '*')
+                                        window.top.postMessage({{openurl_if_required: return_url}}, '*')
                                         setTimeout(function() {{
                                             window.location.href = return_url
                                         }}, 10000);

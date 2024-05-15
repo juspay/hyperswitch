@@ -36,6 +36,8 @@ pub(crate) const NO_ERROR_CODE: &str = "No error code";
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+pub(crate) const REFUND_VOIDED: &str = "Refund request has been voided.";
+
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
 #[cfg(feature = "payouts")]
@@ -118,3 +120,4 @@ pub const DEFAULT_POLL_FREQUENCY: i8 = 5;
 
 // Number of seconds to subtract from access token expiry
 pub(crate) const REDUCE_ACCESS_TOKEN_EXPIRY_TIME: u8 = 15;
+pub const CONNECTOR_CREDS_TOKEN_TTL: i64 = 900;

@@ -282,6 +282,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         fingerprint_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
         updated_by: String,
     },
     UpdateTrackers {
