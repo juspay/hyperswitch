@@ -1224,6 +1224,7 @@ pub fn get_apple_pay_session<F, T>(
                         total: apple_pay_init_result.total.into(),
                         merchant_identifier: None,
                         required_billing_contact_fields: None,
+                        required_shipping_contact_fields: None,
                     }),
                     connector: "trustpay".to_string(),
                     delayed_session_token: true,
@@ -1281,6 +1282,12 @@ pub fn get_google_pay_session<F, T>(
                             .collect(),
                         transaction_info: google_pay_init_result.transaction_info.into(),
                         secrets: Some((*secrets).clone().into()),
+                        shipping_address_required: false,
+                        email_required: false,
+                        shipping_address_parameters:
+                            api_models::payments::GpayShippingAddressParameters {
+                                phone_number_required: false,
+                            },
                     },
                 ),
             ))),
