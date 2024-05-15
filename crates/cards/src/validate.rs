@@ -208,11 +208,29 @@ mod tests {
     }
 
     #[test]
+    fn invalid_card_number_length() {
+        let s = "371446";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap_err().to_string(),
+            "invalid card number length".to_string()
+        );
+    }
+
+    #[test]
+    fn card_number_with_non_digit_character() {
+        let s = "371446431 A";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap_err().to_string(),
+            "invalid character found in card number".to_string()
+        );
+    }
+
+    #[test]
     fn invalid_card_number() {
         let s = "371446431";
         assert_eq!(
             CardNumber::from_str(s).unwrap_err().to_string(),
-            "not a valid credit card number".to_string()
+            "card number invalid".to_string()
         );
     }
 
@@ -256,6 +274,6 @@ mod tests {
     fn test_invalid_card_number_deserialization() {
         let card_number = serde_json::from_str::<CardNumber>(r#""1234 5678""#);
         let error_msg = card_number.unwrap_err().to_string();
-        assert_eq!(error_msg, "not a valid credit card number".to_string());
+        assert_eq!(error_msg, "card number invalid".to_string());
     }
 }
