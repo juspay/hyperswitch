@@ -1375,10 +1375,12 @@ pub fn validate_max_amount(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match amount {
         api_models::payments::Amount::Value(value) => {
-            //max_amount allowed is 999999999 in minor units
-            utils::when(value.get() > 999999999, || {
+            utils::when(value.get() > consts::MAX_ALLOWED_AMOUNT, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "amount should not be more than 999999999".to_string()
+                    message: format!(
+                        "amount should not be more than {}",
+                        consts::MAX_ALLOWED_AMOUNT
+                    )
                 }))
             })
         }
