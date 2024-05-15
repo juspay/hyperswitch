@@ -14716,7 +14716,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"payment_method\":\"bank_redirect\",\"payment_method_type\":\"ideal\",\"payment_method_data\":{\"bank_redirect\":{\"ideal\":{\"billing_details\":{\"billing_name\":\"John Doe\"},\"bank_name\":\"ing\",\"preferred_language\":\"en\",\"country\":\"DE\"}}},\"client_secret\":\"{{client_secret}}\"}"
+                      "raw": "{\"payment_method\":\"bank_redirect\",\"payment_method_type\":\"ideal\",\"payment_method_data\":{\"bank_redirect\":{\"ideal\":{\"bank_name\":\"ing\",\"preferred_language\":\"en\"}}},\"client_secret\":\"{{client_secret}}\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -15146,7 +15146,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"payment_method\":\"bank_redirect\",\"payment_method_type\":\"sofort\",\"payment_method_data\":{\"bank_redirect\":{\"sofort\":{\"billing_details\":{\"billing_name\":\"John Doe\"},\"bank_name\":\"hypo_noe_lb_fur_niederosterreich_u_wien\",\"preferred_language\":\"en\",\"country\":\"DE\"}}},\"client_secret\":\"{{client_secret}}\"}"
+                      "raw": "{\"payment_method\":\"bank_redirect\",\"payment_method_type\":\"sofort\",\"payment_method_data\":{\"bank_redirect\":{\"sofort\":{\"bank_name\":\"hypo_noe_lb_fur_niederosterreich_u_wien\",\"preferred_language\":\"en\"}}},\"client_secret\":\"{{client_secret}}\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -17569,7 +17569,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"currency\":\"EUR\",\"shipping\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala \",\"line3\":\"Koramangala \",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"}},\"billing\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala \",\"line3\":\"Koramangala \",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"}}}"
+                      "raw": "{\"currency\":\"EUR\",\"shipping\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala\",\"line3\":\"Koramangala\",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"}},\"billing\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala\",\"line3\":\"Koramangala\",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"},\"email\":\"swangi@gmail.com\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id",
