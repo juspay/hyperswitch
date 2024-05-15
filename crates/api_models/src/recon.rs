@@ -17,5 +17,5 @@ pub struct ReconTokenResponse {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ReconStatusResponse {
-    pub recon_status: enums::ReconStatus,
+    pub recon_status: Option<enums::ReconStatus>,
 }

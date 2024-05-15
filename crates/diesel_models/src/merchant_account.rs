@@ -39,7 +39,7 @@ pub struct MerchantAccount {
     pub organization_id: String,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
-    pub recon_status: storage_enums::ReconStatus,
+    pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
 }
 
@@ -69,7 +69,7 @@ pub struct MerchantAccountNew {
     pub organization_id: String,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
-    pub recon_status: storage_enums::ReconStatus,
+    pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
 }
 
@@ -98,6 +98,6 @@ pub struct MerchantAccountUpdateInternal {
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<Option<String>>,
-    pub recon_status: storage_enums::ReconStatus,
+    pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
 }

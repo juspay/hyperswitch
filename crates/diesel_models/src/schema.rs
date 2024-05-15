@@ -631,7 +631,7 @@ diesel::table! {
         is_recon_enabled -> Bool,
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
-        recon_status -> ReconStatus,
+        recon_status -> Nullable<ReconStatus>,
         payment_link_config -> Nullable<Jsonb>,
     }
 }

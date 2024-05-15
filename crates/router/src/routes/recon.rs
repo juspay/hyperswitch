@@ -143,7 +143,7 @@ pub async fn send_recon_request(
     } else {
         Ok(service_api::ApplicationResponse::Json(
             recon_api::ReconStatusResponse {
-                recon_status: enums::ReconStatus::NotRequested,
+                recon_status: Some(enums::ReconStatus::NotRequested),
             },
         ))
     }
