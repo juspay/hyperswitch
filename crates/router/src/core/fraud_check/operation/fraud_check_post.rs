@@ -17,7 +17,6 @@ use crate::{
             types::{FrmData, PaymentDetails, PaymentToFrmData, CANCEL_INITIATED},
             ConnectorDetailsCore, FrmConfigsObject,
         },
-        payment_methods::Oss,
         payments,
     },
     db::StorageInterface,
@@ -213,7 +212,6 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 _,
                 _,
                 _,
-                Oss,
             >(
                 state.clone(),
                 req_state.clone(),
@@ -269,7 +267,6 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 _,
                 _,
                 _,
-                Oss,
             >(
                 state.clone(),
                 req_state.clone(),

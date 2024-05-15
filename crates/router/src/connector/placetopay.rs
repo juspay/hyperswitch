@@ -8,7 +8,7 @@ use transformers as placetopay;
 
 use crate::{
     configs::settings,
-    connector::utils::{self},
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -122,10 +122,9 @@ impl ConnectorValidation for Placetopay {
             enums::CaptureMethod::Automatic => Ok(()),
             enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(utils::construct_not_supported_error_report(
-                capture_method,
-                self.id(),
-            )),
+            | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
         }
     }
 }

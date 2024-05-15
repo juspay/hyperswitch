@@ -2,7 +2,6 @@ mod requests;
 use super::utils as connector_utils;
 mod response;
 pub mod transformers;
-
 use std::fmt::Debug;
 
 use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
@@ -18,7 +17,7 @@ use self::{
         GlobalpayRefreshTokenResponse,
     },
 };
-use super::utils::RefundsRequestData;
+use super::utils::{PaymentMethodDataType, RefundsRequestData};
 use crate::{
     configs::settings,
     core::{
@@ -35,6 +34,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
+        transformers::ForeignTryFrom,
         ErrorResponse,
     },
     utils::{crypto, BytesExt},
@@ -130,6 +130,22 @@ impl ConnectorValidation for Globalpay {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::Ideal,
+            PaymentMethodDataType::Sofort,
+            PaymentMethodDataType::Eps,
+            PaymentMethodDataType::Giropay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -531,7 +547,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             types::SyncRequestType::MultipleCaptureSync(_) => true,
             types::SyncRequestType::SinglePaymentSync => false,
         };
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),

@@ -11,7 +11,6 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::PaymentMethodRetrieve,
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
             PaymentAddress,
@@ -35,8 +34,8 @@ use crate::{
 pub struct PaymentIncrementalAuthorization;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest, Ctx>
+impl<F: Send + Clone>
+    GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -49,9 +48,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         _key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
-    > {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsIncrementalAuthorizationRequest>>
+    {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -170,8 +168,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: PaymentMethodRetrieve>
-    UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest, Ctx>
+impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -187,7 +184,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
+        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
         payments::PaymentData<F>,
     )>
     where
@@ -261,8 +258,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, Ctx>
+impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -271,7 +267,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         request: &PaymentsIncrementalAuthorizationRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
+        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
         operations::ValidateResult<'a>,
     )> {
         Ok((
@@ -287,8 +283,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
-    Domain<F, PaymentsIncrementalAuthorizationRequest, Ctx> for PaymentIncrementalAuthorization
+impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
+    for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -300,7 +296,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
+            BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -317,7 +313,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
+        BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
         Option<api::PaymentMethodData>,
         Option<String>,
     )> {
