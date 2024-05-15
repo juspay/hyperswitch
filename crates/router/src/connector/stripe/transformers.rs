@@ -604,7 +604,7 @@ pub struct WechatpayPayment {
     pub client: WechatClient,
 }
 
-#[derive(Debug, Eq, Clone, PartialEq, Serialize, Copy)]
+#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum WechatClient {
     Web,
@@ -1861,19 +1861,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             Some(charges) => {
                 let auto_pm_enabled = charges
                     .automatic_payment_methods_enabled
-                    .clone()
                     .unwrap_or(false);
                 let charges = match &charges.charge_type {
                     api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         api_enums::StripeChargeType::Direct => {
                             Some(IntentCharges::Direct(DirectCharges {
-                                application_fee_amount: charges.fees.clone(),
+                                application_fee_amount: charges.fees,
                                 automatic_payment_methods_enabled: auto_pm_enabled,
                             }))
                         }
                         api_enums::StripeChargeType::Destination => {
                             Some(IntentCharges::Destination(DestinationCharges {
-                                application_fee_amount: charges.fees.clone(),
+                                application_fee_amount: charges.fees,
                                 destination_account_id: charges.transfer_account_id.clone(),
                                 automatic_payment_methods_enabled: auto_pm_enabled,
                             }))
@@ -2693,6 +2692,7 @@ impl<F, T>
                     }),
                 _ => None,
             };
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2919,7 +2919,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
-        let payment_intent = item.request.connector_transaction_id.clone();
         match item.request.charges.as_ref() {
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "charges",

@@ -75,6 +75,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::new(
@@ -146,13 +147,13 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
-            connector_charge_id: None,
             refund_amount: 100,
             webhook_url: None,
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
             browser_info: None,
+            ..utils::PaymentRefundType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),

@@ -882,16 +882,15 @@ impl
             .charges
             .as_ref()
             .map(|charge| match &charge.charge_type {
-                api::enums::PaymentChargeType::Stripe(stripe_charge) => match stripe_charge {
-                    api::enums::StripeChargeType::Direct => {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                    if stripe_charge == &api::enums::StripeChargeType::Direct {
                         let mut customer_account_header = vec![(
                             headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
                             charge.transfer_account_id.clone().into_masked(),
                         )];
                         header.append(&mut customer_account_header);
                     }
-                    _ => (),
-                },
+                }
             });
         Ok(header)
     }
@@ -1376,16 +1375,15 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .charges
             .as_ref()
             .map(|charge| match &charge.charge_type {
-                api::enums::PaymentChargeType::Stripe(stripe_charge) => match stripe_charge {
-                    api::enums::StripeChargeType::Direct => {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                    if stripe_charge == &api::enums::StripeChargeType::Direct {
                         let mut customer_account_header = vec![(
                             headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
                             charge.transfer_account_id.clone().into_masked(),
                         )];
                         header.append(&mut customer_account_header);
                     }
-                    _ => (),
-                },
+                }
             });
 
         Ok(header)
@@ -1410,7 +1408,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let request_body = match req.request.charges.as_ref() {
             None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from(req)?)),
-            Some(charges) => RequestContent::FormUrlEncoded(Box::new(
+            Some(_) => RequestContent::FormUrlEncoded(Box::new(
                 stripe::ChargeRefundRequest::try_from(req)?,
             )),
         };
