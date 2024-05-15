@@ -30,7 +30,6 @@ use crate::{
     core::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse},
-        payment_methods::PaymentMethodRetrieve,
         payments, refunds,
     },
     db::StorageInterface,
@@ -59,7 +58,7 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
-pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
+pub async fn payments_incoming_webhook_flow(
     state: AppState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
@@ -102,7 +101,6 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
                 _,
                 _,
                 _,
-                Ctx,
             >(
                 state.clone(),
                 req_state,
@@ -419,7 +417,7 @@ pub async fn get_or_update_dispute_object(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
+pub async fn external_authentication_incoming_webhook_flow(
     state: AppState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
@@ -511,7 +509,6 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                     _,
                     _,
                     _,
-                    Ctx,
                 >(
                     state.clone(),
                     req_state,
@@ -752,7 +749,7 @@ pub async fn disputes_incoming_webhook_flow(
     }
 }
 
-async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
+async fn bank_transfer_webhook_flow(
     state: AppState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
@@ -782,7 +779,6 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
             _,
             _,
             _,
-            Ctx,
         >(
             state.clone(),
             req_state,
@@ -1448,7 +1444,7 @@ fn raise_webhooks_analytics_event(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
+pub async fn webhooks_wrapper<W: types::OutgoingWebhookType>(
     flow: &impl router_env::types::FlowMetric,
     state: AppState,
     req_state: ReqState,
@@ -1460,7 +1456,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
-        Box::pin(webhooks_core::<W, Ctx>(
+        Box::pin(webhooks_core::<W>(
             state.clone(),
             req_state,
             req,
@@ -1513,7 +1509,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
 }
 
 #[instrument(skip_all)]
-pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
+pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     state: AppState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -1750,7 +1746,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             })?;
 
         match flow_type {
-            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow::<Ctx>(
+            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
                 state.clone(),
                 req_state,
                 merchant_account,
@@ -1789,7 +1785,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
-            api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow::<Ctx>(
+            api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow(
                 state.clone(),
                 req_state,
                 merchant_account,
@@ -1816,7 +1812,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .attach_printable("Incoming webhook flow for mandates failed")?,
 
             api::WebhookFlow::ExternalAuthentication => {
-                Box::pin(external_authentication_incoming_webhook_flow::<Ctx>(
+                Box::pin(external_authentication_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account,

@@ -265,6 +265,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         authentication_connector_details: None,
         extended_card_info_config: None,
         use_billing_as_payment_method_billing: None,
+        collect_shipping_details_from_wallet_connector: None,
     };
 
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)

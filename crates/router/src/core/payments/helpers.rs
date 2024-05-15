@@ -40,15 +40,14 @@ use crate::{
         authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
-        payment_methods::{cards, vault, PaymentMethodRetrieve},
+        payment_methods::{self, cards, vault},
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
-    routes::{metrics, payment_methods, AppState},
+    routes::{metrics, payment_methods as payment_methods_handler, AppState},
     services,
     types::{
-        self as core_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
@@ -58,7 +57,8 @@ use crate::{
             self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
         },
         transformers::{ForeignFrom, ForeignTryFrom},
-        ErrorResponse, MandateReference, RouterData,
+        AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
+        RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -665,7 +665,7 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: Some(token),
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
+            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
@@ -679,7 +679,7 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: None,
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
+            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
@@ -1234,11 +1234,10 @@ where
     }
 }
 
-pub fn response_operation<'a, F, R, Ctx>() -> BoxedOperation<'a, F, R, Ctx>
+pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R>
 where
     F: Send + Clone,
-    Ctx: PaymentMethodRetrieve,
-    PaymentResponse: Operation<F, R, Ctx>,
+    PaymentResponse: Operation<F, R>,
 {
     Box::new(PaymentResponse)
 }
@@ -1468,15 +1467,15 @@ pub async fn get_connector_default(
 
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
-    operation: BoxedOperation<'a, F, R, Ctx>,
+pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+    operation: BoxedOperation<'a, F, R>,
     db: &dyn StorageInterface,
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-) -> CustomResult<(BoxedOperation<'a, F, R, Ctx>, Option<domain::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
     let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -1884,15 +1883,15 @@ pub async fn retrieve_payment_token_data(
     Ok(token_data)
 }
 
-pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
-    operation: BoxedOperation<'a, F, R, Ctx>,
+pub async fn make_pm_data<'a, F: Clone, R>(
+    operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> RouterResult<(
-    BoxedOperation<'a, F, R, Ctx>,
+    BoxedOperation<'a, F, R>,
     Option<api::PaymentMethodData>,
     Option<String>,
 )> {
@@ -1935,7 +1934,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     // TODO: Handle case where payment method and token both are present in request properly.
     let (payment_method, pm_id) = match (request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
-            let pm_data = Ctx::retrieve_payment_method_with_token(
+            let pm_data = payment_methods::retrieve_payment_method_with_token(
                 state,
                 merchant_key_store,
                 hyperswitch_token,
@@ -1963,7 +1962,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         }
 
         (Some(_), _) => {
-            let (payment_method_data, payment_token) = Ctx::retrieve_payment_method(
+            let (payment_method_data, payment_token) = payment_methods::retrieve_payment_method(
                 request,
                 state,
                 &payment_data.payment_intent,
@@ -2001,7 +2000,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     .await?;
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
     let key_for_hyperswitch_token = payment_attempt.payment_method.map(|payment_method| {
-        payment_methods::ParentPaymentMethodToken::create_key_for_token((
+        payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,
             payment_method,
         ))
@@ -4199,7 +4198,7 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
 
 pub fn add_connector_response_to_additional_payment_data(
     additional_payment_data: api_models::payments::AdditionalPaymentData,
-    connector_response_payment_method_data: core_types::AdditionalPaymentMethodConnectorResponse,
+    connector_response_payment_method_data: AdditionalPaymentMethodConnectorResponse,
 ) -> api_models::payments::AdditionalPaymentData {
     match (
         &additional_payment_data,
@@ -4207,7 +4206,7 @@ pub fn add_connector_response_to_additional_payment_data(
     ) {
         (
             api_models::payments::AdditionalPaymentData::Card(additional_card_data),
-            core_types::AdditionalPaymentMethodConnectorResponse::Card {
+            AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data,
                 payment_checks,
             },
@@ -4224,7 +4223,7 @@ pub fn add_connector_response_to_additional_payment_data(
 
 pub fn update_additional_payment_data_with_connector_response_pm_data(
     additional_payment_data: Option<serde_json::Value>,
-    connector_response_pm_data: Option<core_types::AdditionalPaymentMethodConnectorResponse>,
+    connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let parsed_additional_payment_method_data = additional_payment_data
         .as_ref()
