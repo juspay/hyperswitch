@@ -1,3 +1,4 @@
+use crate::types::api;
 use bigdecimal::ToPrimitive;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
@@ -701,5 +702,29 @@ impl TryFrom<&frm_types::FrmRecordReturnRouterData> for SignifydPaymentsRecordRe
             refund,
             order_id: item.attempt_id.clone(),
         })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct SignifydWebhookBody {
+    pub order_id: String,
+    pub review_disposition: ReviewDisposition,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ReviewDisposition {
+    Fraudulent,
+    Good,
+}
+
+impl From<ReviewDisposition> for api::IncomingWebhookEvent {
+    fn from(value: ReviewDisposition) -> Self {
+        match value {
+            ReviewDisposition::Fraudulent => Self::FrmRejected,
+            ReviewDisposition::Good => Self::FrmApproved,
+        }
     }
 }

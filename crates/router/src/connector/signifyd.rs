@@ -3,17 +3,20 @@ use std::fmt::Debug;
 
 use base64::Engine;
 #[cfg(feature = "frm")]
-use common_utils::request::RequestContent;
-use error_stack::{report, ResultExt};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use error_stack::ResultExt;
 use masking::PeekInterface;
+use ring::hmac;
 use transformers as signifyd;
 
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
+    types::domain,
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -648,24 +651,98 @@ impl
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Signifyd {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value =
+            connector_utils::get_header_key_value("x-signifyd-sec-hmac-sha256", request.headers)?;
+        Ok(header_value.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_account,
+                connector_label,
+                merchant_connector_account,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let message = self
+            .get_webhook_source_verification_message(
+                request,
+                &merchant_account.merchant_id,
+                &connector_webhook_secrets,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &connector_webhook_secrets.secret);
+        let signed_message = hmac::sign(&signing_key, &message);
+        let payload_sign = consts::BASE64_ENGINE.encode(signed_message.as_ref());
+        Ok(payload_sign.as_bytes().eq(&signature))
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: signifyd::api::SignifydWebhookBody = request
+            .body
+            .parse_struct("SignifydWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::PaymentAttemptId(resource.order_id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: signifyd::api::SignifydWebhookBody = request
+            .body
+            .parse_struct("SignifydWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::IncomingWebhookEvent::from(resource.review_disposition))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: signifyd::api::SignifydWebhookBody = request
+            .body
+            .parse_struct("SignifydWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(resource))
     }
 }

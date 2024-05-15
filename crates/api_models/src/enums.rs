@@ -478,3 +478,7 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
 }
+
+pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
+    FrmConnectors::from_str(connector_name).ok()
+}

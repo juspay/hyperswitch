@@ -682,6 +682,125 @@ pub async fn mandates_incoming_webhook_flow(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
+pub(crate) async fn frm_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
+    state: AppState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    source_verified: bool,
+    event_type: webhooks::IncomingWebhookEvent,
+    _request_details: &api::IncomingWebhookRequestDetails<'_>,
+    _connector: &(dyn api::Connector + Sync),
+    object_ref_id: api::ObjectReferenceId,
+    _business_profile: diesel_models::business_profile::BusinessProfile,
+    _merchant_connector_account: domain::MerchantConnectorAccount,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    if source_verified {
+        let payment_attempt =
+            get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_account)
+                .await?;
+        match event_type {
+            webhooks::IncomingWebhookEvent::FrmApproved => {
+                println!("frm approved");
+                let payments_response = Box::pin(payments::payments_core::<
+                    api::Approve,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    Ctx,
+                >(
+                    state.clone(),
+                    req_state,
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    payments::PaymentApprove,
+                    api::PaymentsCaptureRequest {
+                        payment_id: payment_attempt.payment_id,
+                        ..Default::default()
+                    },
+                    services::api::AuthFlow::Merchant,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    HeaderPayload::default(),
+                ))
+                .await?;
+                match payments_response {
+                    services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
+                        let payment_id = payments_response
+                            .payment_id
+                            .clone()
+                            .get_required_value("payment_id")
+                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                            .attach_printable("payment id not received from payments core")?;
+                        let status = payments_response.status;
+                        let _event_type: Option<enums::EventType> =
+                            payments_response.status.foreign_into();
+                        let response = WebhookResponseTracker::Payment { payment_id, status };
+                        Ok(response)
+                    }
+                    _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+                        "Did not get payment id as object reference id in webhook payments flow",
+                    )?,
+                }
+            }
+            webhooks::IncomingWebhookEvent::FrmRejected => {
+                println!("frm approved");
+                let payments_response = Box::pin(payments::payments_core::<
+                    api::Reject,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    Ctx,
+                >(
+                    state.clone(),
+                    req_state,
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    payments::PaymentCancel,
+                    api::PaymentsCancelRequest {
+                        payment_id: payment_attempt.payment_id.clone(),
+                        cancellation_reason: Some("Rejected by merchant".to_string()),
+                        ..Default::default()
+                    },
+                    services::api::AuthFlow::Merchant,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    HeaderPayload::default(),
+                ))
+                .await?;
+                match payments_response {
+                    services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
+                        let payment_id = payments_response
+                            .payment_id
+                            .clone()
+                            .get_required_value("payment_id")
+                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                            .attach_printable("payment id not received from payments core")?;
+                        let status = payments_response.status;
+                        let _event_type: Option<enums::EventType> =
+                            payments_response.status.foreign_into();
+                        let response = WebhookResponseTracker::Payment { payment_id, status };
+                        Ok(response)
+                    }
+                    _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+                        "Did not get payment id as object reference id in webhook payments flow",
+                    )?,
+                }
+            }
+            _ => Err(report!(errors::ApiErrorResponse::EventNotFound)),
+        }
+    } else {
+        logger::error!("Webhook source verification failed for frm webhooks flow");
+        Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub async fn disputes_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -1832,6 +1951,21 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 .await
                 .attach_printable("Incoming webhook flow for external authentication failed")?
             }
+            api::WebhookFlow::FraudRiskManagement => Box::pin(frm_incoming_webhook_flow::<Ctx>(
+                state.clone(),
+                req_state,
+                merchant_account,
+                key_store,
+                source_verified,
+                event_type,
+                &request_details,
+                connector,
+                object_ref_id,
+                business_profile,
+                merchant_connector_account,
+            ))
+            .await
+            .attach_printable("Incoming webhook flow for external authentication failed")?,
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
@@ -1905,12 +2039,20 @@ fn get_connector_by_connector_name(
 ) -> CustomResult<(&'static (dyn api::Connector + Sync), String), errors::ApiErrorResponse> {
     let authentication_connector =
         api_models::enums::convert_authentication_connector(connector_name);
+    let frm_connector = api_models::enums::convert_frm_connector(connector_name);
     let (connector, connector_name) = if authentication_connector.is_some() {
         let authentication_connector_data =
             api::AuthenticationConnectorData::get_connector_by_name(connector_name)?;
         (
             authentication_connector_data.connector,
             authentication_connector_data.connector_name.to_string(),
+        )
+    } else if frm_connector.is_some() {
+        let frm_connector_data =
+            api::FraudCheckConnectorData::get_connector_by_name(connector_name)?;
+        (
+            frm_connector_data.connector,
+            frm_connector_data.connector_name.to_string(),
         )
     } else {
         let connector_data = api::ConnectorData::get_connector_by_name(
