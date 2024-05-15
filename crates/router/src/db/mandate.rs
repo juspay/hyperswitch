@@ -88,7 +88,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -132,7 +132,7 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(&self,storage_scheme, Op::Find).await;
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Find).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -192,7 +192,7 @@ mod storage {
                 mandate_id,
             };
             let field = format!("mandate_{}", mandate_id);
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(&self,storage_scheme, Op::Update(key.clone(), &field,(&mandate).updated_by.as_ref().map(|x| x.as_str()))).await;
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Update(key.clone(), &field,mandate.updated_by.as_deref())).await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     storage_types::Mandate::update_by_merchant_id_mandate_id(
@@ -275,7 +275,7 @@ mod storage {
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(&self,storage_scheme, Op::Insert).await;
+            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Insert).await;
             mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => mandate

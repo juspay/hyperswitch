@@ -253,7 +253,7 @@ where
             {
                 Op::Insert =>  MerchantStorageScheme::PostgresOnly,
                 Op::Find => MerchantStorageScheme::RedisKv,
-                Op::Update(partition_key, field, Some(updated_by)) if updated_by == "redis_kv" => 
+                Op::Update(partition_key, field, Some("redis_kv")) => 
                     match kv_wrapper::<D,_,_>(
                                     store,
                                     KvOperation::<D>::HGet(field),
@@ -266,7 +266,8 @@ where
                         }
                     
                 ,
-                Op::Update(_,_,None) => MerchantStorageScheme::PostgresOnly, //
+                Op::Update(_,_,None) => MerchantStorageScheme::PostgresOnly,
+                Op::Update(_,_,Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
                 _ => storage_scheme
             };
         if updated_scheme != storage_scheme {
