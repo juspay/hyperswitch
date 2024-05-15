@@ -1797,7 +1797,7 @@ impl ForeignTryFrom<String> for UsStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
         let state_abbreviation_check =
-            StringExt::<UsStatesAbbreviation>::parse_enum(value.to_uppercase().clone(), "UsStatesAbbreviation");
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "UsStatesAbbreviation");
 
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
@@ -1878,7 +1878,7 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
         let state_abbreviation_check =
-            StringExt::<CanadaStatesAbbreviation>::parse_enum(value.to_uppercase().clone(), "CanadaStatesAbbreviation");
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "CanadaStatesAbbreviation");
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
