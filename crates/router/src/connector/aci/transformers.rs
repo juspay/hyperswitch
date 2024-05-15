@@ -218,7 +218,7 @@ impl
                     billing_country: None,
                     merchant_customer_id: None,
                     merchant_transaction_id: None,
-                    customer_email: Some(item.router_data.get_billing_email()?),
+                    customer_email: None,
                 }))
             }
             domain::BankRedirectData::Przelewy24 { .. } => {
