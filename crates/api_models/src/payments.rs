@@ -1468,9 +1468,9 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
-            Self::BankRedirect(_) => None,
+            Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
             Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
-            Self::BankTransfer(_) => None,
+            Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
@@ -1832,11 +1832,11 @@ pub enum BankRedirectData {
     },
     Interac {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
 
-        #[schema(value_type = String, example = "john.doe@example.com")]
-        email: Email,
+        #[schema(value_type = Option<String>, example = "john.doe@example.com")]
+        email: Option<Email>,
     },
     OnlineBankingCzechRepublic {
         // Issuer banks
@@ -1996,7 +1996,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                 ..
             } => get_billing_address_inner(billing_details.as_ref(), country.as_ref(), None),
             Self::Interac { country, email } => {
-                get_billing_address_inner(None, Some(country), Some(email))
+                get_billing_address_inner(None, country.as_ref(), email.as_ref())
             }
             Self::OnlineBankingFinland { email } => {
                 get_billing_address_inner(None, None, email.as_ref())
@@ -3605,9 +3605,11 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmountFilter {
+    /// The start amount to filter list of transactions which are greater than or equal to the start amount
     pub start_amount: Option<i64>,
+    /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
 }
 
@@ -3896,6 +3898,24 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
+    /// Is billing address required
+    pub billing_address_required: Option<bool>,
+    /// Billing address parameters
+    pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GpayBillingAddressParameters {
+    /// Is billing phone number required
+    pub phone_number_required: bool,
+    /// Billing address format
+    pub format: GpayBillingAddressFormat,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum GpayBillingAddressFormat {
+    FULL,
+    MIN,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4107,6 +4127,12 @@ pub struct GooglePayThirdPartySdk {
 pub struct GooglePaySessionResponse {
     /// The merchant info
     pub merchant_info: GpayMerchantInfo,
+    /// Is shipping address required
+    pub shipping_address_required: bool,
+    /// Is email required
+    pub email_required: bool,
+    /// Shipping address parameters
+    pub shipping_address_parameters: GpayShippingAddressParameters,
     /// List of the allowed payment meythods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
@@ -4119,6 +4145,13 @@ pub struct GooglePaySessionResponse {
     pub sdk_next_action: SdkNextAction,
     /// Secrets for sdk display and payment
     pub secrets: Option<SecretInfoToInitiateSdk>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GpayShippingAddressParameters {
+    /// Is shipping phone number required
+    pub phone_number_required: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4242,6 +4275,23 @@ pub struct ApplePayPaymentRequest {
     /// The list of supported networks
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
+    /// The required billing contact fields for connector
+    pub required_billing_contact_fields: Option<ApplePayBillingContactFields>,
+    /// The required shipping contacht fields for connector
+    pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayBillingContactFields(pub Vec<ApplePayAddressParameters>);
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayShippingContactFields(pub Vec<ApplePayAddressParameters>);
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ApplePayAddressParameters {
+    PostalAddress,
+    Phone,
+    Email,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]

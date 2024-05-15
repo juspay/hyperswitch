@@ -437,7 +437,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn pre_payment_frm_core<'a, F, Req, Ctx>(
+pub async fn pre_payment_frm_core<'a, F, Req>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
@@ -447,7 +447,7 @@ pub async fn pre_payment_frm_core<'a, F, Req, Ctx>(
     should_continue_transaction: &mut bool,
     should_continue_capture: &mut bool,
     key_store: domain::MerchantKeyStore,
-    operation: &BoxedOperation<'_, F, Req, Ctx>,
+    operation: &BoxedOperation<'_, F, Req>,
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
@@ -616,9 +616,9 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn call_frm_before_connector_call<'a, F, Req, Ctx>(
+pub async fn call_frm_before_connector_call<'a, F, Req>(
     db: &dyn StorageInterface,
-    operation: &BoxedOperation<'_, F, Req, Ctx>,
+    operation: &BoxedOperation<'_, F, Req>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
     state: &AppState,

@@ -17,7 +17,7 @@ use crate::{
         api::{self, enums as api_enums},
         domain,
         storage::enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::OptionExt,
 };
@@ -620,7 +620,7 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
 }
 
 impl<F, T>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             AuthorizedotnetPaymentsResponse,
@@ -631,7 +631,7 @@ impl<F, T>
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn foreign_try_from(
         (item, is_auto_capture): (
             types::ResponseRouterData<
                 F,

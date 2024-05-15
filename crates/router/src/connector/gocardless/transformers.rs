@@ -433,7 +433,7 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
                 },
                 payer_ip_address,
                 links: MandateLink {
-                    customer_bank_account: Secret::new(customer_bank_account),
+                    customer_bank_account,
                 },
             },
         })

@@ -178,7 +178,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
             .into());
         };
         let source = match item.router_data.get_payment_method_token()? {
-            types::PaymentMethodToken::Token(pm_token) => Ok(Secret::new(pm_token)),
+            types::PaymentMethodToken::Token(pm_token) => Ok(pm_token),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
             }),

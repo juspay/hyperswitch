@@ -454,7 +454,7 @@ impl<F, T>
                         }),
                     ),
                     _ => {
-                        let redirction_url = data
+                        let redirection_url = data
                             .redirect_url
                             .as_ref()
                             .filter(|redirect_str| !redirect_str.is_empty())
@@ -465,7 +465,7 @@ impl<F, T>
                             })
                             .transpose()?;
 
-                        let redirection_data = redirction_url
+                        let redirection_data = redirection_url
                             .map(|url| services::RedirectForm::from((url, services::Method::Get)));
 
                         (

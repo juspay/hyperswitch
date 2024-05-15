@@ -6,7 +6,7 @@ use router_env::{instrument, tracing, Flow, Tag};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
+    core::{api_locking::GetLockingInput, payments},
     logger,
     routes::{self, payments::get_or_generate_payment_id},
     services::{api, authentication as auth},
@@ -58,7 +58,7 @@ pub async fn payment_intents_create(
         create_payment_req,
         |state, auth, req, req_state| {
             let eligible_connectors = req.connector.clone();
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -118,7 +118,7 @@ pub async fn payment_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -188,7 +188,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,Oss>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -197,7 +197,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
-                    None,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -254,7 +254,7 @@ pub async fn payment_intents_update(
         payload,
         |state, auth, req, req_state| {
             let eligible_connectors = req.connector.clone();
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -326,7 +326,7 @@ pub async fn payment_intents_confirm(
         payload,
         |state, auth, req, req_state| {
             let eligible_connectors = req.connector.clone();
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -387,7 +387,7 @@ pub async fn payment_intents_capture(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _,Oss>(
+            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -396,7 +396,7 @@ pub async fn payment_intents_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
-                    None,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -452,7 +452,7 @@ pub async fn payment_intents_cancel(
         &req,
         payload,
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _, Oss>(
+            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
