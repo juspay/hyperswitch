@@ -41,8 +41,8 @@ pub struct PaymentMethod {
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
-    pub updated_by : Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
+    pub updated_by : Option<String>,
 }
 
 #[derive(

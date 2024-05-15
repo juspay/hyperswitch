@@ -294,7 +294,7 @@ diesel::table! {
         address_id -> Nullable<Varchar>,
         #[max_length = 64]
         default_payment_method_id -> Nullable<Varchar>,
-        #[max_length = 64]
+        #[max_length = 255]
         updated_by -> Nullable<Varchar>,
     }
 }
@@ -930,9 +930,9 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,
+        payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
-        payment_method_billing_address -> Nullable<Bytea>,
     }
 }
 
