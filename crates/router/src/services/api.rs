@@ -936,6 +936,9 @@ pub enum RedirectForm {
         customer_vault_id: String,
         order_id: String,
     },
+    Mifinity {
+        initialization_token: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -1763,7 +1766,7 @@ pub fn build_redirection_form(
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
-                    (PreEscaped(format!("<script>
+                (PreEscaped(format!("<script>
                                 {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
@@ -1962,6 +1965,29 @@ pub fn build_redirection_form(
             </script>"
             )))
                 }
+        }
+        RedirectForm::Mifinity {
+            initialization_token,
+        } => {
+            maud::html! {
+                        (maud::DOCTYPE)
+                        head {
+                            (PreEscaped(r#"<script src='https://demo.mifinity.com/widgets/sgpg.js?58190a411dc3'></script>"#))
+                        }
+
+                        (PreEscaped(format!("<div id='widget-container'></div>
+	  <script>
+		  var widget = showPaymentIframe('widget-container', {{
+			  token: '{initialization_token}',
+			  complete: function() {{
+				  setTimeout(function() {{
+					widget.close();
+				  }}, 5000);
+			  }}
+		   }});
+	   </script>")))
+
+            }
         }
     }
 }

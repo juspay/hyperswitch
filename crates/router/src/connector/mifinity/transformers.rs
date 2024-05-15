@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},
     core::errors,
+    services,
     types::{self, domain, storage::enums},
 };
 
@@ -38,6 +39,10 @@ impl<T>
             router_data: item,
         })
     }
+}
+
+pub mod auth_headers {
+    pub const API_VERSION: &str = "api-version";
 }
 
 //TODO: Fill the struct with respective fields
@@ -262,11 +267,19 @@ impl<F, T>
             .iter()
             .map(|payload| payload.trace_id.clone())
             .collect();
+        let initialization_token = item
+            .response
+            .payload
+            .iter()
+            .map(|payload| payload.initialization_token.clone())
+            .collect();
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
-                redirection_data: None,
+                redirection_data: Some(services::RedirectForm::Mifinity {
+                    initialization_token,
+                }),
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -278,43 +291,61 @@ impl<F, T>
     }
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "lowercase")]
-// pub enum MifinityPaymentStatus {
-//     Succeeded,
-//     Failed,
-//     #[default]
-//     Processing,
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPsyncResponse {
+    payload: Vec<MifinityPsyncPayload>,
+}
 
-// impl From<MifinityPaymentStatus> for enums::AttemptStatus {
-//     fn from(item: MifinityPaymentStatus) -> Self {
-//         match item {
-//             MifinityPaymentStatus::Succeeded => Self::Charged,
-//             MifinityPaymentStatus::Failed => Self::Failure,
-//             MifinityPaymentStatus::Processing => Self::Authorizing,
-//         }
-//     }
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPsyncPayload {
+    status: MifinityPaymentStatus,
+    trace_id: Option<String>,
+    client_reference: Option<String>,
+    validation_key: Option<String>,
+}
 
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct MifinityPsyncResponse {
-//      payload: Vec<MifinityResponsePayload>,
-// }
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MifinityPaymentStatus {
+    Successful,
+    #[default]
+    Pending,
+    Failed,
+    NotCompleted,
+}
 
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct MifinityResponsePayload {
-//     status: MifinityPaymentStatus,
-//     payment_response: PaymentResponse,
-// }
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        // let trace_id: Option<String> = item
+        //     .response
+        //     .payload
+        //     .iter()
+        //     .filter_map(|payload| payload.trace_id.clone())
+        //     .next();
 
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct PaymentResponse {
-
-// }
+        Ok(Self {
+            status: enums::AttemptStatus::Charged,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId("traceid".to_string()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+            }),
+            ..item.data
+        })
+    }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]

@@ -6,6 +6,7 @@ use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use transformers as mifinity;
 
+use self::transformers::auth_headers;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -59,10 +60,16 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "1".to_string().into(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -93,7 +100,7 @@ impl ConnectorCommon for Mifinity {
         let auth = mifinity::MifinityAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
+            headers::KEY.to_string(),
             auth.key.expose().into_masked(),
         )])
     }
@@ -103,6 +110,8 @@ impl ConnectorCommon for Mifinity {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("rrrrrrr {:?}", res.response);
+
         let response: mifinity::MifinityErrorResponse = res
             .response
             .parse_struct("MifinityErrorResponse")
@@ -123,7 +132,13 @@ impl ConnectorCommon for Mifinity {
                 .iter()
                 .map(|error| error.message.clone())
                 .collect(),
-            reason: None,
+            reason: Some(
+                response
+                    .errors
+                    .iter()
+                    .map(|error| error.message.clone())
+                    .collect(),
+            ),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -192,6 +207,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = mifinity::MifinityPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -223,6 +241,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("rrrrrrr {:?}", res.response);
+
         let response: mifinity::MifinityPaymentsResponse = res
             .response
             .parse_struct("Mifinity PaymentsAuthorizeResponse")
@@ -243,6 +263,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("rrrrrrr {:?}", res.response);
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -259,14 +287,20 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
-    //https://demo.mifinity.com/api/gateway/payment-status/{validationKey}
-    //{{api.url}}/payments/{{api.payment_id}}
+
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let merchant_id = &req.merchant_id;
+        let payment_id = &req.connector_request_reference_id;
+        Ok(format!(
+            "{}api/gateway/payment-status/payment_validation_key_{}_{}",
+            self.base_url(connectors),
+            merchant_id,
+            payment_id
+        ))
     }
 
     fn build_request(
@@ -290,10 +324,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: mifinity::MifinityPaymentsResponse = res
+        let response: mifinity::MifinityPsyncResponse = res
             .response
             .parse_struct("mifinity PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        println!("{:?} #####", res.response);
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {

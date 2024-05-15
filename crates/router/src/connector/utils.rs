@@ -2471,6 +2471,7 @@ pub enum PaymentMethodDataType {
     PaySafeCar,
     CardToken,
     LocalBankTransfer,
+    Mifinity,
 }
 
 impl From<types::domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2524,6 +2525,7 @@ impl From<types::domain::payments::PaymentMethodData> for PaymentMethodDataType 
                 types::domain::payments::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
                 types::domain::payments::WalletData::CashappQr(_) => Self::CashappQr,
                 types::domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
+                types::domain::payments::WalletData::Mifinity(_) => Self::Mifinity,
             },
             types::domain::payments::PaymentMethodData::PayLater(pay_later_data) => {
                 match pay_later_data {
