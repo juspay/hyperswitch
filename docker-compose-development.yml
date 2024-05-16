@@ -295,3 +295,29 @@ services:
       - "8001:8001"
     volumes:
       - redisinsight_store:/db
+
+  hyperswitch-control-center:
+    image: juspaydotin/hyperswitch-control-center:latest
+    networks:
+      - router_net
+    ports:
+      - "9000:9000"
+    environment:
+      apiBaseUrl:  http://localhost:8080
+      sdkBaseUrl: http://localhost:9050/HyperLoader.js
+
+  hyperswitch-web-sdk:
+    build:
+      dockerfile_inline: |
+        FROM node:lts
+        RUN git clone https://github.com/juspay/hyperswitch-web.git --depth 1
+        WORKDIR hyperswitch-web
+        RUN npm i --force
+    command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
+    ports:
+      - "9050:9050"
+    environment:
+      sdkEnv: local
+      envSdkUrl: http://localhost:9050
+      envBackendUrl: http://localhost:8080
+      envLoggingUrl: http://localhost:8207

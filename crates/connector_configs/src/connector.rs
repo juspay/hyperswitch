@@ -133,15 +133,19 @@ pub struct ConnectorConfig {
     pub coinbase: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
     pub cybersource: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
+    pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
+    pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
@@ -152,6 +156,8 @@ pub struct ConnectorConfig {
     pub nuvei: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub paypal_payout: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -161,6 +167,8 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub stripe_payout: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
@@ -214,7 +222,11 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
+            PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
+            PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
+            PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
         }
     }
 
@@ -225,6 +237,7 @@ impl ConnectorConfig {
         match connector {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
+            AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
         }
     }
 
@@ -252,11 +265,13 @@ impl ConnectorConfig {
             Connector::Opennode => Ok(connector_data.opennode),
             Connector::Bambora => Ok(connector_data.bambora),
             Connector::Dlocal => Ok(connector_data.dlocal),
+            Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
+            // Connector::Gpayments => Ok(connector_data.gpayments),  Added as template code for future usage
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mollie => Ok(connector_data.mollie),

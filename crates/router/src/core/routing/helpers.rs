@@ -5,7 +5,7 @@
 use api_models::routing as routing_types;
 use common_utils::ext_traits::Encode;
 use diesel_models::{
-    business_profile::{BusinessProfile, BusinessProfileUpdateInternal},
+    business_profile::{BusinessProfile, BusinessProfileUpdate},
     configs,
 };
 use error_stack::ResultExt;
@@ -245,7 +245,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
-    let business_profile_update = BusinessProfileUpdateInternal {
+    let business_profile_update = BusinessProfileUpdate::Update {
         profile_name: None,
         return_url: None,
         enable_payment_response_hash: None,
@@ -263,53 +263,16 @@ pub async fn update_business_profile_active_algorithm_ref(
         payment_link_config: None,
         session_expiry: None,
         authentication_connector_details: None,
+        extended_card_info_config: None,
+        use_billing_as_payment_method_billing: None,
+        collect_shipping_details_from_wallet_connector: None,
     };
+
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
     Ok(())
-}
-
-pub async fn get_merchant_connector_agnostic_mandate_config(
-    db: &dyn StorageInterface,
-    business_profile_id: &str,
-) -> RouterResult<Vec<routing_types::DetailedConnectorChoice>> {
-    let key = get_pg_agnostic_mandate_config_key(business_profile_id);
-    let maybe_config = db.find_config_by_key(&key).await;
-
-    match maybe_config {
-        Ok(config) => config
-            .config
-            .parse_struct("Vec<DetailedConnectorChoice>")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("pg agnostic mandate config has invalid structure"),
-
-        Err(e) if e.current_context().is_db_not_found() => {
-            let new_mandate_config: Vec<routing_types::DetailedConnectorChoice> = Vec::new();
-
-            let serialized = new_mandate_config
-                .encode_to_string_of_json()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("error serializing newly created pg agnostic mandate config")?;
-
-            let new_config = configs::ConfigNew {
-                key,
-                config: serialized,
-            };
-
-            db.insert_config(new_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("error inserting new pg agnostic mandate config in db")?;
-
-            Ok(new_mandate_config)
-        }
-
-        Err(e) => Err(e)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error fetching pg agnostic mandate config for merchant from db"),
-    }
 }
 
 pub async fn validate_connectors_in_routing_config(
@@ -438,12 +401,6 @@ pub async fn validate_connectors_in_routing_config(
 #[inline(always)]
 pub fn get_routing_dictionary_key(merchant_id: &str) -> String {
     format!("routing_dict_{merchant_id}")
-}
-
-/// Provides the identifier for the specific merchant's agnostic_mandate_config
-#[inline(always)]
-pub fn get_pg_agnostic_mandate_config_key(business_profile_id: &str) -> String {
-    format!("pg_agnostic_mandate_{business_profile_id}")
 }
 
 /// Provides the identifier for the specific merchant's default_config

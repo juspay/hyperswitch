@@ -515,8 +515,10 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::PaymentIntent => Ok("payment_intent".to_string()),
-            Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
-                .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
+            Self::ConnectorEvents | Self::ConnectorEventsAnalytics => {
+                Err(error_stack::report!(ParsingError::UnknownError)
+                    .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?
+            }
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
@@ -563,6 +565,20 @@ where
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
+            Self::Percentile {
+                field,
+                alias,
+                percentile,
+            } => {
+                format!(
+                    "percentile_cont(0.{}) within group (order by {} asc){}",
+                    percentile.map_or_else(|| "50".to_owned(), |percentile| percentile.to_string()),
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to percentile aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
         })
     }
 }
@@ -593,7 +609,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
@@ -616,7 +632,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))

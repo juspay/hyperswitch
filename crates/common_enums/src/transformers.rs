@@ -1855,6 +1855,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Twint => Self::Wallet,
             PaymentMethodType::UpiCollect => Self::Upi,
             PaymentMethodType::Vipps => Self::Wallet,
+            PaymentMethodType::Venmo => Self::Wallet,
             PaymentMethodType::Walley => Self::PayLater,
             PaymentMethodType::WeChatPay => Self::Wallet,
             PaymentMethodType::TouchNGo => Self::Wallet,

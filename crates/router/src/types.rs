@@ -24,20 +24,31 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
-use data_models::mandates::{CustomerAcceptance, MandateData};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+pub use hyperswitch_domain_models::{
+    payment_address::PaymentAddress,
+    router_data::{
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
+        ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
+        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+    },
+};
 use masking::Secret;
 use serde::Serialize;
 
 use self::storage::enums as storage_enums;
-pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
+pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
-use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
+use crate::{
+    connector::utils::missing_field_err,
+    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
+};
 use crate::{
     consts,
     core::{
         errors::{self},
-        payments::{types, PaymentData, RecurringMandatePaymentData},
+        payments::{types, PaymentData},
     },
     services,
     types::{transformers::ForeignFrom, types::AuthenticationData},
@@ -190,6 +201,9 @@ pub type PayoutFulfillType =
 pub type PayoutRecipientType =
     dyn services::ConnectorIntegration<api::PoRecipient, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
+pub type PayoutRecipientAccountType =
+    dyn services::ConnectorIntegration<api::PoRecipientAccount, PayoutsData, PayoutsResponseData>;
+#[cfg(feature = "payouts")]
 pub type PayoutQuoteType =
     dyn services::ConnectorIntegration<api::PoQuote, PayoutsData, PayoutsResponseData>;
 
@@ -261,128 +275,6 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
-#[derive(Debug, Clone)]
-pub struct RouterData<Flow, Request, Response> {
-    pub flow: PhantomData<Flow>,
-    pub merchant_id: String,
-    pub customer_id: Option<String>,
-    pub connector_customer: Option<String>,
-    pub connector: String,
-    pub payment_id: String,
-    pub attempt_id: String,
-    pub status: storage_enums::AttemptStatus,
-    pub payment_method: storage_enums::PaymentMethod,
-    pub connector_auth_type: ConnectorAuthType,
-    pub description: Option<String>,
-    pub return_url: Option<String>,
-    pub address: PaymentAddress,
-    pub auth_type: storage_enums::AuthenticationType,
-    pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub amount_captured: Option<i64>,
-    pub access_token: Option<AccessToken>,
-    pub session_token: Option<String>,
-    pub reference_id: Option<String>,
-    pub payment_method_token: Option<PaymentMethodToken>,
-    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
-    pub preprocessing_id: Option<String>,
-    /// This is the balance amount for gift cards or voucher
-    pub payment_method_balance: Option<PaymentMethodBalance>,
-
-    ///for switching between two different versions of the same connector
-    pub connector_api_version: Option<String>,
-
-    /// Contains flow-specific data required to construct a request and send it to the connector.
-    pub request: Request,
-
-    /// Contains flow-specific data that the connector responds with.
-    pub response: Result<Response, ErrorResponse>,
-
-    /// Contains any error response that the connector returns.
-    pub payment_method_id: Option<String>,
-
-    /// Contains a reference ID that should be sent in the connector request
-    pub connector_request_reference_id: String,
-
-    #[cfg(feature = "payouts")]
-    /// Contains payout method data
-    pub payout_method_data: Option<api::PayoutMethodData>,
-
-    #[cfg(feature = "payouts")]
-    /// Contains payout method data
-    pub quote_id: Option<String>,
-
-    pub test_mode: Option<bool>,
-    pub connector_http_status_code: Option<u16>,
-    pub external_latency: Option<u128>,
-    /// Contains apple pay flow type simplified or manual
-    pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
-
-    pub frm_metadata: Option<serde_json::Value>,
-
-    pub dispute_id: Option<String>,
-    pub refund_id: Option<String>,
-
-    /// This field is used to store various data regarding the response from connector
-    pub connector_response: Option<ConnectorResponseData>,
-    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum AdditionalPaymentMethodConnectorResponse {
-    Card {
-        /// Details regarding the authentication details of the connector, if this is a 3ds payment.
-        authentication_data: Option<serde_json::Value>,
-        /// Various payment checks that are done for a payment
-        payment_checks: Option<serde_json::Value>,
-    },
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ConnectorResponseData {
-    pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
-}
-
-impl ConnectorResponseData {
-    pub fn with_additional_payment_method_data(
-        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
-    ) -> Self {
-        Self {
-            additional_payment_method_data: Some(additional_payment_method_data),
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-pub enum PaymentMethodToken {
-    Token(String),
-    ApplePayDecrypt(Box<ApplePayPredecryptData>),
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayPredecryptData {
-    pub application_primary_account_number: Secret<String>,
-    pub application_expiration_date: String,
-    pub currency_code: String,
-    pub transaction_amount: i64,
-    pub device_manufacturer_identifier: Secret<String>,
-    pub payment_data_type: Secret<String>,
-    pub payment_data: ApplePayCryptogramData,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayCryptogramData {
-    pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PaymentMethodBalance {
-    pub amount: i64,
-    pub currency: storage_enums::Currency,
-}
-
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PayoutsData {
@@ -394,6 +286,23 @@ pub struct PayoutsData {
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
+    pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutIndividualDetailsExt {
+    type Error;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
+        self.external_account_account_holder_type
+            .clone()
+            .ok_or_else(missing_field_err("external_account_account_holder_type"))
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -402,12 +311,7 @@ pub struct PayoutsResponseData {
     pub status: Option<storage_enums::PayoutStatus>,
     pub connector_payout_id: String,
     pub payout_eligible: Option<bool>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct PayoutsFulfillResponseData {
-    pub status: Option<storage_enums::PayoutStatus>,
-    pub reference_id: Option<String>,
+    pub should_add_next_step_to_process_tracker: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -565,6 +469,7 @@ pub struct PaymentsSyncData {
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -860,12 +765,6 @@ pub struct AddAccessTokenResult {
     pub connector_supports_access_token: bool,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-pub struct AccessToken {
-    pub token: Secret<String>,
-    pub expires: i64,
-}
-
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
@@ -1153,6 +1052,12 @@ pub struct PollConfig {
     pub frequency: i8,
 }
 
+impl PollConfig {
+    pub fn get_poll_config_key(connector: String) -> String {
+        format!("poll_config_external_three_ds_{connector}")
+    }
+}
+
 impl Default for PollConfig {
     fn default() -> Self {
         Self {
@@ -1203,42 +1108,8 @@ pub struct MandateRevokeResponseData {
     pub mandate_status: MandateStatus,
 }
 
-// Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "auth_type")]
-pub enum ConnectorAuthType {
-    TemporaryAuth,
-    HeaderKey {
-        api_key: Secret<String>,
-    },
-    BodyKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-    },
-    SignatureKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        api_secret: Secret<String>,
-    },
-    MultiAuthKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        api_secret: Secret<String>,
-        key2: Secret<String>,
-    },
-    CurrencyAuthKey {
-        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
-    },
-    CertificateAuth {
-        certificate: Secret<String>,
-        private_key: Secret<String>,
-    },
-    #[default]
-    NoKey,
-}
-
-impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
-    fn from(value: api_models::admin::ConnectorAuthType) -> Self {
+impl ForeignFrom<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn foreign_from(value: api_models::admin::ConnectorAuthType) -> Self {
         match value {
             api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
             api_models::admin::ConnectorAuthType::HeaderKey { api_key } => {
@@ -1335,35 +1206,6 @@ pub struct Response {
     pub status_code: u16,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct ErrorResponse {
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub status_code: u16,
-    pub attempt_status: Option<storage_enums::AttemptStatus>,
-    pub connector_transaction_id: Option<String>,
-}
-
-impl ErrorResponse {
-    pub fn get_not_implemented() -> Self {
-        Self {
-            code: errors::ApiErrorResponse::NotImplemented {
-                message: errors::api_error_response::NotImplementedMessage::Default,
-            }
-            .error_code(),
-            message: errors::ApiErrorResponse::NotImplemented {
-                message: errors::api_error_response::NotImplementedMessage::Default,
-            }
-            .error_message(),
-            reason: None,
-            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            attempt_status: None,
-            connector_transaction_id: None,
-        }
-    }
-}
-
 impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
     fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
@@ -1405,12 +1247,6 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
             attempt_status: None,
             connector_transaction_id: None,
         }
-    }
-}
-
-impl Default for ErrorResponse {
-    fn default() -> Self {
-        Self::from(errors::ApiErrorResponse::InternalServerError)
     }
 }
 
@@ -1493,10 +1329,10 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
     }
 }
 
-impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
+impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
     for RouterData<F2, T2, PaymentsResponseData>
 {
-    fn from(item: (&RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
+    fn foreign_from(item: (&RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
         let data = item.0;
         let request = item.1;
         Self {
@@ -1516,7 +1352,6 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             amount_captured: data.amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
-            payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
@@ -1547,12 +1382,12 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
 
 #[cfg(feature = "payouts")]
 impl<F1, F2>
-    From<(
+    ForeignFrom<(
         &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
         PayoutsData,
     )> for RouterData<F2, PayoutsData, PayoutsResponseData>
 {
-    fn from(
+    fn foreign_from(
         item: (
             &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
             PayoutsData,
@@ -1577,7 +1412,6 @@ impl<F1, F2>
             amount_captured: data.amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
-            payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
@@ -1587,7 +1421,7 @@ impl<F1, F2>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             connector_request_reference_id:
-                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW.to_string(),
+                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW.to_string(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
