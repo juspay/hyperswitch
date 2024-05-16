@@ -52,7 +52,6 @@ counter_metric!(MCA_CREATE, GLOBAL_METER);
 
 // Flow Specific Metrics
 
-counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
 histogram_metric!(CONNECTOR_REQUEST_TIME, GLOBAL_METER);
 counter_metric!(SESSION_TOKEN_CREATED, GLOBAL_METER);
 
@@ -122,6 +121,17 @@ counter_metric!(AUTO_RETRY_PAYOUT_COUNT, GLOBAL_METER);
 counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process tracker
 counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
+
+// Access token metrics
+//
+// A counter to indicate the number of new access tokens created
+counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
+
+// A counter to indicate the access token cache hits
+counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
+
+// A counter to indicate the access token cache miss
+counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
 
 pub mod request;
 pub mod utils;
