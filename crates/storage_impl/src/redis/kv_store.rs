@@ -244,6 +244,16 @@ pub enum Op<'a> {
     Find,
 }
 
+impl<'a> std::fmt::Display for Op<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result{
+        match self{
+            Op::Insert => f.write_str("insert"),
+            Op::Find => f.write_str("find"),
+            Op::Update(p_key, _, _) => f.write_str(&format!("update_{}", p_key)),
+        }
+    }
+}
+
 pub async fn decide_storage_scheme<'a, T, D>(
     store: &KVRouterStore<T>,
     storage_scheme: MerchantStorageScheme,
@@ -259,6 +269,7 @@ where
     T: crate::database::store::DatabaseStore,
 {
     if store.soft_kill_mode {
+        let ops = operation.to_string();
         let updated_scheme = match operation {
             Op::Insert => MerchantStorageScheme::PostgresOnly,
             Op::Find => MerchantStorageScheme::RedisKv,
@@ -266,22 +277,25 @@ where
                 match kv_wrapper::<D, _, _>(store, KvOperation::<D>::HGet(field), partition_key)
                     .await
                 {
-                    Ok(_) => MerchantStorageScheme::RedisKv,
+                    Ok(_) => {
+                        metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(&metrics::CONTEXT, 1, &[]);
+                        MerchantStorageScheme::RedisKv
+                    },
                     Err(_) => MerchantStorageScheme::PostgresOnly,
                 }
             }
 
             Op::Update(_, _, None) => MerchantStorageScheme::PostgresOnly,
             Op::Update(_, _, Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
-            _ => storage_scheme,
+            _ => {
+                logger::debug!("soft_kill_mode - using default storage scheme");
+                storage_scheme
+            },
         };
-        if updated_scheme != storage_scheme {
-            let type_name = std::any::type_name::<D>();
-            println!(
-                "[decide_storage_scheme] output: {} for entity {}",
-                updated_scheme, type_name
-            );
-        }
+
+        let type_name = std::any::type_name::<D>();
+        logger::info!(soft_kill_mode = "decide_storage_scheme", decided_scheme = %updated_scheme, configured_scheme = %storage_scheme,entity = %type_name, operation = %ops);
+    
         updated_scheme
     } else {
         storage_scheme
