@@ -1793,6 +1793,7 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
+       
         // api_enums::Connector::Mifinity => {
         //     mifinity::transformers::MifinityAuthType::try_from(val)?;
         //     Ok(())
@@ -1891,6 +1892,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             fiserv::transformers::FiservSessionObject::try_from(connector_meta_data)?;
             Ok(())
         }
+        // api_enums::Connector::Flexipay => {
+        //     flexipay::transformers::FlexipayAuthType::try_from(val)?;
+        //     Ok(())
+        // } added for future use
         api_enums::Connector::Forte => {
             forte::transformers::ForteAuthType::try_from(val)?;
             Ok(())

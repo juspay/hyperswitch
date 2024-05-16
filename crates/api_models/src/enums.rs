@@ -91,6 +91,7 @@ pub enum Connector {
     Dlocal,
     Ebanx,
     Fiserv,
+    // Flexipay, added as a template code for future use
     Forte,
     Globalpay,
     Globepay,

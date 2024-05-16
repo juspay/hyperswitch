@@ -354,6 +354,7 @@ impl ConnectorData {
                 enums::Connector::DummyConnector7 => Ok(Box::new(&connector::DummyConnector::<7>)),
                 enums::Connector::Ebanx => Ok(Box::new(&connector::Ebanx)),
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
+			// enums::Connector::Flexipay => Ok(Box::new(&connector::Flexipay)), added as template code for future use
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),

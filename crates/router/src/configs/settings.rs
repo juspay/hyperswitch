@@ -514,6 +514,7 @@ pub struct Connectors {
     pub dummyconnector: ConnectorParams,
     pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub flexipay: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,

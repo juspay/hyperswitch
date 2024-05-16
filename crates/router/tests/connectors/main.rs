@@ -28,6 +28,7 @@ mod dlocal;
 mod dummyconnector;
 mod ebanx;
 mod fiserv;
+mod flexipay;
 mod forte;
 mod globalpay;
 mod globepay;

@@ -19,6 +19,7 @@ pub mod dlocal;
 pub mod dummyconnector;
 pub mod ebanx;
 pub mod fiserv;
+pub mod flexipay;
 pub mod forte;
 pub mod globalpay;
 pub mod globepay;
@@ -70,9 +71,9 @@ pub use self::{
     bambora::Bambora, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
     bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
     checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource,
-    dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
-    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim,
-    iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
+    dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, flexipay::Flexipay, forte::Forte,
+    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
+    helcim::Helcim, iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
     multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
     nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone,
     paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,

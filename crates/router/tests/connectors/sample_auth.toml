@@ -199,10 +199,6 @@ key1= "Trankey"
 api_key="API Key"
 
 
-[ebanx]
-api_key="API Key"
-
-
 [billwerk]
 api_key="API Key"
 
@@ -229,4 +225,8 @@ api_key="API Key"
 
 
 [gpayments]
+api_key="API Key"
+
+
+[flexipay]
 api_key="API Key"
