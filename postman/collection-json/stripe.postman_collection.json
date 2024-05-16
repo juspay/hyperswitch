@@ -17569,7 +17569,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"currency\":\"EUR\",\"shipping\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala\",\"line3\":\"Koramangala\",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"}},\"billing\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala\",\"line3\":\"Koramangala\",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"},\"email\":\"swangi@gmail.com\"}}"
+                      "raw": "{\"currency\":\"EUR\",\"shipping\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala \",\"line3\":\"Koramangala \",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"}},\"billing\":{\"address\":{\"line1\":\"1468\",\"line2\":\"Koramangala \",\"line3\":\"Koramangala \",\"city\":\"Bangalore\",\"state\":\"Karnataka\",\"zip\":\"560065\",\"country\":\"NL\",\"first_name\":\"Preeetam\",\"last_name\":\"Rev\"},\"phone\":{\"number\":\"8796455689\",\"country_code\":\"+91\"},\"email\":\"swangi@gmail.com\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id",
