@@ -7,23 +7,18 @@ use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer};
 #[cfg(not(feature = "payouts"))]
 use crate::connector::utils;
+use crate::connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer};
 
 #[cfg(feature = "payouts")]
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{self,CardData, RouterData},
+    connector::utils::{self, CardData, RouterData},
     core::errors,
-    types::{
-        self,
-        storage::enums as storage_enums,
-        transformers::ForeignFrom,
-        api,
-    },
+    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 #[cfg(not(feature = "payouts"))]
@@ -142,9 +137,12 @@ pub struct CardAndCardIssuer(Card, CardIssuer);
 
 #[cfg(feature = "payouts")]
 impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
-    for PayonePayoutFulfillRequest{
+    for PayonePayoutFulfillRequest
+{
     type Error = Error;
-    fn try_from(item: PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>,) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
         match request.payout_type.to_owned() {
             storage_enums::PayoutType::Card => {
@@ -152,7 +150,8 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
                     amount: item.router_data.request.amount,
                     currency_code: item.router_data.request.destination_currency.to_string(),
                 };
-                let _card_issuer = CardAndCardIssuer::try_from(&item.router_data.get_payout_method_data()?)?;
+                let _card_issuer =
+                    CardAndCardIssuer::try_from(&item.router_data.get_payout_method_data()?)?;
                 let card = _card_issuer.0;
                 let card_issuer = _card_issuer.1;
 
@@ -224,7 +223,6 @@ impl TryFrom<&PayoutMethodData> for CardAndCardIssuer {
         }
     }
 }
-
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
