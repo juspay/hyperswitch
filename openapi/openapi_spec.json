@@ -13893,6 +13893,16 @@
               }
             ],
             "nullable": true
+          },
+          "client_source": {
+            "type": "string",
+            "description": "To be used to specify the client (sdk) source.",
+            "nullable": true
+          },
+          "client_version": {
+            "type": "string",
+            "description": "To be used to specify the client (sdk) version.",
+            "nullable": true
           }
         }
       },
@@ -14794,6 +14804,16 @@
                 "$ref": "#/components/schemas/RecurringDetails"
               }
             ],
+            "nullable": true
+          },
+          "client_source": {
+            "type": "string",
+            "description": "To be used to specify the client (sdk) source.",
+            "nullable": true
+          },
+          "client_version": {
+            "type": "string",
+            "description": "To be used to specify the client (sdk) version.",
             "nullable": true
           }
         },
