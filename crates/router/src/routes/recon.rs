@@ -137,13 +137,18 @@ pub async fn send_recon_request(
 
         Ok(service_api::ApplicationResponse::Json(
             recon_api::ReconStatusResponse {
-                recon_status: response.recon_status,
+                recon_status: response
+                    .recon_status
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!("Failed while updating merchant's recon status: {merchant_id}")
+                    })?,
             },
         ))
     } else {
         Ok(service_api::ApplicationResponse::Json(
             recon_api::ReconStatusResponse {
-                recon_status: Some(enums::ReconStatus::NotRequested),
+                recon_status: enums::ReconStatus::NotRequested,
             },
         ))
     }
