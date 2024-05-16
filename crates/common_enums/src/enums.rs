@@ -2266,7 +2266,6 @@ pub enum FrmSuggestion {
     Clone,
     Debug,
     Eq,
-    Default,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -2280,7 +2279,6 @@ pub enum FrmSuggestion {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ReconStatus {
-    #[default]
     NotRequested,
     Requested,
     Active,
