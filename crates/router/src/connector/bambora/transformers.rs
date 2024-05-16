@@ -26,7 +26,7 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BamboraRouter
     fn try_from(
         (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
-        let amount = crate::connector::utils::get_amount_as_f64(currency_unit, amount, currency)?;
+        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
