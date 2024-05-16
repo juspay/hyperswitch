@@ -275,7 +275,7 @@ pub struct MerchantAccountResponse {
     pub default_profile: Option<String>,
 
     /// Used to indicate the status of the recon module for a merchant account
-    #[schema(value_type = ReconStatus, example = "not_requested")]
+    #[schema(value_type = Option<ReconStatus>, example = "not_requested")]
     pub recon_status: Option<enums::ReconStatus>,
 }
 
