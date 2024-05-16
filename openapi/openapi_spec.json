@@ -5888,17 +5888,19 @@
             "properties": {
               "interac": {
                 "type": "object",
-                "required": [
-                  "country",
-                  "email"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "email": {
                     "type": "string",
-                    "example": "john.doe@example.com"
+                    "example": "john.doe@example.com",
+                    "nullable": true
                   }
                 }
               }

@@ -121,3 +121,6 @@ pub const DEFAULT_POLL_FREQUENCY: i8 = 5;
 // Number of seconds to subtract from access token expiry
 pub(crate) const REDUCE_ACCESS_TOKEN_EXPIRY_TIME: u8 = 15;
 pub const CONNECTOR_CREDS_TOKEN_TTL: i64 = 900;
+
+//max_amount allowed is 999999999 in minor units
+pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;

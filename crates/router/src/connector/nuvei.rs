@@ -26,6 +26,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, InitPayment},
         storage::enums,
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::ByteSliceExt,
@@ -89,7 +90,7 @@ impl ConnectorValidation for Nuvei {
 
     fn validate_mandate_payment(
         &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_type: Option<enums::PaymentMethodType>,
         pm_data: types::domain::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
@@ -536,7 +537,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
             types::AuthorizeSessionTokenData::from(&router_data),
         ));
@@ -564,7 +565,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                               + Sync
                               + 'static),
                     > = Box::new(&Self);
-                    let init_data = &types::PaymentsInitRouterData::from((
+                    let init_data = &types::PaymentsInitRouterData::foreign_from((
                         &router_data.to_owned(),
                         router_data.request.clone(),
                     ));
