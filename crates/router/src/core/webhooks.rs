@@ -1951,7 +1951,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 .await
                 .attach_printable("Incoming webhook flow for external authentication failed")?
             }
-            api::WebhookFlow::FraudRiskManagement => Box::pin(frm_incoming_webhook_flow::<Ctx>(
+            api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow::<Ctx>(
                 state.clone(),
                 req_state,
                 merchant_account,

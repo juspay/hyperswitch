@@ -52,7 +52,7 @@ pub enum WebhookFlow {
     BankTransfer,
     Mandate,
     ExternalAuthentication,
-    FraudRiskManagement,
+    FraudCheck,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -123,7 +123,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
             IncomingWebhookEvent::ExternalAuthenticationARes => Self::ExternalAuthentication,
             IncomingWebhookEvent::FrmApproved | IncomingWebhookEvent::FrmRejected => {
-                Self::FraudRiskManagement
+                Self::FraudCheck
             }
         }
     }
