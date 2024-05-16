@@ -1071,11 +1071,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let client_source = header_payload
             .client_source
             .clone()
-            .or(payment_data.payment_attempt.client_source);
+            .or(payment_data.payment_attempt.client_source.clone());
         let client_version = header_payload
             .client_version
             .clone()
-            .or(payment_data.payment_attempt.client_version);
+            .or(payment_data.payment_attempt.client_version.clone());
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
         let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
