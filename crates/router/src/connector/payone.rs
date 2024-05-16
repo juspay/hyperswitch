@@ -57,7 +57,6 @@ impl Payone {
             date_header.trim(),
             canonicalized_path.trim()
         );
-        println!("{string_to_hash:?}");
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.expose().as_bytes());
         let hash_hmac = consts::BASE64_ENGINE.encode(hmac::sign(&key, string_to_hash.as_bytes()));
         let signature_header = format!("GCS v1HMAC:{}:{}", api_key.peek(), hash_hmac);
@@ -275,7 +274,13 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = payone::PayonePayoutFulfillRequest::try_from(req)?;
+        let connector_router_data = payone::PayoneRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = payone::PayonePayoutFulfillRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

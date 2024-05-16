@@ -5,27 +5,32 @@ use cards::CardNumber;
 #[cfg(feature = "payouts")]
 use error_stack::ResultExt;
 use masking::Secret;
-#[cfg(feature = "payouts")]
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer};
+#[cfg(not(feature = "payouts"))]
+use crate::connector::utils;
 
 #[cfg(feature = "payouts")]
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{CardData, RouterData, CARD_REGEX},
+    connector::utils::{self,CardData, RouterData},
     core::errors,
-    types::{self, storage::enums as storage_enums, transformers::ForeignFrom},
+    types::{
+        self,
+        storage::enums as storage_enums,
+        transformers::ForeignFrom,
+        api,
+    },
     utils::OptionExt,
 };
 #[cfg(not(feature = "payouts"))]
 use crate::{core::errors, types};
 
 pub struct PayoneRouterData<T> {
-    pub amount: i64,
+    pub amount: String,
     pub router_data: T,
 }
 
@@ -46,6 +51,7 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(_currency_unit, amount, _currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -77,19 +83,17 @@ pub struct PayoneAuthType {
 impl TryFrom<&types::ConnectorAuthType> for PayoneAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
-            api_key,
-            key1,
-            api_secret,
-        } = auth_type
-        {
-            Ok(Self {
+        match auth_type {
+            types::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_account: key1.to_owned(),
                 api_secret: api_secret.to_owned(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
@@ -128,46 +132,34 @@ pub struct Card {
 }
 
 #[cfg(feature = "payouts")]
-impl Card {
-    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
-        for (k, v) in CARD_REGEX.iter() {
-            let regex: Regex = v
-                .clone()
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            if regex.is_match(self.card_number.clone().get_card_no().as_str()) {
-                return Ok(*k);
-            }
-        }
-        Err(error_stack::Report::new(
-            errors::ConnectorError::NotImplemented("Card Type".into()),
-        ))
-    }
-}
-
-#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OmnichannelPayoutSpecificInput {
     payment_id: String,
 }
+#[cfg(feature = "payouts")]
+pub struct CardAndCardIssuer(Card, CardIssuer);
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for PayonePayoutFulfillRequest {
+impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
+    for PayonePayoutFulfillRequest{
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        let request = item.request.to_owned();
+    fn try_from(item: PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>,) -> Result<Self, Self::Error> {
+        let request = item.router_data.request.to_owned();
         match request.payout_type.to_owned() {
             storage_enums::PayoutType::Card => {
                 let amount_of_money: AmountOfMoney = AmountOfMoney {
-                    amount: item.request.amount,
-                    currency_code: item.request.destination_currency.to_string(),
+                    amount: item.router_data.request.amount,
+                    currency_code: item.router_data.request.destination_currency.to_string(),
                 };
-                let card = Card::try_from(&item.get_payout_method_data()?)?;
+                let _card_issuer = CardAndCardIssuer::try_from(&item.router_data.get_payout_method_data()?)?;
+                let card = _card_issuer.0;
+                let card_issuer = _card_issuer.1;
 
                 let card_payout_method_specific_input: CardPayoutMethodSpecificInput =
                     CardPayoutMethodSpecificInput {
                         #[allow(clippy::as_conversions)]
-                        payment_product_id: Gateway::try_from(card.get_card_issuer()?)? as i32,
+                        payment_product_id: Gateway::try_from(card_issuer)? as i32,
                         card,
                     };
                 Ok(Self {
@@ -203,39 +195,36 @@ impl TryFrom<CardIssuer> for Gateway {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<&PayoutMethodData> for Card {
+impl TryFrom<&PayoutMethodData> for CardAndCardIssuer {
     type Error = Error;
     fn try_from(item: &PayoutMethodData) -> Result<Self, Self::Error> {
         match item {
-            PayoutMethodData::Card(card) => Ok(Self {
-                card_number: card.card_number.clone(),
-                card_holder_name: card
-                    .card_holder_name
-                    .clone()
-                    .get_required_value("card_holder_name")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payout_method_data.card.holder_name",
-                    })?,
-                expiry_date: match card.get_expiry_date_as_mmyy() {
-                    Ok(date) => date,
-                    Err(_) => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payout_method_data.card.expiry_date",
-                    })?,
+            PayoutMethodData::Card(card) => Ok(Self(
+                Card {
+                    card_number: card.card_number.clone(),
+                    card_holder_name: card
+                        .card_holder_name
+                        .clone()
+                        .get_required_value("card_holder_name")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "payout_method_data.card.holder_name",
+                        })?,
+                    expiry_date: match card.get_expiry_date_as_mmyy() {
+                        Ok(date) => date,
+                        Err(_) => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "payout_method_data.card.expiry_date",
+                        })?,
+                    },
                 },
-            }),
+                card.get_card_issuer()?,
+            )),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payout_method_data.card",
             })?,
         }
     }
 }
-// #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-// pub struct PayoneErrorResponse {
-//     pub status_code: u16,
-//     pub code: String,
-//     pub message: String,
-//     pub reason: Option<String>,
-// }
+
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -305,7 +294,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::foreign_from(response.status)),
-                connector_payout_id: "".to_string(),
+                connector_payout_id: response.id,
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
