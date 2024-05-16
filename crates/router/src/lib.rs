@@ -72,6 +72,8 @@ pub mod headers {
     pub const X_REQUEST_ID: &str = "X-Request-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
     pub const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
+    pub const X_CLIENT_VERSION: &str = "X-Client-Version";
+    pub const X_CLIENT_SOURCE: &str = "X-Client-Source";
 }
 
 pub mod pii {
