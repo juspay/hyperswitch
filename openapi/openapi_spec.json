@@ -2612,6 +2612,47 @@
           }
         ]
       },
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Delete",
+        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
+        "operationId": "Delete a Payment method",
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payment_methods/{method_id}/update": {
       "post": {
         "tags": [
           "Payment Methods"
@@ -2658,45 +2699,9 @@
         "security": [
           {
             "api_key": []
-          }
-        ]
-      },
-      "delete": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Delete",
-        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
-        "operationId": "Delete a Payment method",
-        "parameters": [
-          {
-            "name": "method_id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment Method deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
-                }
-              }
-            }
           },
-          "404": {
-            "description": "Payment Method does not exist in records"
-          }
-        },
-        "security": [
           {
-            "api_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -4737,14 +4742,12 @@
       },
       "AchBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
         "properties": {
           "email": {
             "type": "string",
             "description": "The Email ID for ACH billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -4912,6 +4915,23 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmountFilter": {
+        "type": "object",
+        "properties": {
+          "start_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The start amount to filter list of transactions which are greater than or equal to the start amount",
+            "nullable": true
+          },
+          "end_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The end amount to filter list of transactions which are less than or equal to the end amount",
+            "nullable": true
+          }
+        }
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -4947,6 +4967,20 @@
             "format": "date-time"
           }
         ]
+      },
+      "ApplePayAddressParameters": {
+        "type": "string",
+        "enum": [
+          "postalAddress",
+          "phone",
+          "email"
+        ]
+      },
+      "ApplePayBillingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayPaymentRequest": {
         "type": "object",
@@ -4984,6 +5018,22 @@
           "merchant_identifier": {
             "type": "string",
             "nullable": true
+          },
+          "required_billing_contact_fields": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayBillingContactFields"
+              }
+            ],
+            "nullable": true
+          },
+          "required_shipping_contact_fields": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayShippingContactFields"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5004,6 +5054,12 @@
             "nullable": true
           }
         ]
+      },
+      "ApplePayShippingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayThirdPartySdkData": {
         "type": "object"
@@ -5165,7 +5221,8 @@
         "type": "string",
         "enum": [
           "threedsecureio",
-          "netcetera"
+          "netcetera",
+          "gpayments"
         ]
       },
       "AuthenticationStatus": {
@@ -5831,17 +5888,19 @@
             "properties": {
               "interac": {
                 "type": "object",
-                "required": [
-                  "country",
-                  "email"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "email": {
                     "type": "string",
-                    "example": "john.doe@example.com"
+                    "example": "john.doe@example.com",
+                    "nullable": true
                   }
                 }
               }
@@ -6073,12 +6132,14 @@
             "properties": {
               "ach_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/AchBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/AchBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6093,12 +6154,16 @@
               "sepa_bank_transfer": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -6115,12 +6180,14 @@
             "properties": {
               "bacs_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6134,12 +6201,14 @@
             "properties": {
               "multibanco_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/MultibancoBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/MultibancoBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6153,12 +6222,14 @@
             "properties": {
               "permata_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6172,12 +6243,14 @@
             "properties": {
               "bca_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6191,12 +6264,14 @@
             "properties": {
               "bni_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6210,12 +6285,14 @@
             "properties": {
               "bri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6229,12 +6306,14 @@
             "properties": {
               "cimb_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6248,12 +6327,14 @@
             "properties": {
               "danamon_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6267,12 +6348,14 @@
             "properties": {
               "mandiri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6686,6 +6769,11 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },
@@ -8162,6 +8250,14 @@
             "type": "boolean",
             "description": "Indicates if the payment method has been set to default or not",
             "example": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8556,26 +8652,24 @@
       },
       "DokuBillingDetails": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Doku",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Doku",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Doku billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9043,6 +9137,64 @@
           {
             "type": "string",
             "enum": [
+              "user_shipping_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_state"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_shipping_address_country"
+            ],
+            "properties": {
+              "user_shipping_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_blik_code"
             ]
           },
@@ -9281,6 +9433,9 @@
         "type": "object",
         "required": [
           "merchant_info",
+          "shipping_address_required",
+          "email_required",
+          "shipping_address_parameters",
           "allowed_payment_methods",
           "transaction_info",
           "delayed_session_token",
@@ -9290,6 +9445,17 @@
         "properties": {
           "merchant_info": {
             "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "shipping_address_required": {
+            "type": "boolean",
+            "description": "Is shipping address required"
+          },
+          "email_required": {
+            "type": "boolean",
+            "description": "Is email required"
+          },
+          "shipping_address_parameters": {
+            "$ref": "#/components/schemas/GpayShippingAddressParameters"
           },
           "allowed_payment_methods": {
             "type": "array",
@@ -9391,6 +9557,19 @@
               "type": "string"
             },
             "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
+          },
+          "billing_address_required": {
+            "type": "boolean",
+            "description": "Is billing address required",
+            "nullable": true
+          },
+          "billing_address_parameters": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayBillingAddressParameters"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9411,6 +9590,29 @@
           },
           "tokenization_specification": {
             "$ref": "#/components/schemas/GpayTokenizationSpecification"
+          }
+        }
+      },
+      "GpayBillingAddressFormat": {
+        "type": "string",
+        "enum": [
+          "FULL",
+          "MIN"
+        ]
+      },
+      "GpayBillingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required",
+          "format"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is billing phone number required"
+          },
+          "format": {
+            "$ref": "#/components/schemas/GpayBillingAddressFormat"
           }
         }
       },
@@ -9440,6 +9642,18 @@
             "$ref": "#/components/schemas/GooglePaySessionResponse"
           }
         ]
+      },
+      "GpayShippingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is shipping phone number required"
+          }
+        }
       },
       "GpayTokenParameters": {
         "type": "object",
@@ -11330,13 +11544,11 @@
       },
       "MultibancoBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
         "properties": {
           "email": {
             "type": "string",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -13170,35 +13382,6 @@
             ],
             "nullable": true
           },
-          "card_network": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardNetwork"
-              }
-            ],
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
-            "nullable": true
-          },
-          "wallet": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Wallet"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
           "client_secret": {
             "type": "string",
             "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
@@ -13441,36 +13624,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "email": {
-            "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
-            "example": "johntest@test.com",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "name": {
-            "type": "string",
-            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
             "nullable": true,
             "maxLength": 255
           },
@@ -13820,36 +13975,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "email": {
-            "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
-            "example": "johntest@test.com",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "name": {
-            "type": "string",
-            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
             "nullable": true,
             "maxLength": 255
           },
@@ -14311,14 +14438,15 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
           },
           "email": {
             "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -14326,6 +14454,7 @@
           "name": {
             "type": "string",
             "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -14333,6 +14462,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -14340,6 +14470,7 @@
           "phone_country_code": {
             "type": "string",
             "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "+1",
             "nullable": true,
             "maxLength": 255
@@ -14702,7 +14833,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.\nThis field will be deprecated soon. Please refer to `customer.id`",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
@@ -14841,21 +14973,24 @@
           },
           "email": {
             "type": "string",
-            "description": "description: The customer's email address",
+            "description": "description: The customer's email address\nThis field will be deprecated soon. Please refer to `customer.email` object",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
           },
           "name": {
             "type": "string",
-            "description": "description: The customer's name",
+            "description": "description: The customer's name\nThis field will be deprecated soon. Please refer to `customer.name` object",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
           },
           "phone": {
             "type": "string",
-            "description": "The customer's phone number",
+            "description": "The customer's phone number\nThis field will be deprecated soon. Please refer to `customer.phone` object",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -15380,36 +15515,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "email": {
-            "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
-            "example": "johntest@test.com",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "name": {
-            "type": "string",
-            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
             "nullable": true,
             "maxLength": 255
           },
@@ -16758,12 +16865,28 @@
                 "description": "The starting point within a list of objects",
                 "nullable": true
               },
+              "amount_filter": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AmountFilter"
+                  }
+                ],
+                "nullable": true
+              },
               "connector": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "description": "The list of connectors to filter refunds list",
+                "nullable": true
+              },
+              "merchant_connector_id": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The list of merchant connector ids to filter the refunds list for selected label",
                 "nullable": true
               },
               "currency": {
@@ -17338,6 +17461,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",
@@ -17679,20 +17803,18 @@
       },
       "SepaAndBacsBillingDetails": {
         "type": "object",
-        "required": [
-          "email",
-          "name"
-        ],
         "properties": {
           "email": {
             "type": "string",
             "description": "The Email ID for SEPA and BACS billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           },
           "name": {
             "type": "string",
             "description": "The billing name for SEPA and BACS billing",
-            "example": "Jane Doe"
+            "example": "Jane Doe",
+            "nullable": true
           }
         }
       },

@@ -324,6 +324,23 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
+pub async fn list_merchants_for_user_with_spt(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::UserMerchantAccountList;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user, _, _| user_core::list_merchants_for_user(state, user),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn get_user_role_details(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -435,14 +452,18 @@ pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::InviteMultipleUser;
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
-        user_core::invite_multiple_user,
+        |state, user, payload, req_state| {
+            user_core::invite_multiple_user(state, user, payload, req_state, is_token_only)
+        },
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
@@ -486,7 +507,7 @@ pub async fn accept_invite_from_email(
             |state, user, req_payload, _| {
                 user_core::accept_invite_from_email_token_only_flow(state, user, req_payload)
             },
-            &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::AcceptInvitationFromEmail),
+            &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvitationFromEmail),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -524,7 +545,7 @@ pub async fn verify_email(
             |state, user, req_payload, _| {
                 user_core::verify_email_token_only_flow(state, user, req_payload)
             },
-            &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::VerifyEmail),
+            &auth::SinglePurposeJWTAuth(TokenPurpose::VerifyEmail),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -621,7 +642,25 @@ pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpRes
         &req,
         (),
         |state, user, _, _| user_core::begin_totp(state, user),
-        &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::TOTP),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn totp_verify(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyTotpRequest>,
+) -> HttpResponse {
+    let flow = Flow::TotpVerify;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req_body, _| user_core::verify_totp(state, user, req_body),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await

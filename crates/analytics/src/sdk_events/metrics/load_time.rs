@@ -10,15 +10,15 @@ use time::PrimitiveDateTime;
 
 use super::SdkEventMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct ThreeDsMethodInvokedCount;
+pub(super) struct LoadTime;
 
 #[async_trait::async_trait]
-impl<T> super::SdkEventMetric<T> for ThreeDsMethodInvokedCount
+impl<T> super::SdkEventMetric<T> for LoadTime
 where
     T: AnalyticsDataSource + super::SdkEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -44,9 +44,10 @@ where
         }
 
         query_builder
-            .add_select_column(Aggregate::Count {
-                field: None,
+            .add_select_column(Aggregate::Percentile {
+                field: "latency",
                 alias: Some("count"),
+                percentile: Some(&50),
             })
             .switch()?;
 
@@ -63,18 +64,16 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::ThreeDsMethod)
+            .add_bool_filter_clause("first_event", 1)
             .switch()?;
 
         query_builder
-            .add_filter_clause("log_type", "INFO")
+            .add_filter_clause("event_name", SdkEventNames::AppRendered)
             .switch()?;
 
         query_builder
-            .add_filter_clause("category", "USER_EVENT")
+            .add_custom_filter_clause("latency", 0, FilterTypes::Gt)
             .switch()?;
-
-        query_builder.add_filter_clause("value", "Y").switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)

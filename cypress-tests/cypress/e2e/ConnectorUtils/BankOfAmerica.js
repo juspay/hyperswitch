@@ -16,6 +16,7 @@ const successfulThreeDSTestCardDetails = {
 };
 
 export const connectorDetails = {
+card_pm:{
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency": "USD",
@@ -39,7 +40,7 @@ export const connectorDetails = {
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency": "USD",
-        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
@@ -109,5 +110,5 @@ export const connectorDetails = {
             }
         },
     },
-
+}  
 }; 

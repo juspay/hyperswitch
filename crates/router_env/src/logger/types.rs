@@ -190,6 +190,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    /// Refunds filters flow
+    RefundsFilters,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -386,6 +388,8 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Select merchant from invitations
+    MerchantSelect,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -398,6 +402,8 @@ pub enum Flow {
     UserFromEmail,
     /// Begin TOTP
     TotpBegin,
+    /// Verify TOTP
+    TotpVerify,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
