@@ -217,7 +217,8 @@ impl From<(&RequestSurchargeDetails, &PaymentAttempt)> for SurchargeDetails {
             tax_on_surcharge_amount,
             final_amount: payment_attempt
                 .amount
-                .add(surcharge_amount.add(tax_on_surcharge_amount)),
+                .add(surcharge_amount)
+                .add(tax_on_surcharge_amount),
         }
     }
 }

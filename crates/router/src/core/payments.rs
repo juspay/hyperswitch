@@ -698,7 +698,8 @@ where
         let final_amount = payment_data
             .payment_attempt
             .amount
-            .add(surcharge_amount.add(tax_on_surcharge_amount));
+            .add(surcharge_amount)
+            .add(tax_on_surcharge_amount);
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
                 original_amount: payment_data.payment_attempt.amount,
@@ -3917,7 +3918,7 @@ pub async fn payment_external_authentication(
         browser_info,
         business_profile,
         merchant_connector_account,
-        amount,
+        Some(amount),
         Some(currency),
         authentication::MessageCategory::Payment,
         req.device_channel,

@@ -272,6 +272,11 @@ impl MinorUnit {
         self.0 == a2.0
     }
 
+    /// checks if optional value is equal
+    pub fn is_equal_in_optional_value(&self, a2: Option<Self>) -> bool {
+        a2.is_some_and(|a2| a2.is_equal(*self)) // will remove in future
+    }
+
     /// checks if both the values are not equal
     pub fn is_not_equal(&self, a2: Self) -> bool {
         !self.is_equal(a2)

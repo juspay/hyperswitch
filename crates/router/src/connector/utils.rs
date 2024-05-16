@@ -151,9 +151,9 @@ where
                 let captured_amount =
                     types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                if total_capturable_amount
-                    .is_equal(MinorUnit::new(captured_amount.unwrap_or_default()))
-                {
+                if total_capturable_amount.is_equal_in_optional_value(
+                    MinorUnit::new_from_optional_i64_amount(captured_amount),
+                ) {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged

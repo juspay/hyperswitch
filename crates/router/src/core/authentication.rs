@@ -28,7 +28,7 @@ pub async fn perform_authentication(
     browser_details: Option<core_types::BrowserInformation>,
     business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
-    amount: common_utils::types::MinorUnit,
+    amount: Option<common_utils::types::MinorUnit>,
     currency: Option<Currency>,
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
