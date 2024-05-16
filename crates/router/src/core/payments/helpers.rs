@@ -3719,7 +3719,7 @@ pub async fn get_additional_payment_data(
 
             let card_extended_bin = match enable_extended_bin {
                 Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.clone().get_card_extended_bin())
+                    Some(card_data.card_number.clone().get_extended_card_bin())
                 }
                 _ => None,
             };
