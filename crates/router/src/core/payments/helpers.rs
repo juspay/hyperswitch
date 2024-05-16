@@ -3108,7 +3108,7 @@ pub async fn insert_merchant_connector_creds_to_config(
             .serialize_and_set_key_with_expiry(
                 key.as_str(),
                 &encoded_data.peek(),
-                crate::consts::CONNECTOR_CREDS_TOKEN_TTL,
+                consts::CONNECTOR_CREDS_TOKEN_TTL,
             )
             .await
             .map_or_else(
