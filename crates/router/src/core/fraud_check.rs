@@ -343,7 +343,7 @@ where
 
     let payment_to_frm_data = PaymentToFrmData {
         amount: payment_data.amount,
-        payment_intent: payment_data.payment_intent.clone(),
+        payment_intent: payment_data.payment_intent.to_owned(),
         payment_attempt: payment_data.payment_attempt,
         merchant_account: merchant_account.to_owned(),
         address: payment_data.address.clone(),
