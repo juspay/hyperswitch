@@ -642,7 +642,7 @@ pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpRes
         &req,
         (),
         |state, user, _, _| user_core::begin_totp(state, user),
-        &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::TOTP),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -660,7 +660,7 @@ pub async fn totp_verify(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::verify_totp(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::TOTP),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await

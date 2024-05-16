@@ -15,8 +15,8 @@ pub struct MifinityRouterData<T> {
 
 impl<T>
     TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
+        &api::CurrencyUnit,
+        enums::Currency,
         i64,
         T,
     )> for MifinityRouterData<T>
@@ -24,8 +24,8 @@ impl<T>
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
