@@ -4,6 +4,7 @@ use test_utils::connector_auth;
 use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 struct GpaymentsTest;
 impl ConnectorActions for GpaymentsTest {}
 impl utils::Connector for GpaymentsTest {
