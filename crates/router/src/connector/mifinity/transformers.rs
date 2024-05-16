@@ -2,7 +2,7 @@ use common_utils::pii::Email;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-// use time::Date;
+use time::Date;
 use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},
     core::errors,
@@ -276,7 +276,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
+                resource_id: types::ResponseId::NoResponseId,
                 redirection_data: Some(services::RedirectForm::Mifinity {
                     initialization_token,
                 }),
@@ -301,10 +301,18 @@ pub struct MifinityPsyncResponse {
 #[serde(rename_all = "camelCase")]
 pub struct MifinityPsyncPayload {
     status: MifinityPaymentStatus,
+    payment_response: PaymentResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentResponse{
     trace_id: Option<String>,
     client_reference: Option<String>,
     validation_key: Option<String>,
+    transaction_reference: String,
 }
+
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -324,17 +332,16 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        // let trace_id: Option<String> = item
-        //     .response
-        //     .payload
-        //     .iter()
-        //     .filter_map(|payload| payload.trace_id.clone())
-        //     .next();
+        let transaction_reference = item
+            .response
+            .payload
+            .iter()
+            .map(|payload| payload.payment_response.transaction_reference.clone()).collect();
 
         Ok(Self {
             status: enums::AttemptStatus::Charged,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId("traceid".to_string()),
+                resource_id: types::ResponseId::ConnectorTransactionId(transaction_reference),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
