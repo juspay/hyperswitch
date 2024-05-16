@@ -1,11 +1,12 @@
-use common_utils::pii::Email;
+use common_utils::pii::{self, Email};
+use error_stack::{report, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
 use time::Date;
+
 use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},
-    core::errors,
+    core::errors::{self, CustomResult},
     services,
     types::{self, domain, storage::enums},
 };
@@ -43,6 +44,35 @@ impl<T>
 
 pub mod auth_headers {
     pub const API_VERSION: &str = "api-version";
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct MifinityConnectorMetadataObject {
+    pub brand_id: Option<String>,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
+fn get_brand_id_for_mifinity(
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let mifinity_metadata = MifinityConnectorMetadataObject::try_from(connector_metadata)?;
+    let brand_id =
+        mifinity_metadata
+            .brand_id
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "brand_id",
+            })?;
+    Ok(brand_id)
 }
 
 //TODO: Fill the struct with respective fields
@@ -126,6 +156,9 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     )?;
                     let destination_account_number = data.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
+                    let brand_id = Secret::new(get_brand_id_for_mifinity(
+                        &item.router_data.connector_meta_data,
+                    )?);
                     Ok(Self {
                         money,
                         client,
@@ -135,7 +168,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         trace_id: Secret::new(trace_id.clone()),
                         description: trace_id.clone(),
                         destination_account_number,
-                        brand_id: Secret::new("001".to_string()),
+                        brand_id,
                         return_url: item.router_data.return_url.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "return_url",
@@ -306,13 +339,12 @@ pub struct MifinityPsyncPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentResponse{
+pub struct PaymentResponse {
     trace_id: Option<String>,
     client_reference: Option<String>,
     validation_key: Option<String>,
     transaction_reference: String,
 }
-
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -336,7 +368,8 @@ impl<F, T>
             .response
             .payload
             .iter()
-            .map(|payload| payload.payment_response.transaction_reference.clone()).collect();
+            .map(|payload| payload.payment_response.transaction_reference.clone())
+            .collect();
 
         Ok(Self {
             status: enums::AttemptStatus::Charged,

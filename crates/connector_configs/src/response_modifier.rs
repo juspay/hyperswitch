@@ -321,6 +321,7 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             three_ds_requestor_id: api_model.three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled: api_model
                 .pull_mechanism_for_external_3ds_enabled,
+            brand_id: api_model.brand_id,
         }
     }
 }
