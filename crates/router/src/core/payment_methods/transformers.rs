@@ -339,7 +339,7 @@ pub fn mk_add_card_response_hs(
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
     let card_number = card.card_number.clone();
-    let last4_digits = card_number.clone().get_last4();
+    let last4_digits = card_number.get_last4();
     let card_isin = card_number.get_card_isin();
 
     let card = api::CardDetailFromLocker {

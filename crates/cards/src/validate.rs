@@ -25,17 +25,17 @@ pub struct CardNumberValidationErr(&'static str);
 pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
 
 impl CardNumber {
-    pub fn get_card_isin(self) -> String {
+    pub fn get_card_isin(&self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
     }
 
-    pub fn get_extended_card_bin(self) -> String {
+    pub fn get_extended_card_bin(&self) -> String {
         self.0.peek().chars().take(8).collect::<String>()
     }
-    pub fn get_card_no(self) -> String {
+    pub fn get_card_no(&self) -> String {
         self.0.peek().chars().collect::<String>()
     }
-    pub fn get_last4(self) -> String {
+    pub fn get_last4(&self) -> String {
         self.0
             .peek()
             .chars()
@@ -45,9 +45,6 @@ impl CardNumber {
             .chars()
             .rev()
             .collect::<String>()
-    }
-    pub fn get_card_extended_bin(self) -> String {
-        self.0.peek().chars().take(8).collect::<String>()
     }
 }
 
