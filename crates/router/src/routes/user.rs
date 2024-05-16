@@ -507,7 +507,7 @@ pub async fn accept_invite_from_email(
             |state, user, req_payload, _| {
                 user_core::accept_invite_from_email_token_only_flow(state, user, req_payload)
             },
-            &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::AcceptInvitationFromEmail),
+            &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvitationFromEmail),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -545,7 +545,7 @@ pub async fn verify_email(
             |state, user, req_payload, _| {
                 user_core::verify_email_token_only_flow(state, user, req_payload)
             },
-            &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::VerifyEmail),
+            &auth::SinglePurposeJWTAuth(TokenPurpose::VerifyEmail),
             api_locking::LockAction::NotApplicable,
         ))
         .await
