@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
-use analytics::TenantID;
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+use common_utils::types::TenantID;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
