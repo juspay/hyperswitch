@@ -10,6 +10,17 @@ use crate::services;
 
 #[derive(Debug, Clone)]
 pub enum AuthenticationResponseData {
+    PreAuthVersionCallResponse {
+        /// message_version is same as maximum_supported_3ds_version
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
+    },
+    PreAuthThreeDsMethodCallResponse {
+        threeds_server_transaction_id: String,
+        connector_authentication_id: String,
+        three_ds_method_data: Option<String>,
+        three_ds_method_url: Option<String>,
+        authentication_url: Option<String>,
+    },
     PreAuthNResponse {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
@@ -151,6 +162,12 @@ pub type ConnectorPostAuthenticationType = dyn services::ConnectorIntegration<
 
 pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
     api::PreAuthentication,
+    PreAuthNRequestData,
+    AuthenticationResponseData,
+>;
+
+pub type ConnectorPreAuthenticationVersionCallType = dyn services::ConnectorIntegration<
+    api::PreAuthenticationVersionCall,
     PreAuthNRequestData,
     AuthenticationResponseData,
 >;

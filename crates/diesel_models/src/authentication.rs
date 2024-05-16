@@ -42,6 +42,8 @@ pub struct Authentication {
     pub profile_id: String,
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
+    pub three_ds_requestor_trans_id: Option<String>,
+    pub authentication_url: Option<String>,
 }
 
 impl Authentication {
@@ -86,10 +88,24 @@ pub struct AuthenticationNew {
     pub profile_id: String,
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
+    pub three_ds_requestor_trans_id: Option<String>,
+    pub authentication_url: Option<String>,
 }
 
 #[derive(Debug)]
 pub enum AuthenticationUpdate {
+    PreAuthenticationVersionCallUpdate {
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
+        message_version: common_utils::types::SemanticVersion,
+    },
+    PreAuthenticationThreeDsMethodCall {
+        threeds_server_transaction_id: String,
+        three_ds_method_data: Option<String>,
+        three_ds_method_url: Option<String>,
+        authentication_url: Option<String>,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+    },
     PreAuthenticationUpdate {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
@@ -159,6 +175,8 @@ pub struct AuthenticationUpdateInternal {
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+    pub three_ds_requestor_trans_id: Option<String>,
+    pub authentication_url: Option<String>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -189,6 +207,8 @@ impl Default for AuthenticationUpdateInternal {
             acs_reference_number: Default::default(),
             acs_trans_id: Default::default(),
             acs_signed_content: Default::default(),
+            three_ds_requestor_trans_id: Default::default(),
+            authentication_url: Default::default(),
         }
     }
 }
@@ -221,6 +241,8 @@ impl AuthenticationUpdateInternal {
             acs_reference_number,
             acs_trans_id,
             acs_signed_content,
+            three_ds_requestor_trans_id,
+            authentication_url,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -252,6 +274,9 @@ impl AuthenticationUpdateInternal {
             acs_reference_number: acs_reference_number.or(source.acs_reference_number),
             acs_trans_id: acs_trans_id.or(source.acs_trans_id),
             acs_signed_content: acs_signed_content.or(source.acs_signed_content),
+            three_ds_requestor_trans_id: three_ds_requestor_trans_id
+                .or(source.three_ds_requestor_trans_id),
+            authentication_url: authentication_url.or(source.authentication_url),
             ..source
         }
     }
@@ -269,7 +294,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_code,
                 error_message,
                 authentication_status: Some(authentication_status),
-
                 connector_authentication_id,
                 authentication_type: None,
                 authentication_lifecycle_status: None,
@@ -349,6 +373,30 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 cavv: authentication_value,
                 eci,
                 authentication_status: Some(authentication_status),
+                ..Default::default()
+            },
+            AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+                maximum_supported_3ds_version,
+                message_version,
+            } => Self {
+                maximum_supported_version: Some(maximum_supported_3ds_version),
+                message_version: Some(message_version),
+                ..Default::default()
+            },
+            AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                authentication_url,
+                acquirer_bin,
+                acquirer_merchant_id,
+            } => Self {
+                threeds_server_transaction_id: Some(threeds_server_transaction_id),
+                three_ds_method_data,
+                three_ds_method_url,
+                authentication_url,
+                acquirer_bin,
+                acquirer_merchant_id,
                 ..Default::default()
             },
         }
