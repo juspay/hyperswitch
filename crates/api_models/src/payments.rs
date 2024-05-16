@@ -1450,9 +1450,9 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
-            Self::BankRedirect(_) => None,
+            Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
             Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
-            Self::BankTransfer(_) => None,
+            Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
@@ -1814,11 +1814,11 @@ pub enum BankRedirectData {
     },
     Interac {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
 
-        #[schema(value_type = String, example = "john.doe@example.com")]
-        email: Email,
+        #[schema(value_type = Option<String>, example = "john.doe@example.com")]
+        email: Option<Email>,
     },
     OnlineBankingCzechRepublic {
         // Issuer banks
@@ -1978,7 +1978,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                 ..
             } => get_billing_address_inner(billing_details.as_ref(), country.as_ref(), None),
             Self::Interac { country, email } => {
-                get_billing_address_inner(None, Some(country), Some(email))
+                get_billing_address_inner(None, country.as_ref(), email.as_ref())
             }
             Self::OnlineBankingFinland { email } => {
                 get_billing_address_inner(None, None, email.as_ref())
@@ -4098,6 +4098,12 @@ pub struct GooglePayThirdPartySdk {
 pub struct GooglePaySessionResponse {
     /// The merchant info
     pub merchant_info: GpayMerchantInfo,
+    /// Is shipping address required
+    pub shipping_address_required: bool,
+    /// Is email required
+    pub email_required: bool,
+    /// Shipping address parameters
+    pub shipping_address_parameters: GpayShippingAddressParameters,
     /// List of the allowed payment meythods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
@@ -4110,6 +4116,13 @@ pub struct GooglePaySessionResponse {
     pub sdk_next_action: SdkNextAction,
     /// Secrets for sdk display and payment
     pub secrets: Option<SecretInfoToInitiateSdk>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GpayShippingAddressParameters {
+    /// Is shipping phone number required
+    pub phone_number_required: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4234,7 +4247,22 @@ pub struct ApplePayPaymentRequest {
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
     /// The required billing contact fields for connector
-    pub required_billing_contact_fields: Option<Vec<String>>,
+    pub required_billing_contact_fields: Option<ApplePayBillingContactFields>,
+    /// The required shipping contacht fields for connector
+    pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayBillingContactFields(pub Vec<ApplePayAddressParameters>);
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayShippingContactFields(pub Vec<ApplePayAddressParameters>);
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ApplePayAddressParameters {
+    PostalAddress,
+    Phone,
+    Email,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
