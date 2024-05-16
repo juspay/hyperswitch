@@ -1,4 +1,3 @@
-use api_models::enums::PaymentSource;
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;
@@ -30,7 +29,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
-    pub payment_confirm_source: Option<PaymentSource>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
