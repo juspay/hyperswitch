@@ -137,12 +137,7 @@ pub async fn send_recon_request(
 
         Ok(service_api::ApplicationResponse::Json(
             recon_api::ReconStatusResponse {
-                recon_status: response
-                    .recon_status
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| {
-                        format!("Failed while updating merchant's recon status: {merchant_id}")
-                    })?,
+                recon_status: response.recon_status,
             },
         ))
     } else {

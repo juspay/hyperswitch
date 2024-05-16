@@ -44,7 +44,7 @@ pub struct MerchantAccount {
     pub organization_id: String,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
-    pub recon_status: Option<diesel_models::enums::ReconStatus>,
+    pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
 }
 
