@@ -255,10 +255,19 @@ where
                                 frm_enabled_pm: filtered_payment_methods
                                     .first()
                                     .and_then(|pm| pm.payment_method),
+                                // flow type should be consumed from payment_method.flow. To provide backward compatibility if we don't find it, we consume it from payment_method.payment_method_types[0].flow_type .
                                 frm_preferred_flow_type: filtered_payment_methods
                                     .first()
-                                    .map(|pm| pm.flow.clone())
-                                    .unwrap_or(api_enums::FrmPreferredFlowTypes::Pre),
+                                    .and_then(|pm| pm.flow.clone())
+                                    .or(filtered_payment_methods.first().and_then(|pm| {
+                                        pm.payment_method_types.as_ref().and_then(|pmt| {
+                                            pmt.first().map(|pmts| pmts.flow.clone())
+                                        })
+                                    }))
+                                    .ok_or(errors::ApiErrorResponse::InvalidDataFormat {
+                                            field_name: "frm_configs".to_string(),
+                                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","flow": "post"}]}]"#.to_string(),
+                                    })?,
                             };
                             logger::debug!(
                                 "frm_routing_configs: {:?} {:?} {:?} {:?}",

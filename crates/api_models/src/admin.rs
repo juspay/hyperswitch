@@ -729,9 +729,30 @@ pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
+    ///payment method types(credit, debit) that can be used in the payment
+    ///This field is deprecated, It is not removed to provide backward compatibility.
+    pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
+    ///frm flow type to be used...can be pre/post
+    #[schema(value_type = FrmPreferredFlowTypes)]
+    pub flow: Option<api_enums::FrmPreferredFlowTypes>,
+}
+
+///Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmPaymentMethodType {
+    ///payment method types(credit, debit) that can be used in the payment
+    #[schema(value_type = PaymentMethodType)]
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    ///card networks(like visa mastercard) types that can be used in the payment
+    #[schema(value_type = CardNetwork)]
+    pub card_networks: Option<Vec<common_enums::CardNetwork>>,
     ///frm flow type to be used...can be pre/post
     #[schema(value_type = FrmPreferredFlowTypes)]
     pub flow: api_enums::FrmPreferredFlowTypes,
+    ///action that the frm would take, in case fraud is detected
+    #[schema(value_type = FrmAction)]
+    pub action: api_enums::FrmAction,
 }
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
