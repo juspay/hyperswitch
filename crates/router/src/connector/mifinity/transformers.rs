@@ -1,8 +1,7 @@
 use common_utils::pii::{self, Email};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::Date;
 
 use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},

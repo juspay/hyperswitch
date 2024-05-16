@@ -110,8 +110,6 @@ impl ConnectorCommon for Mifinity {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("rrrrrrr {:?}", res.response);
-
         let response: mifinity::MifinityErrorResponse = res
             .response
             .parse_struct("MifinityErrorResponse")
@@ -207,9 +205,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = mifinity::MifinityPaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -241,8 +236,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        println!("rrrrrrr {:?}", res.response);
-
         let response: mifinity::MifinityPaymentsResponse = res
             .response
             .parse_struct("Mifinity PaymentsAuthorizeResponse")
@@ -268,7 +261,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("rrrrrrr {:?}", res.response);
         self.build_error_response(res, event_builder)
     }
 }
@@ -328,8 +320,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("mifinity PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        println!("{:?} #####", res.response);
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
