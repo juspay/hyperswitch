@@ -285,7 +285,7 @@ pub async fn add_payment_method_status_update_task(
         merchant_id: merchant_id.to_string(),
     };
 
-    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
+    let runner = storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow;
     let task = "PAYMENT_METHOD_STATUS_UPDATE";
     let tag = ["PAYMENT_METHOD_STATUS"];
 
