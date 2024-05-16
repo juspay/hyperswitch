@@ -1,8 +1,8 @@
 use common_utils::pii::Email;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
 use time::Date;
+
 use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},
     core::errors,
@@ -306,13 +306,12 @@ pub struct MifinityPsyncPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentResponse{
+pub struct PaymentResponse {
     trace_id: Option<String>,
     client_reference: Option<String>,
     validation_key: Option<String>,
     transaction_reference: String,
 }
-
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -336,7 +335,8 @@ impl<F, T>
             .response
             .payload
             .iter()
-            .map(|payload| payload.payment_response.transaction_reference.clone()).collect();
+            .map(|payload| payload.payment_response.transaction_reference.clone())
+            .collect();
 
         Ok(Self {
             status: enums::AttemptStatus::Charged,
