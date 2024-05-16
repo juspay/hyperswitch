@@ -9311,6 +9311,14 @@
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmPaymentMethodType"
+            },
+            "description": "payment method types(credit, debit) that can be used in the payment\nThis field is deprecated. It has not been removed to provide backward compatibility.",
+            "nullable": true
+          },
           "flow": {
             "$ref": "#/components/schemas/FrmPreferredFlowTypes"
           }
