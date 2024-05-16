@@ -2448,9 +2448,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::CardRedirectData::Knet {} => Self::Knet,
                     domain::payments::CardRedirectData::Benefit {} => Self::Benefit,
                     domain::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm,
-                    domain::payments::CardRedirectData::CardRedirect {} => {
-                        Self::CardRedirect
-                    }
+                    domain::payments::CardRedirectData::CardRedirect {} => Self::CardRedirect,
                 }
             }
             domain::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -2468,51 +2466,35 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 }
                 domain::payments::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 domain::payments::WalletData::GooglePay(_) => Self::GooglePay,
-                domain::payments::WalletData::GooglePayRedirect(_) => {
-                    Self::GooglePayRedirect
-                }
+                domain::payments::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
                 }
                 domain::payments::WalletData::MbWayRedirect(_) => Self::MbWayRedirect,
-                domain::payments::WalletData::MobilePayRedirect(_) => {
-                    Self::MobilePayRedirect
-                }
+                domain::payments::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                 domain::payments::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                 domain::payments::WalletData::PaypalSdk(_) => Self::PaypalSdk,
                 domain::payments::WalletData::SamsungPay(_) => Self::SamsungPay,
                 domain::payments::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 domain::payments::WalletData::VippsRedirect {} => Self::VippsRedirect,
                 domain::payments::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
-                domain::payments::WalletData::WeChatPayRedirect(_) => {
-                    Self::WeChatPayRedirect
-                }
+                domain::payments::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
                 domain::payments::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
                 domain::payments::WalletData::CashappQr(_) => Self::CashappQr,
                 domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
             },
-            domain::payments::PaymentMethodData::PayLater(pay_later_data) => {
-                match pay_later_data {
-                    domain::payments::PayLaterData::KlarnaRedirect { .. } => {
-                        Self::KlarnaRedirect
-                    }
-                    domain::payments::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
-                    domain::payments::PayLaterData::AffirmRedirect {} => {
-                        Self::AffirmRedirect
-                    }
-                    domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                        Self::AfterpayClearpayRedirect
-                    }
-                    domain::payments::PayLaterData::PayBrightRedirect {} => {
-                        Self::PayBrightRedirect
-                    }
-                    domain::payments::PayLaterData::WalleyRedirect {} => {
-                        Self::WalleyRedirect
-                    }
-                    domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
-                    domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+            domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
+                domain::payments::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
+                domain::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
+                domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    Self::AfterpayClearpayRedirect
                 }
-            }
+                domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
+                domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
+                domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+            },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
                     domain::payments::BankRedirectData::BancontactCard { .. } => {
@@ -2524,9 +2506,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankRedirectData::Giropay { .. } => Self::Giropay,
                     domain::payments::BankRedirectData::Ideal { .. } => Self::Ideal,
                     domain::payments::BankRedirectData::Interac { .. } => Self::Interac,
-                    domain::payments::BankRedirectData::OnlineBankingCzechRepublic {
-                        ..
-                    } => Self::OnlineBankingCzechRepublic,
+                    domain::payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
+                        Self::OnlineBankingCzechRepublic
+                    }
                     domain::payments::BankRedirectData::OnlineBankingFinland { .. } => {
                         Self::OnlineBankingFinland
                     }
@@ -2536,12 +2518,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankRedirectData::OnlineBankingSlovakia { .. } => {
                         Self::OnlineBankingSlovakia
                     }
-                    domain::payments::BankRedirectData::OpenBankingUk { .. } => {
-                        Self::OpenBankingUk
-                    }
-                    domain::payments::BankRedirectData::Przelewy24 { .. } => {
-                        Self::Przelewy24
-                    }
+                    domain::payments::BankRedirectData::OpenBankingUk { .. } => Self::OpenBankingUk,
+                    domain::payments::BankRedirectData::Przelewy24 { .. } => Self::Przelewy24,
                     domain::payments::BankRedirectData::Sofort { .. } => Self::Sofort,
                     domain::payments::BankRedirectData::Trustly { .. } => Self::Trustly,
                     domain::payments::BankRedirectData::OnlineBankingFpx { .. } => {
@@ -2554,18 +2532,10 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             }
             domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
                 match bank_debit_data {
-                    domain::payments::BankDebitData::AchBankDebit { .. } => {
-                        Self::AchBankDebit
-                    }
-                    domain::payments::BankDebitData::SepaBankDebit { .. } => {
-                        Self::SepaBankDebit
-                    }
-                    domain::payments::BankDebitData::BecsBankDebit { .. } => {
-                        Self::BecsBankDebit
-                    }
-                    domain::payments::BankDebitData::BacsBankDebit { .. } => {
-                        Self::BacsBankDebit
-                    }
+                    domain::payments::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
+                    domain::payments::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                    domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
+                    domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
                 }
             }
             domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
@@ -2579,9 +2549,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::BacsBankTransfer { .. } => {
                         Self::BacsBankTransfer
                     }
-                    domain::payments::BankTransferData::MultibancoBankTransfer {
-                        ..
-                    } => Self::MultibancoBankTransfer,
+                    domain::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                        Self::MultibancoBankTransfer
+                    }
                     domain::payments::BankTransferData::PermataBankTransfer { .. } => {
                         Self::PermataBankTransfer
                     }
@@ -2614,8 +2584,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::MandatePayment => Self::MandatePayment,
             domain::payments::PaymentMethodData::Reward => Self::Reward,
             domain::payments::PaymentMethodData::Upi(_) => Self::Upi,
-            domain::payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data
-            {
+            domain::payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
                 domain::payments::VoucherData::Boleto(_) => Self::Boleto,
                 domain::payments::VoucherData::Efecty => Self::Efecty,
                 domain::payments::VoucherData::PagoEfectivo => Self::PagoEfectivo,
