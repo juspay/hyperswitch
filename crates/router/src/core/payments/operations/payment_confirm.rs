@@ -1249,6 +1249,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
+        if let Some(amount) = request.amount {
+            helpers::validate_max_amount(amount)?;
+        }
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
