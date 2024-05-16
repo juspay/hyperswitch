@@ -319,7 +319,7 @@ where
             Self {
                 verify_id: Some(data.payment_intent.payment_id),
                 merchant_id: Some(data.payment_intent.merchant_id),
-                client_secret: data.payment_intent.client_secret.map(masking::Secret::new),
+                client_secret: data.payment_intent.client_secret.map(Secret::new),
                 customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
                 email: customer
                     .as_ref()
@@ -641,7 +641,7 @@ where
                 .set_amount_received(payment_intent.amount_captured)
                 .set_surcharge_details(surcharge_details)
                 .set_connector(routed_through)
-                .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
+                .set_client_secret(payment_intent.client_secret.map(Secret::new))
                 .set_created(Some(payment_intent.created_at))
                 .set_currency(currency.to_string())
                 .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
