@@ -6,56 +6,54 @@ api:
   address: 0.0.0.0:8686
 
 sources:
-  demo_logs:
-    type: demo_logs
-    interval: 1
-    format: json
-
   kafka_payments:
     type: kafka
     bootstrap_servers: kafka0:29092
     group_id: sessionizer
     topics:
-      - ^hyperswitch-.+
-    decoding:
-      codec: json
-
-  kafka_intents_source:
-    type: kafka
-    bootstrap_servers: kafka0:29092
-    group_id: sessionizer
-    topics:
-      - consolidated-intent-events
-    decoding:
-      codec: json
+      - ^hyperswitch-*
 
 transforms:
-  # buffer_with_reduce:
-  #   type: reduce
-  #   inputs:
-  #     - kafka_payments
-  #   group_by:
-  #     - log.log_type
-  #     - log.merchant_id
-  #     - log.payment_id
-  #     - log.attempt_id
-  #     - log.refund_id
-  #     - log.dispute_id
-  #   merge_strategies:
-  #     log: retain
-  #   expire_after_ms: 5000
-
-  init_sessionizer_vars:
+  parse_kafka_payments:
     type: remap
     inputs:
       - kafka_payments
     source: >-
+      payment_topic_to_log_type = {
+        "hyperswitch-payment-intent-events" : "intent",
+        "hyperswitch-payment-attempt-events" : "attempt",
+        "hyperswitch-dispute-events" : "dispute",
+        "hyperswitch-refund-events" : "refund"
+      };
+      .log = parse_json(.message) ?? {};
+      del(.message);
+      .log_type = get(payment_topic_to_log_type, [.topic]) ?? "unknown";
+
+  buffer_with_reduce:
+    type: reduce
+    inputs:
+      - parse_kafka_payments
+    group_by:
+      - log.log_type
+      - log.merchant_id
+      - log.payment_id
+      - log.attempt_id
+      - log.refund_id
+      - log.dispute_id
+    merge_strategies:
+      log: retain
+    expire_after_ms: 5000
+
+  init_sessionizer_vars:
+    type: remap
+    inputs:
+      - buffer_with_reduce
+    source: >-
       .sessionizer = {
         "table": "payments",
         "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
-        "id_type": "merchant_payment",
         "db_log_type": "intent"
-      }
+      };
 
   cassandra_get_old_event:
     type: lua
@@ -73,7 +71,6 @@ transforms:
         socket.select(nil, nil, sec)
       end
 
-
       function init(emit)
         local cassandra = require "cassandra"
         
@@ -87,22 +84,20 @@ transforms:
         assert(client:connect())
       end
 
-      function db_get(table, id, id_type, version)
+      function db_get(table, id, version)
         local version = version or 1
-        local rows = assert(client:execute(string.format("SELECT * FROM %s WHERE id = ? and id_type = ?", table), {
-          id,
-          id_type
+        local rows = assert(client:execute(string.format("SELECT * FROM %s WHERE id = ?", table), {
+          id
         }))
         return rows
       end
 
-      function db_get_wait(table, id, id_type, version)
-        local is_success, data = pcall(db_get, table, id, id_type, version)
-
+      function db_get_wait(table, id, version)
+        local is_success, data = pcall(db_get, table, id, version)
         while not is_success do
           sleep(5)
           client:connect()
-          is_success, data = pcall(db_get, table, id, id_type, version)
+          is_success, data = pcall(db_get, table, id, version)
         end
 
         return data
@@ -110,8 +105,8 @@ transforms:
 
       function process(event, emit)
         local sessionizer = event.log.sessionizer
-        local data = db_get_wait(sessionizer.table, sessionizer.id, sessionizer.id_type)
 
+        local data = db_get_wait(sessionizer.table, sessionizer.id)
         event.log.old_log_type = sessionizer.db_log_type
         if #data == 1 then
           event.log.old_log = data[1].state
@@ -196,24 +191,23 @@ transforms:
 
       end
 
-      function db_set(table, state, id, id_type, version)
+      function db_set(table, state, id, version)
         version = version or 1
-        local res = assert(client:execute(string.format("INSERT INTO %s (id, id_type, state, version) VALUES (?, ?, ?, ?)", table), {
+        local res = assert(client:execute(string.format("INSERT INTO %s (id, state, version) VALUES (?, ?, ?)", table), {
           id,
-          id_type,
           state,
           version
         }))
         return res
       end
 
-      function db_set_wait(table, state, id, id_type, version)
-        local is_success, res = pcall(db_set, table, state, id, id_type, version)
+      function db_set_wait(table, state, id, version)
+        local is_success, res = pcall(db_set, table, state, id, version)
 
         while not is_success do
           sleep(5)
           client:connect()
-          is_success, res = pcall(db_set, table, state, id, id_type, version)
+          is_success, res = pcall(db_set, table, state, id, version)
         end
 
         return res
@@ -221,7 +215,7 @@ transforms:
 
       function process(event, emit)
         local sessionizer = event.log.sessionizer
-        local new_event_insert = db_set_wait(sessionizer.table, sessionizer.db_event, sessionizer.id, sessionizer.id_type)
+        local new_event_insert = db_set_wait(sessionizer.table, sessionizer.db_event, sessionizer.id)
         emit(event)
       end
 
@@ -260,10 +254,10 @@ transforms:
         attempt_log = object(attempt) ?? {};
 
         attempt_total_count = attempt_total_count + 1;
-        attempt_total_amount = attempt_total_amount + float(attempt_log.amount) ?? 0;
+        attempt_total_amount = attempt_total_amount + float(attempt_log.amount) ?? int(attempt_log.amount) ?? 0;
         if attempt_log.status == "charged" {
           attempt_success_count = attempt_success_count + 1;
-          attempt_success_amount = attempt_success_amount + float(attempt_log.amount) ?? 0;
+          attempt_success_amount = attempt_success_amount + float(attempt_log.amount) ?? int(attempt_log.amount) ?? 0;
         }
 
         refunds = object(attempt_log.refunds) ?? {};
@@ -276,10 +270,10 @@ transforms:
           refund_log = object(refund) ?? {};
           
           refund_total_count = refund_total_count + 1;
-          refund_total_amount = refund_total_amount + float(refund_log.amount) ?? 0;
+          refund_total_amount = refund_total_amount + float(refund_log.refund_amount) ?? int(refund_log.refund_amount) ?? 0;
           if refund_log.status == "succeeded" {
             refund_success_count = refund_success_count + 1;
-            refund_success_amount = refund_success_amount + float(refund_log.amount) ?? 0;
+            refund_success_amount = refund_success_amount + float(refund_log.refund_amount) ?? int(refund_log.refund_amount) ?? 0;
           }
         }
 
@@ -303,10 +297,10 @@ transforms:
           dispute_log = object(dispute) ?? {};
 
           dispute_total_count = dispute_total_count + 1;
-          dispute_total_amount = dispute_total_amount + float(dispute_log.amount) ?? 0;
+          dispute_total_amount = dispute_total_amount + float(dispute_log.dispute_amount) ?? int(dispute_log.dispute_amount) ?? 0;
           if dispute_log.dispute_status == "dispute_won" {
             dispute_success_count = dispute_success_count + 1;
-            dispute_success_amount = dispute_success_amount + float(dispute_log.amount) ?? 0;
+            dispute_success_amount = dispute_success_amount + float(dispute_log.dispute_amount) ?? int(dispute_log.dispute_amount) ?? 0;
           }
         }
 
@@ -401,18 +395,18 @@ transforms:
       }
 
 sinks:
-  kafka_intents_sink:
-    type: kafka
-    inputs:
-      - consolidate_events_intents
-    bootstrap_servers: kafka0:29092
-    topic: consolidated-intent-events
-    encoding:
-      codec: json
+  # kafka_intents_sink:
+  #   type: kafka
+  #   inputs:
+  #     - consolidate_events_intents
+  #   bootstrap_servers: kafka0:29092
+  #   topic: consolidated-intent-events
+  #   encoding:
+  #     codec: json
 
   console_intents:
     inputs:
-      - kafka_intents_source
+      - consolidate_events_intents
     target: stdout
     type: console
     encoding:
