@@ -135,7 +135,7 @@ impl ConnectorValidation for Payme {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: types::domain::payments::PaymentMethodData,
+        pm_data: domain::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
