@@ -9305,6 +9305,7 @@
         "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
         "required": [
           "payment_method",
+          "payment_method_types",
           "flow"
         ],
         "properties": {
@@ -9312,12 +9313,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FrmPaymentMethodType"
-            },
-            "description": "payment method types(credit, debit) that can be used in the payment\nThis field is deprecated. It has not been removed to provide backward compatibility.",
-            "nullable": true
+            "$ref": "#/components/schemas/FrmPaymentMethodType"
           },
           "flow": {
             "$ref": "#/components/schemas/FrmPreferredFlowTypes"

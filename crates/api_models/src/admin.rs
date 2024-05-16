@@ -729,8 +729,8 @@ pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
-    ///payment method types(credit, debit) that can be used in the payment
-    ///This field is deprecated. It has not been removed to provide backward compatibility.
+    ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    #[schema(value_type = FrmPaymentMethodType)]
     pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
     ///frm flow type to be used...can be pre/post
     #[schema(value_type = FrmPreferredFlowTypes)]
