@@ -16,10 +16,10 @@ use crate::{
     core::errors::{self, CustomResult},
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
-    types::domain,
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        domain,
     },
 };
 #[cfg(feature = "frm")]

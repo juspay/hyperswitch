@@ -1,4 +1,3 @@
-use crate::types::api;
 use bigdecimal::ToPrimitive;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
@@ -14,7 +13,7 @@ use crate::{
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
+        self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
     },
 };
