@@ -255,7 +255,7 @@ where
                                 frm_enabled_pm: filtered_payment_methods
                                     .first()
                                     .and_then(|pm| pm.payment_method),
-                                // flow type should be consumed from payment_method.flow. To provide backward compatibility if we don't find it, we consume it from payment_method.payment_method_types[0].flow_type .
+                                // flow type should be consumed from payment_method.flow. To provide backward compatibility, if we don't find it there, we consume it from payment_method.payment_method_types[0].flow_type.
                                 frm_preferred_flow_type: filtered_payment_methods
                                     .first()
                                     .and_then(|pm| pm.flow.clone())
