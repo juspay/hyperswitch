@@ -252,6 +252,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::PrimaryBusinessDetails,
         api_models::admin::FrmConfigs,
         api_models::admin::FrmPaymentMethod,
+        api_models::admin::FrmPaymentMethodType,
         api_models::admin::PaymentMethodsEnabled,
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
