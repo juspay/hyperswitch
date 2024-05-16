@@ -245,8 +245,8 @@ pub enum Op<'a> {
 }
 
 impl<'a> std::fmt::Display for Op<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result{
-        match self{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
             Op::Insert => f.write_str("insert"),
             Op::Find => f.write_str("find"),
             Op::Update(p_key, _, _) => f.write_str(&format!("update_{}", p_key)),
@@ -280,7 +280,7 @@ where
                     Ok(_) => {
                         metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(&metrics::CONTEXT, 1, &[]);
                         MerchantStorageScheme::RedisKv
-                    },
+                    }
                     Err(_) => MerchantStorageScheme::PostgresOnly,
                 }
             }
@@ -290,12 +290,12 @@ where
             _ => {
                 logger::debug!("soft_kill_mode - using default storage scheme");
                 storage_scheme
-            },
+            }
         };
 
         let type_name = std::any::type_name::<D>();
         logger::info!(soft_kill_mode = "decide_storage_scheme", decided_scheme = %updated_scheme, configured_scheme = %storage_scheme,entity = %type_name, operation = %ops);
-    
+
         updated_scheme
     } else {
         storage_scheme
