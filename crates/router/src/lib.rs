@@ -74,6 +74,7 @@ pub mod headers {
     pub const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
     pub const X_CLIENT_VERSION: &str = "X-Client-Version";
     pub const X_CLIENT_SOURCE: &str = "X-Client-Source";
+    pub const X_PAYMENT_CONFIRM_SOURCE: &str = "X-Payment-Confirm-Source";
 }
 
 pub mod pii {
