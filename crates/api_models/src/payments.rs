@@ -277,7 +277,6 @@ pub struct PaymentsRequest {
     pub customer: Option<CustomerDetails>,
 
     /// The identifier for the customer object.
-    /// This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
 
