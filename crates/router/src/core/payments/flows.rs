@@ -21,7 +21,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -46,6 +46,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self>
     where
         Self: Sized,

@@ -175,7 +175,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                             CreditCardMethodData {
                                 billing_address: get_billing_details(item.router_data)?,
                                 shipping_address: get_shipping_details(item.router_data)?,
-                                card_token: Some(Secret::new(match pm_token {
+                                card_token: Some(match pm_token {
                                     types::PaymentMethodToken::Token(token) => token,
                                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                         Err(unimplemented_payment_method!(
@@ -184,12 +184,12 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                             "Mollie"
                                         ))?
                                     }
-                                })),
+                                }),
                             },
                         )))
                     }
                     domain::PaymentMethodData::BankRedirect(ref redirect_data) => {
-                        PaymentMethodData::try_from(redirect_data)
+                        PaymentMethodData::try_from((item.router_data, redirect_data))
                     }
                     domain::PaymentMethodData::Wallet(ref wallet_data) => {
                         get_payment_method_for_wallet(item.router_data, wallet_data)
@@ -230,9 +230,19 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
     }
 }
 
-impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
+impl
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &domain::BankRedirectData,
+    )> for PaymentMethodData
+{
     type Error = Error;
-    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (item, value): (
+            &types::PaymentsAuthorizeRouterData,
+            &domain::BankRedirectData,
+        ),
+    ) -> Result<Self, Self::Error> {
         match value {
             domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
             domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
@@ -243,11 +253,11 @@ impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
                 })))
             }
             domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            domain::BankRedirectData::Przelewy24 {
-                billing_details, ..
-            } => Ok(Self::Przelewy24(Box::new(Przelewy24MethodData {
-                billing_email: billing_details.email.clone(),
-            }))),
+            domain::BankRedirectData::Przelewy24 { .. } => {
+                Ok(Self::Przelewy24(Box::new(Przelewy24MethodData {
+                    billing_email: item.get_optional_billing_email(),
+                })))
+            }
             domain::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -497,7 +507,7 @@ impl<F, T>
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
             payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.card_token.clone().expose(),
+                item.response.card_token.clone(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),

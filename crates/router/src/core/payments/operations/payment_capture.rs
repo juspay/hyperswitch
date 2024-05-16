@@ -10,7 +10,6 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
     routes::{app::ReqState, AppState},
@@ -29,8 +28,8 @@ use crate::{
 pub struct PaymentCapture;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
+impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+    for PaymentCapture
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -42,7 +41,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, Ctx>> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -248,8 +247,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: PaymentMethodRetrieve>
-    UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx>
+impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -265,7 +263,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
     )>
     where
@@ -299,16 +297,14 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    ValidateRequest<F, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
-{
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         operations::ValidateResult<'a>,
     )> {
         Ok((
