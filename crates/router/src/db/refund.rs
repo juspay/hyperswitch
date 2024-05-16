@@ -956,6 +956,7 @@ impl RefundInterface for MockDb {
         offset: i64,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
+        let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
 
@@ -964,6 +965,14 @@ impl RefundInterface for MockDb {
             connectors.iter().for_each(|connector| {
                 unique_connectors.insert(connector);
             });
+        }
+
+        if let Some(merchant_connector_ids) = &refund_details.merchant_connector_id {
+            merchant_connector_ids
+                .iter()
+                .for_each(|unique_merchant_connector_id| {
+                    unique_merchant_connector_ids.insert(unique_merchant_connector_id);
+                });
         }
 
         if let Some(currencies) = &refund_details.currency {
@@ -1009,7 +1018,23 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
+                refund_details
+                    .amount_filter
+                    .as_ref()
+                    .map_or(true, |amount| {
+                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
+                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                    })
+            })
+            .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_merchant_connector_ids.is_empty()
+                    || refund
+                        .merchant_connector_id
+                        .as_ref()
+                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
@@ -1080,6 +1105,7 @@ impl RefundInterface for MockDb {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
+        let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
 
@@ -1088,6 +1114,14 @@ impl RefundInterface for MockDb {
             connectors.iter().for_each(|connector| {
                 unique_connectors.insert(connector);
             });
+        }
+
+        if let Some(merchant_connector_ids) = &refund_details.merchant_connector_id {
+            merchant_connector_ids
+                .iter()
+                .for_each(|unique_merchant_connector_id| {
+                    unique_merchant_connector_ids.insert(unique_merchant_connector_id);
+                });
         }
 
         if let Some(currencies) = &refund_details.currency {
@@ -1133,7 +1167,23 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
+                refund_details
+                    .amount_filter
+                    .as_ref()
+                    .map_or(true, |amount| {
+                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
+                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                    })
+            })
+            .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_merchant_connector_ids.is_empty()
+                    || refund
+                        .merchant_connector_id
+                        .as_ref()
+                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)

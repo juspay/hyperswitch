@@ -7,7 +7,7 @@ use masking::ExposeInterface;
 use crate::{
     events::connector_api_logs::ConnectorEvent,
     configs::settings,
-    utils::{self, BytesExt},
+    utils::BytesExt,
     core::{
         errors::{self, CustomResult},
     },
