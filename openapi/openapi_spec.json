@@ -10631,8 +10631,7 @@
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
           "organization_id",
-          "is_recon_enabled",
-          "recon_status"
+          "is_recon_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -10764,7 +10763,12 @@
             "maxLength": 64
           },
           "recon_status": {
-            "$ref": "#/components/schemas/ReconStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReconStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
