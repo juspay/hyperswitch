@@ -3872,6 +3872,7 @@ pub struct GpayAllowedMethodsParameters {
     /// Is billing address required
     pub billing_address_required: Option<bool>,
     /// Billing address parameters
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address_parameters: Option<GpayBillingAddressParameters>,
 }
 
@@ -4247,7 +4248,9 @@ pub struct ApplePayPaymentRequest {
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
     /// The required billing contact fields for connector
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub required_billing_contact_fields: Option<ApplePayBillingContactFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// The required shipping contacht fields for connector
     pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
 }
