@@ -226,3 +226,7 @@ api_key="API Key"
 
 [mifinity]
 api_key="API Key"
+
+
+[gpayments]
+api_key="API Key"
