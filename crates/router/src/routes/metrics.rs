@@ -123,8 +123,14 @@ counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
 // Access token metrics
+//
+// A counter to indicate the number of new access tokens created
 counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
+
+// A counter to indicate the access token cache hits
 counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
+
+// A counter to indicate the access token cache miss
 counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
 
 pub mod request;
