@@ -255,6 +255,7 @@ where
                 .into_iter()
                 .collect::<Result<Vec<bytes::Bytes>, actix_web::error::PayloadError>>()?;
             let bytes = payload.clone().concat().to_vec();
+            let bytes_length = bytes.len();
             // we are creating h1 payload manually from bytes, currently there's no way to create http2 payload with actix
             let (_, mut new_payload) = actix_http::h1::Payload::create(true);
             new_payload.unread_data(bytes.to_vec().clone().into());
@@ -281,7 +282,7 @@ where
                     .ok()
                     .flatten();
 
-                logger::info!("Content length: {content_length_header_string:?}");
+                logger::info!("Content length from header: {content_length_header_string:?}, Bytes length: {bytes_length}");
 
                 if !bytes.is_empty() {
                     let value_result: Result<serde_json::Value, serde_json::Error> =
