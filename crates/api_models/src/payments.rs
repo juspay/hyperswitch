@@ -278,12 +278,7 @@ pub struct PaymentsRequest {
 
     /// The identifier for the customer object.
     /// This field will be deprecated soon, use the customer object instead
-    #[schema(
-        max_length = 255,
-        example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-        deprecated
-    )]
-    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
 
     /// The customer's email address.

@@ -13622,6 +13622,13 @@
             ],
             "nullable": true
           },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 255
+          },
           "off_session": {
             "type": "boolean",
             "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
@@ -13965,6 +13972,13 @@
               }
             ],
             "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 255
           },
           "off_session": {
             "type": "boolean",
@@ -14425,7 +14439,6 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
-            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
@@ -15499,6 +15512,13 @@
               }
             ],
             "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 255
           },
           "off_session": {
             "type": "boolean",
