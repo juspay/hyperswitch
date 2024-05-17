@@ -5,7 +5,7 @@ use std::{
     primitive::i64,
     str::FromStr,
 };
-
+use utoipa::ToSchema;
 use diesel::{
     backend::Backend,
     deserialize,
@@ -237,6 +237,7 @@ where
     PartialEq,
     Eq,
     Hash,
+    ToSchema
 )]
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
