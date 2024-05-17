@@ -22,7 +22,7 @@ use crate::{
     utils::OptionExt,
 };
 #[cfg(not(feature = "payouts"))]
-use crate::{core::errors, types};
+use crate::{core::errors, types::{self,api,storage::enums as storage_enums}};
 
 pub struct PayoneRouterData<T> {
     pub amount: String,
@@ -31,8 +31,8 @@ pub struct PayoneRouterData<T> {
 
 impl<T>
     TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
+        &api::CurrencyUnit,
+        storage_enums::Currency,
         i64,
         T,
     )> for PayoneRouterData<T>
@@ -40,8 +40,8 @@ impl<T>
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            storage_enums::Currency,
             i64,
             T,
         ),
