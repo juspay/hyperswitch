@@ -231,17 +231,17 @@ pub struct ChargeRefunds {
 #[serde(untagged)]
 /// Options for different charge types
 pub enum ChargeRefundsOptions {
-    /// Funds are directly transferred to the reseller's account.
-    /// Any deductions (platform, Stripe fees etc.) are made from reseller's account.
-    ///
-    /// Refunds are made directly to the reseller's account using charge_id.
-    Direct(DirectChargeRefund),
-
     /// Funds are transferred to the main account.
     /// Any deductions (platform, Stripe fees etc.) are made from platform's main account.
     ///
     /// Refunds are made to the platform's main account.
     Destination(DestinationChargeRefund),
+
+    /// Funds are directly transferred to the reseller's account.
+    /// Any deductions (platform, Stripe fees etc.) are made from reseller's account.
+    ///
+    /// Refunds are made directly to the reseller's account using charge_id.
+    Direct(DirectChargeRefund),
 }
 
 #[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
