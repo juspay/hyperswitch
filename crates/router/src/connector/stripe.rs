@@ -1385,7 +1385,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                     }
                 }
             });
-
         Ok(header)
     }
 

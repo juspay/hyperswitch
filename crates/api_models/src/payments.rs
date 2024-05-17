@@ -474,16 +474,10 @@ pub struct PaymentsRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentChargeRequest {
-    #[serde(untagged)]
-    Stripe(StripeChargeRequest),
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct StripeChargeRequest {
+pub struct PaymentChargeRequest {
     /// Stripe's charge type
-    #[schema(value_type = StripeChargeType, example = "direct")]
-    pub charge_type: api_enums::StripeChargeType,
+    #[schema(value_type = PaymentChargeType, example = "direct")]
+    pub charge_type: api_enums::PaymentChargeType,
 
     /// Platform fees to be collected on the payment
     pub fees: i64,

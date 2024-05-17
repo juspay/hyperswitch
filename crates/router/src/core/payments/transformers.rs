@@ -637,7 +637,7 @@ where
         let charges_response = match payment_intent.charges {
             None => None,
             Some(charges) => {
-                let payment_charges = charges
+                let payment_charges: PaymentChargeRequest = charges
                     .peek()
                     .clone()
                     .parse_value("PaymentChargeRequest")
@@ -646,16 +646,13 @@ where
                         "Failed to parse PaymentChargeRequest for payment_intent {}",
                         payment_intent.payment_id
                     ))?;
-                match payment_charges {
-                    PaymentChargeRequest::Stripe(charge) => Some(PaymentChargeResponse {
-                        charge_id: payment_attempt.charge_id,
-                        charge_type: api_models::enums::PaymentChargeType::Stripe(
-                            charge.charge_type,
-                        ),
-                        application_fees: charge.fees,
-                        transfer_account_id: charge.transfer_account_id,
-                    }),
-                }
+
+                Some(PaymentChargeResponse {
+                    charge_id: payment_attempt.charge_id,
+                    charge_type: payment_charges.charge_type,
+                    application_fees: payment_charges.fees,
+                    transfer_account_id: payment_charges.transfer_account_id,
+                })
             }
         };
 

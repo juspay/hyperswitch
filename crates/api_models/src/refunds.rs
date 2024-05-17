@@ -145,7 +145,6 @@ pub struct RefundResponse {
     /// The merchant_connector_id of the processor through which this payment went through
     pub merchant_connector_id: Option<String>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<ChargeRefunds>)]
     pub charges: Option<ChargeRefunds>,
 }

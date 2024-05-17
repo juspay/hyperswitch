@@ -997,15 +997,15 @@ impl PaymentCreate {
         let charges = request
             .charges
             .as_ref()
-            .map(|charges| match serde_json::to_value(charges) {
-                Ok(charges) => Ok(Secret::new(charges)),
-                Err(err) => {
+            .map(|charges| {
+                charges.encode_to_value().map_err(|err| {
                     logger::warn!("Failed to serialize PaymentCharges - {}", err);
-                    Err(err)
-                }
+                    err
+                })
             })
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(Secret::new);
 
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),

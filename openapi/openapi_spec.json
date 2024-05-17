@@ -12528,19 +12528,26 @@
         }
       },
       "PaymentChargeRequest": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "stripe"
-            ],
-            "properties": {
-              "stripe": {
-                "$ref": "#/components/schemas/StripeChargeRequest"
-              }
-            }
+        "type": "object",
+        "required": [
+          "charge_type",
+          "fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees to be collected on the payment"
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account to send the funds to"
           }
-        ]
+        }
       },
       "PaymentChargeResponse": {
         "type": "object",
@@ -18347,28 +18354,6 @@
         ],
         "discriminator": {
           "propertyName": "type"
-        }
-      },
-      "StripeChargeRequest": {
-        "type": "object",
-        "required": [
-          "charge_type",
-          "fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_type": {
-            "$ref": "#/components/schemas/StripeChargeType"
-          },
-          "fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees to be collected on the payment"
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account to send the funds to"
-          }
         }
       },
       "StripeChargeType": {
