@@ -3710,7 +3710,7 @@ pub async fn get_additional_payment_data(
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
-            let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id).as_str(),
@@ -3719,11 +3719,11 @@ pub async fn get_additional_payment_data(
 
             let card_extended_bin = match enable_extended_bin {
                 Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.clone().get_extended_card_bin())
+                    Some(card_data.card_number.get_extended_card_bin())
                 }
                 _ => None,
             };
-            let last4 = Some(card_data.card_number.clone().get_last4());
+            let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
                 && card_data.card_type.is_some()
