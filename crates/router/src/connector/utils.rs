@@ -1987,7 +1987,7 @@ where
                             .get_connector_reference_id(),
                         amount: capture_sync_response
                             .get_amount_captured()
-                            .map(|amt| MinorUnit::new(amt)),
+                            .map(MinorUnit::new),
                     },
                 );
             }
