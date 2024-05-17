@@ -309,9 +309,3 @@ impl Sub for MinorUnit {
         Self(self.0 - a2.0)
     }
 }
-
-// impl PartialOrd for MinorUnit {
-//     fn partial_cmp(&self, a2: &Self) -> Option<std::cmp::Ordering> {
-//         Some(self.0.cmp(&a2.0))
-//     }
-// }
