@@ -7289,10 +7289,10 @@
       "ChargeRefundsOptions": {
         "oneOf": [
           {
-            "$ref": "#/components/schemas/DirectChargeRefund"
+            "$ref": "#/components/schemas/DestinationChargeRefund"
           },
           {
-            "$ref": "#/components/schemas/DestinationChargeRefund"
+            "$ref": "#/components/schemas/DirectChargeRefund"
           }
         ],
         "description": "Options for different charge types"
