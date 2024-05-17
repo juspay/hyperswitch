@@ -10077,9 +10077,7 @@
             "nullable": true
           },
           "previously_authorized_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Previously authorized amount for the payment"
+            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -13468,6 +13466,9 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
+        "required": [
+          "amount_to_capture"
+        ],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -13475,12 +13476,7 @@
             "nullable": true
           },
           "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "refund_uncaptured_amount": {
             "type": "boolean",
@@ -14365,10 +14361,7 @@
         ],
         "properties": {
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The total amount including previously authorized amount and additional amount",
-            "example": 6540
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "reason": {
             "type": "string",
@@ -14798,6 +14791,8 @@
           "status",
           "amount",
           "net_amount",
+          "amount_capturable",
+          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -14833,20 +14828,10 @@
             "$ref": "#/components/schemas/MinorUnit"
           },
           "amount_capturable": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "amount_received": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "connector": {
             "type": "string",
@@ -18232,9 +18217,7 @@
                 ]
               },
               "value": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Fixed Surcharge value"
+                "$ref": "#/components/schemas/MinorUnit"
               }
             }
           },

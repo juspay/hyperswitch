@@ -484,6 +484,7 @@ impl PaymentsRequest {
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
 pub struct RequestSurchargeDetails {
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub surcharge_amount: MinorUnit,
     pub tax_amount: Option<MinorUnit>,
 }
@@ -561,6 +562,7 @@ pub struct PaymentAttemptResponse {
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount: MinorUnit,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
@@ -615,6 +617,7 @@ pub struct CaptureResponse {
     #[schema(value_type = CaptureStatus, example = "charged")]
     pub status: enums::CaptureStatus,
     /// The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount: MinorUnit,
     /// The currency of the amount of the capture
     #[schema(value_type = Option<Currency>, example = "USD")]
@@ -809,7 +812,7 @@ pub struct SingleUseMandate {
 #[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize)]
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
-    #[schema(example = 6540)]
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount: MinorUnit,
     /// The currency for the transaction
     #[schema(value_type = Currency, example = "USD")]
@@ -2874,6 +2877,7 @@ pub struct PaymentsCaptureRequest {
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
     /// The Amount to be captured/ debited from the user's payment method.
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
     /// Decider to refund the uncaptured amount
     pub refund_uncaptured_amount: Option<bool>,
@@ -3127,20 +3131,20 @@ pub struct PaymentsResponse {
     pub status: api_enums::IntentStatus,
 
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    #[schema(example = 100)]
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount: MinorUnit,
 
     /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
     /// If no surcharge_details, net_amount = amount
-    #[schema(example = 110)]
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub net_amount: MinorUnit,
 
     /// The maximum amount that could be captured from the payment
-    #[schema(minimum = 100, example = 6540)]
+    #[schema(value_type = MinorUnit, minimum = 100, example = 6540)]
     pub amount_capturable: Option<MinorUnit>,
 
     /// The amount which is already captured from the payment
-    #[schema(minimum = 100, example = 6540)]
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount_received: Option<MinorUnit>,
 
     /// The connector used for the payment
@@ -3495,6 +3499,7 @@ pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization
     pub authorization_id: String,
     /// Amount the authorization has been made for
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount: MinorUnit,
     #[schema(value_type= AuthorizationStatus)]
     /// The status of the authorization
@@ -4651,6 +4656,7 @@ pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount: MinorUnit,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
