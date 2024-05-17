@@ -797,7 +797,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             amount_capturable: router_data
                                 .request
                                 .get_amount_capturable(&payment_data, status)
-                                .map(|amt| MinorUnit::new(amt)),
+                                .map(MinorUnit::new),
                             updated_by: storage_scheme.to_string(),
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
@@ -944,7 +944,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 amount_capturable: router_data
                                     .request
                                     .get_amount_capturable(&payment_data, updated_attempt_status)
-                                    .map(|amt| MinorUnit::new(amt)),
+                                    .map(MinorUnit::new),
                                 payment_method_id,
                                 mandate_id: payment_data.payment_attempt.mandate_id.clone(),
                                 connector_metadata,
@@ -1102,7 +1102,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let amount_captured = get_total_amount_captured(
         &router_data.request,
-        router_data.amount_captured.map(|amt| MinorUnit::new(amt)),
+        router_data.amount_captured.map(MinorUnit::new),
         router_data.status,
         &payment_data,
     );
@@ -1370,7 +1370,7 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
             //Non multiple capture
             let amount = request
                 .get_captured_amount(payment_data)
-                .map(|amt| MinorUnit::new(amt));
+                .map(MinorUnit::new);
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {
                     amount

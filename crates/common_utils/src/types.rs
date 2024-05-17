@@ -295,16 +295,16 @@ where
 }
 
 impl Add for MinorUnit {
-    type Output = MinorUnit;
-    fn add(self, a2: MinorUnit) -> MinorUnit {
-        MinorUnit(self.0 + a2.0)
+    type Output = Self;
+    fn add(self, a2: Self) -> Self {
+        Self(self.0 + a2.0)
     }
 }
 
 impl Sub for MinorUnit {
-    type Output = MinorUnit;
-    fn sub(self, a2: MinorUnit) -> MinorUnit {
-        MinorUnit(self.0 - a2.0)
+    type Output = Self;
+    fn sub(self, a2: Self) -> Self {
+        Self(self.0 - a2.0)
     }
 }
 
