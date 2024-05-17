@@ -338,7 +338,7 @@ services:
       JMX_PORT: 9997
       KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
     profiles:
-      - analytics
+      - olap
     volumes:
       - ./monitoring/kafka-script.sh:/tmp/update_run.sh
     command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
@@ -353,7 +353,7 @@ services:
     depends_on:
       - kafka0
     profiles:
-      - analytics
+      - olap
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
@@ -369,7 +369,7 @@ services:
     volumes:
       - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
     profiles:
-      - analytics
+      - olap
     ulimits:
       nofile:
         soft: 262144
