@@ -353,15 +353,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
 
-        payment_attempt.client_source = request
-            .client_source
-            .clone()
-            .or(payment_attempt.client_source);
-        payment_attempt.client_version = request
-            .client_version
-            .clone()
-            .or(payment_attempt.client_version);
-
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
             &payment_intent

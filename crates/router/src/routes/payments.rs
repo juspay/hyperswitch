@@ -466,10 +466,6 @@ pub async fn payments_confirm(
         return api::log_and_return_error_response(err);
     }
 
-    if let Err(err) = helpers::populate_sdk_info_into_payload(&req, &mut payload) {
-        return api::log_and_return_error_response(err);
-    }
-
     let payment_id = path.into_inner();
     tracing::Span::current().record("payment_id", &payment_id);
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
