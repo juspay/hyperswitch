@@ -16,6 +16,8 @@ use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsProvider;
 
 #[cfg(feature = "olap")]
 use super::blocklist;
@@ -73,7 +75,7 @@ pub struct SessionState {
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "olap")]
-    pub pool: crate::analytics::AnalyticsProvider,
+    pub pool: AnalyticsProvider,
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
@@ -100,6 +102,7 @@ impl SessionState {
             conf: Arc::clone(&state.conf),
             api_client: state.api_client.clone(),
             event_handler: state.event_handler.clone(),
+            #[cfg(feature = "olap")]
             pool: state.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: state.file_storage_client.clone(),
             request_id: state.request_id,
@@ -156,7 +159,7 @@ pub struct AppState {
     pub email_client: Arc<dyn EmailService>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
-    pub pools: HashMap<String, crate::analytics::AnalyticsProvider>,
+    pub pools: HashMap<String, AnalyticsProvider>,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
@@ -266,7 +269,8 @@ impl AppState {
                     .expect("Failed to create opensearch client"),
             );
 
-            let mut pools = HashMap::new();
+            #[cfg(feature = "olap")]
+            let mut pools: HashMap<String, AnalyticsProvider> = HashMap::new();
             let mut stores = HashMap::new();
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
@@ -307,7 +311,7 @@ impl AppState {
                 };
                 stores.insert(tenant.clone(), store);
                 #[cfg(feature = "olap")]
-                let pool = crate::analytics::AnalyticsProvider::from_conf(
+                let pool = AnalyticsProvider::from_conf(
                     conf.analytics.get_inner(),
                     tenant.as_str(),
                 )
