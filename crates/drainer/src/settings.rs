@@ -100,6 +100,7 @@ pub struct DrainerSettings {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Multitenancy {
+    pub enabled: bool,
     pub tenants: TenantConfig,
 }
 impl Multitenancy {

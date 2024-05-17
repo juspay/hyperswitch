@@ -628,5 +628,8 @@ disputes = "hyperswitch-dispute-events"
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
 
+[multitenancy]
+enabled = false
+
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080"}

@@ -360,7 +360,7 @@ async fn start_scheduler(
         WorkflowRunner {},
         |state, tenant| {
             routes::SessionState::from_app_state(Arc::new(state.clone()), tenant, || {
-                errors::ProcessTrackerError::TenantNotFound.into()
+                ProcessTrackerError::TenantNotFound.into()
             })
         },
     )

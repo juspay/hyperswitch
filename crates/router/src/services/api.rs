@@ -1011,30 +1011,34 @@ where
 
     let mut event_type = payload.get_api_event_type();
 
-    let tenant_id = incoming_request_header
-        .get("x-tenant-id")
-        .and_then(|value| value.to_str().ok())
-        .ok_or_else(|| {
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Missing tenant Id".to_string(),
-            }
-            .switch()
-        })
-        .map(|tenant_id| {
-            if !state
-                .conf
-                .multitenancy
-                .get_tenant_names()
-                .contains(&tenant_id.to_string())
-            {
-                Err(errors::ApiErrorResponse::InvalidTenant {
-                    tenant_id: tenant_id.to_string(),
+    let tenant_id = if !state.conf.multitenancy.enabled {
+        common_utils::consts::DEFAULT_TENANT.to_string()
+    } else {
+        incoming_request_header
+            .get("x-tenant-id")
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| {
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Missing tenant Id".to_string(),
                 }
-                .switch())
-            } else {
-                Ok(tenant_id.to_string())
-            }
-        })??;
+                .switch()
+            })
+            .map(|tenant_id| {
+                if !state
+                    .conf
+                    .multitenancy
+                    .get_tenant_names()
+                    .contains(&tenant_id.to_string())
+                {
+                    Err(errors::ApiErrorResponse::InvalidTenant {
+                        tenant_id: tenant_id.to_string(),
+                    }
+                    .switch())
+                } else {
+                    Ok(tenant_id.to_string())
+                }
+            })??
+    };
     // let tenant_id = "public";
     let mut session_state =
         SessionState::from_app_state(Arc::new(app_state.clone()), tenant_id.as_str(), || {

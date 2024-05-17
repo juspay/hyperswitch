@@ -127,6 +127,7 @@ pub struct Settings<S: SecretState> {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
+    pub enabled: bool,
 }
 
 impl Multitenancy {
