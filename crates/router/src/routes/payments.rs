@@ -5,7 +5,7 @@ use crate::{
 pub mod helpers;
 
 use actix_web::{web, Responder};
-use api_models::payments::HeaderPayload;
+use api_models::payments::{Address, HeaderPayload, PhoneDetails};
 use error_stack::report;
 use router_env::{env, instrument, tracing, types, Flow};
 
@@ -792,6 +792,91 @@ pub async fn payments_complete_authorize(
     )
     .await
 }
+
+/// Payments - Complete Authorize
+#[instrument(skip_all, fields(flow =? Flow::PaymentsCompleteAuthorize, payment_id))]
+pub async fn payments_complete_authorize_flow(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCompleteAuthorizeRequest>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCompleteAuthorize;
+    let mut payload = json_payload.into_inner();
+
+    let payment_id = path.into_inner();
+    payload.payment_id = payment_id.clone();
+
+    tracing::Span::current().record("payment_id", &payment_id);
+
+    let shipping = payload.shipping.clone();
+
+    let address = shipping.clone().and_then(|shipping| shipping.address);
+
+    let payment_confirm_req = payment_types::PaymentsRequest {
+        payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
+            payment_id.clone(),
+        )),
+        shipping: Some(Address {
+            address: Some(api_models::payments::AddressDetails {
+                city: address.clone().and_then(|address| address.city).clone(),
+                country: address.clone().and_then(|address| address.country),
+                line1: address.clone().and_then(|address| address.line1).clone(),
+                line2: address.clone().and_then(|address| address.line2).clone(),
+                line3: address.clone().and_then(|address| address.line3).clone(),
+                zip: address.clone().and_then(|address| address.zip).clone(),
+                state: address.clone().and_then(|address| address.state).clone(),
+                first_name: address
+                    .clone()
+                    .and_then(|address| address.first_name)
+                    .clone(),
+                last_name: address.clone().and_then(|address| address.last_name),
+            }),
+            phone: Some(PhoneDetails {
+                number: shipping
+                    .clone()
+                    .and_then(|shipping| shipping.phone.and_then(|phone| phone.number)),
+                country_code: shipping
+                    .clone()
+                    .and_then(|shipping| shipping.phone.and_then(|phone| phone.country_code)),
+            }),
+            email: shipping.and_then(|shipping| shipping.email),
+        }),
+        ..Default::default()
+    };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, _req, req_state| {
+            payments::payments_core::<
+                api_types::CompleteAuthorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+            >(
+                state.clone(),
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                payments::operations::payment_complete_authorize::CompleteAuthorize,
+                payment_confirm_req.clone(),
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                HeaderPayload::default(),
+            )
+        },
+        &auth::PublishableKeyAuth,
+        locking_action,
+    ))
+    .await
+}
+
 /// Payments - Cancel
 ///
 /// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
@@ -1461,6 +1546,22 @@ impl GetLockingInput for payments::PaymentsRedirectResponseData {
                 }
             }
             _ => api_locking::LockAction::NotApplicable,
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsCompleteAuthorizeRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
         }
     }
 }

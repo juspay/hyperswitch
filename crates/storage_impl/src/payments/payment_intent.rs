@@ -1145,6 +1145,11 @@ impl DataModelExt for PaymentIntentUpdate {
             } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
             },
+            Self::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => DieselPaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            },
         }
     }
 

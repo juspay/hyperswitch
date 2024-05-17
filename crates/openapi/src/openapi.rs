@@ -402,6 +402,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CaptureResponse,
         api_models::payments::PaymentsIncrementalAuthorizationRequest,
         api_models::payments::IncrementalAuthorizationResponse,
+        api_models::payments::PaymentsCompleteAuthorizeRequest,
         api_models::payments::PaymentsExternalAuthenticationRequest,
         api_models::payments::PaymentsExternalAuthenticationResponse,
         api_models::payments::SdkInformation,
