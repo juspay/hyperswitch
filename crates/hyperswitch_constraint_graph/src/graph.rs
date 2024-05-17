@@ -24,6 +24,7 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     domains: Option<&'a [DomainId]>,
 }
 
+#[derive(Debug)]
 pub struct ConstraintGraph<'a, V: ValueNode> {
     pub domain: DenseMap<DomainId, DomainInfo<'a>>,
     pub domain_identifier_map: FxHashMap<DomainIdentifier<'a>, DomainId>,

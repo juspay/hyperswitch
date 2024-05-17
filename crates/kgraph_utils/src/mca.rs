@@ -275,7 +275,7 @@ fn compile_graph_for_countries(
     if let Some(country) = config.country.clone() {
         let node_country = country
             .into_iter()
-            .map(|country| api_enums::Country::from_alpha2(country))
+            .map(api_enums::Country::from_alpha2)
             .map(IntoDirValue::into_dir_value)
             .collect::<Result<Vec<_>, _>>()?;
         let country_agg = builder
@@ -318,14 +318,14 @@ fn compile_graph_for_countries(
         ))
     }
 
-    Ok(builder
+    builder
         .make_all_aggregator(
             &agg_nodes,
             Some("Country & Currency Configs"),
             None::<()>,
             None,
         )
-        .map_err(KgraphError::GraphConstructionError)?)
+        .map_err(KgraphError::GraphConstructionError)
 }
 fn compile_config_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
@@ -337,7 +337,7 @@ fn compile_config_graph(
     if let Some(pmt) = config
         .connector_configs
         .get(connector)
-        .or_else(|| config.default_configs.as_ref())
+        .or(config.default_configs.as_ref())
         .map(|inner| inner.0.clone())
     {
         for key in pmt.keys().cloned() {
@@ -403,7 +403,7 @@ fn compile_merchant_connector_graph(
     if let Some(pms_enabled) = mca.payment_methods_enabled.clone() {
         for pm_enabled in pms_enabled {
             let maybe_pm_enabled_id = compile_payment_method_enabled(builder, pm_enabled)?;
-            if let Some(pm_enabled_id) = maybe_pm_enabled_id.clone() {
+            if let Some(pm_enabled_id) = maybe_pm_enabled_id {
                 agg_nodes.push((
                     pm_enabled_id,
                     cgraph::Relation::Positive,
