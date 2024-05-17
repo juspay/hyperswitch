@@ -57,7 +57,7 @@ pub struct RouterData<Flow, Request, Response> {
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<common_enums::enums::ApplePayFlow>,
 
-    pub frm_metadata: Option<serde_json::Value>,
+    pub frm_metadata: Option<common_utils::pii::SecretSerdeValue>,
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,

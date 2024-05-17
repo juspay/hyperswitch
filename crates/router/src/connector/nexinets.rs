@@ -159,7 +159,7 @@ impl ConnectorValidation for Nexinets {
 
     fn validate_mandate_payment(
         &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_type: Option<enums::PaymentMethodType>,
         pm_data: types::domain::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([

@@ -393,6 +393,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .attach_printable("Error converting feature_metadata to Value")?
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
+        payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.request_incremental_authorization = request
             .request_incremental_authorization
             .map(|request_incremental_authorization| {
@@ -632,7 +633,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
-            frm_metadata: request.frm_metadata.clone(),
             authentication: None,
             recurring_details,
             poll_config: None,
@@ -1062,11 +1062,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let authorized_amount = payment_data
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.payment_attempt.amount);
+
+        let client_source = header_payload
+            .client_source
+            .clone()
+            .or(payment_data.payment_attempt.client_source.clone());
+        let client_version = header_payload
+            .client_version
+            .clone()
+            .or(payment_data.payment_attempt.client_version.clone());
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
         let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
@@ -1135,6 +1145,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
                         payment_method_id: m_payment_method_id,
+                        client_source,
+                        client_version,
                     },
                     storage_scheme,
                 )
@@ -1155,6 +1167,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_statement_descriptor_suffix = statement_descriptor_suffix.clone();
         let m_order_details = order_details.clone();
         let m_metadata = metadata.clone();
+        let m_frm_metadata = frm_metadata.clone();
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
@@ -1184,6 +1197,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         fingerprint_id: None,
                         session_expiry,
                         request_external_three_ds_authentication: None,
+                        frm_metadata: m_frm_metadata,
                     },
                     storage_scheme,
                 )
@@ -1249,6 +1263,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
+        if let Some(amount) = request.amount {
+            helpers::validate_max_amount(amount)?;
+        }
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
