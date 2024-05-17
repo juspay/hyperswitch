@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-ALTER TABLE payment_intent DROP COLUMN frm_metadata;
+ALTER TABLE payment_intent DROP COLUMN IF EXISTS frm_metadata;
