@@ -104,6 +104,11 @@ where
                     .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
                     .await
             }
+            Self::FrictionlessSuccessCount => {
+                FrictionlessSuccessCount
+                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .await
+            }
         }
     }
 }

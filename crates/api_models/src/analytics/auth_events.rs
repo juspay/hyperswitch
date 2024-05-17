@@ -53,6 +53,7 @@ pub mod metric_behaviour {
     pub struct AuthenticationSuccessCount;
     pub struct ChallengeFlowCount;
     pub struct FrictionlessFlowCount;
+    pub struct FrictionlessSuccessCount;
     pub struct ChallengeAttemptCount;
     pub struct ChallengeSuccessCount;
 }
