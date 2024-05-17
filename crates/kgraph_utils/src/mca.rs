@@ -9,7 +9,11 @@ use euclid::{
     types::{NumValue, NumValueRefinement},
 };
 
-use crate::{error::KgraphError, transformers::IntoDirValue};
+use crate::{
+    error::KgraphError,
+    transformers::IntoDirValue,
+    utils::{CountryCurrencyFilter, CurrencyCountryFlowFilter, PaymentMethodFilterKey},
+};
 
 pub const DOMAIN_IDENTIFIER: &str = "payment_methods_enabled_for_merchantconnectoraccount";
 
@@ -270,19 +274,160 @@ fn compile_payment_method_enabled(
     Ok(agg_id)
 }
 
+fn compile_graph_for_countries(
+    builder: &mut graph::KnowledgeGraphBuilder<'_>,
+    config: &CurrencyCountryFlowFilter,
+    payment_method_type_node: graph::NodeId,
+) -> Result<graph::NodeId, KgraphError> {
+    let mut agg_nodes: Vec<(graph::NodeId, graph::Relation, graph::Strength)> = Vec::new();
+    agg_nodes.push((
+        payment_method_type_node,
+        graph::Relation::Positive,
+        graph::Strength::Normal,
+    ));
+    if let Some(country) = config.country.clone() {
+        let node_country = country
+            .into_iter()
+            .map(|country| api_enums::Country::from_alpha2(country))
+            .map(IntoDirValue::into_dir_value)
+            .collect::<Result<Vec<_>, _>>()?;
+        let country_agg = builder
+            .make_in_aggregator(
+                node_country,
+                Some("Configs for Country"),
+                None::<()>,
+                Vec::new(),
+            )
+            .map_err(KgraphError::GraphConstructionError)?;
+        agg_nodes.push((
+            country_agg,
+            graph::Relation::Positive,
+            graph::Strength::Weak,
+        ))
+    }
+
+    if let Some(currency) = config.currency.clone() {
+        let node_currency = currency
+            .into_iter()
+            .map(IntoDirValue::into_dir_value)
+            .collect::<Result<Vec<_>, _>>()?;
+        let currency_agg = builder
+            .make_in_aggregator(
+                node_currency,
+                Some("Configs for Currency"),
+                None::<()>,
+                Vec::new(),
+            )
+            .map_err(KgraphError::GraphConstructionError)?;
+        agg_nodes.push((
+            currency_agg,
+            graph::Relation::Positive,
+            graph::Strength::Strong,
+        ))
+    }
+    if let Some(capture_method) = config
+        .not_available_flows
+        .and_then(|naf| naf.capture_method)
+    {
+        let make_capture_node = builder
+            .make_value_node(
+                graph::NodeValue::Value(dir::DirValue::CaptureMethod(capture_method)),
+                Some("Configs for Currency"),
+                vec![DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+                None::<()>,
+            )
+            .map_err(KgraphError::GraphConstructionError)?;
+        agg_nodes.push((
+            make_capture_node,
+            graph::Relation::Negative,
+            graph::Strength::Normal,
+        ))
+    }
+
+    Ok(builder
+        .make_all_aggregator(
+            &agg_nodes,
+            Some("Country & Currency Configs"),
+            None::<()>,
+            Vec::new(),
+        )
+        .map_err(KgraphError::GraphConstructionError)?)
+}
+fn compile_config_graph(
+    builder: &mut graph::KnowledgeGraphBuilder<'_>,
+    config: &CountryCurrencyFilter,
+    connector: &api_enums::RoutableConnectors,
+) -> Result<graph::NodeId, KgraphError> {
+    let mut agg_node_id: Vec<(graph::NodeId, graph::Relation)> = Vec::new();
+    // let pmt = mca.payment_methods_enabled.and_then(|pm| {pm.into_iter().});
+
+    if let Some(pmt) = config
+        .connector_configs
+        .get(connector)
+        .or_else(|| config.default_configs.as_ref())
+        .map(|inner| inner.0.clone())
+    {
+        for key in pmt.keys().cloned() {
+            match key {
+                PaymentMethodFilterKey::PaymentMethodType(pm) => {
+                    let pmt_id = builder
+                        .make_value_node(
+                            pm.into_dir_value().map(Into::into)?,
+                            Some("PaymentMethodType"),
+                            vec![DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+                            None::<()>,
+                        )
+                        .map_err(KgraphError::GraphConstructionError)?;
+                    let curr = pmt
+                        .get(&PaymentMethodFilterKey::PaymentMethodType(pm))
+                        .map(|country| compile_graph_for_countries(builder, country, pmt_id))
+                        .transpose()?;
+
+                    if let Some(country_currency) = curr {
+                        agg_node_id.push((country_currency, graph::Relation::Positive));
+                    }
+                }
+                PaymentMethodFilterKey::CardNetwork(cn) => {
+                    let cn_id = builder
+                        .make_value_node(
+                            cn.clone().into_dir_value().map(Into::into)?,
+                            Some("CardNetwork"),
+                            vec![DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+                            None::<()>,
+                        )
+                        .map_err(KgraphError::GraphConstructionError)?;
+                    let curr = pmt
+                        .get(&PaymentMethodFilterKey::CardNetwork(cn.clone()))
+                        .map(|country| compile_graph_for_countries(builder, country, cn_id))
+                        .transpose()?;
+
+                    if let Some(_country_currency) = curr {
+                        agg_node_id.push((cn_id, graph::Relation::Positive));
+                    }
+                }
+            }
+        }
+    }
+
+    let info = "Config";
+    builder
+        .make_any_aggregator(&agg_node_id, Some(info), None::<()>, Vec::new())
+        .map_err(KgraphError::GraphConstructionError)
+}
 fn compile_merchant_connector_graph(
     builder: &mut graph::KnowledgeGraphBuilder<'_>,
     mca: admin_api::MerchantConnectorResponse,
+    config: &CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
     let connector = common_enums::RoutableConnectors::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
     let mut agg_nodes: Vec<(graph::NodeId, graph::Relation)> = Vec::new();
 
-    if let Some(pms_enabled) = mca.payment_methods_enabled {
+    if let Some(pms_enabled) = mca.payment_methods_enabled.clone() {
         for pm_enabled in pms_enabled {
             let maybe_pm_enabled_id = compile_payment_method_enabled(builder, pm_enabled)?;
-            if let Some(pm_enabled_id) = maybe_pm_enabled_id {
+            if let Some(pm_enabled_id) = maybe_pm_enabled_id.clone() {
                 agg_nodes.push((pm_enabled_id, graph::Relation::Positive));
             }
         }
@@ -293,10 +438,33 @@ fn compile_merchant_connector_graph(
         .make_any_aggregator(&agg_nodes, Some(aggregator_info), None::<()>, Vec::new())
         .map_err(KgraphError::GraphConstructionError)?;
 
+    let config_info = "Config for respective PaymentMethodType for the connector";
+
+    let config_enabled_agg_id = compile_config_graph(builder, config, &connector)?;
+
+    let domain_level_node_id = builder
+        .make_all_aggregator(
+            &[
+                (
+                    config_enabled_agg_id,
+                    graph::Relation::Positive,
+                    graph::Strength::Normal,
+                ),
+                (
+                    pms_enabled_agg_id,
+                    graph::Relation::Positive,
+                    graph::Strength::Normal,
+                ),
+            ],
+            Some(config_info),
+            None::<()>,
+            Vec::new(),
+        )
+        .map_err(KgraphError::GraphConstructionError)?;
     let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice {
         connector,
         #[cfg(not(feature = "connector_choice_mca_id"))]
-        sub_label: mca.business_sub_label,
+        sub_label: mca.business_sub_label.clone(),
     }));
 
     let connector_info = "Connector";
@@ -311,7 +479,7 @@ fn compile_merchant_connector_graph(
 
     builder
         .make_edge(
-            pms_enabled_agg_id,
+            domain_level_node_id,
             connector_node_id,
             graph::Strength::Normal,
             graph::Relation::Positive,
@@ -323,6 +491,7 @@ fn compile_merchant_connector_graph(
 
 pub fn make_mca_graph<'a>(
     accts: Vec<admin_api::MerchantConnectorResponse>,
+    config: &CountryCurrencyFilter,
 ) -> Result<graph::KnowledgeGraph<'a>, KgraphError> {
     let mut builder = graph::KnowledgeGraphBuilder::new();
     let _domain = builder.make_domain(
@@ -330,7 +499,7 @@ pub fn make_mca_graph<'a>(
         "Payment methods enabled for MerchantConnectorAccount".to_string(),
     );
     for acct in accts {
-        compile_merchant_connector_graph(&mut builder, acct)?;
+        compile_merchant_connector_graph(&mut builder, acct, config)?;
     }
 
     Ok(builder.build())
@@ -340,13 +509,15 @@ pub fn make_mca_graph<'a>(
 mod tests {
     #![allow(clippy::expect_used)]
 
+    use std::collections::{HashMap, HashSet};
+
+    use super::*;
+    use crate::utils::{NotAvailableFlows, PaymentMethodFilters};
     use api_models::enums as api_enums;
     use euclid::{
         dirval,
         dssa::graph::{AnalysisContext, Memoization},
     };
-
-    use super::*;
 
     fn build_test_data<'a>() -> graph::KnowledgeGraph<'a> {
         use api_models::{admin::*, payment_methods::*};
@@ -410,7 +581,26 @@ mod tests {
             status: api_enums::ConnectorStatus::Inactive,
         };
 
-        make_mca_graph(vec![stripe_account]).expect("Failed graph construction")
+        let currency_country_flow_filter = CurrencyCountryFlowFilter {
+            currency: Some(HashSet::from([api_enums::Currency::INR])),
+            country: Some(HashSet::from([api_enums::CountryAlpha2::IN])),
+            not_available_flows: Some(NotAvailableFlows {
+                capture_method: Some(api_enums::CaptureMethod::Manual),
+            }),
+        };
+        let config_map = CountryCurrencyFilter {
+            connector_configs: HashMap::from([(
+                api_enums::RoutableConnectors::Stripe,
+                PaymentMethodFilters(HashMap::from([(
+                    PaymentMethodFilterKey::PaymentMethodType(api_enums::PaymentMethodType::Credit),
+                    currency_country_flow_filter,
+                )])),
+            )]),
+            default_configs: None,
+        };
+        // PaymentMethod(api_enums::PaymentMethodType::GooglePay),
+        // currency_country_flow_filter,
+        make_mca_graph(vec![stripe_account], &config_map).expect("Failed graph construction")
     }
 
     #[test]
@@ -424,8 +614,8 @@ mod tests {
                 dirval!(PaymentMethod = Card),
                 dirval!(CardType = Credit),
                 dirval!(CardNetwork = Visa),
-                dirval!(PaymentCurrency = USD),
-                dirval!(PaymentAmount = 100),
+                dirval!(PaymentCurrency = INR),
+                dirval!(PaymentAmount = 101),
             ]),
             &mut Memoization::new(),
         );
@@ -711,8 +901,11 @@ mod tests {
 
         let data: Vec<admin_api::MerchantConnectorResponse> =
             serde_json::from_value(value).expect("data");
-
-        let graph = make_mca_graph(data).expect("graph");
+        let config = CountryCurrencyFilter {
+            connector_configs: HashMap::new(),
+            default_configs: None,
+        };
+        let graph = make_mca_graph(data, &config).expect("graph");
         let context = AnalysisContext::from_dir_values([
             dirval!(Connector = Stripe),
             dirval!(PaymentAmount = 212),

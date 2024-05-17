@@ -67,8 +67,9 @@ fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::Kn
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
     };
-
-    kgraph_utils::mca::make_mca_graph(vec![stripe_account]).expect("Failed graph construction")
+    let config = HashMap::new();
+    kgraph_utils::mca::make_mca_graph(vec![stripe_account], config)
+        .expect("Failed graph construction")
 }
 
 fn evaluation(c: &mut Criterion) {

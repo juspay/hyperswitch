@@ -165,6 +165,7 @@ pub struct KnowledgeGraph<'a> {
     node_metadata: utils::DenseMap<NodeId, Option<Arc<dyn KgraphMetadata>>>,
 }
 
+#[derive(Debug)]
 pub struct KnowledgeGraphBuilder<'a> {
     domain: utils::DenseMap<DomainId, DomainInfo<'a>>,
     nodes: utils::DenseMap<NodeId, Node>,

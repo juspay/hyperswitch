@@ -1,8 +1,12 @@
+use crate::{
+    configs::settings,
+    types::transformers::{ForeignFrom, ForeignInto},
+};
 use api_models::{self, routing as routing_types};
 use diesel_models::enums as storage_enums;
 use euclid::{enums as dsl_enums, frontend::ast as dsl_ast};
-
-use crate::types::transformers::ForeignFrom;
+use kgraph_utils::utils;
+use std::collections::HashMap;
 
 impl ForeignFrom<routing_types::RoutableConnectorChoice> for dsl_ast::ConnectorChoice {
     fn foreign_from(from: routing_types::RoutableConnectorChoice) -> Self {
@@ -50,5 +54,42 @@ impl ForeignFrom<storage_enums::MandateDataType> for dsl_enums::MandateType {
             storage_enums::MandateDataType::MultiUse(_) => Self::MultiUse,
             storage_enums::MandateDataType::SingleUse(_) => Self::SingleUse,
         }
+    }
+}
+
+impl ForeignFrom<settings::PaymentMethodFilterKey> for utils::PaymentMethodFilterKey {
+    fn foreign_from(from: settings::PaymentMethodFilterKey) -> Self {
+        match from {
+            settings::PaymentMethodFilterKey::PaymentMethodType(pmt) => {
+                Self::PaymentMethodType(pmt)
+            }
+            settings::PaymentMethodFilterKey::CardNetwork(cn) => Self::CardNetwork(cn),
+        }
+    }
+}
+impl ForeignFrom<settings::CurrencyCountryFlowFilter> for utils::CurrencyCountryFlowFilter {
+    fn foreign_from(from: settings::CurrencyCountryFlowFilter) -> Self {
+        Self {
+            currency: from.currency,
+            country: from.country,
+            not_available_flows: from.not_available_flows.map(ForeignInto::foreign_into),
+        }
+    }
+}
+impl ForeignFrom<settings::NotAvailableFlows> for utils::NotAvailableFlows {
+    fn foreign_from(from: settings::NotAvailableFlows) -> Self {
+        Self {
+            capture_method: from.capture_method,
+        }
+    }
+}
+impl ForeignFrom<settings::PaymentMethodFilters> for utils::PaymentMethodFilters {
+    fn foreign_from(from: settings::PaymentMethodFilters) -> Self {
+        let iter_map = from
+            .0
+            .into_iter()
+            .map(|(key, val)| (key.foreign_into(), val.foreign_into()))
+            .collect::<HashMap<_, _>>();
+        Self(iter_map)
     }
 }

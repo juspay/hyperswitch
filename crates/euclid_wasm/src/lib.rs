@@ -95,8 +95,12 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .collect::<Result<_, _>>()
         .map_err(|_| "invalid connector name received")
         .err_to_js()?;
-
-    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas).err_to_js()?;
+    let pm_filter = kgraph_utils::utils::PaymentMethodFilters(HashMap::new());
+    let config = kgraph_utils::utils::CountryCurrencyFilter {
+        connector_configs: HashMap::new(),
+        default_configs: Some(pm_filter),
+    };
+    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas, &config).err_to_js()?;
     let analysis_graph =
         graph::KnowledgeGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH).err_to_js()?;
 
