@@ -3108,7 +3108,7 @@ pub async fn insert_merchant_connector_creds_to_config(
             .serialize_and_set_key_with_expiry(
                 key.as_str(),
                 &encoded_data.peek(),
-                crate::consts::CONNECTOR_CREDS_TOKEN_TTL,
+                consts::CONNECTOR_CREDS_TOKEN_TTL,
             )
             .await
             .map_or_else(
@@ -3719,7 +3719,7 @@ pub async fn get_additional_payment_data(
 
             let card_extended_bin = match enable_extended_bin {
                 Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.clone().get_card_extended_bin())
+                    Some(card_data.card_number.clone().get_extended_card_bin())
                 }
                 _ => None,
             };

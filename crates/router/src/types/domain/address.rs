@@ -80,7 +80,7 @@ impl behaviour::Conversion for CustomerAddress {
                 .customer_id
                 .clone()
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "cutomer_id".to_string(),
+                    field_name: "customer_id".to_string(),
                 })?;
 
         let address = Address::convert_back(other, key).await?;
