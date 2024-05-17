@@ -1985,7 +1985,9 @@ where
                         status: capture_sync_response.get_capture_attempt_status(),
                         connector_response_reference_id: capture_sync_response
                             .get_connector_reference_id(),
-                        amount: capture_sync_response.get_amount_captured().map(|amt| MinorUnit::new(amt)),
+                        amount: capture_sync_response
+                            .get_amount_captured()
+                            .map(|amt| MinorUnit::new(amt)),
                     },
                 );
             }

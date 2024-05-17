@@ -81,26 +81,30 @@ impl MultipleCaptureData {
         }
     }
     pub fn get_total_blocked_amount(&self) -> common_types::MinorUnit {
-        self.all_captures.iter().fold(common_types::MinorUnit::new(0), |accumulator, capture| {
-            accumulator
-                + match capture.1.status {
-                    storage_enums::CaptureStatus::Charged
-                    | storage_enums::CaptureStatus::Pending => capture.1.amount,
-                    storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
-                }
-        })
+        self.all_captures
+            .iter()
+            .fold(common_types::MinorUnit::new(0), |accumulator, capture| {
+                accumulator
+                    + match capture.1.status {
+                        storage_enums::CaptureStatus::Charged
+                        | storage_enums::CaptureStatus::Pending => capture.1.amount,
+                        storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
+                    }
+            })
     }
     pub fn get_total_charged_amount(&self) -> common_types::MinorUnit {
-        self.all_captures.iter().fold(common_types::MinorUnit::new(0), |accumulator, capture| {
-            accumulator
-                + match capture.1.status {
-                    storage_enums::CaptureStatus::Charged => capture.1.amount,
-                    storage_enums::CaptureStatus::Pending
-                    | storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
-                }
-        })
+        self.all_captures
+            .iter()
+            .fold(common_types::MinorUnit::new(0), |accumulator, capture| {
+                accumulator
+                    + match capture.1.status {
+                        storage_enums::CaptureStatus::Charged => capture.1.amount,
+                        storage_enums::CaptureStatus::Pending
+                        | storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
+                    }
+            })
     }
     pub fn get_captures_count(&self) -> RouterResult<i16> {
         i16::try_from(self.all_captures.len())
