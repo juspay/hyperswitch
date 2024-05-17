@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},
     core::errors::{self, CustomResult},
     services,
-    types::{self, domain, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
@@ -19,7 +19,7 @@ pub struct MifinityRouterData<T> {
 impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MifinityRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
