@@ -319,7 +319,7 @@ where
     {
         generate_fingerprint(
             state,
-            StrongSecret::new(card.card_number.clone().get_card_no()),
+            StrongSecret::new(card.card_number.get_card_no()),
             StrongSecret::new(merchant_fingerprint_secret.clone()),
             api_models::enums::LockerChoice::HyperswitchCardVault,
         )
@@ -343,7 +343,7 @@ where
         .as_ref()
         .and_then(|pm_data| match pm_data {
             api_models::payments::PaymentMethodData::Card(card) => {
-                Some(card.card_number.clone().get_card_isin())
+                Some(card.card_number.get_card_isin())
             }
             _ => None,
         });
@@ -355,7 +355,7 @@ where
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 api_models::payments::PaymentMethodData::Card(card) => {
-                    Some(card.card_number.clone().get_extended_card_bin())
+                    Some(card.card_number.get_extended_card_bin())
                 }
                 _ => None,
             });
@@ -464,7 +464,7 @@ pub async fn generate_payment_fingerprint(
         {
             generate_fingerprint(
                 state,
-                StrongSecret::new(card.card_number.clone().get_card_no()),
+                StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
                 api_models::enums::LockerChoice::HyperswitchCardVault,
             )

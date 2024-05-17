@@ -339,7 +339,7 @@ pub fn mk_add_card_response_hs(
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
     let card_number = card.card_number.clone();
-    let last4_digits = card_number.clone().get_last4();
+    let last4_digits = card_number.get_last4();
     let card_isin = card_number.get_card_isin();
 
     let card = api::CardDetailFromLocker {
@@ -550,13 +550,13 @@ pub fn get_card_detail(
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
-    let mut last4_digits = card_number.peek().to_owned();
+    let last4_digits = card_number.clone().get_last4();
     //fetch form card bin
 
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
-        last4_digits: Some(last4_digits.split_off(last4_digits.len() - 4)),
+        last4_digits: Some(last4_digits),
         card_number: Some(card_number),
         expiry_month: Some(response.card_exp_month),
         expiry_year: Some(response.card_exp_year),

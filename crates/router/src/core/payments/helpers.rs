@@ -1367,6 +1367,24 @@ fn validate_options_for_inequality<T: PartialEq>(
     )
 }
 
+pub fn validate_max_amount(
+    amount: api_models::payments::Amount,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match amount {
+        api_models::payments::Amount::Value(value) => {
+            utils::when(value.get() > consts::MAX_ALLOWED_AMOUNT, || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "amount should not be more than {}",
+                        consts::MAX_ALLOWED_AMOUNT
+                    )
+                }))
+            })
+        }
+        api_models::payments::Amount::Zero => Ok(()),
+    }
+}
+
 // Checks if the customer details are passed in both places
 // If so, raise an error
 pub fn validate_customer_details_in_request(
@@ -3087,7 +3105,7 @@ pub async fn insert_merchant_connector_creds_to_config(
             .serialize_and_set_key_with_expiry(
                 key.as_str(),
                 &encoded_data.peek(),
-                crate::consts::CONNECTOR_CREDS_TOKEN_TTL,
+                consts::CONNECTOR_CREDS_TOKEN_TTL,
             )
             .await
             .map_or_else(
@@ -3689,7 +3707,7 @@ pub async fn get_additional_payment_data(
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
-            let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id).as_str(),
@@ -3698,11 +3716,11 @@ pub async fn get_additional_payment_data(
 
             let card_extended_bin = match enable_extended_bin {
                 Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.clone().get_card_extended_bin())
+                    Some(card_data.card_number.get_extended_card_bin())
                 }
                 _ => None,
             };
-            let last4 = Some(card_data.card_number.clone().get_last4());
+            let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
                 && card_data.card_type.is_some()
