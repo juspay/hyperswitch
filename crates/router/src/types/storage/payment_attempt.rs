@@ -33,7 +33,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             merchant_id: self.merchant_id.clone(),
             capture_id: self.get_next_capture_id(),
             status: capture_status,
-            amount: capture_amount.get_amount_as_i64(),
+            amount: capture_amount,
             currency: self.currency,
             connector: self
                 .connector

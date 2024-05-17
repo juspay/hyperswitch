@@ -939,7 +939,7 @@ impl ForeignFrom<storage::Capture> for payments::CaptureResponse {
         Self {
             capture_id: capture.capture_id,
             status: capture.status,
-            amount: MinorUnit::new(capture.amount),
+            amount: capture.amount,
             currency: capture.currency,
             connector: capture.connector,
             authorized_attempt_id: capture.authorized_attempt_id,

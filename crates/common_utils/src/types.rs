@@ -239,6 +239,7 @@ where
     Eq,
     Hash,
     ToSchema,
+    PartialOrd,
 )]
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
@@ -309,8 +310,8 @@ impl Sub for MinorUnit {
     }
 }
 
-impl PartialOrd for MinorUnit {
-    fn partial_cmp(&self, a2: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.0.cmp(&a2.0))
-    }
-}
+// impl PartialOrd for MinorUnit {
+//     fn partial_cmp(&self, a2: &Self) -> Option<std::cmp::Ordering> {
+//         Some(self.0.cmp(&a2.0))
+//     }
+// }

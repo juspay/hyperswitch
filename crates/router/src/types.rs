@@ -781,19 +781,19 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: storage_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
-        amount: Option<i64>,
+        amount: Option<MinorUnit>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
-        amount: Option<i64>,
+        amount: Option<MinorUnit>,
     },
 }
 
 impl CaptureSyncResponse {
-    pub fn get_amount_captured(&self) -> Option<i64> {
+    pub fn get_amount_captured(&self) -> Option<MinorUnit> {
         match self {
             Self::Success { amount, .. } | Self::Error { amount, .. } => *amount,
         }

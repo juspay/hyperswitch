@@ -81,26 +81,26 @@ impl MultipleCaptureData {
         }
     }
     pub fn get_total_blocked_amount(&self) -> common_types::MinorUnit {
-        common_types::MinorUnit::new(self.all_captures.iter().fold(0, |accumulator, capture| {
+        self.all_captures.iter().fold(common_types::MinorUnit::new(0), |accumulator, capture| {
             accumulator
                 + match capture.1.status {
                     storage_enums::CaptureStatus::Charged
                     | storage_enums::CaptureStatus::Pending => capture.1.amount,
                     storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => 0,
+                    | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
                 }
-        }))
+        })
     }
     pub fn get_total_charged_amount(&self) -> common_types::MinorUnit {
-        common_types::MinorUnit::new(self.all_captures.iter().fold(0, |accumulator, capture| {
+        self.all_captures.iter().fold(common_types::MinorUnit::new(0), |accumulator, capture| {
             accumulator
                 + match capture.1.status {
                     storage_enums::CaptureStatus::Charged => capture.1.amount,
                     storage_enums::CaptureStatus::Pending
                     | storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => 0,
+                    | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
                 }
-        }))
+        })
     }
     pub fn get_captures_count(&self) -> RouterResult<i16> {
         i16::try_from(self.all_captures.len())
