@@ -403,7 +403,7 @@ services:
       - router_net
 
   vector:
-    image: lsampras/vector:latest
+    image: vector-sessionizer:latest
     ports:
       - "8686:8686"
     networks:
@@ -415,7 +415,7 @@ services:
     image: cassandra:latest
     hostname: cassandra0
     ports:
-      - "9042:9042"
+      - "9042"
     networks:
       - router_net
     environment:
@@ -423,10 +423,12 @@ services:
       - "HEAP_NEWSIZE=128M"
     restart: always
     healthcheck:
-      test: ["CMD", "cqlsh", "-e describe keyspaces"]
+      test: cqlsh -u cassandra -p cassandra -e 'describe keyspaces'
       interval: 15s
       timeout: 10s
       retries: 10
+    volumes:
+      - ./docker/cassandra/cassandra.yaml:/etc/cassandra/cassandra.yaml
 
   cassandra-load-keyspace:
     image: cassandra:latest
@@ -437,4 +439,4 @@ services:
         condition: service_healthy
     volumes:
       - ./docker/cassandra/setup.cql:/scripts/setup.cql
-    command: /bin/bash -c "echo loading sessionizer keyspace && cqlsh cassandra -f /scripts/setup.cql"
+    command: /bin/bash -c "echo loading sessionizer keyspace && cqlsh cassandra -f /scripts/setup.cql -u cassandra -p cassandra"

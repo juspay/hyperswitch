@@ -549,7 +549,7 @@ seed_provider:
     parameters:
       # seeds is actually a comma-delimited list of addresses.
       # Ex: "<ip1>,<ip2>,<ip3>"
-      - seeds: "172.20.0.4"
+      - seeds: "172.19.0.2"
 
 # For workloads with more data than can fit in memory, Cassandra's
 # bottleneck will be reads that need to fetch data from
@@ -759,7 +759,7 @@ ssl_storage_port: 7001
 #
 # Setting listen_address to 0.0.0.0 is always wrong.
 #
-listen_address: 172.20.0.4
+listen_address: 172.19.0.2
 
 # Set listen_address OR listen_interface, not both. Interfaces must correspond
 # to a single address, IP aliasing is not supported.
@@ -773,7 +773,7 @@ listen_address: 172.20.0.4
 
 # Address to broadcast to other Cassandra nodes
 # Leaving this blank will set it to the same value as listen_address
-broadcast_address: 172.20.0.4
+broadcast_address: 172.19.0.2
 
 # When using multiple physical network interfaces, set this
 # to true to listen on broadcast_address in addition to
@@ -871,7 +871,7 @@ rpc_address: 0.0.0.0
 # be set to 0.0.0.0. If left blank, this will be set to the value of
 # rpc_address. If rpc_address is set to 0.0.0.0, broadcast_rpc_address must
 # be set.
-broadcast_rpc_address: 172.20.0.4
+broadcast_rpc_address: 172.19.0.2
 
 # enable or disable keepalive on rpc/native connections
 rpc_keepalive: true

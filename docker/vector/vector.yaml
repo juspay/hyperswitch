@@ -29,10 +29,21 @@ transforms:
       del(.message);
       .log_type = get(payment_topic_to_log_type, [.topic]) ?? "unknown";
 
+  init_sessionizer_vars:
+    type: remap
+    inputs:
+      - parse_kafka_payments
+    source: >-
+      .sessionizer = {
+        "table": "payments",
+        "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
+        "db_log_type": "intent"
+      };
+
   buffer_with_reduce:
     type: reduce
     inputs:
-      - parse_kafka_payments
+      - init_sessionizer_vars
     group_by:
       - log.log_type
       - log.merchant_id
@@ -44,21 +55,10 @@ transforms:
       log: retain
     expire_after_ms: 5000
 
-  init_sessionizer_vars:
-    type: remap
-    inputs:
-      - buffer_with_reduce
-    source: >-
-      .sessionizer = {
-        "table": "payments",
-        "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
-        "db_log_type": "intent"
-      };
-
   cassandra_get_old_event:
     type: lua
     inputs:
-      - init_sessionizer_vars
+      - buffer_with_reduce
     version: "2"
     hooks:
       init: init
@@ -75,9 +75,12 @@ transforms:
         local cassandra = require "cassandra"
         
         client = assert(cassandra.new {
-          host = "cassandra0",
-          port = 9042,
-          keyspace = "sessionizer"
+          host = os.getenv("CASSANDRA_HOST") or "cassandra0",
+          port = os.getenv("CASSANDRA_PORT") or 9042,
+          keyspace = os.getenv("CASSANDRA_KEYSPACE") or "sessionizer",
+          auth = cassandra.auth_providers.plain_text(os.getenv("CASSANDRA_USERNAME") or "cassandra", os.getenv("CASSANDRA_PASSWORD") or "cassandra"),
+          ssl = os.getenv("CASSANDRA_SSL") or false,
+          cert = os.getenv("CASSANDRA_CERT") or ""
         })
 
         client:settimeout(1000)
@@ -170,6 +173,7 @@ transforms:
       shutdown: shutdown
     source: |-
       local socket = require 'socket'
+      local cassandra = require "cassandra"
 
       function sleep(sec)
         socket.select(nil, nil, sec)
@@ -177,13 +181,14 @@ transforms:
 
 
       function init(emit)
-
-        local cassandra = require "cassandra"
         
         client = assert(cassandra.new {
-          host = "cassandra0",
-          port = 9042,
-          keyspace = "sessionizer"
+          host = os.getenv("CASSANDRA_HOST") or "cassandra0",
+          port = os.getenv("CASSANDRA_PORT") or 9042,
+          keyspace = os.getenv("CASSANDRA_KEYSPACE") or "sessionizer",
+          auth = cassandra.auth_providers.plain_text(os.getenv("CASSANDRA_USERNAME") or "cassandra", os.getenv("CASSANDRA_PASSWORD") or "cassandra"),
+          ssl = os.getenv("CASSANDRA_SSL") or false,
+          cert = os.getenv("CASSANDRA_CERT") or ""
         })
 
         client:settimeout(1000)
@@ -197,7 +202,7 @@ transforms:
           id,
           state,
           version
-        }))
+        },{consistency = cassandra.consistencies.local_quorum}))
         return res
       end
 
@@ -254,10 +259,10 @@ transforms:
         attempt_log = object(attempt) ?? {};
 
         attempt_total_count = attempt_total_count + 1;
-        attempt_total_amount = attempt_total_amount + float(attempt_log.amount) ?? int(attempt_log.amount) ?? 0;
+        attempt_total_amount = attempt_total_amount + to_float(attempt_log.amount) ?? 0;
         if attempt_log.status == "charged" {
           attempt_success_count = attempt_success_count + 1;
-          attempt_success_amount = attempt_success_amount + float(attempt_log.amount) ?? int(attempt_log.amount) ?? 0;
+          attempt_success_amount = attempt_success_amount + to_float(attempt_log.amount) ?? 0;
         }
 
         refunds = object(attempt_log.refunds) ?? {};
@@ -270,17 +275,17 @@ transforms:
           refund_log = object(refund) ?? {};
           
           refund_total_count = refund_total_count + 1;
-          refund_total_amount = refund_total_amount + float(refund_log.refund_amount) ?? int(refund_log.refund_amount) ?? 0;
+          refund_total_amount = refund_total_amount + to_float(refund_log.refund_amount) ?? 0;
           if refund_log.status == "succeeded" {
             refund_success_count = refund_success_count + 1;
-            refund_success_amount = refund_success_amount + float(refund_log.refund_amount) ?? int(refund_log.refund_amount) ?? 0;
+            refund_success_amount = refund_success_amount + to_float(refund_log.refund_amount) ?? 0;
           }
         }
 
         .refund_total_count = int(.refund_total_count) ?? 0 + refund_total_count;
-        .refund_total_amount = float(.refund_total_amount) ?? 0 + refund_total_amount;
+        .refund_total_amount = to_float(.refund_total_amount) ?? 0 + refund_total_amount;
         .refund_success_count = int(.refund_success_count) ?? 0 + refund_success_count;
-        .refund_success_amount = float(.refund_success_amount) ?? 0 + refund_success_amount;
+        .refund_success_amount = to_float(.refund_success_amount) ?? 0 + refund_success_amount;
 
         attempt_log.refund_total_count = refund_total_count;
         attempt_log.refund_total_amount = refund_total_amount;
@@ -297,17 +302,17 @@ transforms:
           dispute_log = object(dispute) ?? {};
 
           dispute_total_count = dispute_total_count + 1;
-          dispute_total_amount = dispute_total_amount + float(dispute_log.dispute_amount) ?? int(dispute_log.dispute_amount) ?? 0;
+          dispute_total_amount = dispute_total_amount + to_float(dispute_log.dispute_amount) ?? 0;
           if dispute_log.dispute_status == "dispute_won" {
             dispute_success_count = dispute_success_count + 1;
-            dispute_success_amount = dispute_success_amount + float(dispute_log.dispute_amount) ?? int(dispute_log.dispute_amount) ?? 0;
+            dispute_success_amount = dispute_success_amount + to_float(dispute_log.dispute_amount) ?? 0;
           }
         }
 
         .dispute_total_count = int(.dispute_total_count) ?? 0 + dispute_total_count;
-        .dispute_total_amount = float(.dispute_total_amount) ?? 0 + dispute_total_amount;
+        .dispute_total_amount = to_float(.dispute_total_amount) ?? 0 + dispute_total_amount;
         .dispute_success_count = int(.dispute_success_count) ?? 0 + dispute_success_count;
-        .dispute_success_amount = float(.dispute_success_amount) ?? 0 + dispute_success_amount;
+        .dispute_success_amount = to_float(.dispute_success_amount) ?? 0 + dispute_success_amount;
 
         attempt_log.dispute_total_count = dispute_total_count;
         attempt_log.dispute_total_amount = dispute_total_amount;
@@ -318,9 +323,9 @@ transforms:
       }
 
       .attempt_total_count = int(.attempt_total_count) ?? 0 + attempt_total_count;
-      .attempt_total_amount = float(.attempt_total_amount) ?? 0 + attempt_total_amount;
+      .attempt_total_amount = to_float(.attempt_total_amount) ?? 0 + attempt_total_amount;
       .attempt_success_count = int(.attempt_success_count) ?? 0 + attempt_success_count;
-      .attempt_success_amount = float(.attempt_success_amount) ?? 0 + attempt_success_amount;
+      .attempt_success_amount = to_float(.attempt_success_amount) ?? 0 + attempt_success_amount;
 
   consolidate_events_intents:
     type: remap
