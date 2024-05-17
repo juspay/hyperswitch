@@ -486,14 +486,15 @@ mod tests {
 
     use std::collections::{HashMap, HashSet};
 
-    use super::*;
-    use crate::utils::{NotAvailableFlows, PaymentMethodFilters};
     use api_models::enums as api_enums;
     use euclid::{
         dirval,
         dssa::graph::{AnalysisContext, CgraphExt},
     };
     use hyperswitch_constraint_graph::{ConstraintGraph, CycleCheck, Memoization};
+
+    use super::*;
+    use crate::utils::{NotAvailableFlows, PaymentMethodFilters};
 
     fn build_test_data<'a>() -> ConstraintGraph<'a, dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};

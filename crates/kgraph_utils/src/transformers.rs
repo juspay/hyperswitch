@@ -1,4 +1,3 @@
-use crate::error::KgraphError;
 use api_models::enums as api_enums;
 use euclid::{
     backend::BackendInput,
@@ -7,6 +6,8 @@ use euclid::{
     frontend::{ast, dir},
     types::{NumValue, StrValue},
 };
+
+use crate::error::KgraphError;
 
 pub trait IntoContext {
     fn into_context(self) -> Result<Vec<dir::DirValue>, KgraphError>;
