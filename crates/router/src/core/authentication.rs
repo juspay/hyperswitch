@@ -160,16 +160,18 @@ pub async fn perform_pre_authentication(
         )
         .await?;
 
-        utils::update_trackers(state, router_data, authentication, acquirer_details.clone()).await?
+        let updated_authentication =
+            utils::update_trackers(state, router_data, authentication, acquirer_details.clone())
+                .await?;
+        // from version call response, we will get to know the maximum supported 3ds version.
+        // If the version is not greater than or equal to 3DS 2.0, We should not do the successive pre authentication call.
+        if !updated_authentication.is_separate_authn_required() {
+            return Ok(updated_authentication);
+        }
+        updated_authentication
     } else {
         authentication
     };
-
-    // from version call response, we will get to know the maximum supported 3ds version.
-    // If the version is not greater than or equal to 3DS 2.0, We should not do the successive pre authentication call.
-    if !authentication.is_separate_authn_required() {
-        return Ok(authentication);
-    }
 
     let router_data: core_types::authentication::PreAuthNRouterData =
         transformers::construct_pre_authentication_router_data(
