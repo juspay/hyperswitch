@@ -95,9 +95,11 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
+    // Gpayments, Added as template code for future usage
     Helcim,
     Iatapay,
     Klarna,
+    // Mifinity, Added as template code for future usage
     Mollie,
     Multisafepay,
     Netcetera,
@@ -109,6 +111,7 @@ pub enum Connector {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
+    // Payone, added as template code for future usage
     Paypal,
     Payu,
     Placetopay,
@@ -177,8 +180,8 @@ impl Connector {
         matches!(self, Self::Checkout)
     }
     pub fn is_separate_authentication_supported(&self) -> bool {
-        #[cfg(feature = "dummy_connector")]
         match self {
+            #[cfg(feature = "dummy_connector")]
             Self::DummyConnector1
             | Self::DummyConnector2
             | Self::DummyConnector3
@@ -207,15 +210,18 @@ impl Connector {
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
+            // | Self::Gpayments  Added as template code for future usage
             | Self::Helcim
             | Self::Iatapay
             | Self::Klarna
+            // | Self::Mifinity Added as template code for future usage
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
+            // | Self::Payone  Added as a template code for future usage
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -243,66 +249,6 @@ impl Connector {
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi => true,
         }
-        #[cfg(not(feature = "dummy_connector"))]
-        match self {
-            Self::Aci
-            | Self::Adyen
-            | Self::Airwallex
-            | Self::Authorizedotnet
-            | Self::Bambora
-            | Self::Bankofamerica
-            | Self::Billwerk
-            | Self::Bitpay
-            | Self::Bluesnap
-            | Self::Boku
-            | Self::Braintree
-            | Self::Cashtocode
-            | Self::Coinbase
-            | Self::Cryptopay
-            | Self::Dlocal
-            | Self::Ebanx
-            | Self::Fiserv
-            | Self::Forte
-            | Self::Globalpay
-            | Self::Globepay
-            | Self::Gocardless
-            | Self::Helcim
-            | Self::Iatapay
-            | Self::Klarna
-            | Self::Mollie
-            | Self::Multisafepay
-            | Self::Nexinets
-            | Self::Nmi
-            | Self::Nuvei
-            | Self::Opennode
-            | Self::Payme
-            | Self::Paypal
-            | Self::Payu
-            | Self::Placetopay
-            | Self::Powertranz
-            | Self::Prophetpay
-            | Self::Rapyd
-            | Self::Shift4
-            | Self::Square
-            | Self::Stax
-            | Self::Trustpay
-            | Self::Tsys
-            | Self::Volt
-            | Self::Wise
-            | Self::Worldline
-            | Self::Worldpay
-            | Self::Zen
-            | Self::Zsl
-            | Self::Signifyd
-            | Self::Plaid
-            | Self::Riskified
-            | Self::Threedsecureio
-            | Self::Cybersource
-            | Self::Noon
-            | Self::Netcetera
-            | Self::Stripe => false,
-            Self::Checkout => true,
-        }
     }
 }
 
@@ -324,6 +270,7 @@ impl Connector {
 pub enum AuthenticationConnectors {
     Threedsecureio,
     Netcetera,
+    Gpayments,
 }
 
 #[cfg(feature = "payouts")]
@@ -348,6 +295,7 @@ pub enum PayoutConnectors {
     Wise,
     Paypal,
     Ebanx,
+    Cybersource,
 }
 
 #[cfg(feature = "payouts")]
@@ -359,6 +307,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -372,6 +321,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -386,6 +336,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Cybersource => Ok(Self::Cybersource),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }
@@ -445,13 +396,11 @@ pub struct UnresolvedResponseReason {
     Clone,
     Debug,
     Eq,
-    PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
-    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -473,10 +422,121 @@ pub enum FieldType {
     UserAddressPincode,
     UserAddressState,
     UserAddressCountry { options: Vec<String> },
+    UserShippingName,
+    UserShippingAddressLine1,
+    UserShippingAddressLine2,
+    UserShippingAddressCity,
+    UserShippingAddressPincode,
+    UserShippingAddressState,
+    UserShippingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
     Text,
     DropDown { options: Vec<String> },
+}
+
+impl FieldType {
+    pub fn get_billing_variants() -> Vec<Self> {
+        vec![
+            Self::UserBillingName,
+            Self::UserAddressLine1,
+            Self::UserAddressLine2,
+            Self::UserAddressCity,
+            Self::UserAddressPincode,
+            Self::UserAddressState,
+            Self::UserAddressCountry { options: vec![] },
+        ]
+    }
+
+    pub fn get_shipping_variants() -> Vec<Self> {
+        vec![
+            Self::UserShippingName,
+            Self::UserShippingAddressLine1,
+            Self::UserShippingAddressLine2,
+            Self::UserShippingAddressCity,
+            Self::UserShippingAddressPincode,
+            Self::UserShippingAddressState,
+            Self::UserShippingAddressCountry { options: vec![] },
+        ]
+    }
+}
+
+/// This implementatiobn is to ignore the inner value of UserAddressCountry enum while comparing
+impl PartialEq for FieldType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::UserCardNumber, Self::UserCardNumber) => true,
+            (Self::UserCardExpiryMonth, Self::UserCardExpiryMonth) => true,
+            (Self::UserCardExpiryYear, Self::UserCardExpiryYear) => true,
+            (Self::UserCardCvc, Self::UserCardCvc) => true,
+            (Self::UserFullName, Self::UserFullName) => true,
+            (Self::UserEmailAddress, Self::UserEmailAddress) => true,
+            (Self::UserPhoneNumber, Self::UserPhoneNumber) => true,
+            (Self::UserCountryCode, Self::UserCountryCode) => true,
+            (
+                Self::UserCountry {
+                    options: options_self,
+                },
+                Self::UserCountry {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            (
+                Self::UserCurrency {
+                    options: options_self,
+                },
+                Self::UserCurrency {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            (Self::UserBillingName, Self::UserBillingName) => true,
+            (Self::UserAddressLine1, Self::UserAddressLine1) => true,
+            (Self::UserAddressLine2, Self::UserAddressLine2) => true,
+            (Self::UserAddressCity, Self::UserAddressCity) => true,
+            (Self::UserAddressPincode, Self::UserAddressPincode) => true,
+            (Self::UserAddressState, Self::UserAddressState) => true,
+            (Self::UserAddressCountry { .. }, Self::UserAddressCountry { .. }) => true,
+            (Self::UserShippingName, Self::UserShippingName) => true,
+            (Self::UserShippingAddressLine1, Self::UserShippingAddressLine1) => true,
+            (Self::UserShippingAddressLine2, Self::UserShippingAddressLine2) => true,
+            (Self::UserShippingAddressCity, Self::UserShippingAddressCity) => true,
+            (Self::UserShippingAddressPincode, Self::UserShippingAddressPincode) => true,
+            (Self::UserShippingAddressState, Self::UserShippingAddressState) => true,
+            (Self::UserShippingAddressCountry { .. }, Self::UserShippingAddressCountry { .. }) => {
+                true
+            }
+            (Self::UserBlikCode, Self::UserBlikCode) => true,
+            (Self::UserBank, Self::UserBank) => true,
+            (Self::Text, Self::Text) => true,
+            (
+                Self::DropDown {
+                    options: options_self,
+                },
+                Self::DropDown {
+                    options: options_other,
+                },
+            ) => options_self.eq(options_other),
+            _unused => false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_partialeq_for_field_type() {
+        let user_address_country_is_us = FieldType::UserAddressCountry {
+            options: vec!["US".to_string()],
+        };
+
+        let user_address_country_is_all = FieldType::UserAddressCountry {
+            options: vec!["ALL".to_string()],
+        };
+
+        assert!(user_address_country_is_us.eq(&user_address_country_is_all))
+    }
 }
 
 #[derive(

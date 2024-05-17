@@ -3,7 +3,7 @@
 mod utils;
 
 use router::{
-    core::{payment_methods::Oss, payments},
+    core::payments,
     db::StorageImpl,
     types::api::{self, enums as api_enums},
     *,
@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 #[test]
 fn connector_list() {
-    let connector_list = router::types::ConnectorsList {
+    let connector_list = types::ConnectorsList {
         connectors: vec![String::from("stripe"), "adyen".to_string()],
     };
 
@@ -22,7 +22,7 @@ fn connector_list() {
 
     println!("{}", &json);
 
-    let newlist: router::types::ConnectorsList = serde_json::from_str(&json).unwrap();
+    let newlist: types::ConnectorsList = serde_json::from_str(&json).unwrap();
 
     println!("{newlist:#?}");
     assert_eq!(true, true);
@@ -125,13 +125,12 @@ async fn payments_create_core() {
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
-    let actual_response = Box::pin(router::core::payments::payments_core::<
+    let actual_response = Box::pin(payments::payments_core::<
         api::Authorize,
         api::PaymentsResponse,
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),
@@ -316,13 +315,12 @@ async fn payments_create_core_adyen_no_redirect() {
         },
         vec![],
     ));
-    let actual_response = Box::pin(router::core::payments::payments_core::<
+    let actual_response = Box::pin(payments::payments_core::<
         api::Authorize,
         api::PaymentsResponse,
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),

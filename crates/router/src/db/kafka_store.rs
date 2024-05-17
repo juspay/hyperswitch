@@ -25,6 +25,7 @@ use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
 };
+use serde::Serialize;
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
@@ -32,6 +33,7 @@ use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user_key_store::UserKeyStoreInterface,
     user_role::UserRoleInterface,
 };
 #[cfg(feature = "payouts")]
@@ -74,17 +76,22 @@ use crate::{
     },
 };
 
+#[derive(Debug, Clone, Serialize)]
+pub struct TenantID(pub String);
+
 #[derive(Clone)]
 pub struct KafkaStore {
     kafka_producer: KafkaProducer,
     pub diesel_store: Store,
+    pub tenant_id: TenantID,
 }
 
 impl KafkaStore {
-    pub async fn new(store: Store, kafka_producer: KafkaProducer) -> Self {
+    pub async fn new(store: Store, kafka_producer: KafkaProducer, tenant_id: TenantID) -> Self {
         Self {
             kafka_producer,
             diesel_store: store,
+            tenant_id,
         }
     }
 }
@@ -114,12 +121,12 @@ impl AddressInterface for KafkaStore {
 
     async fn update_address_for_payments(
         &self,
-        this: domain::Address,
+        this: domain::PaymentAddress,
         address: domain::AddressUpdate,
         payment_id: String,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .update_address_for_payments(this, address, payment_id, key_store, storage_scheme)
             .await
@@ -128,10 +135,10 @@ impl AddressInterface for KafkaStore {
     async fn insert_address_for_payments(
         &self,
         payment_id: &str,
-        address: domain::Address,
+        address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .insert_address_for_payments(payment_id, address, key_store, storage_scheme)
             .await
@@ -144,7 +151,7 @@ impl AddressInterface for KafkaStore {
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         self.diesel_store
             .find_address_by_merchant_id_payment_id_address_id(
                 merchant_id,
@@ -158,7 +165,7 @@ impl AddressInterface for KafkaStore {
 
     async fn insert_address_for_customers(
         &self,
-        address: domain::Address,
+        address: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         self.diesel_store
@@ -406,7 +413,11 @@ impl DisputeInterface for KafkaStore {
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
 
-        if let Err(er) = self.kafka_producer.log_dispute(&dispute, None).await {
+        if let Err(er) = self
+            .kafka_producer
+            .log_dispute(&dispute, None, self.tenant_id.clone())
+            .await
+        {
             logger::error!(message="Failed to add analytics entry for Dispute {dispute:?}", error_message=?er);
         };
 
@@ -459,7 +470,7 @@ impl DisputeInterface for KafkaStore {
             .await?;
         if let Err(er) = self
             .kafka_producer
-            .log_dispute(&dispute_new, Some(this))
+            .log_dispute(&dispute_new, Some(this), self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to add analytics entry for Dispute {dispute_new:?}", error_message=?er);
@@ -1102,7 +1113,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_attempt(&attempt, None)
+            .log_payment_attempt(&attempt, None, self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
@@ -1124,7 +1135,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_attempt(&attempt, Some(this))
+            .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
@@ -1304,7 +1315,7 @@ impl PaymentIntentInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_intent(&intent, Some(this))
+            .log_payment_intent(&intent, Some(this), self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
@@ -1324,7 +1335,11 @@ impl PaymentIntentInterface for KafkaStore {
             .insert_payment_intent(new, storage_scheme)
             .await?;
 
-        if let Err(er) = self.kafka_producer.log_payment_intent(&intent, None).await {
+        if let Err(er) = self
+            .kafka_producer
+            .log_payment_intent(&intent, None, self.tenant_id.clone())
+            .await
+        {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
         };
 
@@ -1551,6 +1566,7 @@ impl PayoutAttemptInterface for KafkaStore {
             .log_payout(
                 &KafkaPayout::from_storage(payouts, &updated_payout_attempt),
                 Some(KafkaPayout::from_storage(payouts, this)),
+                self.tenant_id.clone(),
             )
             .await
         {
@@ -1575,6 +1591,7 @@ impl PayoutAttemptInterface for KafkaStore {
             .log_payout(
                 &KafkaPayout::from_storage(payouts, &payout_attempt_new),
                 None,
+                self.tenant_id.clone(),
             )
             .await
         {
@@ -1632,6 +1649,7 @@ impl PayoutsInterface for KafkaStore {
             .log_payout(
                 &KafkaPayout::from_storage(&payout, payout_attempt),
                 Some(KafkaPayout::from_storage(this, payout_attempt)),
+                self.tenant_id.clone(),
             )
             .await
         {
@@ -1896,7 +1914,11 @@ impl RefundInterface for KafkaStore {
             .update_refund(this.clone(), refund, storage_scheme)
             .await?;
 
-        if let Err(er) = self.kafka_producer.log_refund(&refund, Some(this)).await {
+        if let Err(er) = self
+            .kafka_producer
+            .log_refund(&refund, Some(this), self.tenant_id.clone())
+            .await
+        {
             logger::error!(message="Failed to insert analytics event for Refund Update {refund?}", error_message=?er);
         }
         Ok(refund)
@@ -1924,7 +1946,11 @@ impl RefundInterface for KafkaStore {
     ) -> CustomResult<storage::Refund, errors::StorageError> {
         let refund = self.diesel_store.insert_refund(new, storage_scheme).await?;
 
-        if let Err(er) = self.kafka_producer.log_refund(&refund, None).await {
+        if let Err(er) = self
+            .kafka_producer
+            .log_refund(&refund, None, self.tenant_id.clone())
+            .await
+        {
             logger::error!(message="Failed to insert analytics event for Refund Create {refund?}", error_message=?er);
         }
         Ok(refund)
@@ -2497,7 +2523,7 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent(payment_intent, None)
+                .log_payment_intent(payment_intent, None, self.tenant_id.clone())
                 .await;
         }
         Ok(payment_intents_list)
@@ -2518,7 +2544,7 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_attempt in payment_attempts_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_attempt(payment_attempt, None)
+                .log_payment_attempt(payment_attempt, None, self.tenant_id.clone())
                 .await;
         }
         Ok(payment_attempts_list)
@@ -2535,7 +2561,10 @@ impl BatchSampleDataInterface for KafkaStore {
             .await?;
 
         for refund in refunds_list.iter() {
-            let _ = self.kafka_producer.log_refund(refund, None).await;
+            let _ = self
+                .kafka_producer
+                .log_refund(refund, None, self.tenant_id.clone())
+                .await;
         }
         Ok(refunds_list)
     }
@@ -2555,7 +2584,7 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent_delete(payment_intent)
+                .log_payment_intent_delete(payment_intent, self.tenant_id.clone())
                 .await;
         }
         Ok(payment_intents_list)
@@ -2576,7 +2605,7 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_attempt in payment_attempts_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_attempt_delete(payment_attempt)
+                .log_payment_attempt_delete(payment_attempt, self.tenant_id.clone())
                 .await;
         }
 
@@ -2594,7 +2623,10 @@ impl BatchSampleDataInterface for KafkaStore {
             .await?;
 
         for refund in refunds_list.iter() {
-            let _ = self.kafka_producer.log_refund_delete(refund).await;
+            let _ = self
+                .kafka_producer
+                .log_refund_delete(refund, self.tenant_id.clone())
+                .await;
         }
 
         Ok(refunds_list)
@@ -2741,5 +2773,28 @@ impl RoleInterface for KafkaStore {
         org_id: &str,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store.list_all_roles(merchant_id, org_id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl UserKeyStoreInterface for KafkaStore {
+    async fn insert_user_key_store(
+        &self,
+        user_key_store: domain::UserKeyStore,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
+        self.diesel_store
+            .insert_user_key_store(user_key_store, key)
+            .await
+    }
+
+    async fn get_user_key_store_by_user_id(
+        &self,
+        user_id: &str,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
+        self.diesel_store
+            .get_user_key_store_by_user_id(user_id, key)
+            .await
     }
 }

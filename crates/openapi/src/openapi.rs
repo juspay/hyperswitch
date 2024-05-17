@@ -344,6 +344,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::SecretInfoToInitiateSdk,
         api_models::payments::ApplePayPaymentRequest,
+        api_models::payments::ApplePayBillingContactFields,
+        api_models::payments::ApplePayShippingContactFields,
+        api_models::payments::ApplePayAddressParameters,
         api_models::payments::AmountInfo,
         api_models::payments::ProductType,
         api_models::payments::GooglePayWalletData,
@@ -388,6 +391,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
         api_models::payments::GooglePaySessionResponse,
+        api_models::payments::GpayShippingAddressParameters,
+        api_models::payments::GpayBillingAddressParameters,
+        api_models::payments::GpayBillingAddressFormat,
         api_models::payments::SepaBankTransferInstructions,
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,
@@ -418,6 +424,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::TimeRange,
+        api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,
@@ -514,6 +521,8 @@ Never share your secret api keys. Keep them guarded and secure.
     )),
     modifiers(&SecurityAddon)
 )]
+// Bypass clippy lint for not being constructed
+#[allow(dead_code)]
 pub struct ApiDoc;
 
 struct SecurityAddon;

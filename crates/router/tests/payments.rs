@@ -4,7 +4,7 @@ mod utils;
 
 use router::{
     configs,
-    core::{payment_methods::Oss, payments},
+    core::payments,
     db::StorageImpl,
     routes, services,
     types::{
@@ -26,7 +26,7 @@ use uuid::Uuid;
 async fn payments_create_stripe() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = format!("test_{}", Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let request = serde_json::json!({
@@ -95,7 +95,7 @@ async fn payments_create_stripe() {
 async fn payments_create_adyen() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = format!("test_{}", Uuid::new_v4());
     let api_key = ("API-KEY", "321");
 
     let request = serde_json::json!({
@@ -164,7 +164,7 @@ async fn payments_create_adyen() {
 async fn payments_create_fail() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = format!("test_{}", Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let invalid_request = serde_json::json!({
@@ -371,7 +371,6 @@ async fn payments_create_core() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),
@@ -554,7 +553,6 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),

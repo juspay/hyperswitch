@@ -83,6 +83,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     description: new.description.clone(),
                     return_url: new.return_url.clone(),
                     metadata: new.metadata.clone(),
+                    frm_metadata: new.frm_metadata.clone(),
                     connector_id: new.connector_id.clone(),
                     shipping_address_id: new.shipping_address_id.clone(),
                     billing_address_id: new.billing_address_id.clone(),
@@ -257,7 +258,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         match payment.active_attempt.clone() {
-            hyperswitch_domain_models::RemoteStorageObject::ForeignID(attempt_id) => {
+            RemoteStorageObject::ForeignID(attempt_id) => {
                 let conn = pg_connection_read(self).await?;
 
                 let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
@@ -271,11 +272,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
                 .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt =
-                    hyperswitch_domain_models::RemoteStorageObject::Object(pa.clone());
+                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
                 Ok(pa)
             }
-            hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+            RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
     }
 
@@ -397,7 +397,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         match &payment.active_attempt {
-            hyperswitch_domain_models::RemoteStorageObject::ForeignID(attempt_id) => {
+            RemoteStorageObject::ForeignID(attempt_id) => {
                 let conn = pg_connection_read(self).await?;
 
                 let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
@@ -411,11 +411,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     er.change_context(new_err)
                 })
                 .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt =
-                    hyperswitch_domain_models::RemoteStorageObject::Object(pa.clone());
+                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
                 Ok(pa)
             }
-            hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+            RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
     }
 
@@ -808,6 +807,7 @@ impl DataModelExt for PaymentIntentNew {
             description: self.description,
             return_url: self.return_url,
             metadata: self.metadata,
+            frm_metadata: self.frm_metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
             billing_address_id: self.billing_address_id,
@@ -854,6 +854,7 @@ impl DataModelExt for PaymentIntentNew {
             description: storage_model.description,
             return_url: storage_model.return_url,
             metadata: storage_model.metadata,
+            frm_metadata: storage_model.frm_metadata,
             connector_id: storage_model.connector_id,
             shipping_address_id: storage_model.shipping_address_id,
             billing_address_id: storage_model.billing_address_id,
@@ -937,6 +938,7 @@ impl DataModelExt for PaymentIntent {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            frm_metadata: self.frm_metadata,
         }
     }
 
@@ -985,6 +987,7 @@ impl DataModelExt for PaymentIntent {
             session_expiry: storage_model.session_expiry,
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
+            frm_metadata: storage_model.frm_metadata,
         }
     }
 }
@@ -1072,6 +1075,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -1093,6 +1097,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
