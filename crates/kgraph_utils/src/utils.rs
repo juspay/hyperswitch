@@ -1,6 +1,7 @@
+use std::collections::{HashMap, HashSet};
+
 use api_models::enums as api_enums;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
 #[derive(Debug, Deserialize, Clone, Default)]
 
 pub struct CountryCurrencyFilter {

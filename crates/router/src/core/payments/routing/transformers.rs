@@ -1,12 +1,14 @@
-use crate::{
-    configs::settings,
-    types::transformers::{ForeignFrom, ForeignInto},
-};
+use std::collections::HashMap;
+
 use api_models::{self, routing as routing_types};
 use diesel_models::enums as storage_enums;
 use euclid::{enums as dsl_enums, frontend::ast as dsl_ast};
 use kgraph_utils::utils;
-use std::collections::HashMap;
+
+use crate::{
+    configs::settings,
+    types::transformers::{ForeignFrom, ForeignInto},
+};
 
 impl ForeignFrom<routing_types::RoutableConnectorChoice> for dsl_ast::ConnectorChoice {
     fn foreign_from(from: routing_types::RoutableConnectorChoice) -> Self {
