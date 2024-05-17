@@ -1069,6 +1069,7 @@ pub enum EventClass {
     Refunds,
     Disputes,
     Mandates,
+    Payouts,
 }
 
 #[derive(
@@ -1107,6 +1108,10 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    PayoutSuccess,
+    PayoutFailed,
+    PayoutProcessing,
+    PayoutCancelled,
 }
 
 #[derive(

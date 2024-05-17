@@ -31,6 +31,13 @@ pub trait PayoutAttemptInterface {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
 
+    async fn find_payout_attempt_by_merchant_id_connector_payout_id(
+        &self,
+        _merchant_id: &str,
+        _connector_payout_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+
     async fn get_filters_for_payouts(
         &self,
         payout: &[Payouts],
@@ -55,7 +62,7 @@ pub struct PayoutAttempt {
     pub merchant_id: String,
     pub address_id: String,
     pub connector: Option<String>,
-    pub connector_payout_id: String,
+    pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
@@ -80,7 +87,7 @@ pub struct PayoutAttemptNew {
     pub merchant_id: String,
     pub address_id: String,
     pub connector: Option<String>,
-    pub connector_payout_id: String,
+    pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
@@ -106,7 +113,7 @@ impl Default for PayoutAttemptNew {
             merchant_id: String::default(),
             address_id: String::default(),
             connector: None,
-            connector_payout_id: String::default(),
+            connector_payout_id: Some(String::default()),
             payout_token: None,
             status: storage_enums::PayoutStatus::default(),
             is_eligible: None,
@@ -123,10 +130,10 @@ impl Default for PayoutAttemptNew {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PayoutAttemptUpdate {
     StatusUpdate {
-        connector_payout_id: String,
+        connector_payout_id: Option<String>,
         status: storage_enums::PayoutStatus,
         error_message: Option<String>,
         error_code: Option<String>,
@@ -173,7 +180,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_code,
                 is_eligible,
             } => Self {
-                connector_payout_id: Some(connector_payout_id),
+                connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,

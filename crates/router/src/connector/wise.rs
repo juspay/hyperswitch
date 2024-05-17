@@ -531,7 +531,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
 
         match quote_router_resp.response.to_owned() {
             Ok(resp) => {
-                router_data.quote_id = Some(resp.connector_payout_id);
+                router_data.quote_id = resp.connector_payout_id;
                 Ok(())
             }
             Err(_err) => {
