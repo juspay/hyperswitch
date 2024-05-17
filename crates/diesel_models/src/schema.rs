@@ -850,6 +850,7 @@ diesel::table! {
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
         request_external_three_ds_authentication -> Nullable<Bool>,
+        frm_metadata -> Nullable<Jsonb>,
     }
 }
 

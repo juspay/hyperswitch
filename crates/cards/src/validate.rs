@@ -6,31 +6,36 @@ use router_env::{logger, which as router_env_which, Env};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Deserialize, Serialize, Error)]
-#[error("not a valid credit card number")]
-pub struct CCValError;
+///
+/// Minimum limit of a card number will not be less than 8 by ISO standards
+///
+pub const MIN_CARD_NUMBER_LENGTH: usize = 8;
 
-impl From<core::convert::Infallible> for CCValError {
-    fn from(_: core::convert::Infallible) -> Self {
-        Self
-    }
-}
+///
+/// Maximum limit of a card number will not exceed 19 by ISO standards
+///
+pub const MAX_CARD_NUMBER_LENGTH: usize = 19;
+
+#[derive(Debug, Deserialize, Serialize, Error)]
+#[error("{0}")]
+pub struct CardNumberValidationErr(&'static str);
 
 /// Card number
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
 
 impl CardNumber {
-    pub fn get_card_isin(self) -> String {
+    pub fn get_card_isin(&self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
     }
-    pub fn get_extended_card_bin(self) -> String {
+
+    pub fn get_extended_card_bin(&self) -> String {
         self.0.peek().chars().take(8).collect::<String>()
     }
-    pub fn get_card_no(self) -> String {
+    pub fn get_card_no(&self) -> String {
         self.0.peek().chars().collect::<String>()
     }
-    pub fn get_last4(self) -> String {
+    pub fn get_last4(&self) -> String {
         self.0
             .peek()
             .chars()
@@ -44,9 +49,9 @@ impl CardNumber {
 }
 
 impl FromStr for CardNumber {
-    type Err = CCValError;
+    type Err = CardNumberValidationErr;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(card_number: &str) -> Result<Self, Self::Err> {
         // Valid test cards for threedsecureio
         let valid_test_cards = vec![
             "4000100511112003",
@@ -59,17 +64,79 @@ impl FromStr for CardNumber {
             Env::Development | Env::Sandbox => valid_test_cards,
             Env::Production => vec![],
         };
-        if luhn::valid(s) || valid_test_cards.contains(&s) {
-            let cc_no_whitespace: String = s.split_whitespace().collect();
-            Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
+
+        let card_number = card_number.split_whitespace().collect::<String>();
+
+        let is_card_valid = sanitize_card_number(&card_number)?;
+
+        if valid_test_cards.contains(&card_number.as_str()) || is_card_valid {
+            Ok(Self(StrongSecret::new(card_number)))
         } else {
-            Err(CCValError)
+            Err(CardNumberValidationErr("card number invalid"))
         }
     }
 }
 
+pub fn sanitize_card_number(card_number: &str) -> Result<bool, CardNumberValidationErr> {
+    let is_card_number_valid = Ok(card_number)
+        .and_then(validate_card_number_chars)
+        .and_then(validate_card_number_length)
+        .map(|number| luhn(&number))?;
+
+    Ok(is_card_number_valid)
+}
+
+///
+/// # Panics
+///
+/// Never, as a single character will never be greater than 10, or `u8`
+///
+pub fn validate_card_number_chars(number: &str) -> Result<Vec<u8>, CardNumberValidationErr> {
+    let data = number.chars().try_fold(
+        Vec::with_capacity(MAX_CARD_NUMBER_LENGTH),
+        |mut data, character| {
+            data.push(
+                #[allow(clippy::expect_used)]
+                character
+                    .to_digit(10)
+                    .ok_or(CardNumberValidationErr(
+                        "invalid character found in card number",
+                    ))?
+                    .try_into()
+                    .expect("error while converting a single character to u8"), // safety, a single character will never be greater `u8`
+            );
+            Ok::<Vec<u8>, CardNumberValidationErr>(data)
+        },
+    )?;
+
+    Ok(data)
+}
+
+pub fn validate_card_number_length(number: Vec<u8>) -> Result<Vec<u8>, CardNumberValidationErr> {
+    if number.len() >= MIN_CARD_NUMBER_LENGTH && number.len() <= MAX_CARD_NUMBER_LENGTH {
+        Ok(number)
+    } else {
+        Err(CardNumberValidationErr("invalid card number length"))
+    }
+}
+
+#[allow(clippy::as_conversions)]
+pub fn luhn(number: &[u8]) -> bool {
+    number
+        .iter()
+        .rev()
+        .enumerate()
+        .map(|(idx, element)| {
+            ((*element * 2) / 10 + (*element * 2) % 10) * ((idx as u8) % 2)
+                + (*element) * (((idx + 1) as u8) % 2)
+        })
+        .sum::<u8>()
+        % 10
+        == 0
+}
+
 impl TryFrom<String> for CardNumber {
-    type Error = CCValError;
+    type Error = CardNumberValidationErr;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::from_str(&value)
@@ -132,11 +199,29 @@ mod tests {
     }
 
     #[test]
+    fn invalid_card_number_length() {
+        let s = "371446";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap_err().to_string(),
+            "invalid card number length".to_string()
+        );
+    }
+
+    #[test]
+    fn card_number_with_non_digit_character() {
+        let s = "371446431 A";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap_err().to_string(),
+            "invalid character found in card number".to_string()
+        );
+    }
+
+    #[test]
     fn invalid_card_number() {
         let s = "371446431";
         assert_eq!(
             CardNumber::from_str(s).unwrap_err().to_string(),
-            "not a valid credit card number".to_string()
+            "card number invalid".to_string()
         );
     }
 
@@ -180,6 +265,6 @@ mod tests {
     fn test_invalid_card_number_deserialization() {
         let card_number = serde_json::from_str::<CardNumber>(r#""1234 5678""#);
         let error_msg = card_number.unwrap_err().to_string();
-        assert_eq!(error_msg, "not a valid credit card number".to_string());
+        assert_eq!(error_msg, "card number invalid".to_string());
     }
 }

@@ -2,7 +2,7 @@ use error_stack::ResultExt;
 
 use crate::{
     core::errors::{self, RouterResult},
-    headers, logger,
+    logger,
     types::{self, api},
     utils::{Encode, ValueExt},
 };
@@ -32,26 +32,22 @@ pub fn populate_ip_into_browser_info(
             ip_address: None,
         });
 
-    // Parse the IP Address from the "X-Forwarded-For" header
-    // This header will contain multiple IP addresses for each ALB hop which has
-    // a comma separated list of IP addresses: 'X.X.X.X, Y.Y.Y.Y, Z.Z.Z.Z'
-    // The first one here will be the client IP which we want to retrieve
-    let ip_address_from_header = req.headers()
-        .get(headers::X_FORWARDED_FOR)
-        .map(|val| val.to_str())
-        .transpose()
-        .unwrap_or_else(|e| {
-            logger::error!(error=?e, message="failed to retrieve ip address from X-Forwarded-For header");
-            None
-        })
-        .and_then(|ips| ips.split(',').next());
+    let ip_address = req
+        .connection_info()
+        .realip_remote_addr()
+        .map(ToOwned::to_owned);
+
+    if ip_address.is_some() {
+        logger::debug!("Extracted ip address from request");
+    }
 
     browser_info.ip_address = browser_info.ip_address.or_else(|| {
-        ip_address_from_header
+        ip_address
+            .as_ref()
             .map(|ip| ip.parse())
             .transpose()
             .unwrap_or_else(|e| {
-                logger::error!(error=?e, message="failed to parse ip address from X-Forwarded-For");
+                logger::error!(error=?e, message="failed to parse ip address which is extracted from the request");
                 None
             })
     });
@@ -70,7 +66,7 @@ pub fn populate_ip_into_browser_info(
     {
         *req_ip = req_ip
             .clone()
-            .or_else(|| ip_address_from_header.map(|ip| masking::Secret::new(ip.to_string())));
+            .or_else(|| ip_address.map(|ip| masking::Secret::new(ip.to_string())));
     }
 
     let encoded = browser_info
