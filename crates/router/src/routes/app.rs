@@ -16,8 +16,6 @@ use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
-#[cfg(feature = "olap")]
-use crate::analytics::AnalyticsProvider;
 
 #[cfg(feature = "olap")]
 use super::blocklist;
@@ -45,6 +43,8 @@ use super::{ephemeral_key::*, webhooks::*};
 use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsProvider;
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -311,11 +311,8 @@ impl AppState {
                 };
                 stores.insert(tenant.clone(), store);
                 #[cfg(feature = "olap")]
-                let pool = AnalyticsProvider::from_conf(
-                    conf.analytics.get_inner(),
-                    tenant.as_str(),
-                )
-                .await;
+                let pool =
+                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant.as_str()).await;
                 #[cfg(feature = "olap")]
                 pools.insert(tenant.clone(), pool);
             }
