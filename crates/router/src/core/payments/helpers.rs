@@ -600,8 +600,9 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .flatten();
 
-    let original_payment_authorized_amount =
-        MinorUnit::get_optional_amount_as_i64(original_payment_intent.clone().map(|pi| pi.amount));
+    let original_payment_authorized_amount = original_payment_intent
+        .clone()
+        .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
 
@@ -718,7 +719,7 @@ pub fn validate_merchant_id(
 #[instrument(skip_all)]
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
-    op_amount_to_capture: Option<i64>,
+    op_amount_to_capture: Option<MinorUnit>,
     surcharge_details: Option<RequestSurchargeDetails>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match (op_amount, op_amount_to_capture) {
@@ -729,14 +730,10 @@ pub fn validate_request_amount_and_amount_to_capture(
                 api::Amount::Value(amount_inner) => {
                     // If both amount and amount to capture is present
                     // then amount to be capture should be less than or equal to request amount
-                    let total_capturable_amount = amount_inner.get()
+                    let total_capturable_amount = MinorUnit::new(amount_inner.get())
                         + surcharge_details
-                            .map(|surcharge_details| {
-                                surcharge_details
-                                    .get_total_surcharge_amount()
-                                    .get_amount_as_i64()
-                            })
-                            .unwrap_or(0);
+                            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+                            .unwrap_or_default();
                     utils::when(!amount_to_capture.le(&total_capturable_amount), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
@@ -778,15 +775,13 @@ pub fn validate_amount_to_capture_and_capture_method(
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .or_else(|| {
                 payment_attempt.map(|payment_attempt| {
-                    payment_attempt
-                        .surcharge_amount
-                        .unwrap_or_default()
-                        .add(payment_attempt.tax_amount.unwrap_or_default())
+                    payment_attempt.surcharge_amount.unwrap_or_default()
+                        + payment_attempt.tax_amount.unwrap_or_default()
                 })
             })
             .unwrap_or_default();
         let total_capturable_amount =
-            original_amount.map(|original_amount| original_amount.add(surcharge_amount));
+            original_amount.map(|original_amount| original_amount + surcharge_amount);
 
         let amount_to_capture = request
             .amount_to_capture
@@ -795,14 +790,11 @@ pub fn validate_amount_to_capture_and_capture_method(
         if let Some((total_capturable_amount, amount_to_capture)) =
             total_capturable_amount.zip(amount_to_capture)
         {
-            utils::when(
-                amount_to_capture.is_not_equal(total_capturable_amount),
-                || {
-                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            utils::when(amount_to_capture != total_capturable_amount, || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message: "amount_to_capture must be equal to total_capturable_amount when capture_method = automatic".into()
                 }))
-                },
-            )
+            })
         } else {
             Ok(())
         }

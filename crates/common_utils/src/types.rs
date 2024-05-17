@@ -1,5 +1,10 @@
 //! Types that can be used in other crates
-use std::{fmt::Display, primitive::i64, str::FromStr};
+use std::{
+    fmt::Display,
+    ops::{Add, Sub},
+    primitive::i64,
+    str::FromStr,
+};
 
 use diesel::{
     backend::Backend,
@@ -54,13 +59,17 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
 
     /// apply the percentage to amount and ceil the result
     #[allow(clippy::as_conversions)]
-    pub fn apply_and_ceil_result(&self, amount: i64) -> CustomResult<i64, PercentageError> {
+    pub fn apply_and_ceil_result(
+        &self,
+        amount: MinorUnit,
+    ) -> CustomResult<MinorUnit, PercentageError> {
         let max_amount = i64::MAX / 10000;
+        let amount = amount.0;
         if amount > max_amount {
             // value gets rounded off after i64::MAX/10000
             Err(report!(PercentageError::UnableToApplyPercentage {
                 percentage: self.percentage,
-                amount,
+                amount: MinorUnit::new(amount),
             }))
             .attach_printable(format!(
                 "Cannot calculate percentage for amount greater than {}",
@@ -69,9 +78,10 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         } else {
             let percentage_f64 = f64::from(self.percentage);
             let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
-            Ok(result)
+            Ok(MinorUnit::new(result))
         }
     }
+
     fn is_valid_string_value(value: &str) -> CustomResult<bool, PercentageError> {
         let float_value = Self::is_valid_float_string(value)?;
         Ok(Self::is_valid_range(float_value) && Self::is_valid_precision_length(value))
@@ -153,7 +163,7 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
 }
@@ -217,10 +227,19 @@ where
 
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
-    Default, Debug, serde::Deserialize, AsExpression, serde::Serialize, Clone, Copy, PartialEq, Eq,
+    Default,
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
 )]
 #[diesel(sql_type = diesel::sql_types::BigInt)]
-pub struct MinorUnit(i64); //core
+pub struct MinorUnit(i64);
 
 impl MinorUnit {
     /// gets amount as i64 value
@@ -229,62 +248,10 @@ impl MinorUnit {
         self.0
     }
 
-    /// checks if the amount is zero value
-    pub fn is_zero(&self) -> bool {
-        self.0 == 0
-    }
-
-    /// adds two minor unit amount
-    pub fn add(&self, a2: Self) -> Self {
-        Self::new(self.0 + a2.0)
-    }
-
-    /// subtract two minor unit amount
-    pub fn subtract(&self, a2: Self) -> Self {
-        Self::new(self.0 - a2.0)
-    }
-
-    /// gets optional amount from minor unit
-    pub fn get_optional_amount_as_i64(optional_amount: Option<Self>) -> Option<i64> {
-        // remove in future
-        optional_amount.map(|amount| amount.0)
-    }
-
     /// forms a new minor unit from amount
     pub fn new(value: i64) -> Self {
         // remove in future
         Self(value)
-    }
-
-    /// gets optional minor unit from amount
-    pub fn optional_new_from_i64_amount(value: i64) -> Option<Self> {
-        Some(Self(value))
-    }
-
-    /// forms a new optional minor unit from optional amount
-    pub fn new_from_optional_i64_amount(value: Option<i64>) -> Option<Self> {
-        // remove in future
-        value.map(Self)
-    }
-
-    /// checks if both the values are equal
-    pub fn is_equal(&self, a2: Self) -> bool {
-        self.0 == a2.0
-    }
-
-    /// checks if optional value is equal
-    pub fn is_equal_in_optional_value(&self, a2: Option<Self>) -> bool {
-        a2.is_some_and(|a2| a2.is_equal(*self)) // will remove in future
-    }
-
-    /// checks if both the values are not equal
-    pub fn is_not_equal(&self, a2: Self) -> bool {
-        !self.is_equal(a2)
-    }
-
-    /// checks if one value is greater than the other
-    pub fn is_greater_than(&self, a2: Self) -> bool {
-        self.0 > a2.0
     }
 }
 
@@ -324,5 +291,25 @@ where
 
     fn build(row: Self::Row) -> deserialize::Result<Self> {
         Ok(row)
+    }
+}
+
+impl Add for MinorUnit {
+    type Output = MinorUnit;
+    fn add(self, a2: MinorUnit) -> MinorUnit {
+        MinorUnit(self.0 + a2.0)
+    }
+}
+
+impl Sub for MinorUnit {
+    type Output = MinorUnit;
+    fn sub(self, a2: MinorUnit) -> MinorUnit {
+        MinorUnit(self.0 - a2.0)
+    }
+}
+
+impl PartialOrd for MinorUnit {
+    fn partial_cmp(&self, a2: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.0.cmp(&a2.0))
     }
 }

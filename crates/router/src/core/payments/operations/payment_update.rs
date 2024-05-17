@@ -4,10 +4,7 @@ use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
-use common_utils::{
-    ext_traits::{AsyncExt, Encode, ValueExt},
-    types::MinorUnit,
-};
+use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -148,7 +145,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
-            MinorUnit::get_optional_amount_as_i64(request.amount_to_capture),
+            request.amount_to_capture,
             request
                 .surcharge_details
                 .or(payment_attempt.get_surcharge_details()),
@@ -339,7 +336,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
                         .or(payment_attempt.get_total_surcharge_amount());
-                    amount.add(surcharge_amount.unwrap_or_default())
+                    amount + surcharge_amount.unwrap_or_default()
                 };
                 (Box::new(operations::PaymentConfirm), amount.into())
             } else {
@@ -762,7 +759,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
 
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
-            MinorUnit::get_optional_amount_as_i64(request.amount_to_capture),
+            request.amount_to_capture,
             request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {

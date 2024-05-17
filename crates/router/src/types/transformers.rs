@@ -777,7 +777,7 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
     fn foreign_from(authorization: storage::Authorization) -> Self {
         Self {
             authorization_id: authorization.authorization_id,
-            amount: MinorUnit::new(authorization.amount),
+            amount: authorization.amount,
             status: authorization.status,
             error_code: authorization.error_code,
             error_message: authorization.error_message,
@@ -1087,7 +1087,7 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
             payment_link_id: payment_link_config.payment_link_id,
             merchant_id: payment_link_config.merchant_id,
             link_to_pay: payment_link_config.link_to_pay,
-            amount: MinorUnit::new(payment_link_config.amount),
+            amount: payment_link_config.amount,
             created_at: payment_link_config.created_at,
             expiry: payment_link_config.fulfilment_time,
             description: payment_link_config.description,

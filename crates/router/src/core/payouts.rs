@@ -6,7 +6,7 @@ pub mod validator;
 use std::vec::IntoIter;
 
 use api_models::enums as api_enums;
-use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii};
+use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
@@ -365,10 +365,9 @@ pub async fn payouts_update_core(
             ),
         }));
     }
-
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
-    let amount = common_utils::types::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
+    let amount = MinorUnit::from(req.amount.unwrap_or(MinorUnit::new(payouts.amount).into()))
         .get_amount_as_i64();
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
@@ -1966,8 +1965,7 @@ pub async fn payout_create_db_entries(
     } else {
         None
     };
-    let amount = common_utils::types::MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero))
-        .get_amount_as_i64();
+    let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero)).get_amount_as_i64();
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_string(),

@@ -353,7 +353,7 @@ fn get_surcharge_details_from_surcharge_output(
     let surcharge_amount = match surcharge_details.surcharge.clone() {
         surcharge_decision_configs::SurchargeOutput::Fixed { amount } => amount,
         surcharge_decision_configs::SurchargeOutput::Rate(percentage) => percentage
-            .apply_and_ceil_result(payment_attempt.amount.get_amount_as_i64())
+            .apply_and_ceil_result(payment_attempt.amount)
             .change_context(ConfigError::DslExecutionError)
             .attach_printable("Failed to Calculate surcharge amount by applying percentage")?,
     };
@@ -367,7 +367,7 @@ fn get_surcharge_details_from_surcharge_output(
                 .attach_printable("Failed to Calculate tax amount")
         })
         .transpose()?
-        .unwrap_or(0);
+        .unwrap_or_default();
     Ok(types::SurchargeDetails {
         original_amount: payment_attempt.amount,
         surcharge: match surcharge_details.surcharge {
@@ -379,11 +379,9 @@ fn get_surcharge_details_from_surcharge_output(
             }
         },
         tax_on_surcharge: surcharge_details.tax_on_surcharge,
-        surcharge_amount: common_utils_types::MinorUnit::new(surcharge_amount),
-        tax_on_surcharge_amount: common_utils_types::MinorUnit::new(tax_on_surcharge_amount),
-        final_amount: common_utils_types::MinorUnit::new(
-            payment_attempt.amount.get_amount_as_i64() + surcharge_amount + tax_on_surcharge_amount,
-        ),
+        surcharge_amount,
+        tax_on_surcharge_amount,
+        final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
     })
 }
 

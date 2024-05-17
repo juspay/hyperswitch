@@ -485,12 +485,12 @@ impl<F, T>
                     .or(Some(order.order_id.clone())),
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: Some(common_utils::types::MinorUnit::new(
+            amount_captured: Some(
                 order
                     .total_amount
                     .parse::<i64>()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-            )),
+            ),
             ..item.data
         })
     }

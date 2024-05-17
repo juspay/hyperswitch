@@ -171,16 +171,14 @@ pub struct PaymentAttempt {
 
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
-        self.amount.add(
-            self.surcharge_amount
-                .unwrap_or_default()
-                .add(self.tax_amount.unwrap_or_default()),
-        )
+        self.amount
+            + self.surcharge_amount.unwrap_or_default()
+            + self.tax_amount.unwrap_or_default()
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.surcharge_amount
-            .map(|surcharge_amount| surcharge_amount.add(self.tax_amount.unwrap_or_default()))
+            .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or_default())
     }
 }
 
@@ -260,11 +258,9 @@ pub struct PaymentAttemptNew {
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
-        self.amount.add(
-            self.surcharge_amount
-                .unwrap_or_default()
-                .add(self.tax_amount.unwrap_or_default()),
-        )
+        self.amount
+            + self.surcharge_amount.unwrap_or_default()
+            + self.tax_amount.unwrap_or_default()
     }
 
     pub fn populate_derived_fields(self) -> Self {

@@ -27,7 +27,7 @@ use api_models::{
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     pii,
-    types::Surcharge,
+    types::{MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -695,15 +695,12 @@ where
 {
     if let Some(surcharge_amount) = payment_data.payment_attempt.surcharge_amount {
         let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or_default();
-        let final_amount = payment_data
-            .payment_attempt
-            .amount
-            .add(surcharge_amount)
-            .add(tax_on_surcharge_amount);
+        let final_amount =
+            payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
                 original_amount: payment_data.payment_attempt.amount,
-                surcharge: Surcharge::Fixed(surcharge_amount.get_amount_as_i64()),
+                surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
                 tax_on_surcharge_amount,
@@ -2486,8 +2483,8 @@ impl EventInfo for PaymentEvent {
 
 #[derive(Debug, Default, Clone)]
 pub struct IncrementalAuthorizationDetails {
-    pub additional_amount: i64,
-    pub total_amount: i64,
+    pub additional_amount: MinorUnit,
+    pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
 }

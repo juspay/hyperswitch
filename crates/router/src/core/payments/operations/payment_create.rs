@@ -684,7 +684,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
-            MinorUnit::get_optional_amount_as_i64(request.amount_to_capture),
+            request.amount_to_capture,
             request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -1109,7 +1109,7 @@ async fn create_payment_link(
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
         link_to_pay: payment_link.clone(),
-        amount: common_utils::types::MinorUnit::from(amount).get_amount_as_i64(),
+        amount: common_utils::types::MinorUnit::from(amount),
         currency: request.currency,
         created_at,
         last_modified_at,

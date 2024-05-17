@@ -477,7 +477,7 @@ impl PaymentsRequest {
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .unwrap_or_default();
         self.amount
-            .map(|amount| MinorUnit::from(amount).add(surcharge_amount))
+            .map(|amount| MinorUnit::from(amount) + surcharge_amount)
     }
 }
 #[derive(
@@ -528,12 +528,11 @@ pub struct BrowserInformation {
 
 impl RequestSurchargeDetails {
     pub fn is_surcharge_zero(&self) -> bool {
-        self.surcharge_amount.get_amount_as_i64() == 0
-            && self.tax_amount.unwrap_or_default().get_amount_as_i64() == 0
+        self.surcharge_amount == MinorUnit::new(0)
+            && self.tax_amount.unwrap_or_default() == MinorUnit::new(0)
     }
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
-        self.surcharge_amount
-            .add(self.tax_amount.unwrap_or_default())
+        self.surcharge_amount + self.tax_amount.unwrap_or_default()
     }
 }
 
@@ -3505,7 +3504,7 @@ pub struct IncrementalAuthorizationResponse {
     /// Error message sent by the connector for authorization
     pub error_message: Option<String>,
     /// Previously authorized amount for the payment
-    pub previously_authorized_amount: i64,
+    pub previously_authorized_amount: MinorUnit,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -4343,7 +4342,7 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     #[serde(skip)]
     pub payment_id: String,
     /// The total amount including previously authorized amount and additional amount
-    #[schema(value_type = i64, example = 6540)]
+    #[schema(value_type = MinorUnit, example = 6540)]
     pub amount: MinorUnit,
     /// Reason for incremental authorization
     pub reason: Option<String>,

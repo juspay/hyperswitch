@@ -136,12 +136,7 @@ where
     {
         match self.status {
             enums::AttemptStatus::Voided => {
-                if payment_data
-                    .payment_intent
-                    .amount_captured
-                    .unwrap_or_default()
-                    .is_greater_than(MinorUnit::new(0))
-                {
+                if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
                     enums::AttemptStatus::PartialCharged
                 } else {
                     self.status
@@ -151,9 +146,7 @@ where
                 let captured_amount =
                     types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                if total_capturable_amount.is_equal_in_optional_value(
-                    MinorUnit::new_from_optional_i64_amount(captured_amount),
-                ) {
+                if Some(total_capturable_amount) == captured_amount.map(|amt| MinorUnit::new(amt)) {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged

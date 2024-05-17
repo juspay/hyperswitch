@@ -492,7 +492,7 @@ pub struct SurchargeDetailsResponse {
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum SurchargeResponse {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(SurchargePercentage),
 }

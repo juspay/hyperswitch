@@ -693,7 +693,10 @@ impl Capturable for PaymentsCancelData {
         F: Clone,
     {
         // return previously captured amount
-        MinorUnit::get_optional_amount_as_i64(payment_data.payment_intent.amount_captured)
+        payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64())
     }
     fn get_amount_capturable<F>(
         &self,
@@ -739,12 +742,11 @@ impl Capturable for PaymentsSyncData {
     where
         F: Clone,
     {
-        MinorUnit::get_optional_amount_as_i64(
-            payment_data
-                .payment_attempt
-                .amount_to_capture
-                .or_else(|| Some(payment_data.payment_attempt.get_total_amount())),
-        )
+        payment_data
+            .payment_attempt
+            .amount_to_capture
+            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+            .map(|amt| amt.get_amount_as_i64())
     }
     fn get_amount_capturable<F>(
         &self,
@@ -1255,7 +1257,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
 impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
         Self {
-            amount_to_capture: MinorUnit::get_optional_amount_as_i64(data.amount_captured),
+            amount_to_capture: data.amount_captured,
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
             amount: Some(data.request.amount),

@@ -69,8 +69,8 @@ impl PaymentAttemptExt for PaymentAttempt {
     }
     fn get_total_amount(&self) -> MinorUnit {
         self.amount
-            .add(self.surcharge_amount.unwrap_or_default())
-            .add(self.tax_amount.unwrap_or_default())
+            + self.surcharge_amount.unwrap_or_default()
+            + self.tax_amount.unwrap_or_default()
     }
 }
 

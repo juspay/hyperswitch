@@ -204,9 +204,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response,
-                    amount_captured: common_utils::types::MinorUnit::new_from_optional_i64_amount(
-                        amount_captured,
-                    ),
+                    amount_captured,
                     ..item.data
                 })
             }

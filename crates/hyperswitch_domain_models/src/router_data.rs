@@ -1,6 +1,5 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::types::MinorUnit;
 use masking::Secret;
 
 use crate::payment_address::PaymentAddress;
@@ -22,7 +21,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    pub amount_captured: Option<MinorUnit>,
+    pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,

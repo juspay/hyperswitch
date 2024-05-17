@@ -128,7 +128,7 @@ impl MultipleCaptureData {
         authorized_amount: common_types::MinorUnit,
     ) -> storage_enums::AttemptStatus {
         let total_captured_amount = self.get_total_charged_amount();
-        if authorized_amount.is_equal(total_captured_amount) {
+        if authorized_amount == total_captured_amount {
             return storage_enums::AttemptStatus::Charged;
         }
         let status_count_map = self.get_status_count();
@@ -207,18 +207,11 @@ impl From<(&RequestSurchargeDetails, &PaymentAttempt)> for SurchargeDetails {
         let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or_default();
         Self {
             original_amount: payment_attempt.amount,
-            surcharge: common_types::Surcharge::Fixed(
-                request_surcharge_details
-                    .surcharge_amount
-                    .get_amount_as_i64(),
-            ), // need to check this
+            surcharge: common_types::Surcharge::Fixed(request_surcharge_details.surcharge_amount), // need to check this
             tax_on_surcharge: None,
             surcharge_amount,
             tax_on_surcharge_amount,
-            final_amount: payment_attempt
-                .amount
-                .add(surcharge_amount)
-                .add(tax_on_surcharge_amount),
+            final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
         }
     }
 }
@@ -239,10 +232,8 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
         let display_final_amount = currency
             .to_currency_base_unit_asf64(surcharge_details.final_amount.get_amount_as_i64())?;
         let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
-            (surcharge_details
-                .surcharge_amount
-                .add(surcharge_details.tax_on_surcharge_amount))
-            .get_amount_as_i64(),
+            (surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount)
+                .get_amount_as_i64(),
         )?;
         Ok(Self {
             surcharge: surcharge_details.surcharge.clone().into(),
@@ -260,16 +251,12 @@ impl SurchargeDetails {
         &self,
         request_surcharge_details: RequestSurchargeDetails,
     ) -> bool {
-        request_surcharge_details
-            .surcharge_amount
-            .is_equal(self.surcharge_amount)
-            && request_surcharge_details
-                .tax_amount
-                .unwrap_or_default()
-                .is_equal(self.tax_on_surcharge_amount)
+        request_surcharge_details.surcharge_amount == self.surcharge_amount
+            && request_surcharge_details.tax_amount.unwrap_or_default()
+                == self.tax_on_surcharge_amount
     }
     pub fn get_total_surcharge_amount(&self) -> common_types::MinorUnit {
-        self.surcharge_amount.add(self.tax_on_surcharge_amount)
+        self.surcharge_amount + self.tax_on_surcharge_amount
     }
 }
 

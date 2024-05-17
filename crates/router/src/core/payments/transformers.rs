@@ -151,7 +151,10 @@ where
         connector_meta_data: merchant_connector_account.get_metadata(),
         request: T::try_from(additional_data)?,
         response,
-        amount_captured: payment_data.payment_intent.amount_captured,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -1246,25 +1249,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
+        let total_amount = payment_data
+            .incremental_authorization_details
+            .clone()
+            .map(|details| details.total_amount)
+            .ok_or(
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing incremental_authorization_details in payment_data"),
+            )?;
+        let additional_amount = payment_data
+            .incremental_authorization_details
+            .clone()
+            .map(|details| details.additional_amount)
+            .ok_or(
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing incremental_authorization_details in payment_data"),
+            )?;
         Ok(Self {
-            total_amount: payment_data
-                .incremental_authorization_details
-                .clone()
-                .map(|details| details.total_amount)
-                .ok_or(
-                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                        "missing incremental_authorization_details in payment_data",
-                    ),
-                )?,
-            additional_amount: payment_data
-                .incremental_authorization_details
-                .clone()
-                .map(|details| details.additional_amount)
-                .ok_or(
-                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                        "missing incremental_authorization_details in payment_data",
-                    ),
-                )?,
+            total_amount: total_amount.get_amount_as_i64(),
+            additional_amount: additional_amount.get_amount_as_i64(),
             reason: payment_data
                 .incremental_authorization_details
                 .and_then(|details| details.reason),

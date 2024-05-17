@@ -192,9 +192,7 @@ pub async fn generate_sample_data(
             ),
             attempt_count: 1,
             customer_id: Some("hs-dashboard-user".to_string()),
-            amount_captured: common_utils::types::MinorUnit::optional_new_from_i64_amount(
-                amount * 100,
-            ),
+            amount_captured: Some(common_utils::types::MinorUnit::new(amount * 100)),
             profile_id: Some(profile_id.clone()),
             return_url: Default::default(),
             metadata: Default::default(),

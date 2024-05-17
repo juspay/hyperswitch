@@ -382,9 +382,7 @@ impl<F, T>
                 connector_response_reference_id: item.response.payment.reference_id,
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: common_utils::types::MinorUnit::new_from_optional_i64_amount(
-                amount_captured,
-            ),
+            amount_captured,
             ..item.data
         })
     }
