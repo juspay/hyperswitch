@@ -205,7 +205,7 @@ impl<DB: Backend> FromSql<Jsonb, DB> for SemanticVersion
 where
     serde_json::Value: FromSql<Jsonb, DB>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
         Ok(serde_json::from_value(value)?)
     }
@@ -238,7 +238,7 @@ where
     Eq,
     Hash,
 )]
-#[diesel(sql_type = diesel::sql_types::BigInt)]
+#[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
 
 impl MinorUnit {
@@ -250,7 +250,6 @@ impl MinorUnit {
 
     /// forms a new minor unit from amount
     pub fn new(value: i64) -> Self {
-        // remove in future
         Self(value)
     }
 }
