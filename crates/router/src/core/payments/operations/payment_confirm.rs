@@ -1069,6 +1069,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.payment_attempt.amount);
 
+        let client_source = header_payload
+            .client_source
+            .clone()
+            .or(payment_data.payment_attempt.client_source.clone());
+        let client_version = header_payload
+            .client_version
+            .clone()
+            .or(payment_data.payment_attempt.client_version.clone());
+
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
         let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
         let m_browser_info = browser_info.clone();
@@ -1136,6 +1145,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
                         payment_method_id: m_payment_method_id,
+                        client_source,
+                        client_version,
                     },
                     storage_scheme,
                 )

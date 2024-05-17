@@ -540,9 +540,11 @@ impl RequestSurchargeDetails {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
 }
 

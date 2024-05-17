@@ -294,7 +294,7 @@ where
                         call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
-                        header_payload,
+                        header_payload.clone(),
                         #[cfg(feature = "frm")]
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
@@ -364,7 +364,7 @@ where
                         call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
-                        header_payload,
+                        header_payload.clone(),
                         #[cfg(feature = "frm")]
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
@@ -497,7 +497,7 @@ where
                     frm_info.and_then(|info| info.suggested_action),
                     #[cfg(not(feature = "frm"))]
                     None,
-                    header_payload,
+                    header_payload.clone(),
                 )
                 .await?;
         }
@@ -528,7 +528,7 @@ where
                 None,
                 &key_store,
                 None,
-                header_payload,
+                header_payload.clone(),
             )
             .await?;
     }
@@ -785,7 +785,7 @@ where
             call_connector_action,
             auth_flow,
             eligible_routable_connectors,
-            header_payload,
+            header_payload.clone(),
         )
         .await?;
 
@@ -1579,7 +1579,7 @@ where
             updated_customer,
             key_store,
             frm_suggestion,
-            header_payload,
+            header_payload.clone(),
         )
         .await?;
 
