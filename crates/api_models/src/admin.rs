@@ -729,8 +729,11 @@ pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
-    ///payment method types(credit, debit) that can be used in the payment
-    pub payment_method_types: Vec<FrmPaymentMethodType>,
+    ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
+    ///frm flow type to be used, can be pre/post
+    #[schema(value_type = Option<FrmPreferredFlowTypes>)]
+    pub flow: Option<api_enums::FrmPreferredFlowTypes>,
 }
 
 ///Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -743,7 +746,7 @@ pub struct FrmPaymentMethodType {
     ///card networks(like visa mastercard) types that can be used in the payment
     #[schema(value_type = CardNetwork)]
     pub card_networks: Option<Vec<common_enums::CardNetwork>>,
-    ///frm flow type to be used...can be pre/post
+    ///frm flow type to be used, can be pre/post
     #[schema(value_type = FrmPreferredFlowTypes)]
     pub flow: api_enums::FrmPreferredFlowTypes,
     ///action that the frm would take, in case fraud is detected
@@ -916,6 +919,9 @@ pub struct BusinessProfileCreate {
 
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1055,6 +1061,9 @@ pub struct BusinessProfileUpdate {
 
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

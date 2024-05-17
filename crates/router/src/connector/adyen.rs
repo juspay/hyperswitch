@@ -30,7 +30,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
         domain,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -232,7 +232,7 @@ impl ConnectorValidation for Adyen {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
-        pm_data: types::domain::payments::PaymentMethodData,
+        pm_data: domain::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
@@ -365,7 +365,7 @@ impl
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let authorize_req = types::PaymentsAuthorizeRouterData::from((
+        let authorize_req = types::PaymentsAuthorizeRouterData::foreign_from((
             req,
             types::PaymentsAuthorizeData::from(req),
         ));
@@ -420,7 +420,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -704,7 +704,7 @@ impl
             types::SyncRequestType::MultipleCaptureSync(_) => true,
             types::SyncRequestType::SinglePaymentSync => false,
         };
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -831,7 +831,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
