@@ -9304,8 +9304,7 @@
         "type": "object",
         "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
         "required": [
-          "payment_method",
-          "flow"
+          "payment_method"
         ],
         "properties": {
           "payment_method": {
@@ -9320,7 +9319,12 @@
             "nullable": true
           },
           "flow": {
-            "$ref": "#/components/schemas/FrmPreferredFlowTypes"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmPreferredFlowTypes"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
