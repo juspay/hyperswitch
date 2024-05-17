@@ -158,6 +158,7 @@ pub struct PaymentMetricsBucketIdentifier {
 }
 
 impl PaymentMetricsBucketIdentifier {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         currency: Option<Currency>,
         status: Option<AttemptStatus>,
