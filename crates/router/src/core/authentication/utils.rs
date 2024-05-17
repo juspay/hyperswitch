@@ -117,7 +117,6 @@ pub async fn update_trackers<F: Clone, Req>(
             },
             AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
                 threeds_server_transaction_id,
-                connector_authentication_id,
                 three_ds_method_data,
                 three_ds_method_url,
                 authentication_url,

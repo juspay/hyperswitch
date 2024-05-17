@@ -146,11 +146,12 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNRouterData>>
             acct_number: router_data.request.card_holder_account_number.clone(),
             card_scheme: None,
             challenge_window_size: Some(gpayments_types::ChallengeWindowSize::FullScreen),
-            event_callback_url: "https://google.com".to_string(),
+            event_callback_url: "https://webhook.site/55e3db24-7c4e-4432-9941-d806f68d210b"
+                .to_string(),
             merchant_id: metadata.merchant_id,
             skip_auto_browser_info_collect: Some(true),
             // should auto generate this id.
-            three_ds_requestor_trans_id: "6afa6072_9412-446b-9673_2f98b3ee98a2".to_string(),
+            three_ds_requestor_trans_id: uuid::Uuid::new_v4().hyphenated().to_string(),
         })
     }
 }
@@ -181,6 +182,7 @@ impl
             .map(|_| {
                 let three_ds_method_data_json = serde_json::json!({
                     "threeDSServerTransID": threeds_method_response.three_ds_server_trans_id,
+                    "threeDSMethodNotificationURL": "https://webhook.site/bd06863d-82c2-42ea-b35b-5ffd5ecece71"
                 });
                 serde_json::to_string(&three_ds_method_data_json)
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
@@ -199,7 +201,6 @@ impl
                 threeds_server_transaction_id: threeds_method_response
                     .three_ds_server_trans_id
                     .clone(),
-                connector_authentication_id: threeds_method_response.three_ds_server_trans_id,
                 three_ds_method_data,
                 three_ds_method_url: threeds_method_response.three_ds_method_url,
                 authentication_url: Some(threeds_method_response.auth_url),

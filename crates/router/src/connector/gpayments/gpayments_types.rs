@@ -12,7 +12,7 @@ pub struct GpaymentsPreAuthVersionCallRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsPreAuthVersionCallResponse {
-    pub enrollment_status: EnrollmentStatus,
+    pub enrolment_status: EnrollmentStatus,
     pub supported_message_versions: Option<Vec<types::SemanticVersion>>,
 }
 
@@ -25,6 +25,7 @@ pub enum EnrollmentStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TDS2ApiError {
     pub error_code: String,
     pub error_component: Option<String>,
@@ -43,6 +44,7 @@ pub struct TDS2ApiError {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct GpaymentsPreAuthenticationRequest {
     pub acct_number: CardNumber,
     pub card_scheme: Option<CardScheme>,
@@ -103,12 +105,17 @@ pub enum CardScheme {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct GpaymentsPreAuthenticationResponse {
     pub auth_url: String,
     pub mon_url: Option<String>,
     pub resolved_card_scheme: Option<CardScheme>,
+    #[serde(rename = "threeDSMethodAvailable")]
     pub three_ds_method_available: Option<bool>,
+    #[serde(rename = "threeDSMethodUrl")]
     pub three_ds_method_url: Option<String>,
+    #[serde(rename = "threeDSServerCallbackUrl")]
     pub three_ds_server_callback_url: Option<String>,
+    #[serde(rename = "threeDSServerTransID")]
     pub three_ds_server_trans_id: String,
 }

@@ -53,10 +53,10 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
+        let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
@@ -86,7 +86,7 @@ impl ConnectorCommon for Gpayments {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        _auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
@@ -96,9 +96,9 @@ impl ConnectorCommon for Gpayments {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: gpayments::GpaymentsErrorResponse = res
+        let response: gpayments_types::TDS2ApiError = res
             .response
-            .parse_struct("GpaymentsErrorResponse")
+            .parse_struct("gpayments_types TDS2ApiError")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -106,9 +106,9 @@ impl ConnectorCommon for Gpayments {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error_code,
+            message: response.error_description,
+            reason: response.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -215,6 +215,16 @@ impl
     > for Gpayments
 {
 }
+
+impl
+    ConnectorIntegration<
+        api::PostAuthentication,
+        types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Gpayments
+{
+}
+
 impl
     ConnectorIntegration<
         api::PreAuthentication,
@@ -240,7 +250,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{}/api/v2/auth/brw/init", base_url,))
+        Ok(format!("{}/api/v2/auth/brw/init?mode=custom", base_url,))
     }
 
     fn get_request_body(
@@ -409,12 +419,4 @@ impl
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-}
-impl
-    ConnectorIntegration<
-        api::PostAuthentication,
-        types::authentication::ConnectorPostAuthenticationRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for Gpayments
-{
 }

@@ -16,7 +16,6 @@ pub enum AuthenticationResponseData {
     },
     PreAuthThreeDsMethodCallResponse {
         threeds_server_transaction_id: String,
-        connector_authentication_id: String,
         three_ds_method_data: Option<String>,
         three_ds_method_url: Option<String>,
         authentication_url: Option<String>,
