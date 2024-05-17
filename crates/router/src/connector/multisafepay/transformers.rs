@@ -11,7 +11,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, domain, storage::enums},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -671,7 +671,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if utils::is_payment_failure(status) {
-                        Err(types::ErrorResponse::from((
+                        Err(types::ErrorResponse::foreign_from((
                             payment_response.data.reason_code,
                             payment_response.data.reason.clone(),
                             payment_response.data.reason,
@@ -707,7 +707,7 @@ impl<F, T>
             MultisafepayAuthResponse::ErrorResponse(error_response) => {
                 let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
                 Ok(Self {
-                    response: Err(types::ErrorResponse::from((
+                    response: Err(types::ErrorResponse::foreign_from((
                         Some(error_response.error_code.to_string()),
                         Some(error_response.error_info.clone()),
                         Some(error_response.error_info),
@@ -857,7 +857,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
                 })
             }
             MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse::from((
+                response: Err(types::ErrorResponse::foreign_from((
                     Some(error_response.error_code.to_string()),
                     Some(error_response.error_info.clone()),
                     Some(error_response.error_info),

@@ -48,7 +48,6 @@ use crate::{
     routes::{metrics, payment_methods as payment_methods_handler, AppState},
     services,
     types::{
-        self as core_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
@@ -58,7 +57,8 @@ use crate::{
             self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
         },
         transformers::{ForeignFrom, ForeignTryFrom},
-        ErrorResponse, MandateReference, RouterData,
+        AdditionalPaymentMethodConnectorResponse, ErrorResponse, MandateReference,
+        RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -665,7 +665,7 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: Some(token),
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
+            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
@@ -679,7 +679,7 @@ pub async fn get_token_for_recurring_mandate(
         Ok(MandateGenericData {
             token: None,
             payment_method: payment_method.payment_method,
-            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
+            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
@@ -1368,6 +1368,24 @@ fn validate_options_for_inequality<T: PartialEq>(
             })
         },
     )
+}
+
+pub fn validate_max_amount(
+    amount: api_models::payments::Amount,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match amount {
+        api_models::payments::Amount::Value(value) => {
+            utils::when(value.get() > consts::MAX_ALLOWED_AMOUNT, || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "amount should not be more than {}",
+                        consts::MAX_ALLOWED_AMOUNT
+                    )
+                }))
+            })
+        }
+        api_models::payments::Amount::Zero => Ok(()),
+    }
 }
 
 // Checks if the customer details are passed in both places
@@ -3090,7 +3108,7 @@ pub async fn insert_merchant_connector_creds_to_config(
             .serialize_and_set_key_with_expiry(
                 key.as_str(),
                 &encoded_data.peek(),
-                crate::consts::CONNECTOR_CREDS_TOKEN_TTL,
+                consts::CONNECTOR_CREDS_TOKEN_TTL,
             )
             .await
             .map_or_else(
@@ -3701,7 +3719,7 @@ pub async fn get_additional_payment_data(
 
             let card_extended_bin = match enable_extended_bin {
                 Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.clone().get_card_extended_bin())
+                    Some(card_data.card_number.clone().get_extended_card_bin())
                 }
                 _ => None,
             };
@@ -4198,7 +4216,7 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
 
 pub fn add_connector_response_to_additional_payment_data(
     additional_payment_data: api_models::payments::AdditionalPaymentData,
-    connector_response_payment_method_data: core_types::AdditionalPaymentMethodConnectorResponse,
+    connector_response_payment_method_data: AdditionalPaymentMethodConnectorResponse,
 ) -> api_models::payments::AdditionalPaymentData {
     match (
         &additional_payment_data,
@@ -4206,7 +4224,7 @@ pub fn add_connector_response_to_additional_payment_data(
     ) {
         (
             api_models::payments::AdditionalPaymentData::Card(additional_card_data),
-            core_types::AdditionalPaymentMethodConnectorResponse::Card {
+            AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data,
                 payment_checks,
             },
@@ -4223,7 +4241,7 @@ pub fn add_connector_response_to_additional_payment_data(
 
 pub fn update_additional_payment_data_with_connector_response_pm_data(
     additional_payment_data: Option<serde_json::Value>,
-    connector_response_pm_data: Option<core_types::AdditionalPaymentMethodConnectorResponse>,
+    connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let parsed_additional_payment_method_data = additional_payment_data
         .as_ref()
