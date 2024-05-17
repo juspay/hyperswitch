@@ -13514,6 +13514,19 @@
           }
         }
       },
+      "PaymentsCompleteAuthorizeRequest": {
+        "type": "object",
+        "properties": {
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentsConfirmRequest": {
         "type": "object",
         "properties": {
