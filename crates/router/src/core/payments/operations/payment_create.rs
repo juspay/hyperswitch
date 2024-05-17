@@ -446,7 +446,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            frm_metadata: request.frm_metadata.clone(),
             recurring_details,
             poll_config: None,
         };
@@ -1038,6 +1037,7 @@ impl PaymentCreate {
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
+            frm_metadata: request.frm_metadata.clone(),
         })
     }
 

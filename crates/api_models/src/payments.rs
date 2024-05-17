@@ -464,7 +464,8 @@ pub struct PaymentsRequest {
     pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
-    pub frm_metadata: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
@@ -3410,6 +3411,10 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated: Option<PrimitiveDateTime>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
+    #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]

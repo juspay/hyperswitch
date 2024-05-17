@@ -9304,8 +9304,7 @@
         "type": "object",
         "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
         "required": [
-          "payment_method",
-          "payment_method_types"
+          "payment_method"
         ],
         "properties": {
           "payment_method": {
@@ -9316,7 +9315,16 @@
             "items": {
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
-            "description": "payment method types(credit, debit) that can be used in the payment"
+            "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "nullable": true
+          },
+          "flow": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmPreferredFlowTypes"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13849,6 +13857,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -14221,6 +14230,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -14727,6 +14737,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -15268,6 +15279,11 @@
             "description": "Date time at which payment was updated",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
+          },
+          "frm_metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
+            "nullable": true
           }
         }
       },
@@ -15735,6 +15751,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },

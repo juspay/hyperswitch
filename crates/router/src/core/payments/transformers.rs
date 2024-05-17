@@ -781,6 +781,7 @@ where
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))
+                .set_frm_metadata(payment_intent.frm_metadata)
                 .to_owned(),
             headers,
         ))
