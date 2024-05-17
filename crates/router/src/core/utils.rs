@@ -8,13 +8,14 @@ use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
-use super::payments::{helpers, PaymentAddress};
+use super::payments::helpers;
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
@@ -28,7 +29,7 @@ use crate::{
     types::{
         self, domain,
         storage::{self, enums},
-        ErrorResponse, PollConfig,
+        PollConfig,
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };

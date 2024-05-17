@@ -145,9 +145,31 @@ impl Feature<api::PSync, types::PaymentsSyncData>
     }
 }
 
-impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData> {
+#[async_trait]
+pub trait RouterDataPSync
+where
+    Self: Sized,
+{
     async fn execute_connector_processing_step_for_each_capture(
-        mut self,
+        &self,
+        _state: &AppState,
+        _pending_connector_capture_id_list: Vec<String>,
+        _call_connector_action: payments::CallConnectorAction,
+        _connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> RouterResult<Self>;
+}
+
+#[async_trait]
+impl RouterDataPSync
+    for types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    async fn execute_connector_processing_step_for_each_capture(
+        &self,
         state: &AppState,
         pending_connector_capture_id_list: Vec<String>,
         call_connector_action: payments::CallConnectorAction,
@@ -164,7 +186,7 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
             let resp = services::execute_connector_processing_step(
                 state,
                 connector_integration.clone(),
-                &self,
+                self,
                 call_connector_action.clone(),
                 None,
             )
@@ -174,12 +196,15 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
         } else {
             // in trigger, call connector for every capture_id
             for connector_capture_id in pending_connector_capture_id_list {
-                self.request.connector_transaction_id =
+                // TEMPORARY FIX: remove the clone on router data after removing this function as an impl on trait RouterDataPSync
+                // TRACKING ISSUE: https://github.com/juspay/hyperswitch/issues/4644
+                let mut cloned_router_data = self.clone();
+                cloned_router_data.request.connector_transaction_id =
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
                 let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration.clone(),
-                    &self,
+                    &cloned_router_data,
                     call_connector_action.clone(),
                     None,
                 )
@@ -201,10 +226,12 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
                     _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
                 };
             }
-            self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-                capture_sync_response_list: capture_sync_response_map,
-            });
-            Ok(self)
+            let mut cloned_router_data = self.clone();
+            cloned_router_data.response =
+                Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list: capture_sync_response_map,
+                });
+            Ok(cloned_router_data)
         }
     }
 }
