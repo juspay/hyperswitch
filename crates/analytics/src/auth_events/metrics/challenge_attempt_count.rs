@@ -8,7 +8,7 @@ use time::PrimitiveDateTime;
 
 use super::AuthEventMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
@@ -34,7 +34,7 @@ where
         pool: &T,
     ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::ConnectorEventsAnalytics);
+            QueryBuilder::new(AnalyticsCollection::ApiEventsAnalytics);
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -54,7 +54,11 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("flow", AuthEventFlows::PostAuthentication)
+            .add_filter_clause("api_flow", AuthEventFlows::IncomingWebhookReceive)
+            .switch()?;
+
+        query_builder
+            .add_custom_filter_clause("request", "threeDSServerTransID", FilterTypes::Like)
             .switch()?;
 
         time_range
