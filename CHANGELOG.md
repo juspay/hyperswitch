@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## v1.108.1
+
+### Bug Fixes
+
+- **docker:** Fix stack overflow for docker images ([#4683](https://github.com/juspay/hyperswitch/pull/4683)) ([`47c52d9`](https://github.com/juspay/hyperswitch/commit/47c52d98b6989a54b95e4271a35055ed7fb39d02))
+
+**Full Changelog:** [`v1.108.0...v1.108.1`](https://github.com/juspay/hyperswitch/compare/v1.108.0...v1.108.1)
+
+- - -
+
 ## 2024.04.25.0
 
 ### Features
