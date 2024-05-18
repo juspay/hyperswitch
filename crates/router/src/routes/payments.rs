@@ -497,7 +497,7 @@ pub async fn payments_confirm(
                 req_state,
                 auth.merchant_account,
                 auth.key_store,
-                header_payload,
+                header_payload.clone(),
                 req,
                 auth_flow,
             )

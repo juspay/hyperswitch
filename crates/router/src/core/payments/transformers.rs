@@ -19,6 +19,7 @@ use crate::{
         payments::{self, helpers},
         utils as core_utils,
     },
+    headers::X_PAYMENT_CONFIRM_SOURCE,
     routes::{metrics, AppState},
     services::{self, RedirectForm},
     types::{
@@ -319,7 +320,7 @@ where
             Self {
                 verify_id: Some(data.payment_intent.payment_id),
                 merchant_id: Some(data.payment_intent.merchant_id),
-                client_secret: data.payment_intent.client_secret.map(masking::Secret::new),
+                client_secret: data.payment_intent.client_secret.map(Secret::new),
                 customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
                 email: customer
                     .as_ref()
@@ -488,7 +489,7 @@ where
         .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
-            "payment_confirm_source".to_string(),
+            X_PAYMENT_CONFIRM_SOURCE.to_string(),
             Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
@@ -641,7 +642,7 @@ where
                 .set_amount_received(payment_intent.amount_captured)
                 .set_surcharge_details(surcharge_details)
                 .set_connector(routed_through)
-                .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
+                .set_client_secret(payment_intent.client_secret.map(Secret::new))
                 .set_created(Some(payment_intent.created_at))
                 .set_currency(currency.to_string())
                 .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
@@ -781,6 +782,7 @@ where
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))
+                .set_frm_metadata(payment_intent.frm_metadata)
                 .to_owned(),
             headers,
         ))
