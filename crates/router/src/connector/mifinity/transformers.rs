@@ -2,6 +2,7 @@ use common_utils::pii::{self, Email};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::Date;
 
 use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},
@@ -93,7 +94,7 @@ pub struct MifinityClient {
     dialing_code: String,
     nationality: api_models::enums::CountryAlpha2,
     email_address: Email,
-    dob: String,
+    dob: Date,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -124,7 +125,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         dialing_code: phone_details.get_country_code()?,
                         nationality: item.router_data.get_billing_country()?,
                         email_address: item.router_data.get_billing_email()?,
-                        dob: data.dob.clone(),
+                        dob: data.dob,
                     };
                     let address = MifinityAddress {
                         address_line1: item.router_data.get_billing_line1()?,
@@ -257,7 +258,7 @@ pub struct MifinityClientResponse {
     dialing_code: String,
     nationality: String,
     email_address: String,
-    dob: String,
+    dob: Date,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
