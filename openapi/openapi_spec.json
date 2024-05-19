@@ -16587,9 +16587,14 @@
       "PaypalSessionTokenResponse": {
         "type": "object",
         "required": [
+          "connector",
           "session_token"
         ],
         "properties": {
+          "connector": {
+            "type": "string",
+            "description": "Name of the connector"
+          },
           "session_token": {
             "type": "string",
             "description": "The session token for PayPal"
