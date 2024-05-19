@@ -209,6 +209,7 @@ pub enum OutgoingWebhookContent {
     DisputeDetails(Box<disputes::DisputeResponse>),
     #[schema(value_type = MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
+    #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
     PayoutDetails(payouts::PayoutCreateResponse),
 }
