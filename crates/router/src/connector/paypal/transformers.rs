@@ -440,7 +440,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 })
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                domain::WalletData::PaypalRedirect(_) => {
+                domain::WalletData::PaypalRedirect(_) | domain::WalletData::PaypalSdk(_) => {
                     let intent = if item.router_data.request.is_auto_capture()? {
                         PaypalPaymentIntent::Capture
                     } else {
@@ -502,7 +502,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::GooglePayThirdPartySdk(_)
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::PaypalSdk(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}

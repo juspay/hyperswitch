@@ -3982,6 +3982,17 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaypalSdkMetaData {
+    pub client_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaypalSdkSessionTokenData {
+    #[serde(rename = "paypal_sdk")]
+    pub data: PaypalSdkMetaData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplepaySessionRequest {
     pub merchant_identifier: String,
@@ -4158,6 +4169,8 @@ pub struct KlarnaSessionTokenResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PaypalSessionTokenResponse {
+    /// Name of the connector
+    pub connector: String,
     /// The session token for PayPal
     pub session_token: String,
 }

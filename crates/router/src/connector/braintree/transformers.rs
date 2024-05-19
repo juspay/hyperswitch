@@ -307,6 +307,7 @@ impl<F, T>
                 session_token: api::SessionToken::Paypal(Box::new(
                     payments::PaypalSessionTokenResponse {
                         session_token: item.response.client_token.value.expose(),
+                        connector: "braintree".to_string(),
                     },
                 )),
             }),

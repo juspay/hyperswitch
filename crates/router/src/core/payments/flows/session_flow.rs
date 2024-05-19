@@ -657,6 +657,41 @@ where
     ) -> RouterResult<Self>;
 }
 
+fn create_paypal_sdk_session_token(
+    _state: &routes::AppState,
+    router_data: &types::PaymentsSessionRouterData,
+    connector: &api::ConnectorData,
+    _business_profile: &storage::business_profile::BusinessProfile,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let connector_metadata = router_data.connector_meta_data.clone();
+
+    let paypal_sdk_data = connector_metadata
+        .clone()
+        .parse_value::<payment_types::PaypalSdkSessionTokenData>("PaypalSdkSessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorMetaData)
+        .attach_printable(format!(
+            "cannot parse paypal_sdk metadata from the given value {connector_metadata:?}"
+        ))
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_metadata".to_string(),
+            expected_format: "paypal_sdk_metadata_format".to_string(),
+        })?;
+
+    // [TODO: Add Dynamic fields support for payal sdk]
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::Paypal(Box::new(
+                payment_types::PaypalSessionTokenResponse {
+                    connector: connector.connector_name.to_string(),
+                    session_token: paypal_sdk_data.data.client_id,
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
+}
+
 #[async_trait]
 impl RouterDataSession for types::PaymentsSessionRouterData {
     async fn decide_flow<'a, 'b>(
@@ -673,6 +708,9 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
             }
             api::GetToken::ApplePayMetadata => {
                 create_applepay_session_token(state, self, connector, business_profile).await
+            }
+            api::GetToken::PaypalSdkMetadata => {
+                create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedConnectorIntegration<
