@@ -140,12 +140,7 @@ pub async fn perform_pre_authentication(
     )
     .await?;
 
-    let authentication = if state
-        .conf
-        .separate_three_ds_version_call_enabled_connectors
-        .authentication_connector_list
-        .contains(&authentication_connector)
-    {
+    let authentication = if authentication_connector.is_separate_version_call_required() {
         let router_data: core_types::authentication::PreAuthNVersionCallRouterData =
             transformers::construct_pre_authentication_router_data(
                 authentication_connector_name.clone(),

@@ -367,7 +367,5 @@ pub(crate) async fn fetch_raw_secrets(
         cors: conf.cors,
         unmasked_headers: conf.unmasked_headers,
         saved_payment_methods: conf.saved_payment_methods,
-        separate_three_ds_version_call_enabled_connectors: conf
-            .separate_three_ds_version_call_enabled_connectors,
     }
 }

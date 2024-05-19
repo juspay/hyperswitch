@@ -273,6 +273,15 @@ pub enum AuthenticationConnectors {
     Gpayments,
 }
 
+impl AuthenticationConnectors {
+    pub fn is_separate_version_call_required(&self) -> bool {
+        match self {
+            Self::Threedsecureio | Self::Netcetera => false,
+            Self::Gpayments => true,
+        }
+    }
+}
+
 #[cfg(feature = "payouts")]
 #[derive(
     Clone,

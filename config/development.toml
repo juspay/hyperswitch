@@ -627,6 +627,3 @@ disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
-
-[separate_three_ds_version_call_enabled_connectors]
-authentication_connector_list = "gpayments"

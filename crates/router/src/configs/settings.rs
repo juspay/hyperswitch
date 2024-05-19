@@ -121,8 +121,6 @@ pub struct Settings<S: SecretState> {
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
     pub saved_payment_methods: EligiblePaymentMethods,
-    pub separate_three_ds_version_call_enabled_connectors:
-        SeparateThreeDsVersionCallEnabledConnectors,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -267,12 +265,6 @@ pub struct Mandates {
 pub struct NetworkTransactionIdSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct SeparateThreeDsVersionCallEnabledConnectors {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub authentication_connector_list: HashSet<enums::AuthenticationConnectors>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
