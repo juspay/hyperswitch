@@ -805,7 +805,7 @@ pub async fn payments_complete_authorize_flow(
     let mut payload = json_payload.into_inner();
 
     let payment_id = path.into_inner();
-    payload.payment_id = payment_id.clone();
+    payload.payment_id.clone_from(&payment_id);
 
     tracing::Span::current().record("payment_id", &payment_id);
 
