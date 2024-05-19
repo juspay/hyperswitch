@@ -78,7 +78,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         });
 
         it("mit-capture-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSAutoCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);

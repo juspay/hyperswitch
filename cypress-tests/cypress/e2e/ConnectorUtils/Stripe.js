@@ -1,7 +1,7 @@
 const successfulTestCard = "4242424242424242";
 const successful3DSCard = "4000002760003184";
 
-const successfulTestCardDetails = {
+const successfulNo3DSCardDetails = {
     "card_number": "4242424242424242",
     "card_exp_month": "10",
     "card_exp_year": "25",
@@ -21,7 +21,7 @@ export const connectorDetails = {
 card_pm:{
     "PaymentIntent": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
             "customer_acceptance": null,
             "setup_future_usage": "on_session"
@@ -43,7 +43,7 @@ card_pm:{
         "Response": {
             "status": 200,
             "body": {
-                "status": "succeeded"
+                "status": "requires_capture"
             }
         }
     },
@@ -63,7 +63,7 @@ card_pm:{
     },
     "No3DSManualCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
             "customer_acceptance": null,
             "setup_future_usage": "on_session"
@@ -71,13 +71,13 @@ card_pm:{
         "Response": {
             "status": 200,
             "body": {
-                "status": "succeeded"
+                "status": "requires_capture"
             }
         }
     },
     "No3DSAutoCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
             "customer_acceptance": null,
             "setup_future_usage": "on_session"
@@ -91,7 +91,7 @@ card_pm:{
     },
     "Capture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
             "customer_acceptance": null,
         },
@@ -108,13 +108,7 @@ card_pm:{
     },
     "PartialCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
-            "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
-            "customer_acceptance": null,
+         
         },
         "Response": {
             "status": 200,
@@ -127,9 +121,20 @@ card_pm:{
 
         }
     },
+    "Void":{
+        "Request": {
+        },
+        "Response": {
+            "status": 200,
+            "body":{
+                status: "cancelled"
+    
+            }
+        }
+    },
     "Refund": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
             "customer_acceptance": null,
         },
@@ -143,7 +148,21 @@ card_pm:{
     },
     "PartialRefund": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
+            "currency": "USD",
+            "customer_acceptance": null,
+        },
+        "Response": {
+            "status": 200,
+            "body": {
+                "status": "succeeded",
+            }
+
+        }
+    },
+    "SyncRefund": {
+        "Request": {
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
             "customer_acceptance": null,
         },
@@ -159,10 +178,6 @@ card_pm:{
         "Request": {
             "card": successfulThreeDSTestCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "requires_customer_action",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "single_use": {
                     "amount": 8000,
@@ -182,10 +197,6 @@ card_pm:{
         "Request": {
             "card": successfulThreeDSTestCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "requires_capture",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "single_use": {
                     "amount": 8000,
@@ -203,12 +214,8 @@ card_pm:{
     },
     "MandateSingleUseNo3DSAutoCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "single_use": {
                     "amount": 8000,
@@ -225,12 +232,8 @@ card_pm:{
     },
     "MandateSingleUseNo3DSManualCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "single_use": {
                     "amount": 8000,
@@ -247,12 +250,8 @@ card_pm:{
     },
     "MandateMultiUseNo3DSAutoCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "multi_use": {
                     "amount": 8000,
@@ -269,12 +268,8 @@ card_pm:{
     },
     "MandateMultiUseNo3DSManualCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "multi_use": {
                     "amount": 8000,
@@ -293,10 +288,6 @@ card_pm:{
         "Request": {
             "card": successfulThreeDSTestCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "requires_customer_action",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "multi_use": {
                     "amount": 8000,
@@ -315,10 +306,6 @@ card_pm:{
         "Request": {
             "card": successfulThreeDSTestCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "requires_customer_action",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "multi_use": {
                     "amount": 8000,
@@ -335,12 +322,8 @@ card_pm:{
     },
     "ZeroAuthMandate": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "mandate_type": {
                 "single_use": {
                     "amount": 8000,
@@ -357,12 +340,8 @@ card_pm:{
     },
     "SaveCardUseNo3DSAutoCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "setup_future_usage": "on_session",
             "customer_acceptance": {
                 "acceptance_type": "offline",
@@ -382,12 +361,8 @@ card_pm:{
     },
     "SaveCardUseNo3DSManualCapture": {
         "Request": {
-            "card": successfulTestCardDetails,
+            "card": successfulNo3DSCardDetails,
             "currency": "USD",
-            "paymentSuccessfulStatus": "succeeded",
-            "paymentSyncStatus": "succeeded",
-            "refundStatus": "succeeded",
-            "refundSyncStatus": "succeeded",
             "setup_future_usage": "on_session",
             "customer_acceptance": {
                 "acceptance_type": "offline",
@@ -401,7 +376,7 @@ card_pm:{
         "Response": {
             "status": 200,
             "body": {
-                "status": "succeeded"
+                "status": "requires_capture"
             }
         }
     },

@@ -111,6 +111,10 @@ describe("Card - SaveCard payment flow test", () => {
         cy.saveCardConfirmCallTest(SaveCardConfirmBody, req_data, res_data, globalState);
         if(should_continue) should_continue = should_continue_further(res_data);
       });
+
+      it("retrieve-payment-call-test", () => {
+        cy.retrievePaymentCallTest(globalState);
+      });
       
       it("capture-call-test", () => {
           let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
@@ -165,6 +169,9 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
         cy.saveCardConfirmCallTest(SaveCardConfirmBody,req_data, res_data,globalState);
         if(should_continue) should_continue = should_continue_further(res_data);
+      });
+      it("retrieve-payment-call-test", () => {
+        cy.retrievePaymentCallTest(globalState);
       });
       
       it("capture-call-test", () => {

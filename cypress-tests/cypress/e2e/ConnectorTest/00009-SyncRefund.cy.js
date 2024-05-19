@@ -63,7 +63,7 @@ describe("Card - Sync Refund flow test", () => {
     });
 
     it("sync-refund-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+        let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.syncRefundCallTest(req_data, res_data, globalState);

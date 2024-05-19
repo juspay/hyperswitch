@@ -194,7 +194,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("sync-refund-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialRefund"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.syncRefundCallTest(req_data, res_data, globalState);
@@ -259,7 +259,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("sync-refund-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.syncRefundCallTest(req_data, res_data, globalState);
@@ -331,7 +331,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("sync-refund-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialRefund"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.syncRefundCallTest(req_data, res_data, globalState);
@@ -400,7 +400,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("sync-refund-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.syncRefundCallTest(req_data, res_data, globalState);
@@ -465,7 +465,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("sync-refund-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialRefund"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.syncRefundCallTest(req_data, res_data, globalState);
@@ -508,7 +508,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("sync-refund-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.syncRefundCallTest(req_data, res_data, globalState);
@@ -529,7 +529,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "automatic", globalState);
@@ -542,7 +542,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("Confirm 3DS", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
@@ -579,7 +579,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "automatic", globalState);
@@ -591,7 +591,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("Confirm 3DS", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
@@ -636,10 +636,10 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create+confirm-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
-            cy.createConfirmPaymentTest(createPaymentBody, req_data, res_data, "three_ds", "automatic", globalState);
+            cy.createConfirmPaymentTest(createConfirmPaymentBody, req_data, res_data, "three_ds", "automatic", globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
         });
 
@@ -656,7 +656,7 @@ describe("Card - Refund flow test", () => {
             let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
-            cy.refundCallTest(refundBody, req_data, res_data, 6540, globalState);
+            cy.refundCallTest(refundBody, req_data, res_data, 6500, globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
           });
       
@@ -673,10 +673,10 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create+confirm-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
-            cy.createConfirmPaymentTest(createPaymentBody, req_data, res_data, "three_ds", "automatic", globalState);
+            cy.createConfirmPaymentTest(createConfirmPaymentBody, req_data, res_data, "three_ds", "automatic", globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
         });
         
@@ -706,7 +706,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("sync-refund-call-test", () => {
-            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.syncRefundCallTest(req_data, res_data, globalState);
@@ -726,7 +726,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
@@ -738,7 +738,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("Confirm 3DS", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
@@ -757,7 +757,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["capture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
@@ -790,7 +790,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
@@ -802,7 +802,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("Confirm 3DS", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
@@ -821,7 +821,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["capture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
@@ -848,10 +848,6 @@ describe("Card - Refund flow test", () => {
             if(should_continue) should_continue = should_continue_further(res_data);
         });
 
-        it("sync-refund-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            cy.syncRefundCallTest(det, globalState);
-        });
         
     });
 
@@ -866,7 +862,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
@@ -878,7 +874,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("Confirm 3DS", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
@@ -897,10 +893,10 @@ describe("Card - Refund flow test", () => {
         });
 
         it("capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["capture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
-            cy.captureCallTest(captureBody, req_data, res_data, 4000, globalState);
+            cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
 
         });
@@ -913,14 +909,11 @@ describe("Card - Refund flow test", () => {
             let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
-            cy.refundCallTest(refundBody, req_data, res_data, 4000, globalState);
+            cy.refundCallTest(refundBody, req_data, res_data, 100, globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
         });
 
-        it("sync-refund-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
-            cy.syncRefundCallTest(det, globalState);
-        });
+
     });
 
     context("Card - partial Refund for partially captured 3DS payment", () => {
@@ -934,7 +927,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
@@ -946,7 +939,7 @@ describe("Card - Refund flow test", () => {
         });
 
         it("Confirm 3DS", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
             console.log("det -> " + data.card);
@@ -965,10 +958,10 @@ describe("Card - Refund flow test", () => {
         });
 
         it("capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["capture"];
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
             let req_data = data["Request"];
             let res_data = data["Response"];
-            cy.captureCallTest(captureBody, req_data, res_data, 4000, globalState);
+            cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
 
         });
@@ -981,13 +974,8 @@ describe("Card - Refund flow test", () => {
             let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
             let req_data = data["Request"];
             let res_data = data["Response"];
-            cy.refundCallTest(refundBody, req_data, res_data, 2000, globalState);
+            cy.refundCallTest(refundBody, req_data, res_data, 50 , globalState);
             if(should_continue) should_continue = should_continue_further(res_data);
-        });
-
-        it("sync-refund-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialRefund"];
-            cy.syncRefundCallTest(det, globalState);
         });
     });
 

@@ -53,7 +53,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("void-call-test", () => {
-            cy.voidCallTest(voidBody, globalState);
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Void"];
+            let req_data = data["Request"];
+            let res_data = data["Response"];
+            cy.voidCallTest(voidBody, req_data, res_data, globalState);
+            if(should_continue) should_continue = should_continue_further(res_data);
         });
     });
 
@@ -79,8 +83,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("void-call-test", () => {
-            cy.voidCallTest(voidBody, globalState);
-        });
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Void"];
+            let req_data = data["Request"];
+            let res_data = data["Response"];
+            cy.voidCallTest(voidBody, req_data, res_data, globalState);
+            if(should_continue) should_continue = should_continue_further(res_data);        });
     });
 
     context("Card - void payment in Requires_payment_method state flow test", () => {
@@ -115,8 +122,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("void-call-test", () => {
-            cy.voidCallTest(voidBody, globalState);
-        });
+            let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Void"];
+            let req_data = data["Request"];
+            let res_data = data["Response"];
+            cy.voidCallTest(voidBody, req_data, res_data, globalState);
+            if(should_continue) should_continue = should_continue_further(res_data);        });
     });
 });
 

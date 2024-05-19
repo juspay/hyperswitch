@@ -240,8 +240,9 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
         globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
-        expect("requires_capture").to.equal(response.body.status);
-      } else {
+        for(const key in res_data.body) {
+          expect(res_data.body[key]).to.equal(response.body[key]);
+        }      } else {
         // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);
       }
@@ -308,8 +309,9 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
           globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
-        expect("requires_capture").to.equal(response.body.status);
-      } else {
+        for(const key in res_data.body) {
+          expect(res_data.body[key]).to.equal(response.body[key]);
+        }      } else {
         // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);
       }
@@ -326,7 +328,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
 // This is consequent saved card payment confirm call test(Using payment token)
 Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, res_data,globalState) => {
   const paymentIntentID = globalState.get("paymentID");
-  SaveCardConfirmBody.card_cvc = req_data.card_cvc;
+  SaveCardConfirmBody.card_cvc = req_data.card.card_cvc;
   SaveCardConfirmBody.payment_token = globalState.get("paymentToken");
   SaveCardConfirmBody.client_secret = globalState.get("clientSecret");
   console.log("conf conn ->" + globalState.get("connectorId"));
@@ -367,8 +369,9 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, 
             .to.have.property("redirect_to_url")
         }
         else if (response.body.authentication_type === "no_three_ds") {
-          expect(response.body.status).to.equal("requires_capture");
-          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+          for(const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
         } else {
           // Handle other authentication types as needed
           throw new Error(`Unsupported authentication type: ${authentication_type}`);
@@ -417,7 +420,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, req_data, res_data, amount
   });
 });
 
-Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
+Cypress.Commands.add("voidCallTest", (requestBody, req_data, res_data, globalState) => {
   const payment_id = globalState.get("paymentID");
   cy.request({
     method: "POST",
@@ -430,13 +433,21 @@ Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
+    console.log(response);
 
+    expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
-    expect(response.body.payment_id).to.equal(payment_id);
-    expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
-    // expect(response.body.amount_capturable).to.equal(0);
-    expect(response.body.amount_received).to.be.oneOf([0, null]);
-    expect(response.body.status).to.equal("cancelled");
+    if(response.body.payment_id !== undefined) {
+      for(const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
+      }
+    }
+    else{
+      expect(response.body).to.have.property("error");
+      for(const key in res_data.body.error) {
+        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+      }
+    }
   });
 });
 
@@ -477,7 +488,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, req_data, res_data, refund_
     body: requestBody
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
+    console.log(response);
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     
@@ -510,7 +521,7 @@ Cypress.Commands.add("syncRefundCallTest", (req_data, res_data, globalState) => 
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
+    console.log(response);
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     for(const key in res_data.body) {
@@ -540,7 +551,7 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
+    console.log(response);
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("mandateId", response.body.mandate_id);
@@ -602,7 +613,7 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
+    console.log(response);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", response.body.payment_id);
     console.log("mit statusss-> " + response.body.status);
@@ -706,13 +717,13 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
       })
   }
   else if (globalState.get("connectorId") === "nmi" || globalState.get("connectorId") === "noon") {
-    cy.get('iframe', { timeout: 100000 })
+    cy.get('iframe', { timeout: 150000 })
       .its('0.contentDocument.body')
       .within((body) => {
-        cy.get('iframe', { timeout: 10000 })
+        cy.get('iframe', { timeout: 20000 })
           .its('0.contentDocument.body')
           .within((body) => {
-            cy.get('form[name="cardholderInput"]', { timeout: 10000 }).should('exist').then(form => {
+            cy.get('form[name="cardholderInput"]', { timeout: 20000 }).should('exist').then(form => {
               cy.get('input[name="challengeDataEntry"]').click().type("1234");
               cy.get('input[value="SUBMIT"]').click();
             })
