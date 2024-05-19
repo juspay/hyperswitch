@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{disputes, enums as api_enums, mandates, payments, payouts, refunds};
+#[cfg(feature = "payouts")]
+use crate::payouts;
+use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
