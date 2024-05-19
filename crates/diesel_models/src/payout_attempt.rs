@@ -138,7 +138,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_code,
                 is_eligible,
             } => Self {
-                connector_payout_id: connector_payout_id,
+                connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,

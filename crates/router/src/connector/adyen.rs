@@ -1805,6 +1805,15 @@ impl api::IncomingWebhook for Adyen {
                 ),
             ));
         }
+        if adyen::is_payout_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    notif
+                        .original_reference
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ));
+        }
         Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
     }
 

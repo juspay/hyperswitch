@@ -4076,6 +4076,8 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    PayoutThirdparty,
+    PayoutDecline,
     #[serde(other)]
     Unknown,
 }
@@ -4112,6 +4114,13 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
             | WebhookEventCode::SecondChargeback
             | WebhookEventCode::PrearbitrationWon
             | WebhookEventCode::PrearbitrationLost
+    )
+}
+
+pub fn is_payout_event(event_code: &WebhookEventCode) -> bool {
+    matches!(
+        event_code,
+        WebhookEventCode::PayoutThirdparty | WebhookEventCode::PayoutDecline
     )
 }
 
@@ -4174,6 +4183,8 @@ impl ForeignFrom<(WebhookEventCode, String, Option<DisputeStatus>)>
                 }
             }
             WebhookEventCode::CaptureFailed => Self::PaymentIntentCaptureFailure,
+            WebhookEventCode::PayoutThirdparty => Self::PayoutSuccess,
+            WebhookEventCode::PayoutDecline => Self::PayoutFailure,
             WebhookEventCode::Unknown => Self::EventNotSupported,
         }
     }
@@ -4247,6 +4258,14 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::CaptureFailed
                     }
                 }
+                WebhookEventCode::PayoutThirdparty => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Authorised
+                    } else {
+                        AdyenWebhookStatus::AuthorisationFailed
+                    }
+                }
+                WebhookEventCode::PayoutDecline => AdyenWebhookStatus::Cancelled,
                 WebhookEventCode::CaptureFailed => AdyenWebhookStatus::CaptureFailed,
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
