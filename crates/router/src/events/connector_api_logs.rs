@@ -98,4 +98,8 @@ impl KafkaMessage for ConnectorEvent {
     fn key(&self) -> String {
         self.request_id.clone()
     }
+
+    fn creation_timestamp(&self) -> Option<i64> {
+        Some(self.created_at)
+    }
 }
