@@ -4344,6 +4344,18 @@ pub struct PaymentRetrieveBodyWithCredentials {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCompleteAuthorizeRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    pub payment_id: String,
+    /// The shipping address for the payment
+    pub shipping: Option<Address>,
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
     #[serde(skip)]

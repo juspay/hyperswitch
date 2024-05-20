@@ -203,6 +203,9 @@ pub enum PaymentIntentUpdate {
     AuthorizationCountUpdate {
         authorization_count: i32,
     },
+    CompleteAuthorizeUpdate {
+        shipping_address_id: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -423,6 +426,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 authorization_count,
             } => Self {
                 authorization_count: Some(authorization_count),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => Self {
+                shipping_address_id,
                 ..Default::default()
             },
         }

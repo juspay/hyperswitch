@@ -853,6 +853,57 @@
         ]
       }
     },
+    "/{payment_id}/complete_authorize": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Complete Authorize",
+        "description": "Payments - Complete Authorize\n\n",
+        "operationId": "Complete Authorize a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCompleteAuthorizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payments Complete Authorize Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -13519,6 +13570,26 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PaymentsCompleteAuthorizeRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
           }
         }
       },
