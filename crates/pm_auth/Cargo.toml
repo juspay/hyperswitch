@@ -5,6 +5,7 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 readme = "README.md"
+license.workspace = true
 
 [dependencies]
 # First party crates
@@ -16,12 +17,12 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 # Third party crates
-async-trait = "0.1.66"
-bytes = "1.4.0"
-error-stack = "0.3.1"
-http = "0.2.9"
+async-trait = "0.1.79"
+bytes = "1.6.0"
+error-stack = "0.4.1"
+http = "0.2.12"
 mime = "0.3.17"
-serde = "1.0.193"
-serde_json = "1.0.108"
-strum = { version = "0.24.1", features = ["derive"] }
-thiserror = "1.0.43"
+serde = "1.0.197"
+serde_json = "1.0.115"
+strum = { version = "0.26.2", features = ["derive"] }
+thiserror = "1.0.58"

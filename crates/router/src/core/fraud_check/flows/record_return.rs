@@ -62,7 +62,6 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             connector_auth_type: auth_type,
             description: None,
             return_url: None,
-            payment_method_id: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
@@ -84,6 +83,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             payment_method_token: None,
             connector_customer: None,
             preprocessing_id: None,
+            payment_method_status: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
             test_mode: None,
             recurring_mandate_payment_data: None,
@@ -99,6 +99,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            connector_response: None,
         };
 
         Ok(router_data)

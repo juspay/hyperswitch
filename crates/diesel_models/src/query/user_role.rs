@@ -1,10 +1,8 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{query::generics, schema::user_roles::dsl, user_role::*, PgPooledConn, StorageResult};
 
 impl UserRoleNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserRole> {
         generics::generic_insert(conn, self).await
     }
@@ -72,8 +70,8 @@ impl UserRole {
         conn: &PgPooledConn,
         user_id: String,
         merchant_id: String,
-    ) -> StorageResult<bool> {
-        generics::generic_delete::<<Self as HasTable>::Table, _>(
+    ) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::user_id
                 .eq(user_id)

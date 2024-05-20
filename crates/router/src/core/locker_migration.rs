@@ -85,7 +85,7 @@ pub async fn call_to_locker(
 
     for pm in payment_methods
         .into_iter()
-        .filter(|pm| matches!(pm.payment_method, storage_enums::PaymentMethod::Card))
+        .filter(|pm| matches!(pm.payment_method, Some(storage_enums::PaymentMethod::Card)))
     {
         let card = cards::get_card_from_locker(
             state,
@@ -121,11 +121,15 @@ pub async fn call_to_locker(
             payment_method_issuer: pm.payment_method_issuer,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             card: Some(card_details.clone()),
+            #[cfg(feature = "payouts")]
             wallet: None,
+            #[cfg(feature = "payouts")]
             bank_transfer: None,
             metadata: pm.metadata,
             customer_id: Some(pm.customer_id),
             card_network: card.card_brand,
+            client_secret: None,
+            payment_method_data: None,
         };
 
         let add_card_result = cards::add_card_hs(

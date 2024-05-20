@@ -100,6 +100,14 @@
                           "currency": "USD"
                         }
                       }
+                    },
+                    "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
                     }
                   })
                 )
@@ -302,6 +310,14 @@ pub fn payments_update() {}
                   "card_holder_name": "joseph Doe",
                   "card_cvc": "123"
                 }
+              },
+              "customer_acceptance": {
+                "acceptance_type": "offline",
+                "accepted_at": "1963-05-03T04:07:52.723Z",
+                "online": {
+                  "ip_address": "127.0.0.1",
+                  "user_agent": "amet irure esse"
+                }
               }
             }
           )
@@ -450,3 +466,23 @@ pub fn payments_list() {}
   security(("api_key" = []))
 )]
 pub fn payments_incremental_authorization() {}
+
+/// Payments - External 3DS Authentication
+///
+/// External 3DS Authentication is performed and returns the AuthenticationResponse
+#[utoipa::path(
+  post,
+  path = "/payments/{payment_id}/3ds/authentication",
+  request_body=PaymentsExternalAuthenticationRequest,
+  params(
+      ("payment_id" = String, Path, description = "The identifier for payment")
+  ),
+  responses(
+      (status = 200, description = "Authentication created", body = PaymentsExternalAuthenticationResponse),
+      (status = 400, description = "Missing mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Initiate external authentication for a Payment",
+  security(("publishable_key" = []))
+)]
+pub fn payments_external_authentication() {}

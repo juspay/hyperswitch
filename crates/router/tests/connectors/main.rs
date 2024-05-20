@@ -13,6 +13,8 @@ mod authorizedotnet;
 mod bambora;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
+#[cfg(feature = "dummy_connector")]
+mod billwerk;
 mod bitpay;
 mod bluesnap;
 mod boku;
@@ -24,15 +26,19 @@ mod cybersource;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
+mod ebanx;
 mod fiserv;
 mod forte;
 mod globalpay;
 mod globepay;
 mod gocardless;
+mod gpayments;
 mod helcim;
 mod iatapay;
+mod mifinity;
 mod mollie;
 mod multisafepay;
+mod netcetera;
 mod nexinets;
 mod nmi;
 mod noon;
@@ -43,6 +49,7 @@ mod opennode;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payme;
+mod payone;
 mod paypal;
 mod payu;
 mod placetopay;
@@ -58,7 +65,9 @@ mod trustpay;
 mod tsys;
 mod utils;
 mod volt;
+#[cfg(feature = "payouts")]
 mod wise;
 mod worldline;
 mod worldpay;
 mod zen;
+mod zsl;

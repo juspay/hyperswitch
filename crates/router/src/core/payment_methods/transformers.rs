@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
     pii::Email,
@@ -27,6 +27,15 @@ pub enum StoreLockerReq<'a> {
     LockerGeneric(StoreGenericReq<'a>),
 }
 
+impl StoreLockerReq<'_> {
+    pub fn update_requestor_card_reference(&mut self, card_reference: Option<String>) {
+        match self {
+            Self::LockerCard(c) => c.requestor_card_reference = card_reference,
+            Self::LockerGeneric(_) => (),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
@@ -42,17 +51,6 @@ pub struct StoreGenericReq<'a> {
     pub merchant_customer_id: String,
     #[serde(rename = "enc_card_data")]
     pub enc_data: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Card {
-    pub card_number: cards::CardNumber,
-    pub name_on_card: Option<Secret<String>>,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_brand: Option<String>,
-    pub card_isin: Option<String>,
-    pub nick_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -309,6 +307,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     Ok(request)
 }
 
+#[cfg(feature = "payouts")]
 pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,
@@ -329,6 +328,7 @@ pub fn mk_add_bank_response_hs(
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
     }
 }
 
@@ -339,7 +339,7 @@ pub fn mk_add_card_response_hs(
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
     let card_number = card.card_number.clone();
-    let last4_digits = card_number.clone().get_last4();
+    let last4_digits = card_number.get_last4();
     let card_isin = card_number.get_card_isin();
 
     let card = api::CardDetailFromLocker {
@@ -365,6 +365,7 @@ pub fn mk_add_card_response_hs(
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        #[cfg(feature = "payouts")]
         bank_transfer: None,
         card: Some(card),
         metadata: req.metadata,
@@ -373,6 +374,7 @@ pub fn mk_add_card_response_hs(
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
+        client_secret: req.client_secret,
     }
 }
 
@@ -548,20 +550,20 @@ pub fn get_card_detail(
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
-    let mut last4_digits = card_number.peek().to_owned();
+    let last4_digits = card_number.clone().get_last4();
     //fetch form card bin
 
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
-        last4_digits: Some(last4_digits.split_off(last4_digits.len() - 4)),
+        last4_digits: Some(last4_digits),
         card_number: Some(card_number),
         expiry_month: Some(response.card_exp_month),
         expiry_year: Some(response.card_exp_year),
         card_token: None,
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(masking::Secret::new),
+        nick_name: response.nick_name.map(Secret::new),
         card_isin: None,
         card_issuer: None,
         card_network: None,

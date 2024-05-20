@@ -1,15 +1,15 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -19,22 +19,10 @@ pub struct RapydRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for RapydRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for RapydRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -87,7 +75,7 @@ pub struct Address {
     city: Option<String>,
     state: Option<Secret<String>>,
     country: Option<String>,
-    zip: Option<String>,
+    zip: Option<Secret<String>>,
     phone_number: Option<Secret<String>>,
 }
 
@@ -96,7 +84,7 @@ pub struct RapydWallet {
     #[serde(rename = "type")]
     payment_type: String,
     #[serde(rename = "details")]
-    token: Option<String>,
+    token: Option<Secret<String>>,
 }
 
 impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPaymentsRequest {
@@ -124,15 +112,16 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             _ => (None, None),
         };
         let payment_method = match item.router_data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
                     fields: Some(PaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
-                        name: ccard
-                            .card_holder_name
+                        name: item
+                            .router_data
+                            .get_optional_billing_full_name()
                             .to_owned()
                             .unwrap_or(Secret::new("".to_string())),
                         cvv: ccard.card_cvc.to_owned(),
@@ -141,15 +130,15 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                     digital_wallet: None,
                 })
             }
-            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 let digital_wallet = match wallet_data {
-                    api_models::payments::WalletData::GooglePay(data) => Some(RapydWallet {
+                    domain::WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
-                        token: Some(data.tokenization_data.token.to_owned()),
+                        token: Some(Secret::new(data.tokenization_data.token.to_owned())),
                     }),
-                    api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
+                    domain::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        token: Some(data.payment_data.to_string()),
+                        token: Some(Secret::new(data.payment_data.to_string())),
                     }),
                     _ => None,
                 };
@@ -357,7 +346,7 @@ pub struct RefundResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RefundResponseData {
-    //Some field related to forign exchange and split payment can be added as and when implemented
+    //Some field related to foreign exchange and split payment can be added as and when implemented
     pub id: String,
     pub payment: String,
     pub amount: i64,
@@ -418,7 +407,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
     amount: Option<i64>,
-    receipt_email: Option<String>,
+    receipt_email: Option<Secret<String>>,
     statement_descriptor: Option<String>,
 }
 
@@ -465,18 +454,18 @@ impl<F, T>
                         }),
                     ),
                     _ => {
-                        let redirction_url = data
+                        let redirection_url = data
                             .redirect_url
                             .as_ref()
                             .filter(|redirect_str| !redirect_str.is_empty())
                             .map(|url| {
-                                Url::parse(url).into_report().change_context(
+                                Url::parse(url).change_context(
                                     errors::ConnectorError::FailedToObtainIntegrationUrl,
                                 )
                             })
                             .transpose()?;
 
-                        let redirection_data = redirction_url
+                        let redirection_data = redirection_url
                             .map(|url| services::RedirectForm::from((url, services::Method::Get)));
 
                         (

@@ -5,6 +5,7 @@ use masking::Secret;
 
 use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
+    auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
@@ -13,12 +14,14 @@ use self::{
 pub use crate::payments::TimeRange;
 
 pub mod api_event;
+pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
 pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
+pub mod search;
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameDescription {
@@ -137,6 +140,17 @@ pub struct GetSdkEventMetricRequest {
     pub delta: bool,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAuthEventMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub metrics: HashSet<AuthEventMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct AnalyticsMetadata {
     pub current_time_range: TimeRange,
@@ -251,7 +265,6 @@ pub struct GetApiEventMetricRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct GetDisputeFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]

@@ -1,4 +1,4 @@
-use error_stack::{report, IntoReport};
+use error_stack::report;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -107,7 +107,7 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
 }
 
 pub fn validate_for_valid_refunds(
-    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
     let payment_method = payment_attempt
@@ -136,10 +136,10 @@ pub fn validate_for_valid_refunds(
                 || {
                     Err(errors::ApiErrorResponse::RefundNotPossible {
                         connector: connector.to_string(),
-                    })
+                    }
+                    .into())
                 },
             )
-            .into_report()
         }
         _ => Ok(()),
     }

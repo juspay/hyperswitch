@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use common_utils::errors::ParsingError;
-use error_stack::IntoReport;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -12,7 +11,7 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums::{self, RoutableConnectors, TransactionType};
+use crate::enums::{RoutableConnectors, TransactionType};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -204,8 +203,8 @@ pub struct RoutableConnectorChoice {
     pub sub_label: Option<String>,
 }
 
-impl ToString for RoutableConnectorChoice {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for RoutableConnectorChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         #[cfg(feature = "connector_choice_mca_id")]
         let base = self.connector.to_string();
 
@@ -220,7 +219,7 @@ impl ToString for RoutableConnectorChoice {
             sub_base
         };
 
-        base
+        write!(f, "{}", base)
     }
 }
 
@@ -300,35 +299,6 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DetailedConnectorChoice {
-    pub connector: RoutableConnectors,
-    pub business_label: Option<String>,
-    pub business_country: Option<enums::CountryAlpha2>,
-    pub business_sub_label: Option<String>,
-}
-
-impl DetailedConnectorChoice {
-    pub fn get_connector_label(&self) -> Option<String> {
-        self.business_country
-            .as_ref()
-            .zip(self.business_label.as_ref())
-            .map(|(business_country, business_label)| {
-                let mut base_label = format!(
-                    "{}_{:?}_{}",
-                    self.connector, business_country, business_label
-                );
-
-                if let Some(ref sub_label) = self.business_sub_label {
-                    base_label.push('_');
-                    base_label.push_str(sub_label);
-                }
-
-                base_label
-            })
-    }
-}
-
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -359,7 +329,7 @@ pub enum RoutingAlgorithm {
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
-    Advanced(euclid::frontend::ast::Program<ConnectorSelection>),
+    Advanced(ast::Program<ConnectorSelection>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -368,7 +338,7 @@ pub enum RoutingAlgorithmSerde {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
-    Advanced(euclid::frontend::ast::Program<ConnectorSelection>),
+    Advanced(ast::Program<ConnectorSelection>),
 }
 
 impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
@@ -379,14 +349,12 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
             RoutingAlgorithmSerde::Priority(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Priority Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             RoutingAlgorithmSerde::VolumeSplit(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Volume split Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             _ => {}
         };
@@ -446,14 +414,12 @@ impl TryFrom<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
             StraightThroughAlgorithmInner::Priority(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Priority Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             StraightThroughAlgorithmInner::VolumeSplit(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Volume split Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             _ => {}
         };

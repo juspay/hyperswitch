@@ -1,5 +1,5 @@
-use data_models::payments::PaymentIntent;
 use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -67,5 +67,9 @@ impl<'a> super::KafkaMessage for KafkaPaymentIntent<'a> {
 
     fn creation_timestamp(&self) -> Option<i64> {
         Some(self.modified_at.unix_timestamp())
+    }
+
+    fn event_type(&self) -> crate::events::EventType {
+        crate::events::EventType::PaymentIntent
     }
 }

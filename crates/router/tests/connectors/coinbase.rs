@@ -1,6 +1,5 @@
-use api_models::payments::CryptoData;
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types::{self, api, domain, storage::enums, PaymentAddress};
 use serde_json::json;
 
 use crate::{
@@ -12,12 +11,12 @@ use crate::{
 struct CoinbaseTest;
 impl ConnectorActions for CoinbaseTest {}
 impl utils::Connector for CoinbaseTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Coinbase;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Coinbase),
             connector_name: types::Connector::Coinbase,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
@@ -40,8 +39,9 @@ static CONNECTOR: CoinbaseTest = CoinbaseTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -58,8 +58,9 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 }),
                 email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+            None,
+        )),
         connector_meta_data: Some(json!({"pricing_type": "fixed_price"})),
         ..Default::default()
     })
@@ -69,7 +70,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
+        payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: None,
         }),
         confirm: true,
@@ -98,6 +99,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         surcharge_details: None,
         request_incremental_authorization: false,
         metadata: None,
+        authentication_data: None,
+        customer_acceptance: None,
     })
 }
 
@@ -126,7 +129,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "ADFY3789".to_string(),
                 ),
                 ..Default::default()
@@ -145,7 +148,7 @@ async fn should_sync_unresolved_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "YJ6RFZXZ".to_string(),
                 ),
                 ..Default::default()
@@ -164,7 +167,7 @@ async fn should_sync_expired_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "FZ89KDDB".to_string(),
                 ),
                 ..Default::default()
@@ -183,7 +186,7 @@ async fn should_sync_cancelled_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "C35AAXKF".to_string(),
                 ),
                 ..Default::default()

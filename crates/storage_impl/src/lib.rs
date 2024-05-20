@@ -1,19 +1,24 @@
 use std::sync::Arc;
 
-use data_models::errors::{StorageError, StorageResult};
 use diesel_models as store;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 mod address;
 pub mod config;
 pub mod connection;
+pub mod customers;
 pub mod database;
 pub mod errors;
 mod lookup;
+pub mod mandate;
 pub mod metrics;
 pub mod mock_db;
+pub mod payment_method;
 pub mod payments;
+#[cfg(feature = "payouts")]
+pub mod payouts;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
@@ -21,10 +26,14 @@ mod utils;
 
 use common_utils::errors::CustomResult;
 use database::store::PgPool;
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, SaddReply};
 
 pub use crate::database::store::DatabaseStore;
+#[cfg(not(feature = "payouts"))]
+pub use crate::database::store::Store;
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
@@ -142,6 +151,7 @@ pub struct KVRouterStore<T: DatabaseStore> {
     drainer_num_partitions: u8,
     ttl_for_kv: u32,
     pub request_id: Option<String>,
+    soft_kill_mode: bool,
 }
 
 #[async_trait::async_trait]
@@ -150,14 +160,16 @@ where
     RouterStore<T>: DatabaseStore,
     T: DatabaseStore,
 {
-    type Config = (RouterStore<T>, String, u8, u32);
+    type Config = (RouterStore<T>, String, u8, u32, Option<bool>);
     async fn new(config: Self::Config, _test_transaction: bool) -> StorageResult<Self> {
-        let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv) = config;
+        let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv, soft_kill_mode) =
+            config;
         Ok(Self::from_store(
             router_store,
             drainer_stream_name,
             drainer_num_partitions,
             ttl_for_kv,
+            soft_kill_mode,
         ))
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -182,6 +194,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         drainer_stream_name: String,
         drainer_num_partitions: u8,
         ttl_for_kv: u32,
+        soft_kill: Option<bool>,
     ) -> Self {
         let request_id = store.request_id.clone();
 
@@ -191,6 +204,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             drainer_num_partitions,
             ttl_for_kv,
             request_id,
+            soft_kill_mode: soft_kill.unwrap_or(false),
         }
     }
 
@@ -208,7 +222,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         partition_key: redis::kv_store::PartitionKey<'_>,
     ) -> error_stack::Result<(), RedisError>
     where
-        R: crate::redis::kv_store::KvStorePartition,
+        R: redis::kv_store::KvStorePartition,
     {
         let global_id = format!("{}", partition_key);
         let request_id = self.request_id.clone().unwrap_or_default();
@@ -331,3 +345,65 @@ impl UniqueConstraints for diesel_models::ReverseLookup {
         "ReverseLookup"
     }
 }
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::Payouts {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("po_{}_{}", self.merchant_id, self.payout_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Payouts"
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::PayoutAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "poa_{}_{}",
+            self.merchant_id, self.payout_attempt_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PayoutAttempt"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentMethod {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("paymentmethod_{}", self.payment_method_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentMethod"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Mandate {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("mand_{}_{}", self.merchant_id, self.mandate_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Mandate"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Customer {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "customer_{}_{}",
+            self.customer_id, self.merchant_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Customer"
+    }
+}
+
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}

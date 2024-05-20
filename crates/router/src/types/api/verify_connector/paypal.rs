@@ -27,7 +27,7 @@ impl VerifyConnector for connector::Paypal {
             })?
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-        let response = services::call_connector_api(&state.to_owned(), request)
+        let response = services::call_connector_api(&state.to_owned(), request, "get_access_token")
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 

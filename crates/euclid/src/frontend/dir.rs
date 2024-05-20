@@ -113,7 +113,7 @@ impl DirKey {
     serde::Serialize,
     strum::Display,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumString,
     strum::EnumMessage,
     strum::EnumProperty,
@@ -306,7 +306,7 @@ pub enum DirKeyKind {
     #[serde(rename = "setup_future_usage")]
     SetupFutureUsage,
     #[strum(
-        serialize = "card_redirect_type",
+        serialize = "card_redirect",
         detailed_message = "Supported types of Card Redirect payment method",
         props(Category = "Payment Method Types")
     )]
@@ -490,7 +490,7 @@ impl DirKeyKind {
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumVariantNames,
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {
@@ -559,7 +559,7 @@ impl DirValue {
             Self::CardBin(_) => (DirKeyKind::CardBin, None),
             Self::RewardType(_) => (DirKeyKind::RewardType, None),
             Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
-            Self::BillingCountry(_) => (DirKeyKind::CardBin, None),
+            Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
             Self::BankTransferType(_) => (DirKeyKind::BankTransferType, None),
             Self::UpiType(_) => (DirKeyKind::UpiType, None),
             Self::CardType(_) => (DirKeyKind::CardType, None),
@@ -665,6 +665,101 @@ impl DirValue {
             _ => false,
         }
     }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::VariantNames,
+    strum::EnumString,
+    strum::EnumMessage,
+    strum::EnumProperty,
+)]
+pub enum PayoutDirKeyKind {
+    #[strum(
+        serialize = "country",
+        serialize = "business_country",
+        detailed_message = "Country of the business unit",
+        props(Category = "Merchant")
+    )]
+    #[serde(rename = "business_country", alias = "country")]
+    BusinessCountry,
+
+    #[strum(
+        serialize = "billing_country",
+        detailed_message = "Country of the billing address of the customer",
+        props(Category = "Customer")
+    )]
+    #[serde(rename = "billing_country")]
+    BillingCountry,
+
+    #[strum(
+        serialize = "business_label",
+        detailed_message = "Identifier for business unit",
+        props(Category = "Merchant")
+    )]
+    #[serde(rename = "business_label")]
+    BusinessLabel,
+
+    #[strum(
+        serialize = "amount",
+        detailed_message = "Value of the transaction",
+        props(Category = "Order details")
+    )]
+    #[serde(rename = "amount")]
+    PayoutAmount,
+
+    #[strum(
+        serialize = "payment_method",
+        detailed_message = "Different modes of payout - eg. cards, wallets, banks",
+        props(Category = "Payout Methods")
+    )]
+    #[serde(rename = "payment_method")]
+    PayoutType,
+
+    #[strum(
+        serialize = "wallet",
+        detailed_message = "Supported types of Wallets for payouts",
+        props(Category = "Payout Methods Type")
+    )]
+    #[serde(rename = "wallet")]
+    WalletType,
+
+    #[strum(
+        serialize = "bank_transfer",
+        detailed_message = "Supported types of Bank transfer types for payouts",
+        props(Category = "Payout Methods Type")
+    )]
+    #[serde(rename = "bank_transfer")]
+    BankTransferType,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+)]
+pub enum PayoutDirValue {
+    #[serde(rename = "business_country", alias = "country")]
+    BusinessCountry(enums::Country),
+    #[serde(rename = "billing_country")]
+    BillingCountry(enums::Country),
+    #[serde(rename = "business_label")]
+    BusinessLabel(types::StrValue),
+    #[serde(rename = "amount")]
+    PayoutAmount(types::NumValue),
+    #[serde(rename = "payment_method")]
+    PayoutType(common_enums::PayoutType),
+    #[serde(rename = "wallet")]
+    WalletType(enums::PayoutWalletType),
+    #[serde(rename = "bank_transfer")]
+    BankTransferType(enums::PayoutBankTransferType),
 }
 
 #[derive(Debug, Clone)]

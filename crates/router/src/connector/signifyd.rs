@@ -1,14 +1,16 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+use base64::Engine;
 #[cfg(feature = "frm")]
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as signifyd;
 
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
@@ -65,7 +67,10 @@ impl ConnectorCommon for Signifyd {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = signifyd::SignifydAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_api_key = format!("Basic {}", auth.api_key.peek());
+        let auth_api_key = format!(
+            "Basic {}",
+            consts::BASE64_ENGINE.encode(auth.api_key.peek())
+        );
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -89,7 +94,7 @@ impl ConnectorCommon for Signifyd {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: crate::consts::NO_ERROR_CODE.to_string(),
+            code: consts::NO_ERROR_CODE.to_string(),
             message: response.messages.join(" &"),
             reason: Some(response.errors.to_string()),
             attempt_status: None,
@@ -498,7 +503,7 @@ impl
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = signifyd::FrmFullfillmentSignifydRequest::try_from(req)?;
+        let req_obj = signifyd::FrmFulfillmentSignifydRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj.clone())))
     }
 
@@ -530,9 +535,9 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmFulfillmentRouterData, errors::ConnectorError> {
-        let response: signifyd::FrmFullfillmentSignifydApiResponse = res
+        let response: signifyd::FrmFulfillmentSignifydApiResponse = res
             .response
-            .parse_struct("FrmFullfillmentSignifydApiResponse Sale")
+            .parse_struct("FrmFulfillmentSignifydApiResponse Sale")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -647,20 +652,20 @@ impl api::IncomingWebhook for Signifyd {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

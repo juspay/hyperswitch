@@ -10,7 +10,7 @@ use api_models::analytics::{
     MetricsResponse, PaymentFiltersResponse,
 };
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
     tracing::{self, Instrument},
@@ -115,7 +115,6 @@ pub async fn get_metrics(
         .join_next()
         .await
         .transpose()
-        .into_report()
         .change_context(AnalyticsError::UnknownError)?
     {
         match task_type {

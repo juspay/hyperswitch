@@ -1,6 +1,5 @@
-use api_models::payments::CryptoData;
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types::{self, api, domain, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -11,12 +10,12 @@ use crate::{
 struct CryptopayTest;
 impl ConnectorActions for CryptopayTest {}
 impl utils::Connector for CryptopayTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cryptopay;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Cryptopay),
             connector_name: types::Connector::Cryptopay,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
@@ -39,8 +38,9 @@ static CONNECTOR: CryptopayTest = CryptopayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -57,8 +57,9 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 }),
                 email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+            None,
+        )),
         return_url: Some(String::from("https://google.com")),
         ..Default::default()
     })
@@ -68,7 +69,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
+        payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: Some("XRP".to_string()),
         }),
         confirm: true,
@@ -96,6 +97,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         surcharge_details: None,
         request_incremental_authorization: false,
         metadata: None,
+        authentication_data: None,
+        customer_acceptance: None,
     })
 }
 
@@ -124,7 +127,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "ea684036-2b54-44fa-bffe-8256650dce7c".to_string(),
                 ),
                 ..Default::default()
@@ -143,7 +146,7 @@ async fn should_sync_unresolved_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "7993d4c2-efbc-4360-b8ce-d1e957e6f827".to_string(),
                 ),
                 ..Default::default()

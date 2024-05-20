@@ -12,7 +12,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, PaymentsAuthorizeData},
+    types::{self, api, domain, storage::enums, PaymentsAuthorizeData},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -37,22 +37,10 @@ pub struct IatapayRouterData<T> {
     amount: f64,
     router_data: T,
 }
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for IatapayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for IatapayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
@@ -63,10 +51,7 @@ impl<T>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
-    pub token_type: String,
     pub expires_in: i64,
-    pub scope: String,
-    pub jti: String,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
@@ -117,7 +102,7 @@ impl
     TryFrom<
         &IatapayRouterData<
             &types::RouterData<
-                types::api::payments::Authorize,
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             >,
@@ -129,7 +114,7 @@ impl
     fn try_from(
         item: &IatapayRouterData<
             &types::RouterData<
-                types::api::payments::Authorize,
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             >,
@@ -152,22 +137,22 @@ impl
         };
         let return_url = item.router_data.get_return_url()?;
         let payer_info = match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
+            domain::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
                 token_id: id.switch_strategy(),
             }),
-            api::PaymentMethodData::Card(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => None,
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => None,
         };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
@@ -261,7 +246,7 @@ pub struct IatapayPaymentsResponse {
     pub status: IatapayPaymentStatus,
     pub iata_payment_id: Option<String>,
     pub iata_refund_id: Option<String>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
     pub merchant_payment_id: Option<String>,
     pub amount: f64,
     pub currency: String,
@@ -428,7 +413,7 @@ pub struct RefundResponse {
     iata_payment_id: Option<String>,
     merchant_payment_id: Option<String>,
     payment_amount: Option<f64>,
-    merchant_id: Option<String>,
+    merchant_id: Option<Secret<String>>,
     account_country: Option<String>,
 }
 
@@ -518,7 +503,7 @@ pub struct IatapayErrorResponse {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
-    pub path: String,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

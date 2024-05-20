@@ -1,8 +1,8 @@
-pub use data_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
-};
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
+};
 
 use crate::{
     core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
@@ -102,8 +102,13 @@ mod tests {
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let api_client = Box::new(services::MockApiClient);
-        let state =
-            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
+        let state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            api_client,
+        ))
+        .await;
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
@@ -134,8 +139,13 @@ mod tests {
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let api_client = Box::new(services::MockApiClient);
-        let state =
-            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
+        let state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            api_client,
+        ))
+        .await;
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
@@ -184,8 +194,13 @@ mod tests {
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
         let api_client = Box::new(services::MockApiClient);
-        let state =
-            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
+        let state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            api_client,
+        ))
+        .await;
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 

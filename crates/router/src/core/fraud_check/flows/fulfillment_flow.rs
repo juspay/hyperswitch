@@ -4,16 +4,14 @@ use router_env::tracing::{self, instrument};
 
 use crate::{
     core::{
-        errors::RouterResult,
-        fraud_check::frm_core_types::FrmFulfillmentRequest,
-        payments::{helpers, PaymentAddress},
-        utils as core_utils,
+        errors::RouterResult, fraud_check::frm_core_types::FrmFulfillmentRequest,
+        payments::helpers, utils as core_utils,
     },
     errors,
     types::{
         domain,
         fraud_check::{FraudCheckFulfillmentData, FrmFulfillmentRouterData},
-        storage, ConnectorAuthType, ErrorResponse, RouterData,
+        storage, ConnectorAuthType, ErrorResponse, PaymentAddress, RouterData,
     },
     utils, AppState,
 };
@@ -71,11 +69,11 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: FraudCheckFulfillmentData {
             amount: payment_attempt.amount,
             order_details: payment_intent.order_details.clone(),
@@ -108,6 +106,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }

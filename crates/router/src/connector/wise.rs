@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
 #[cfg(feature = "payouts")]
@@ -27,7 +27,7 @@ use crate::{
     utils::BytesExt,
 };
 #[cfg(feature = "payouts")]
-use crate::{core::payments, routes};
+use crate::{core::payments, routes, types::transformers::ForeignFrom};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
@@ -510,7 +510,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     ) -> CustomResult<(), errors::ConnectorError> {
         // Create a quote
         let quote_router_data =
-            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
+            &types::PayoutsRouterData::foreign_from((&router_data, router_data.request.clone()));
         let quote_connector_integration: Box<
             &(dyn services::ConnectorIntegration<
                 api::PoQuote,
@@ -628,7 +628,7 @@ impl
         _req: &types::PayoutsRouterData<api::PoEligibility>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        // Eligiblity check for cards is not implemented
+        // Eligibility check for cards is not implemented
         Err(
             errors::ConnectorError::NotImplemented("Payout Eligibility for Wise".to_string())
                 .into(),
@@ -748,20 +748,20 @@ impl api::IncomingWebhook for Wise {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

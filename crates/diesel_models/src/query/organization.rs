@@ -1,12 +1,10 @@
 use diesel::{associations::HasTable, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{
     organization::*, query::generics, schema::organization::dsl, PgPooledConn, StorageResult,
 };
 
 impl OrganizationNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Organization> {
         generics::generic_insert(conn, self).await
     }

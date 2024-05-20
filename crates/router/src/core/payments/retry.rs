@@ -2,7 +2,7 @@ use std::{str::FromStr, vec::IntoIter};
 
 use common_utils::ext_traits::Encode;
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -11,7 +11,6 @@ use router_env::{
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::PaymentMethodRetrieve,
         payments::{
             self,
             flows::{ConstructFlowSpecificData, Feature},
@@ -19,38 +18,42 @@ use crate::{
         },
     },
     db::StorageInterface,
-    routes,
-    routes::{app, metrics},
-    services, types,
-    types::{api, domain, storage},
+    routes::{
+        self,
+        app::{self, ReqState},
+        metrics,
+    },
+    services,
+    types::{self, api, domain, storage},
     utils,
 };
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
+pub async fn do_gsm_actions<F, ApiRequest, FData>(
     state: &app::AppState,
+    req_state: ReqState,
     payment_data: &mut payments::PaymentData<F>,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
-    payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
+    payments::PaymentResponse: operations::Operation<F, FData>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
-    Ctx: PaymentMethodRetrieve,
 {
     let mut retries = None;
 
@@ -81,6 +84,7 @@ where
     if should_step_up {
         router_data = do_retry(
             &state.clone(),
+            req_state.clone(),
             original_connector_data,
             operation,
             customer,
@@ -92,6 +96,7 @@ where
             schedule_time,
             true,
             frm_suggestion,
+            business_profile,
         )
         .await?;
     }
@@ -124,6 +129,7 @@ where
 
                     router_data = do_retry(
                         &state.clone(),
+                        req_state.clone(),
                         connector,
                         operation,
                         customer,
@@ -136,18 +142,18 @@ where
                         //this is an auto retry payment, but not step-up
                         false,
                         frm_suggestion,
+                        business_profile,
                     )
                     .await?;
 
                     retries = retries.map(|i| i - 1);
                 }
                 api_models::gsm::GsmDecision::Requeue => {
-                    Err(errors::ApiErrorResponse::NotImplemented {
+                    Err(report!(errors::ApiErrorResponse::NotImplemented {
                         message: errors::api_error_response::NotImplementedMessage::Reason(
                             "Requeue not implemented".to_string(),
                         ),
-                    })
-                    .into_report()?
+                    }))?
                 }
                 api_models::gsm::GsmDecision::DoDefault => break,
             }
@@ -170,7 +176,6 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|step_up_config| {
             serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Step-up config parsing failed")
         })
@@ -200,7 +205,6 @@ pub async fn get_retries(
                     retries_config
                         .config
                         .parse::<i32>()
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Retries config parsing failed")
                 })
@@ -236,9 +240,8 @@ pub fn get_gsm_decision(
     let option_gsm_decision = option_gsm
             .and_then(|gsm| {
                 api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-                    .into_report()
                     .map_err(|err| {
-                        let api_error = err.change_context(errors::ApiErrorResponse::InternalServerError)
+                        let api_error = report!(err).change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("gsm decision parsing failed");
                         logger::warn!(get_gsm_decision_parse_error=?api_error, "error fetching gsm decision");
                         api_error
@@ -259,17 +262,17 @@ fn get_flow_name<F>() -> RouterResult<String> {
         .rsplit("::")
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
 }
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, ApiRequest, FData, Ctx>(
+pub async fn do_retry<F, ApiRequest, FData>(
     state: &routes::AppState,
+    req_state: ReqState,
     connector: api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -279,16 +282,16 @@ pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
-    payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
+    payments::PaymentResponse: operations::Operation<F, FData>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
-    Ctx: PaymentMethodRetrieve,
 {
     metrics::AUTO_RETRY_PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]);
 
@@ -304,6 +307,7 @@ where
 
     payments::call_connector_service(
         state,
+        req_state,
         merchant_account,
         key_store,
         connector,
@@ -315,6 +319,7 @@ where
         schedule_time,
         api::HeaderPayload::default(),
         frm_suggestion,
+        business_profile,
     )
     .await
 }
@@ -341,6 +346,14 @@ where
     );
 
     let db = &*state.store;
+    let additional_payment_method_data =
+        payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
+            payment_data.payment_attempt.payment_method_data.clone(),
+            router_data
+                .connector_response
+                .clone()
+                .and_then(|connector_response| connector_response.additional_payment_method_data),
+        )?;
 
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {
@@ -373,11 +386,11 @@ where
                         .connector_response_reference_id
                         .clone(),
                     authentication_type: None,
-                    payment_method_id: Some(router_data.payment_method_id),
+                    payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
                     mandate_id: payment_data
                         .mandate_id
                         .clone()
-                        .map(|mandate| mandate.mandate_id),
+                        .and_then(|mandate| mandate.mandate_id),
                     connector_metadata,
                     payment_token: None,
                     error_code: None,
@@ -393,6 +406,7 @@ where
                     encoded_data,
                     unified_code: None,
                     unified_message: None,
+                    payment_method_data: additional_payment_method_data,
                 },
                 storage_scheme,
             )
@@ -405,6 +419,7 @@ where
         }
         Err(ref error_response) => {
             let option_gsm = get_gsm(state, &router_data).await?;
+
             db.update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -418,6 +433,7 @@ where
                     unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
                     connector_transaction_id: error_response.connector_transaction_id.clone(),
+                    payment_method_data: additional_payment_method_data,
                 },
                 storage_scheme,
             )

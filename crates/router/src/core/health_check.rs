@@ -23,6 +23,11 @@ pub trait HealthCheckInterface {
     #[cfg(feature = "olap")]
     async fn health_check_analytics(&self)
         -> CustomResult<HealthState, errors::HealthCheckDBError>;
+
+    #[cfg(feature = "olap")]
+    async fn health_check_opensearch(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDBError>;
 }
 
 #[async_trait::async_trait]
@@ -71,7 +76,7 @@ impl HealthCheckInterface for app::AppState {
             let mut url = locker.host_rs.to_owned();
             url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
-            services::call_connector_api(self, request)
+            services::call_connector_api(self, request, "health_check_for_locker")
                 .await
                 .change_context(errors::HealthCheckLockerError::FailedToCallLocker)?
                 .map_err(|_| {
@@ -122,11 +127,23 @@ impl HealthCheckInterface for app::AppState {
         Ok(HealthState::Running)
     }
 
+    #[cfg(feature = "olap")]
+    async fn health_check_opensearch(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDBError> {
+        self.opensearch_client
+            .deep_health_check()
+            .await
+            .change_context(errors::HealthCheckDBError::OpensearchError)?;
+
+        Ok(HealthState::Running)
+    }
+
     async fn health_check_outgoing(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckOutGoing> {
         let request = services::Request::new(services::Method::Get, consts::OUTGOING_CALL_URL);
-        services::call_connector_api(self, request)
+        services::call_connector_api(self, request, "outgoing_health_check")
             .await
             .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
                 message: err.to_string(),

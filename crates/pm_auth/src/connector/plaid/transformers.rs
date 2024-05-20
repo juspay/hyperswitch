@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use common_enums::PaymentMethodType;
-use masking::Secret;
+use common_enums::{PaymentMethod, PaymentMethodType};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{core::errors, types};
@@ -200,13 +200,19 @@ pub struct PlaidBankAccountCredentialsBacs {
 impl TryFrom<&types::BankDetailsRouterData> for PlaidBankAccountCredentialsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::BankDetailsRouterData) -> Result<Self, Self::Error> {
+        let options = item.request.optional_ids.as_ref().map(|bank_account_ids| {
+            let ids = bank_account_ids
+                .ids
+                .iter()
+                .map(|id| id.peek().to_string())
+                .collect::<Vec<_>>();
+
+            BankAccountCredentialsOptions { account_ids: ids }
+        });
+
         Ok(Self {
-            access_token: item.request.access_token.clone(),
-            options: item.request.optional_ids.as_ref().map(|bank_account_ids| {
-                BankAccountCredentialsOptions {
-                    account_ids: bank_account_ids.ids.clone(),
-                }
-            }),
+            access_token: item.request.access_token.peek().to_string(),
+            options,
         })
     }
 }
@@ -232,26 +238,84 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let (account_numbers, accounts_info) = (item.response.numbers, item.response.accounts);
         let mut bank_account_vec = Vec::new();
-        let mut id_to_suptype = HashMap::new();
+        let mut id_to_subtype = HashMap::new();
 
         accounts_info.into_iter().for_each(|acc| {
-            id_to_suptype.insert(acc.account_id, (acc.subtype, acc.name));
+            id_to_subtype.insert(acc.account_id, (acc.subtype, acc.name));
         });
 
         account_numbers.ach.into_iter().for_each(|ach| {
             let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_suptype.get(&ach.account_id) {
+                if let Some((_type, name)) = id_to_subtype.get(&ach.account_id) {
                     (_type.to_owned(), Some(name.clone()))
                 } else {
                     (None, None)
                 };
 
+            let account_details =
+                types::PaymentMethodTypeDetails::Ach(types::BankAccountDetailsAch {
+                    account_number: Secret::new(ach.account),
+                    routing_number: Secret::new(ach.routing),
+                });
+
             let bank_details_new = types::BankAccountDetails {
                 account_name: acc_name,
-                account_number: ach.account,
-                routing_number: ach.routing,
+                account_details,
                 payment_method_type: PaymentMethodType::Ach,
-                account_id: ach.account_id,
+                payment_method: PaymentMethod::BankDebit,
+                account_id: ach.account_id.into(),
+                account_type: acc_type,
+            };
+
+            bank_account_vec.push(bank_details_new);
+        });
+
+        account_numbers.bacs.into_iter().for_each(|bacs| {
+            let (acc_type, acc_name) =
+                if let Some((_type, name)) = id_to_subtype.get(&bacs.account_id) {
+                    (_type.to_owned(), Some(name.clone()))
+                } else {
+                    (None, None)
+                };
+
+            let account_details =
+                types::PaymentMethodTypeDetails::Bacs(types::BankAccountDetailsBacs {
+                    account_number: Secret::new(bacs.account),
+                    sort_code: Secret::new(bacs.sort_code),
+                });
+
+            let bank_details_new = types::BankAccountDetails {
+                account_name: acc_name,
+                account_details,
+                payment_method_type: PaymentMethodType::Bacs,
+                payment_method: PaymentMethod::BankDebit,
+                account_id: bacs.account_id.into(),
+                account_type: acc_type,
+            };
+
+            bank_account_vec.push(bank_details_new);
+        });
+
+        account_numbers.international.into_iter().for_each(|sepa| {
+            let (acc_type, acc_name) =
+                if let Some((_type, name)) = id_to_subtype.get(&sepa.account_id) {
+                    (_type.to_owned(), Some(name.clone()))
+                } else {
+                    (None, None)
+                };
+
+            let account_details =
+                types::PaymentMethodTypeDetails::Sepa(types::BankAccountDetailsSepa {
+                    iban: Secret::new(sepa.iban),
+                    bic: Secret::new(sepa.bic),
+                });
+
+            let bank_details_new = types::BankAccountDetails {
+                account_name: acc_name,
+                account_details,
+                payment_method_type: PaymentMethodType::Sepa,
+                payment_method: PaymentMethod::BankDebit,
+                account_id: sepa.account_id.into(),
                 account_type: acc_type,
             };
 

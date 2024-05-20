@@ -13,12 +13,12 @@ use api_models::{
     routing::ConnectorSelection,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use euclid::{
     backend::{self, inputs as dsl_inputs, EuclidBackend},
-    dssa::graph::{self as euclid_graph, Memoization},
+    dssa::graph::{self as euclid_graph, CgraphExt},
     enums as euclid_enums,
-    frontend::ast,
+    frontend::{ast, dir as euclid_dir},
 };
 use kgraph_utils::{
     mca as mca_graph,
@@ -168,10 +168,10 @@ where
                     .customer_acceptance
                     .clone()
                     .map(|cat| match cat.acceptance_type {
-                        data_models::mandates::AcceptanceType::Online => {
+                        hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
                         }
-                        data_models::mandates::AcceptanceType::Offline => {
+                        hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                             euclid_enums::MandateAcceptanceType::Offline
                         }
                     })
@@ -181,10 +181,10 @@ where
             .as_ref()
             .and_then(|mandate_data| {
                 mandate_data.mandate_type.clone().map(|mt| match mt {
-                    data_models::mandates::MandateDataType::SingleUse(_) => {
+                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
                         euclid_enums::MandateType::SingleUse
                     }
-                    data_models::mandates::MandateDataType::MultiUse(_) => {
+                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
                         euclid_enums::MandateType::MultiUse
                     }
                 })
@@ -230,8 +230,7 @@ where
             .map(api_enums::Country::from_alpha2),
         billing_country: payment_data
             .address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|bic| bic.address.as_ref())
             .and_then(|add| add.country)
             .map(api_enums::Country::from_alpha2),
@@ -333,6 +332,7 @@ async fn ensure_algorithm_cached_v1(
     merchant_id: &str,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
     #[cfg(feature = "business_profile_routing")]
     let key = {
@@ -412,7 +412,6 @@ fn execute_dsl_and_get_connector_v1(
     let routing_output: routing_types::RoutingAlgorithm = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection.foreign_into())
-        .into_report()
         .change_context(errors::RoutingError::DslExecutionError)?;
 
     Ok(match routing_output {
@@ -422,7 +421,6 @@ fn execute_dsl_and_get_connector_v1(
             .change_context(errors::RoutingError::DslFinalConnectorSelectionFailed)?,
 
         _ => Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
-            .into_report()
             .attach_printable("Unsupported algorithm received as a result of static routing")?,
     })
 }
@@ -474,7 +472,6 @@ pub async fn refresh_routing_cache_v1(
         }
         routing_types::RoutingAlgorithm::Advanced(program) => {
             let interpreter = backend::VirInterpreterBackend::with_program(program)
-                .into_report()
                 .change_context(errors::RoutingError::DslBackendInitError)
                 .attach_printable("Error initializing DSL interpreter backend")?;
 
@@ -495,7 +492,6 @@ pub fn perform_volume_split(
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
     let weighted_index = distributions::WeightedIndex::new(weights)
-        .into_report()
         .change_context(errors::RoutingError::VolumeSplitFailed)
         .attach_printable("Error creating weighted distribution for volume split")?;
 
@@ -514,7 +510,6 @@ pub fn perform_volume_split(
     splits
         .get(idx)
         .ok_or(errors::RoutingError::VolumeSplitFailed)
-        .into_report()
         .attach_printable("Volume split index lookup failed")?;
 
     // Panic Safety: We have performed a `get(idx)` operation just above which will
@@ -530,7 +525,7 @@ pub async fn get_merchant_kgraph<'a>(
     key_store: &domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<euclid_graph::KnowledgeGraph<'a>>> {
+) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
     let merchant_id = &key_store.merchant_id;
 
     #[cfg(feature = "business_profile_routing")]
@@ -556,7 +551,7 @@ pub async fn get_merchant_kgraph<'a>(
     };
 
     let cached_kgraph = KGRAPH_CACHE
-        .get_val::<Arc<euclid_graph::KnowledgeGraph<'_>>>(key.as_str())
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(key.as_str())
         .await;
 
     let kgraph = if let Some(graph) = cached_kgraph {
@@ -581,7 +576,8 @@ pub async fn refresh_kgraph_cache<'a>(
     key_store: &domain::MerchantKeyStore,
     key: String,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
-) -> RoutingResult<Arc<euclid_graph::KnowledgeGraph<'a>>> {
+    transaction_type: &api_enums::TransactionType,
+) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -598,6 +594,7 @@ pub async fn refresh_kgraph_cache<'a>(
                 mca.connector_type != storage_enums::ConnectorType::PaymentVas
                     && mca.connector_type != storage_enums::ConnectorType::PaymentMethodAuth
                     && mca.connector_type != storage_enums::ConnectorType::PayoutProcessor
+                    && mca.connector_type != storage_enums::ConnectorType::AuthenticationProcessor
             });
         }
         #[cfg(feature = "payouts")]
@@ -613,15 +610,14 @@ pub async fn refresh_kgraph_cache<'a>(
         profile_id,
     );
 
-    let api_mcas: Vec<admin_api::MerchantConnectorResponse> = merchant_connector_accounts
+    let api_mcas = merchant_connector_accounts
         .into_iter()
-        .map(|acct| acct.try_into())
-        .collect::<Result<_, _>>()
+        .map(admin_api::MerchantConnectorResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
     let kgraph = Arc::new(
         mca_graph::make_mca_graph(api_mcas)
-            .into_report()
             .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
             .attach_printable("when construction kgraph")?,
     );
@@ -644,7 +640,6 @@ async fn perform_kgraph_filtering(
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
             .into_context()
-            .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
     let cached_kgraph = get_merchant_kgraph(
@@ -662,11 +657,15 @@ async fn perform_kgraph_filtering(
         let euclid_choice: ast::ConnectorChoice = choice.clone().foreign_into();
         let dir_val = euclid_choice
             .into_dir_value()
-            .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
         let kgraph_eligible = cached_kgraph
-            .check_value_validity(dir_val, &context, &mut Memoization::new())
-            .into_report()
+            .check_value_validity(
+                dir_val,
+                &context,
+                &mut hyperswitch_constraint_graph::Memoization::new(),
+                &mut hyperswitch_constraint_graph::CycleCheck::new(),
+                None,
+            )
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
 
         let filter_eligible =
@@ -710,8 +709,6 @@ pub async fn perform_eligibility_analysis<F: Clone>(
 pub async fn perform_fallback_routing<F: Clone>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &payments_oss::PaymentData<F>,
-    merchant_last_modified: i64,
     transaction_data: &routing::TransactionData<'_, F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -777,8 +774,6 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     let fallback_selection = perform_fallback_routing(
         state,
         key_store,
-        payment_data,
-        merchant_last_modified,
         transaction_data,
         eligible_connectors.as_ref(),
         #[cfg(feature = "business_profile_routing")]

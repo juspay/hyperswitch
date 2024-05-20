@@ -1,6 +1,6 @@
-// Validate status 4xx
-pm.test("[POST]::/payments - Status code is 4xx", function () {
-  pm.response.to.be.error;
+// Validate status 2xx
+pm.test("[POST]::/payments - Status code is 2xx", function () {
+  pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
@@ -47,17 +47,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "connector error" for "error type"
-if (jsonData?.error?.type) {
+// Response body should have value "requires_payment_method" for "status"
+if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments - Content check if value for 'status' matches 'requires_payment_method'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.status).to.eql("requires_payment_method");
     },
   );
 }
-
-pm.test("[POST]::/payments - Content check if value for 'error.message' matches 'setup_future_usage` cannot be `off_session` for normal payments", function () {
-    pm.expect(jsonData.error.message).to.eql("`setup_future_usage` cannot be `off_session` for normal payments");
-});
-

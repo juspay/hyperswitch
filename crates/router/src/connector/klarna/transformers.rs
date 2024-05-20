@@ -1,6 +1,6 @@
 use api_models::payments;
 use error_stack::report;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,20 +14,13 @@ pub struct KlarnaRouterData<T> {
     router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for KlarnaRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for KlarnaRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, _currency, amount, router_data): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -66,8 +59,8 @@ pub struct KlarnaSessionRequest {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaSessionResponse {
-    pub client_token: String,
-    pub session_id: String,
+    pub client_token: Secret<String>,
+    pub session_id: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
@@ -110,8 +103,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Klarna(Box::new(
                     payments::KlarnaSessionTokenResponse {
-                        session_token: response.client_token.clone(),
-                        session_id: response.session_id.clone(),
+                        session_token: response.client_token.clone().expose(),
+                        session_id: response.session_id.clone().expose(),
                     },
                 )),
             }),

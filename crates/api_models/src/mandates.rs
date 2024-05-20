@@ -87,6 +87,8 @@ pub struct MandateCardDetails {
 pub struct MandateListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,
+    /// offset on the number of objects to return
+    pub offset: Option<i64>,
     /// status of the mandate
     pub mandate_status: Option<api_enums::MandateStatus>,
     /// connector linked to mandate
@@ -110,4 +112,11 @@ pub struct MandateListConstraints {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(rename = "created_time.gte")]
     pub created_time_gte: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum RecurringDetails {
+    MandateId(String),
+    PaymentMethodId(String),
 }

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use error_stack;
 
+// use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
@@ -13,7 +14,7 @@ use crate::{
     logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -60,11 +61,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
-        key_store: &domain::MerchantKeyStore,
+        _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -87,61 +86,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .to_payment_failed_response()?;
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-
-            let is_mandate = resp.request.setup_mandate_details.is_some();
-
-            if is_mandate {
-                let payment_method_id = Box::pin(tokenization::save_payment_method(
-                    state,
-                    connector,
-                    resp.to_owned(),
-                    maybe_customer,
-                    merchant_account,
-                    self.request.payment_method_type,
-                    key_store,
-                    is_mandate,
-                ))
-                .await?;
-                Ok(mandate::mandate_procedure(
-                    state,
-                    resp,
-                    maybe_customer,
-                    payment_method_id,
-                    connector.merchant_connector_id.clone(),
-                )
-                .await?)
-            } else {
-                let connector = connector.clone();
-                let response = resp.clone();
-                let maybe_customer = maybe_customer.clone();
-                let merchant_account = merchant_account.clone();
-                let key_store = key_store.clone();
-                let state = state.clone();
-
-                logger::info!("Initiating async call to save_payment_method in locker");
-
-                tokio::spawn(async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
-
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        &connector,
-                        response,
-                        &maybe_customer,
-                        &merchant_account,
-                        self.request.payment_method_type,
-                        &key_store,
-                        is_mandate,
-                    ))
-                    .await;
-
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    }
-                });
-
-                Ok(resp)
-            }
+            Ok(resp)
         } else {
             Ok(self.clone())
         }
@@ -210,6 +155,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         self.request.payment_method_type,
                     )
                     .to_payment_failed_response()?;
+
+                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+                    &self.request,
+                ) {
+                    connector
+                        .connector
+                        .validate_mandate_payment(
+                            self.request.payment_method_type,
+                            self.request.payment_method_data.clone(),
+                        )
+                        .to_payment_failed_response()?;
+                }
+
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
@@ -254,7 +212,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     }
 }
 
-impl types::PaymentsAuthorizeRouterData {
+pub trait RouterDataAuthorize {
+    fn decide_authentication_type(&mut self);
+
+    /// to decide if we need to proceed with authorize or not, Eg: If any of the pretask returns `redirection_response` then we should not proceed with authorize call
+    fn should_proceed_with_authorize(&self) -> bool;
+}
+
+impl RouterDataAuthorize for types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
         if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
@@ -281,18 +246,23 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
+    }
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
+        self.customer_acceptance.clone().map(From::from)
     }
 }
 
@@ -317,7 +287,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             Err(types::ErrorResponse::default());
 
         let preprocessing_router_data =
-            payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
                 router_data.clone(),
                 preprocessing_request_data,
                 preprocessing_response_data,
@@ -354,12 +324,11 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             ],
         );
 
-        let authorize_router_data =
-            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                resp.clone(),
-                router_data.request.to_owned(),
-                resp.response,
-            );
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data.request.to_owned(),
+            resp.response,
+        );
 
         Ok(authorize_router_data)
     } else {

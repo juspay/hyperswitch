@@ -9,7 +9,7 @@ use crate::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
         wrap,
     },
-    core::{api_locking, payment_methods::Oss, payments},
+    core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
     types::api as api_types,
@@ -44,7 +44,6 @@ pub async fn setup_intents_create(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -53,16 +52,16 @@ pub async fn setup_intents_create(
         state.into_inner(),
         &req,
         create_payment_req,
-        |state, auth, req| {
+        |state, auth, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _,
-                Oss,
+                _
             >(
                 state,
+                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentCreate,
@@ -111,7 +110,6 @@ pub async fn setup_intents_retrieve(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -120,9 +118,10 @@ pub async fn setup_intents_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, payload| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
+        |state, auth, payload, req_state| {
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
+                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentStatus,
@@ -177,7 +176,6 @@ pub async fn setup_intents_update(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -186,16 +184,16 @@ pub async fn setup_intents_update(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _,
-                Oss,
+                _
             >(
                 state,
+                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentUpdate,
@@ -251,7 +249,6 @@ pub async fn setup_intents_confirm(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -260,16 +257,16 @@ pub async fn setup_intents_confirm(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _,
-                Oss,
+                _
             >(
                 state,
+                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentConfirm,

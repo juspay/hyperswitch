@@ -1,16 +1,13 @@
-use api_models::user_role::{
-    role::{self as role_api},
-    Permission,
-};
+use api_models::user_role::role::{self as role_api};
 use common_enums::RoleScope;
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services::{
         authentication::{blacklist, UserFromToken},
         authorization::roles::{self, predefined_roles::PREDEFINED_ROLES},
@@ -20,10 +17,10 @@ use crate::{
     utils,
 };
 
-pub async fn get_role_from_token(
+pub async fn get_role_from_token_with_permissions(
     state: AppState,
     user_from_token: UserFromToken,
-) -> UserResponse<Vec<Permission>> {
+) -> UserResponse<role_api::GetRoleFromTokenResponse> {
     let role_info = user_from_token
         .get_role_info_from_db(&state)
         .await
@@ -35,30 +32,38 @@ pub async fn get_role_from_token(
         .map(Into::into)
         .collect();
 
-    Ok(ApplicationResponse::Json(permissions))
+    Ok(ApplicationResponse::Json(
+        role_api::GetRoleFromTokenResponse::Permissions(permissions),
+    ))
+}
+
+pub async fn get_role_from_token_with_groups(
+    state: AppState,
+    user_from_token: UserFromToken,
+) -> UserResponse<role_api::GetRoleFromTokenResponse> {
+    let role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+
+    let permissions = role_info.get_permission_groups().to_vec();
+
+    Ok(ApplicationResponse::Json(
+        role_api::GetRoleFromTokenResponse::Groups(permissions),
+    ))
 }
 
 pub async fn create_role(
     state: AppState,
     user_from_token: UserFromToken,
     req: role_api::CreateRoleRequest,
-) -> UserResponse<()> {
+    _req_state: ReqState,
+) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let now = common_utils::date_time::now();
-    let role_name = RoleName::new(req.role_name)?.get_role_name();
+    let role_name = RoleName::new(req.role_name)?;
 
-    if req.groups.is_empty() {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("Role groups cannot be empty");
-    }
-
-    if matches!(req.role_scope, RoleScope::Organization)
-        && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
-    {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("Non org admin user creating org level role");
-    }
-
-    utils::user_role::is_role_name_already_present_for_merchant(
+    utils::user_role::validate_role_groups(&req.groups)?;
+    utils::user_role::validate_role_name(
         &state,
         &role_name,
         &user_from_token.merchant_id,
@@ -66,11 +71,18 @@ pub async fn create_role(
     )
     .await?;
 
-    state
+    if matches!(req.role_scope, RoleScope::Organization)
+        && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
+    {
+        return Err(report!(UserErrors::InvalidRoleOperation))
+            .attach_printable("Non org admin user creating org level role");
+    }
+
+    let role = state
         .store
         .insert_role(RoleNew {
             role_id: generate_id_with_default_len("role"),
-            role_name,
+            role_name: role_name.get_role_name(),
             merchant_id: user_from_token.merchant_id,
             org_id: user_from_token.org_id,
             groups: req.groups,
@@ -83,7 +95,14 @@ pub async fn create_role(
         .await
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
 
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        role_api::RoleInfoWithGroupsResponse {
+            groups: role.groups,
+            role_id: role.role_id,
+            role_name: role.role_name,
+            role_scope: role.scope,
+        },
+    ))
 }
 
 // TODO: To be deprecated once groups are stable
@@ -245,21 +264,21 @@ pub async fn update_role(
     user_from_token: UserFromToken,
     req: role_api::UpdateRoleRequest,
     role_id: &str,
-) -> UserResponse<()> {
-    let role_name = req
-        .role_name
-        .map(RoleName::new)
-        .transpose()?
-        .map(RoleName::get_role_name);
+) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
+    let role_name = req.role_name.map(RoleName::new).transpose()?;
 
     if let Some(ref role_name) = role_name {
-        utils::user_role::is_role_name_already_present_for_merchant(
+        utils::user_role::validate_role_name(
             &state,
             role_name,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
         .await?;
+    }
+
+    if let Some(ref groups) = req.groups {
+        utils::user_role::validate_role_groups(groups)?;
     }
 
     let role_info = roles::RoleInfo::from_role_id(
@@ -274,24 +293,17 @@ pub async fn update_role(
     if matches!(role_info.get_scope(), RoleScope::Organization)
         && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
     {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("Non org admin user creating org level role");
+        return Err(report!(UserErrors::InvalidRoleOperation))
+            .attach_printable("Non org admin user changing org level role");
     }
 
-    if let Some(ref groups) = req.groups {
-        if groups.is_empty() {
-            return Err(UserErrors::InvalidRoleOperation.into())
-                .attach_printable("role groups cannot be empty");
-        }
-    }
-
-    state
+    let updated_role = state
         .store
         .update_role_by_role_id(
             role_id,
             RoleUpdate::UpdateDetails {
                 groups: req.groups,
-                role_name,
+                role_name: role_name.map(RoleName::get_role_name),
                 last_modified_at: common_utils::date_time::now(),
                 last_modified_by: user_from_token.user_id,
             },
@@ -301,5 +313,12 @@ pub async fn update_role(
 
     blacklist::insert_role_in_blacklist(&state, role_id).await?;
 
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        role_api::RoleInfoWithGroupsResponse {
+            groups: updated_role.groups,
+            role_id: updated_role.role_id,
+            role_name: updated_role.role_name,
+            role_scope: updated_role.scope,
+        },
+    ))
 }

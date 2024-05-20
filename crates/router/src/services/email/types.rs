@@ -1,5 +1,8 @@
 use api_models::user::dashboard_metadata::ProdIntent;
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::{self, CustomResult},
+    pii,
+};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -50,6 +53,8 @@ pub enum EmailBody {
     },
     ApiKeyExpiryReminder {
         expires_in: u8,
+        api_key_name: String,
+        prefix: String,
     },
 }
 
@@ -128,8 +133,14 @@ Email         : {user_email}
 
 (note: This is an auto generated email. Use merchant email for any further communications)",
             ),
-            EmailBody::ApiKeyExpiryReminder { expires_in } => format!(
+            EmailBody::ApiKeyExpiryReminder {
+                expires_in,
+                api_key_name,
+                prefix,
+            } => format!(
                 include_str!("assets/api_key_expiry_reminder.html"),
+                api_key_name = api_key_name,
+                prefix = prefix,
                 expires_in = expires_in,
             ),
         }
@@ -140,6 +151,7 @@ Email         : {user_email}
 pub struct EmailToken {
     email: String,
     merchant_id: Option<String>,
+    flow: domain::Origin,
     exp: u64,
 }
 
@@ -147,6 +159,7 @@ impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
         merchant_id: Option<String>,
+        flow: domain::Origin,
         settings: &configs::Settings,
     ) -> CustomResult<String, UserErrors> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
@@ -154,17 +167,22 @@ impl EmailToken {
         let token_payload = Self {
             email: email.get_secret().expose(),
             merchant_id,
+            flow,
             exp,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
 
-    pub fn get_email(&self) -> &str {
-        self.email.as_str()
+    pub fn get_email(&self) -> CustomResult<pii::Email, errors::ParsingError> {
+        pii::Email::try_from(self.email.clone())
     }
 
     pub fn get_merchant_id(&self) -> Option<&str> {
         self.merchant_id.as_deref()
+    }
+
+    pub fn get_flow(&self) -> domain::Origin {
+        self.flow.clone()
     }
 }
 
@@ -186,9 +204,14 @@ pub struct VerifyEmail {
 #[async_trait::async_trait]
 impl EmailData for VerifyEmail {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::VerifyEmail,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let verify_email_link =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
@@ -215,9 +238,14 @@ pub struct ResetPassword {
 #[async_trait::async_trait]
 impl EmailData for ResetPassword {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::ResetPassword,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let reset_password_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
@@ -245,9 +273,14 @@ pub struct MagicLink {
 #[async_trait::async_trait]
 impl EmailData for MagicLink {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::MagicLink,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let magic_link_login =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
@@ -265,6 +298,7 @@ impl EmailData for MagicLink {
     }
 }
 
+// TODO: Deprecate this and use InviteRegisteredUser for new invites
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
@@ -279,6 +313,7 @@ impl EmailData for InviteUser {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
+            domain::Origin::ResetPassword,
             &self.settings,
         )
         .await
@@ -299,6 +334,7 @@ impl EmailData for InviteUser {
         })
     }
 }
+
 pub struct InviteRegisteredUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
@@ -313,6 +349,7 @@ impl EmailData for InviteRegisteredUser {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
+            domain::Origin::AcceptInvitationFromEmail,
             &self.settings,
         )
         .await
@@ -441,6 +478,8 @@ pub struct ApiKeyExpiryReminder {
     pub recipient_email: domain::UserEmail,
     pub subject: &'static str,
     pub expires_in: u8,
+    pub api_key_name: String,
+    pub prefix: String,
 }
 
 #[async_trait::async_trait]
@@ -450,6 +489,8 @@ impl EmailData for ApiKeyExpiryReminder {
 
         let body = html::get_html_body(EmailBody::ApiKeyExpiryReminder {
             expires_in: self.expires_in,
+            api_key_name: self.api_key_name.clone(),
+            prefix: self.prefix.clone(),
         });
 
         Ok(EmailContents {

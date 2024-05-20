@@ -123,3 +123,35 @@ pub async fn update_merchant_account() {}
     security(("admin_api_key" = []))
 )]
 pub async fn delete_merchant_account() {}
+
+/// Merchant Account - KV Status
+///
+/// Toggle KV mode for the Merchant Account
+#[utoipa::path(
+    post,
+    path = "/accounts/{account_id}/kv",
+    request_body (
+        content = ToggleKVRequest,
+        examples (
+            ("Enable KV for Merchant" = (
+                value = json!({
+                "kv_enabled": "true"
+                })
+        )),
+        ("Disable KV for Merchant" = (
+                value = json!({
+                "kv_enabled": "false"
+                })
+        )))
+    ),
+    params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "KV mode is enabled/disabled for Merchant Account", body = ToggleKVResponse),
+        (status = 400, description = "Invalid data"),
+        (status = 404, description = "Merchant account not found")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Enable/Disable KV for a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn merchant_account_kv_status() {}

@@ -6,14 +6,13 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
-use super::utils::{self, RefundsRequestData};
+use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -73,8 +72,7 @@ impl ConnectorCommon for Worldpay {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: worldpay::WorldpayAuthType = auth_type
-            .try_into()
+        let auth = worldpay::WorldpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -714,7 +712,7 @@ impl api::IncomingWebhook for Worldpay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let event_signature =
-            utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
+            connector_utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
             .last()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
@@ -722,9 +720,7 @@ impl api::IncomingWebhook for Worldpay {
             .split('/')
             .last()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
     }
 
     fn get_webhook_source_verification_message(
@@ -734,13 +730,11 @@ impl api::IncomingWebhook for Worldpay {
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let to_sign = format!(
             "{}{}",
             secret_str,
             std::str::from_utf8(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
         );
         Ok(to_sign.into_bytes())
@@ -755,9 +749,7 @@ impl api::IncomingWebhook for Worldpay {
             .parse_struct("WorldpayWebhookTransactionId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            types::api::PaymentIdType::ConnectorTransactionId(
-                body.event_details.transaction_reference,
-            ),
+            api::PaymentIdType::ConnectorTransactionId(body.event_details.transaction_reference),
         ))
     }
 

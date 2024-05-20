@@ -41,7 +41,9 @@ pub async fn get_mandate(
         state,
         &req,
         mandate_id,
-        |state, auth, req| mandate::get_mandate(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            mandate::get_mandate(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -80,7 +82,7 @@ pub async fn revoke_mandate(
         state,
         &req,
         mandate_id,
-        |state, auth, req| {
+        |state, auth, req, _| {
             mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
@@ -101,6 +103,7 @@ pub async fn revoke_mandate(
         ("created_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the mandate created time"),
         ("created_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the mandate created time"),
         ("created_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the mandate created time"),
+        ("offset" = Option<i64>, Query, description = "The number of Mandate Objects to skip when retrieving the list Mandates."),
     ),
     responses(
         (status = 200, description = "The mandate list was retrieved successfully", body = Vec<MandateResponse>),
@@ -123,7 +126,7 @@ pub async fn retrieve_mandates_list(
         state,
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             mandate::retrieve_mandates_list(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(

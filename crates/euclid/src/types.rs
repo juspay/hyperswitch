@@ -23,7 +23,7 @@ pub type Metadata = std::collections::HashMap<String, serde_json::Value>;
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumString,
 )]
 pub enum EuclidKey {

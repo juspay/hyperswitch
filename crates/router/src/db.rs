@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
@@ -18,7 +19,7 @@ pub mod file;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health_check;
-mod kafka_store;
+pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -27,23 +28,28 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
-pub mod payout_attempt;
-pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_key_store;
 pub mod user_role;
 
-use data_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::{
+    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::payouts::{
+    payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
@@ -93,8 +99,8 @@ pub trait StorageInterface:
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + scheduler::SchedulerInterface
-    + payout_attempt::PayoutAttemptInterface
-    + payouts::PayoutsInterface
+    + PayoutAttemptInterface
+    + PayoutsInterface
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
@@ -113,6 +119,8 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + role::RoleInterface
+    + user_key_store::UserKeyStoreInterface
+    + authentication::AuthenticationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -184,7 +192,7 @@ where
     let bytes = db.get_key(key).await?;
     bytes
         .parse_struct(type_name)
-        .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
+        .change_context(RedisError::JsonDeserializationFailed)
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);

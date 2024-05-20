@@ -3,14 +3,14 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use transformers as nexinets;
 
 use crate::{
     configs::settings,
     connector::{
         utils as connector_utils,
-        utils::{to_connector_meta, PaymentsSyncRequestData},
+        utils::{to_connector_meta, PaymentMethodDataType, PaymentsSyncRequestData},
     },
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -120,7 +120,7 @@ impl ConnectorCommon for Nexinets {
             if !field.is_empty() {
                 msg.push_str(format!("{} : {}", field, error.message).as_str());
             } else {
-                msg = error.message.to_owned();
+                error.message.clone_into(&mut msg)
             }
             if message.is_empty() {
                 message.push_str(&msg);
@@ -155,6 +155,22 @@ impl ConnectorValidation for Nexinets {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::Eps,
+            PaymentMethodDataType::Giropay,
+            PaymentMethodDataType::Ideal,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -707,7 +723,7 @@ impl api::IncomingWebhook for Nexinets {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -721,7 +737,7 @@ impl api::IncomingWebhook for Nexinets {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 

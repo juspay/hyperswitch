@@ -5,13 +5,13 @@ use std::fmt::Debug;
 use api_models::enums::AuthenticationType;
 use common_utils::{crypto, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
 
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils::PaymentsPreProcessingData},
+    connector::utils::{self as connector_utils, PaymentMethodDataType, PaymentsPreProcessingData},
     core::{
         errors::{self, CustomResult},
         payments,
@@ -24,7 +24,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         domain, ErrorResponse, Response,
     },
-    utils::BytesExt,
+    utils::{handle_json_response_deserialization_failure, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -83,29 +83,37 @@ impl ConnectorCommon for Payme {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payme::PaymeErrorResponse =
-            res.response
-                .parse_struct("PaymeErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<
+            payme::PaymeErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("PaymeErrorResponse");
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let status_code = match res.status_code {
-            500..=511 => 200,
-            _ => res.status_code,
-        };
-        Ok(ErrorResponse {
-            status_code,
-            code: response.status_error_code.to_string(),
-            message: response.status_error_details.clone(),
-            reason: Some(format!(
-                "{}, additional info: {}",
-                response.status_error_details, response.status_additional_info
-            )),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response {
+            Ok(response_data) => {
+                event_builder.map(|i| i.set_error_response_body(&response_data));
+                router_env::logger::info!(connector_response=?response_data);
+                let status_code = match res.status_code {
+                    500..=511 => 200,
+                    _ => res.status_code,
+                };
+                Ok(ErrorResponse {
+                    status_code,
+                    code: response_data.status_error_code.to_string(),
+                    message: response_data.status_error_details.clone(),
+                    reason: Some(format!(
+                        "{}, additional info: {}",
+                        response_data.status_error_details, response_data.status_additional_info
+                    )),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                router_env::logger::error!(deserialization_error =? error_msg);
+                handle_json_response_deserialization_failure(res, "payme".to_owned())
+            }
+        }
     }
 }
 
@@ -122,6 +130,18 @@ impl ConnectorValidation for Payme {
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePayThirdPartySdk,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -373,7 +393,9 @@ impl services::ConnectorRedirectResponse for Payme {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }
@@ -1078,7 +1100,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceSignature>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(resource.payme_signature.expose().into_bytes())
     }
@@ -1091,7 +1112,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(format!(
             "{}{}{}",
@@ -1137,7 +1157,6 @@ impl api::IncomingWebhook for Payme {
         let mut message_to_verify = connector_webhook_secrets
             .additional_secret
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .into_report()
             .attach_printable("Failed to get additional secrets")?
             .expose()
             .as_bytes()
@@ -1146,7 +1165,6 @@ impl api::IncomingWebhook for Payme {
         message_to_verify.append(&mut message);
 
         let signature_to_verify = hex::decode(signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
         algorithm
             .verify_signature(
@@ -1163,7 +1181,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let id = match resource.notify_type {
             transformers::NotifyType::SaleComplete
@@ -1192,7 +1209,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceEvent>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::IncomingWebhookEvent::from(resource.notify_type))
     }
@@ -1203,7 +1219,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         match resource.notify_type {
@@ -1226,7 +1241,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let webhook_object =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(api::disputes::DisputePayload {

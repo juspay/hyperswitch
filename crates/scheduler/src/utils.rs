@@ -254,7 +254,7 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
+pub async fn consumer_operation_handler<E, T>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
@@ -263,7 +263,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
-    T: SchedulerAppState,
+    T: SchedulerAppState + Send + Sync + 'static,
 {
     consumer_operation_counter.fetch_add(1, atomic::Ordering::SeqCst);
     let start_time = std_time::Instant::now();
@@ -315,10 +315,7 @@ pub fn get_schedule_time(
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
-        get_delay(
-            retry_count,
-            mapping.count.iter().zip(mapping.frequency.iter()),
-        )
+        get_delay(retry_count, &mapping.frequencies)
     }
 }
 
@@ -335,29 +332,47 @@ pub fn get_pm_schedule_time(
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
-        get_delay(
-            retry_count,
-            mapping.count.iter().zip(mapping.frequency.iter()),
-        )
+        get_delay(retry_count, &mapping.frequencies)
+    }
+}
+
+pub fn get_outgoing_webhook_retry_schedule_time(
+    mapping: process_data::OutgoingWebhookRetryProcessTrackerMapping,
+    merchant_name: &str,
+    retry_count: i32,
+) -> Option<i32> {
+    let retry_mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
+    // For first try, get the `start_after` time
+    if retry_count == 0 {
+        Some(retry_mapping.start_after)
+    } else {
+        get_delay(retry_count, &retry_mapping.frequencies)
     }
 }
 
 /// Get the delay based on the retry count
 fn get_delay<'a>(
     retry_count: i32,
-    mut array: impl Iterator<Item = (&'a i32, &'a i32)>,
+    frequencies: impl IntoIterator<Item = &'a (i32, i32)>,
 ) -> Option<i32> {
-    match array.next() {
-        Some(ele) => {
-            let v = retry_count - ele.0;
-            if v <= 0 {
-                Some(*ele.1)
-            } else {
-                get_delay(v, array)
-            }
-        }
-        None => None,
+    // Preferably, fix this by using unsigned ints
+    if retry_count <= 0 {
+        return None;
     }
+
+    let mut cumulative_count = 0;
+    for &(frequency, count) in frequencies.into_iter() {
+        cumulative_count += count;
+        if cumulative_count >= retry_count {
+            return Some(frequency);
+        }
+    }
+
+    None
 }
 
 pub(crate) async fn lock_acquire_release<T, F, Fut>(
@@ -390,5 +405,39 @@ where
         result
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_delay() {
+        let frequency_count = vec![(300, 10), (600, 5), (1800, 3), (3600, 2)];
+
+        let retry_counts_and_expected_delays = [
+            (-4, None),
+            (-2, None),
+            (0, None),
+            (4, Some(300)),
+            (7, Some(300)),
+            (10, Some(300)),
+            (12, Some(600)),
+            (16, Some(1800)),
+            (18, Some(1800)),
+            (20, Some(3600)),
+            (24, None),
+            (30, None),
+        ];
+
+        for (retry_count, expected_delay) in retry_counts_and_expected_delays {
+            let delay = get_delay(retry_count, &frequency_count);
+
+            assert_eq!(
+                delay, expected_delay,
+                "Delay and expected delay differ for `retry_count` = {retry_count}"
+            );
+        }
     }
 }

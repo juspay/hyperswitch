@@ -4,7 +4,7 @@ mod utils;
 
 use router::{
     configs,
-    core::{payment_methods::Oss, payments},
+    core::payments,
     db::StorageImpl,
     routes, services,
     types::{
@@ -26,7 +26,7 @@ use uuid::Uuid;
 async fn payments_create_stripe() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = format!("test_{}", Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let request = serde_json::json!({
@@ -95,7 +95,7 @@ async fn payments_create_stripe() {
 async fn payments_create_adyen() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = format!("test_{}", Uuid::new_v4());
     let api_key = ("API-KEY", "321");
 
     let request = serde_json::json!({
@@ -164,7 +164,7 @@ async fn payments_create_adyen() {
 async fn payments_create_fail() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = format!("test_{}", Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let invalid_request = serde_json::json!({
@@ -275,12 +275,12 @@ async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
 
     let key_store = state
@@ -316,19 +316,22 @@ async fn payments_create_core() {
         return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OnSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
-        payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
-            card_number: "4242424242424242".to_string().try_into().unwrap(),
-            card_exp_month: "10".to_string().into(),
-            card_exp_year: "35".to_string().into(),
-            card_holder_name: Some(masking::Secret::new("Arun Raj".to_string())),
-            card_cvc: "123".to_string().into(),
-            card_issuer: None,
-            card_network: None,
-            card_type: None,
-            card_issuing_country: None,
-            bank_code: None,
-            nick_name: Some(masking::Secret::new("nick_name".into())),
-        })),
+        payment_method_data: Some(api::PaymentMethodDataRequest {
+            payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
+                card_number: "4242424242424242".to_string().try_into().unwrap(),
+                card_exp_month: "10".to_string().into(),
+                card_exp_year: "35".to_string().into(),
+                card_holder_name: Some(masking::Secret::new("Arun Raj".to_string())),
+                card_cvc: "123".to_string().into(),
+                card_issuer: None,
+                card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
+            })),
+            billing: None,
+        }),
         payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
             address: None,
@@ -368,9 +371,9 @@ async fn payments_create_core() {
         _,
         _,
         _,
-        Oss,
     >(
-        state,
+        state.clone(),
+        state.get_req_state(),
         merchant_account,
         key_store,
         payments::PaymentCreate,
@@ -453,12 +456,12 @@ async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
@@ -494,19 +497,22 @@ async fn payments_create_core_adyen_no_redirect() {
         return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OnSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
-        payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
-            card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
-            card_exp_month: "03".to_string().into(),
-            card_exp_year: "2030".to_string().into(),
-            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
-            card_cvc: "737".to_string().into(),
-            card_issuer: None,
-            card_network: None,
-            card_type: None,
-            card_issuing_country: None,
-            bank_code: None,
-            nick_name: Some(masking::Secret::new("nick_name".into())),
-        })),
+        payment_method_data: Some(api::PaymentMethodDataRequest {
+            payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
+                card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
+                card_exp_month: "03".to_string().into(),
+                card_exp_year: "2030".to_string().into(),
+                card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
+                card_cvc: "737".to_string().into(),
+                card_issuer: None,
+                card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
+            })),
+            billing: None,
+        }),
         payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
             address: None,
@@ -547,9 +553,9 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
-        Oss,
     >(
-        state,
+        state.clone(),
+        state.get_req_state(),
         merchant_account,
         key_store,
         payments::PaymentCreate,

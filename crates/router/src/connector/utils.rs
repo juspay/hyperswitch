@@ -1,18 +1,21 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "payouts")]
+use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
+    payments::{self, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
+    ext_traits::StringExt,
     pii::{self, Email, IpAddress},
 };
-use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -20,17 +23,19 @@ use serde::Serializer;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
-use crate::types::{fraud_check, storage::enums as storage_enums};
+use crate::types::fraud_check;
 use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::{PaymentData, RecurringMandatePaymentData},
+        payments::{types::AuthenticationData, PaymentData},
     },
     pii::PeekInterface,
     types::{
-        self, api, transformers::ForeignTryFrom, ApplePayPredecryptData, BrowserInformation,
-        PaymentsCancelData, ResponseId,
+        self, api, domain,
+        storage::enums as storage_enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
+        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -69,10 +74,13 @@ pub trait RouterData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
-    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
+    fn get_billing_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_email(&self) -> Result<Email, Error>;
+    fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -81,11 +89,28 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
+
+    fn get_optional_billing(&self) -> Option<&api::Address>;
+    fn get_optional_shipping(&self) -> Option<&api::Address>;
+
+    fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_city(&self) -> Option<String>;
+    fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
+    fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_email(&self) -> Option<Email>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -143,27 +168,35 @@ pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
     fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .ok_or_else(missing_field_err("billing"))
     }
 
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|a| a.address.as_ref())
             .and_then(|ad| ad.country)
-            .ok_or_else(missing_field_err("billing.address.country"))
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.country",
+            ))
     }
 
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
         self.address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|a| a.phone.as_ref())
             .ok_or_else(missing_field_err("billing.phone"))
     }
+
+    fn get_optional_billing(&self) -> Option<&api::Address> {
+        self.address.get_payment_method_billing()
+    }
+
+    fn get_optional_shipping(&self) -> Option<&api::Address> {
+        self.address.get_shipping()
+    }
+
     fn get_description(&self) -> Result<String, Error> {
         self.description
             .clone()
@@ -176,18 +209,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
-            .billing
+            .get_payment_method_billing()
             .as_ref()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
 
-    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error> {
-        self.address
-            .billing
-            .as_ref()
-            .ok_or_else(missing_field_err("billing"))
-    }
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.connector_meta_data
             .clone()
@@ -200,6 +227,149 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("session_token"))
     }
 
+    fn get_billing_first_name(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.first_name.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.first_name",
+            ))
+    }
+
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.first_name",
+            ))
+    }
+
+    fn get_billing_email(&self) -> Result<Email, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.email.clone())
+            .ok_or_else(missing_field_err("payment_method_data.billing.email"))
+    }
+
+    fn get_billing_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.clone().phone)
+            .map(|phone_details| phone_details.get_number_with_country_code())
+            .transpose()?
+            .ok_or_else(missing_field_err("payment_method_data.billing.phone"))
+    }
+
+    fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.line1)
+            })
+    }
+
+    fn get_optional_billing_line2(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.line2)
+            })
+    }
+
+    fn get_optional_billing_city(&self) -> Option<String> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.city)
+            })
+    }
+
+    fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.country)
+            })
+    }
+
+    fn get_optional_billing_zip(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.zip)
+            })
+    }
+
+    fn get_optional_billing_state(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.state)
+            })
+    }
+
+    fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.first_name)
+            })
+    }
+
+    fn get_optional_billing_last_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.last_name)
+            })
+    }
+
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .phone
+                    .and_then(|phone_data| phone_data.number)
+            })
+    }
+
+    fn get_optional_billing_email(&self) -> Option<Email> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.clone().email)
+    }
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -210,24 +380,19 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 
     fn is_three_ds(&self) -> bool {
-        matches!(
-            self.auth_type,
-            diesel_models::enums::AuthenticationType::ThreeDs
-        )
+        matches!(self.auth_type, enums::AuthenticationType::ThreeDs)
     }
 
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
-            .shipping
-            .as_ref()
+            .get_shipping()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
 
     fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error> {
         self.address
-            .shipping
-            .as_ref()
+            .get_shipping()
             .ok_or_else(missing_field_err("shipping"))
     }
 
@@ -251,10 +416,18 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error> {
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error> {
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+
+    fn get_optional_billing_full_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 
     #[cfg(feature = "payouts")]
@@ -273,8 +446,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -288,12 +461,12 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
     }
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_amount(&self) -> Result<i64, Error> {
@@ -301,8 +474,8 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -364,6 +537,7 @@ impl RevokeMandateRequestData for types::MandateRevokeRequestData {
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_card(&self) -> bool;
 }
 
 impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
@@ -375,13 +549,16 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_card(&self) -> bool {
+        matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
+    }
 }
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
-    fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_card(&self) -> Result<domain::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
@@ -390,7 +567,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
@@ -398,6 +575,8 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
     fn get_total_surcharge_amount(&self) -> Option<i64>;
+    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
+    fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -415,8 +594,8 @@ impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationDa
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -434,9 +613,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("order_details"))
     }
 
-    fn get_card(&self) -> Result<api::Card, Error> {
+    fn get_card(&self) -> Result<domain::Card, Error> {
         match self.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Ok(card),
+            domain::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
     }
@@ -456,14 +635,17 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_ids,
-                )) => connector_mandate_ids.connector_mandate_id.clone(),
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.connector_mandate_id.clone()
+                }
                 _ => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            }))
             || self
                 .mandate_id
                 .as_ref()
@@ -481,13 +663,16 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("return_url"))
     }
     fn is_wallet(&self) -> bool {
-        matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
+        matches!(
+            self.payment_method_data,
+            domain::PaymentMethodData::Wallet(_)
+        )
     }
     fn is_card(&self) -> bool {
-        matches!(self.payment_method_data, api::PaymentMethodData::Card(_))
+        matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
@@ -527,7 +712,29 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            })
+    }
+
+    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata
+            .clone()
+            .and_then(|meta_data| match meta_data.peek() {
+                serde_json::Value::Null
+                | serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::String(_)
+                | serde_json::Value::Array(_) => None,
+                serde_json::Value::Object(_) => Some(meta_data),
+            })
+    }
+
+    fn get_authentication_data(&self) -> Result<AuthenticationData, Error> {
+        self.authentication_data
+            .clone()
+            .ok_or_else(missing_field_err("authentication_data"))
     }
 }
 
@@ -612,8 +819,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -646,8 +853,8 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -657,16 +864,75 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
-            .into_report()
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
     }
 }
 
+#[cfg(feature = "payouts")]
+pub trait CustomerDetails {
+    fn get_customer_id(&self) -> Result<String, errors::ConnectorError>;
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
+}
+
+#[cfg(feature = "payouts")]
+impl CustomerDetails for types::CustomerDetails {
+    fn get_customer_id(&self) -> Result<String, errors::ConnectorError> {
+        self.customer_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            })
+    }
+
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_name",
+            })
+    }
+
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError> {
+        self.email
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_email",
+            })
+    }
+
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.phone
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone",
+            })
+    }
+
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
+        self.phone_country_code
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone_country_code",
+            })
+    }
+}
+
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
@@ -675,7 +941,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
     }
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_cancellation_reason(&self) -> Result<String, Error> {
@@ -716,6 +982,32 @@ impl RefundsRequestData for types::RefundsData {
     }
 }
 
+#[cfg(feature = "payouts")]
+pub trait PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error>;
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error>;
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutsData for types::PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("transfer_id"))
+    }
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error> {
+        self.customer_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_details"))
+    }
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error> {
+        self.vendor_details
+            .clone()
+            .ok_or_else(missing_field_err("vendor_details"))
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayWalletData {
@@ -740,8 +1032,8 @@ pub struct GpayTokenizationData {
     pub token: Secret<String>,
 }
 
-impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: api_models::payments::GooglePayWalletData) -> Self {
+impl From<domain::GooglePayWalletData> for GooglePayWalletData {
+    fn from(data: domain::GooglePayWalletData) -> Self {
         Self {
             pm_type: data.pm_type,
             description: data.description,
@@ -804,9 +1096,85 @@ pub trait CardData {
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
-impl CardData for api::Card {
+#[cfg(feature = "payouts")]
+impl CardData for payouts::Card {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.expiry_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.card_number.peek())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.expiry_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.expiry_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.expiry_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.expiry_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.expiry_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+}
+
+impl CardData for domain::Card {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();
@@ -861,6 +1229,22 @@ impl CardData for api::Card {
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
     }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.card_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
 }
 
 #[track_caller]
@@ -868,7 +1252,6 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         if regex.is_match(card_number) {
             return Ok(*k);
@@ -880,13 +1263,13 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
 }
 pub trait WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
     fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
-impl WalletData for api::WalletData {
+impl WalletData for domain::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
@@ -895,26 +1278,30 @@ impl WalletData for api::WalletData {
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }
     }
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
     {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
-            .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)
+            .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
     }
 
     fn get_encoded_wallet_token(&self) -> Result<String, Error> {
         match self {
             Self::GooglePay(_) => {
-                let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
-                let token_as_vec = serde_json::to_vec(&json_token)
-                    .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                let json_token: serde_json::Value =
+                    self.get_wallet_token_as_json("Google Pay".to_owned())?;
+                let token_as_vec = serde_json::to_vec(&json_token).change_context(
+                    errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                    },
+                )?;
                 let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+            _ => Err(
+                errors::ConnectorError::NotImplemented("SELECTED PAYMENT METHOD".to_owned()).into(),
+            ),
         }
     }
 }
@@ -923,17 +1310,19 @@ pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
-impl ApplePay for payments::ApplePayWalletData {
+impl ApplePay for domain::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
         let token = Secret::new(
             String::from_utf8(
                 consts::BASE64_ENGINE
                     .decode(&self.payment_data)
-                    .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?,
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
             )
-            .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)?,
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })?,
         );
         Ok(token)
     }
@@ -968,7 +1357,7 @@ pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
 
-impl CryptoData for api::CryptoData {
+impl CryptoData for domain::CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error> {
         self.pay_currency
             .clone()
@@ -980,6 +1369,8 @@ pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
+    fn extract_country_code(&self) -> Result<String, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -987,6 +1378,10 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.country_code
             .clone()
             .ok_or_else(missing_field_err("billing.phone.country_code"))
+    }
+    fn extract_country_code(&self) -> Result<String, Error> {
+        self.get_country_code()
+            .map(|cc| cc.trim_start_matches('+').to_string())
     }
     fn get_number(&self) -> Result<Secret<String>, Error> {
         self.number
@@ -997,6 +1392,16 @@ impl PhoneDetailsData for api::PhoneDetails {
         let number = self.get_number()?;
         let country_code = self.get_country_code()?;
         Ok(Secret::new(format!("{}{}", country_code, number.peek())))
+    }
+    fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self.get_number()?;
+        let country_code = self.get_country_code()?;
+        let number_without_plus = country_code.trim_start_matches('+');
+        Ok(Secret::new(format!(
+            "{}#{}",
+            number_without_plus,
+            number.peek()
+        )))
     }
 }
 
@@ -1012,6 +1417,7 @@ pub trait AddressDetailsData {
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1029,7 +1435,12 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_full_name(&self) -> Result<Secret<String>, Error> {
         let first_name = self.get_first_name()?.peek().to_owned();
-        let last_name = self.get_last_name()?.peek().to_owned();
+        let last_name = self
+            .get_last_name()
+            .ok()
+            .cloned()
+            .unwrap_or(Secret::new("".to_string()));
+        let last_name = last_name.peek();
         let full_name = format!("{} {}", first_name, last_name).trim().to_string();
         Ok(Secret::new(full_name))
     }
@@ -1090,30 +1501,17 @@ impl AddressDetailsData for api::AddressDetails {
             _ => Ok(state.clone()),
         }
     }
-}
-
-pub trait BankRedirectBillingData {
-    fn get_billing_name(&self) -> Result<Secret<String>, Error>;
-}
-
-impl BankRedirectBillingData for payments::BankRedirectBilling {
-    fn get_billing_name(&self) -> Result<Secret<String>, Error> {
-        self.billing_name
-            .clone()
-            .ok_or_else(missing_field_err("billing_details.billing_name"))
-    }
-}
-
-pub trait BankDirectDebitBillingData {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
-}
-
-impl BankDirectDebitBillingData for BankDebitBilling {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
-        self.address
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
+        self.state
             .as_ref()
-            .and_then(|address| address.country)
-            .ok_or_else(missing_field_err("billing_details.country"))
+            .map(|state| {
+                if state.peek().len() == 2 {
+                    Ok(state.to_owned())
+                } else {
+                    self.to_state_code()
+                }
+            })
+            .transpose()
     }
 }
 
@@ -1128,7 +1526,6 @@ impl MandateData for payments::MandateAmountData {
             "mandate_data.mandate_type.{multi_use|single_use}.end_date",
         ))?;
         date_time::format_date(date, format)
-            .into_report()
             .change_context(errors::ConnectorError::DateFormattingFailed)
     }
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error> {
@@ -1140,15 +1537,15 @@ impl MandateData for payments::MandateAmountData {
 
 pub trait RecurringMandateData {
     fn get_original_payment_amount(&self) -> Result<i64, Error>;
-    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
 }
 
-impl RecurringMandateData for RecurringMandatePaymentData {
+impl RecurringMandateData for types::RecurringMandatePaymentData {
     fn get_original_payment_amount(&self) -> Result<i64, Error> {
         self.original_payment_authorized_amount
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
-    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error> {
         self.original_payment_authorized_currency
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
@@ -1158,7 +1555,7 @@ pub trait MandateReferenceData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
 
-impl MandateReferenceData for api_models::payments::ConnectorMandateReferenceId {
+impl MandateReferenceData for payments::ConnectorMandateReferenceId {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.connector_mandate_id
             .clone()
@@ -1187,7 +1584,6 @@ fn get_header_field(
         .map(|header_value| {
             header_value
                 .to_str()
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)
         })
         .ok_or(report!(
@@ -1241,13 +1637,12 @@ impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::Parsi
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     consts::BASE64_ENGINE
         .decode(data)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 
 pub fn to_currency_base_unit_from_optional_amount(
     amount: Option<i64>,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     match amount {
         Some(a) => to_currency_base_unit(a, currency),
@@ -1259,26 +1654,25 @@ pub fn to_currency_base_unit_from_optional_amount(
 }
 
 pub fn get_amount_as_string(
-    currency_unit: &types::api::CurrencyUnit,
+    currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Minor => amount.to_string(),
-        types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+        api::CurrencyUnit::Minor => amount.to_string(),
+        api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)
 }
 
 pub fn get_amount_as_f64(
-    currency_unit: &types::api::CurrencyUnit,
+    currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
-        types::api::CurrencyUnit::Minor => u32::try_from(amount)
-            .into_report()
+        api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
+        api::CurrencyUnit::Minor => u32::try_from(amount)
             .change_context(errors::ConnectorError::ParsingFailed)?
             .into(),
     };
@@ -1287,21 +1681,19 @@ pub fn get_amount_as_f64(
 
 pub fn to_currency_base_unit(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
 pub fn to_currency_lower_unit(
     amount: String,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_lower_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
@@ -1326,21 +1718,19 @@ pub fn construct_not_supported_error_report(
 
 pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
 pub fn to_currency_base_unit_asf64(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
@@ -1400,72 +1790,80 @@ pub fn get_webhook_merchant_secret_key(connector_label: &str, merchant_id: &str)
 impl ForeignTryFrom<String> for UsStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let binding = value.as_str().to_lowercase();
-        let state = binding.as_str();
-        match state {
-            "alabama" => Ok(Self::AL),
-            "alaska" => Ok(Self::AK),
-            "american samoa" => Ok(Self::AS),
-            "arizona" => Ok(Self::AZ),
-            "arkansas" => Ok(Self::AR),
-            "california" => Ok(Self::CA),
-            "colorado" => Ok(Self::CO),
-            "connecticut" => Ok(Self::CT),
-            "delaware" => Ok(Self::DE),
-            "district of columbia" | "columbia" => Ok(Self::DC),
-            "federated states of micronesia" | "micronesia" => Ok(Self::FM),
-            "florida" => Ok(Self::FL),
-            "georgia" => Ok(Self::GA),
-            "guam" => Ok(Self::GU),
-            "hawaii" => Ok(Self::HI),
-            "idaho" => Ok(Self::ID),
-            "illinois" => Ok(Self::IL),
-            "indiana" => Ok(Self::IN),
-            "iowa" => Ok(Self::IA),
-            "kansas" => Ok(Self::KS),
-            "kentucky" => Ok(Self::KY),
-            "louisiana" => Ok(Self::LA),
-            "maine" => Ok(Self::ME),
-            "marshall islands" => Ok(Self::MH),
-            "maryland" => Ok(Self::MD),
-            "massachusetts" => Ok(Self::MA),
-            "michigan" => Ok(Self::MI),
-            "minnesota" => Ok(Self::MN),
-            "mississippi" => Ok(Self::MS),
-            "missouri" => Ok(Self::MO),
-            "montana" => Ok(Self::MT),
-            "nebraska" => Ok(Self::NE),
-            "nevada" => Ok(Self::NV),
-            "new hampshire" => Ok(Self::NH),
-            "new jersey" => Ok(Self::NJ),
-            "new mexico" => Ok(Self::NM),
-            "new york" => Ok(Self::NY),
-            "north carolina" => Ok(Self::NC),
-            "north dakota" => Ok(Self::ND),
-            "northern mariana islands" => Ok(Self::MP),
-            "ohio" => Ok(Self::OH),
-            "oklahoma" => Ok(Self::OK),
-            "oregon" => Ok(Self::OR),
-            "palau" => Ok(Self::PW),
-            "pennsylvania" => Ok(Self::PA),
-            "puerto rico" => Ok(Self::PR),
-            "rhode island" => Ok(Self::RI),
-            "south carolina" => Ok(Self::SC),
-            "south dakota" => Ok(Self::SD),
-            "tennessee" => Ok(Self::TN),
-            "texas" => Ok(Self::TX),
-            "utah" => Ok(Self::UT),
-            "vermont" => Ok(Self::VT),
-            "virgin islands" => Ok(Self::VI),
-            "virginia" => Ok(Self::VA),
-            "washington" => Ok(Self::WA),
-            "west virginia" => Ok(Self::WV),
-            "wisconsin" => Ok(Self::WI),
-            "wyoming" => Ok(Self::WY),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "UsStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alabama" => Ok(Self::AL),
+                    "alaska" => Ok(Self::AK),
+                    "american samoa" => Ok(Self::AS),
+                    "arizona" => Ok(Self::AZ),
+                    "arkansas" => Ok(Self::AR),
+                    "california" => Ok(Self::CA),
+                    "colorado" => Ok(Self::CO),
+                    "connecticut" => Ok(Self::CT),
+                    "delaware" => Ok(Self::DE),
+                    "district of columbia" | "columbia" => Ok(Self::DC),
+                    "federated states of micronesia" | "micronesia" => Ok(Self::FM),
+                    "florida" => Ok(Self::FL),
+                    "georgia" => Ok(Self::GA),
+                    "guam" => Ok(Self::GU),
+                    "hawaii" => Ok(Self::HI),
+                    "idaho" => Ok(Self::ID),
+                    "illinois" => Ok(Self::IL),
+                    "indiana" => Ok(Self::IN),
+                    "iowa" => Ok(Self::IA),
+                    "kansas" => Ok(Self::KS),
+                    "kentucky" => Ok(Self::KY),
+                    "louisiana" => Ok(Self::LA),
+                    "maine" => Ok(Self::ME),
+                    "marshall islands" => Ok(Self::MH),
+                    "maryland" => Ok(Self::MD),
+                    "massachusetts" => Ok(Self::MA),
+                    "michigan" => Ok(Self::MI),
+                    "minnesota" => Ok(Self::MN),
+                    "mississippi" => Ok(Self::MS),
+                    "missouri" => Ok(Self::MO),
+                    "montana" => Ok(Self::MT),
+                    "nebraska" => Ok(Self::NE),
+                    "nevada" => Ok(Self::NV),
+                    "new hampshire" => Ok(Self::NH),
+                    "new jersey" => Ok(Self::NJ),
+                    "new mexico" => Ok(Self::NM),
+                    "new york" => Ok(Self::NY),
+                    "north carolina" => Ok(Self::NC),
+                    "north dakota" => Ok(Self::ND),
+                    "northern mariana islands" => Ok(Self::MP),
+                    "ohio" => Ok(Self::OH),
+                    "oklahoma" => Ok(Self::OK),
+                    "oregon" => Ok(Self::OR),
+                    "palau" => Ok(Self::PW),
+                    "pennsylvania" => Ok(Self::PA),
+                    "puerto rico" => Ok(Self::PR),
+                    "rhode island" => Ok(Self::RI),
+                    "south carolina" => Ok(Self::SC),
+                    "south dakota" => Ok(Self::SD),
+                    "tennessee" => Ok(Self::TN),
+                    "texas" => Ok(Self::TX),
+                    "utah" => Ok(Self::UT),
+                    "vermont" => Ok(Self::VT),
+                    "virgin islands" => Ok(Self::VI),
+                    "virginia" => Ok(Self::VA),
+                    "washington" => Ok(Self::WA),
+                    "west virginia" => Ok(Self::WV),
+                    "wisconsin" => Ok(Self::WI),
+                    "wyoming" => Ok(Self::WY),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
             }
-            .into()),
         }
     }
 }
@@ -1473,26 +1871,33 @@ impl ForeignTryFrom<String> for UsStatesAbbreviation {
 impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let binding = value.as_str().to_lowercase();
-        let state = binding.as_str();
-        match state {
-            "alberta" => Ok(Self::AB),
-            "british columbia" => Ok(Self::BC),
-            "manitoba" => Ok(Self::MB),
-            "new brunswick" => Ok(Self::NB),
-            "newfoundland and labrador" | "newfoundland & labrador" => Ok(Self::NL),
-            "northwest territories" => Ok(Self::NT),
-            "nova scotia" => Ok(Self::NS),
-            "nunavut" => Ok(Self::NU),
-            "ontario" => Ok(Self::ON),
-            "prince edward island" => Ok(Self::PE),
-            "quebec" => Ok(Self::QC),
-            "saskatchewan" => Ok(Self::SK),
-            "yukon" => Ok(Self::YT),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "CanadaStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alberta" => Ok(Self::AB),
+                    "british columbia" => Ok(Self::BC),
+                    "manitoba" => Ok(Self::MB),
+                    "new brunswick" => Ok(Self::NB),
+                    "newfoundland and labrador" | "newfoundland & labrador" => Ok(Self::NL),
+                    "northwest territories" => Ok(Self::NT),
+                    "nova scotia" => Ok(Self::NS),
+                    "nunavut" => Ok(Self::NU),
+                    "ontario" => Ok(Self::ON),
+                    "prince edward island" => Ok(Self::PE),
+                    "quebec" => Ok(Self::QC),
+                    "saskatchewan" => Ok(Self::SK),
+                    "yukon" => Ok(Self::YT),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
             }
-            .into()),
         }
     }
 }
@@ -1785,6 +2190,52 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
     }
 }
 
+impl
+    ForeignFrom<(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        u16,
+        Option<enums::AttemptStatus>,
+        Option<String>,
+    )> for types::ErrorResponse
+{
+    fn foreign_from(
+        (code, message, reason, http_code, attempt_status, connector_transaction_id): (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            u16,
+            Option<enums::AttemptStatus>,
+            Option<String>,
+        ),
+    ) -> Self {
+        Self {
+            code: code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason,
+            status_code: http_code,
+            attempt_status,
+            connector_transaction_id,
+        }
+    }
+}
+
+pub fn get_card_details(
+    payment_method_data: domain::PaymentMethodData,
+    connector_name: &'static str,
+) -> Result<domain::payments::Card, errors::ConnectorError> {
+    match payment_method_data {
+        domain::PaymentMethodData::Card(details) => Ok(details),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: connector_name,
+        })?,
+    }
+}
+
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]
@@ -1862,5 +2313,300 @@ mod error_code_error_message_tests {
             })
         );
         assert_eq!(error_code_error_message_none, None);
+    }
+}
+
+pub fn is_mandate_supported(
+    selected_pmd: domain::payments::PaymentMethodData,
+    payment_method_type: Option<types::storage::enums::PaymentMethodType>,
+    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
+    connector: &'static str,
+) -> Result<(), Error> {
+    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
+        Ok(())
+    } else {
+        match payment_method_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
+}
+
+#[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
+pub enum PaymentMethodDataType {
+    Card,
+    Knet,
+    Benefit,
+    MomoAtm,
+    CardRedirect,
+    AliPayQr,
+    AliPayRedirect,
+    AliPayHkRedirect,
+    MomoRedirect,
+    KakaoPayRedirect,
+    GoPayRedirect,
+    GcashRedirect,
+    ApplePay,
+    ApplePayRedirect,
+    ApplePayThirdPartySdk,
+    DanaRedirect,
+    GooglePay,
+    GooglePayRedirect,
+    GooglePayThirdPartySdk,
+    MbWayRedirect,
+    MobilePayRedirect,
+    PaypalRedirect,
+    PaypalSdk,
+    SamsungPay,
+    TwintRedirect,
+    VippsRedirect,
+    TouchNGoRedirect,
+    WeChatPayRedirect,
+    WeChatPayQr,
+    CashappQr,
+    SwishQr,
+    KlarnaRedirect,
+    KlarnaSdk,
+    AffirmRedirect,
+    AfterpayClearpayRedirect,
+    PayBrightRedirect,
+    WalleyRedirect,
+    AlmaRedirect,
+    AtomeRedirect,
+    BancontactCard,
+    Bizum,
+    Blik,
+    Eps,
+    Giropay,
+    Ideal,
+    Interac,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    OpenBankingUk,
+    Przelewy24,
+    Sofort,
+    Trustly,
+    OnlineBankingFpx,
+    OnlineBankingThailand,
+    AchBankDebit,
+    SepaBankDebit,
+    BecsBankDebit,
+    BacsBankDebit,
+    AchBankTransfer,
+    SepaBankTransfer,
+    BacsBankTransfer,
+    MultibancoBankTransfer,
+    PermataBankTransfer,
+    BcaBankTransfer,
+    BniVaBankTransfer,
+    BriVaBankTransfer,
+    CimbVaBankTransfer,
+    DanamonVaBankTransfer,
+    MandiriVaBankTransfer,
+    Pix,
+    Pse,
+    Crypto,
+    MandatePayment,
+    Reward,
+    Upi,
+    Boleto,
+    Efecty,
+    PagoEfectivo,
+    RedCompra,
+    RedPagos,
+    Alfamart,
+    Indomaret,
+    Oxxo,
+    SevenEleven,
+    Lawson,
+    MiniStop,
+    FamilyMart,
+    Seicomart,
+    PayEasy,
+    Givex,
+    PaySafeCar,
+    CardToken,
+    LocalBankTransfer,
+}
+
+impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
+    fn from(pm_data: domain::payments::PaymentMethodData) -> Self {
+        match pm_data {
+            domain::payments::PaymentMethodData::Card(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
+                match card_redirect_data {
+                    domain::CardRedirectData::Knet {} => Self::Knet,
+                    domain::payments::CardRedirectData::Benefit {} => Self::Benefit,
+                    domain::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm,
+                    domain::payments::CardRedirectData::CardRedirect {} => Self::CardRedirect,
+                }
+            }
+            domain::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
+                domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
+                domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                domain::payments::WalletData::MomoRedirect(_) => Self::MomoRedirect,
+                domain::payments::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
+                domain::payments::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
+                domain::payments::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                domain::payments::WalletData::ApplePay(_) => Self::ApplePay,
+                domain::payments::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
+                domain::payments::WalletData::ApplePayThirdPartySdk(_) => {
+                    Self::ApplePayThirdPartySdk
+                }
+                domain::payments::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                domain::payments::WalletData::GooglePay(_) => Self::GooglePay,
+                domain::payments::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
+                domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
+                    Self::GooglePayThirdPartySdk
+                }
+                domain::payments::WalletData::MbWayRedirect(_) => Self::MbWayRedirect,
+                domain::payments::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
+                domain::payments::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
+                domain::payments::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                domain::payments::WalletData::SamsungPay(_) => Self::SamsungPay,
+                domain::payments::WalletData::TwintRedirect {} => Self::TwintRedirect,
+                domain::payments::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                domain::payments::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
+                domain::payments::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
+                domain::payments::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
+                domain::payments::WalletData::CashappQr(_) => Self::CashappQr,
+                domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
+            },
+            domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
+                domain::payments::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
+                domain::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
+                domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    Self::AfterpayClearpayRedirect
+                }
+                domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
+                domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
+                domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+            },
+            domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                match bank_redirect_data {
+                    domain::payments::BankRedirectData::BancontactCard { .. } => {
+                        Self::BancontactCard
+                    }
+                    domain::payments::BankRedirectData::Bizum {} => Self::Bizum,
+                    domain::payments::BankRedirectData::Blik { .. } => Self::Blik,
+                    domain::payments::BankRedirectData::Eps { .. } => Self::Eps,
+                    domain::payments::BankRedirectData::Giropay { .. } => Self::Giropay,
+                    domain::payments::BankRedirectData::Ideal { .. } => Self::Ideal,
+                    domain::payments::BankRedirectData::Interac { .. } => Self::Interac,
+                    domain::payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
+                        Self::OnlineBankingCzechRepublic
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingFinland { .. } => {
+                        Self::OnlineBankingFinland
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingPoland { .. } => {
+                        Self::OnlineBankingPoland
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingSlovakia { .. } => {
+                        Self::OnlineBankingSlovakia
+                    }
+                    domain::payments::BankRedirectData::OpenBankingUk { .. } => Self::OpenBankingUk,
+                    domain::payments::BankRedirectData::Przelewy24 { .. } => Self::Przelewy24,
+                    domain::payments::BankRedirectData::Sofort { .. } => Self::Sofort,
+                    domain::payments::BankRedirectData::Trustly { .. } => Self::Trustly,
+                    domain::payments::BankRedirectData::OnlineBankingFpx { .. } => {
+                        Self::OnlineBankingFpx
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                        Self::OnlineBankingThailand
+                    }
+                }
+            }
+            domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data {
+                    domain::payments::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
+                    domain::payments::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                    domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
+                    domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
+                }
+            }
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match *bank_transfer_data {
+                    domain::payments::BankTransferData::AchBankTransfer { .. } => {
+                        Self::AchBankTransfer
+                    }
+                    domain::payments::BankTransferData::SepaBankTransfer { .. } => {
+                        Self::SepaBankTransfer
+                    }
+                    domain::payments::BankTransferData::BacsBankTransfer { .. } => {
+                        Self::BacsBankTransfer
+                    }
+                    domain::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                        Self::MultibancoBankTransfer
+                    }
+                    domain::payments::BankTransferData::PermataBankTransfer { .. } => {
+                        Self::PermataBankTransfer
+                    }
+                    domain::payments::BankTransferData::BcaBankTransfer { .. } => {
+                        Self::BcaBankTransfer
+                    }
+                    domain::payments::BankTransferData::BniVaBankTransfer { .. } => {
+                        Self::BniVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::BriVaBankTransfer { .. } => {
+                        Self::BriVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::CimbVaBankTransfer { .. } => {
+                        Self::CimbVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::DanamonVaBankTransfer { .. } => {
+                        Self::DanamonVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                        Self::MandiriVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::Pix {} => Self::Pix,
+                    domain::payments::BankTransferData::Pse {} => Self::Pse,
+                    domain::payments::BankTransferData::LocalBankTransfer { .. } => {
+                        Self::LocalBankTransfer
+                    }
+                }
+            }
+            domain::payments::PaymentMethodData::Crypto(_) => Self::Crypto,
+            domain::payments::PaymentMethodData::MandatePayment => Self::MandatePayment,
+            domain::payments::PaymentMethodData::Reward => Self::Reward,
+            domain::payments::PaymentMethodData::Upi(_) => Self::Upi,
+            domain::payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
+                domain::payments::VoucherData::Boleto(_) => Self::Boleto,
+                domain::payments::VoucherData::Efecty => Self::Efecty,
+                domain::payments::VoucherData::PagoEfectivo => Self::PagoEfectivo,
+                domain::payments::VoucherData::RedCompra => Self::RedCompra,
+                domain::payments::VoucherData::RedPagos => Self::RedPagos,
+                domain::payments::VoucherData::Alfamart(_) => Self::Alfamart,
+                domain::payments::VoucherData::Indomaret(_) => Self::Indomaret,
+                domain::payments::VoucherData::Oxxo => Self::Oxxo,
+                domain::payments::VoucherData::SevenEleven(_) => Self::SevenEleven,
+                domain::payments::VoucherData::Lawson(_) => Self::Lawson,
+                domain::payments::VoucherData::MiniStop(_) => Self::MiniStop,
+                domain::payments::VoucherData::FamilyMart(_) => Self::FamilyMart,
+                domain::payments::VoucherData::Seicomart(_) => Self::Seicomart,
+                domain::payments::VoucherData::PayEasy(_) => Self::PayEasy,
+            },
+            domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
+                match *gift_card_data {
+                    domain::payments::GiftCardData::Givex(_) => Self::Givex,
+                    domain::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+                }
+            }
+            domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
+        }
     }
 }

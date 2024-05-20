@@ -1,6 +1,6 @@
 use api_models::{admin::MerchantConnectorUpdate, connector_onboarding as api};
 use common_utils::ext_traits::Encode;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
@@ -55,7 +55,6 @@ pub async fn get_action_url_from_paypal(
     let parsed_response: types::paypal::PartnerReferralResponse = referral_response
         .json()
         .await
-        .into_report()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse paypal response")?;
 
@@ -106,7 +105,6 @@ pub async fn sync_merchant_onboarding_status(
     let parsed_response: types::paypal::SellerStatusDetailsResponse = merchant_details_response
         .json()
         .await
-        .into_report()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse paypal merchant details response")?;
 
@@ -133,7 +131,6 @@ async fn find_paypal_merchant_by_tracking_id(
             seller_status_response
                 .json()
                 .await
-                .into_report()
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse paypal onboarding status response")?,
         ));

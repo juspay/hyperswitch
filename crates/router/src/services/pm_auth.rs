@@ -11,22 +11,16 @@ use crate::{
     services::{self},
 };
 
-pub async fn execute_connector_processing_step<
-    'b,
-    'a,
-    T: 'static,
-    Req: Clone + 'static,
-    Resp: Clone + 'static,
->(
+pub async fn execute_connector_processing_step<'b, 'a, T, Req, Resp>(
     state: &'b AppState,
     connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
     req: &'b PaymentAuthRouterData<T, Req, Resp>,
     connector: &pm_auth_types::PaymentMethodAuthConnectors,
 ) -> errors::CustomResult<PaymentAuthRouterData<T, Req, Resp>, ConnectorError>
 where
-    T: Clone,
-    Req: Clone,
-    Resp: Clone,
+    T: Clone + 'static,
+    Req: Clone + 'static,
+    Resp: Clone + 'static,
 {
     let mut router_data = req.clone();
 
@@ -35,7 +29,12 @@ where
     match connector_request {
         Some(request) => {
             logger::debug!(connector_request=?request);
-            let response = services::api::call_connector_api(state, request).await;
+            let response = services::api::call_connector_api(
+                state,
+                request,
+                "execute_connector_processing_step",
+            )
+            .await;
             logger::debug!(connector_response=?response);
             match response {
                 Ok(body) => {

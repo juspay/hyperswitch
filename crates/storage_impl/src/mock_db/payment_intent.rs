@@ -1,5 +1,7 @@
 use common_utils::errors::CustomResult;
-use data_models::{
+use diesel_models::enums as storage_enums;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::{
     errors::StorageError,
     payments::{
         payment_attempt::PaymentAttempt,
@@ -7,8 +9,6 @@ use data_models::{
         PaymentIntent,
     },
 };
-use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
 use crate::DataModelExt;
@@ -19,7 +19,7 @@ impl PaymentIntentInterface for MockDb {
     async fn filter_payment_intent_by_constraints(
         &self,
         _merchant_id: &str,
-        _filters: &data_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -39,7 +39,7 @@ impl PaymentIntentInterface for MockDb {
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         _merchant_id: &str,
-        _constraints: &data_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -49,7 +49,7 @@ impl PaymentIntentInterface for MockDb {
     async fn get_filtered_payment_intents_attempt(
         &self,
         _merchant_id: &str,
-        _constraints: &data_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -66,11 +66,7 @@ impl PaymentIntentInterface for MockDb {
         let time = common_utils::date_time::now();
         let payment_intent = PaymentIntent {
             #[allow(clippy::as_conversions)]
-            id: payment_intents
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(StorageError::MockDbError)?,
+            id: i32::try_from(payment_intents.len()).change_context(StorageError::MockDbError)?,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
             status: new.status,
@@ -111,6 +107,8 @@ impl PaymentIntentInterface for MockDb {
             authorization_count: new.authorization_count,
             fingerprint_id: new.fingerprint_id,
             session_expiry: new.session_expiry,
+            request_external_three_ds_authentication: new.request_external_three_ds_authentication,
+            frm_metadata: new.frm_metadata,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
@@ -162,7 +160,7 @@ impl PaymentIntentInterface for MockDb {
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         match payment.active_attempt.clone() {
-            data_models::RemoteStorageObject::ForeignID(id) => {
+            hyperswitch_domain_models::RemoteStorageObject::ForeignID(id) => {
                 let attempts = self.payment_attempts.lock().await;
                 let attempt = attempts
                     .iter()
@@ -172,7 +170,7 @@ impl PaymentIntentInterface for MockDb {
                 payment.active_attempt = attempt.clone().into();
                 Ok(attempt.clone())
             }
-            data_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+            hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
     }
 }

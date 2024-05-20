@@ -8,14 +8,23 @@ mod query;
 pub mod refunds;
 
 pub mod api_event;
+pub mod auth_events;
 pub mod connector_events;
 pub mod health_check;
+pub mod opensearch;
 pub mod outgoing_webhook_event;
 pub mod sdk_events;
+pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
+use common_utils::errors::CustomResult;
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
+use hyperswitch_interfaces::secrets_interface::{
+    secret_handler::SecretsHandler,
+    secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
+    SecretManagementInterface, SecretsManagementError,
+};
 pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
@@ -26,6 +35,7 @@ use api_models::analytics::{
     api_event::{
         ApiEventDimensions, ApiEventFilters, ApiEventMetrics, ApiEventMetricsBucketIdentifier,
     },
+    auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     refunds::{RefundDimensions, RefundFilters, RefundMetrics, RefundMetricsBucketIdentifier},
@@ -36,14 +46,17 @@ use api_models::analytics::{
 };
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{
     logger,
     tracing::{self, instrument},
+    types::FlowMetric,
 };
 use storage_impl::config::Database;
+use strum::Display;
 
 use self::{
+    auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
     payments::{
         distribution::{PaymentDistribution, PaymentDistributionRow},
         metrics::{PaymentMetric, PaymentMetricRow},
@@ -68,14 +81,16 @@ impl Default for AnalyticsProvider {
     }
 }
 
-impl ToString for AnalyticsProvider {
-    fn to_string(&self) -> String {
-        String::from(match self {
+impl std::fmt::Display for AnalyticsProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let analytics_provider = match self {
             Self::Clickhouse(_) => "Clickhouse",
             Self::Sqlx(_) => "Sqlx",
             Self::CombinedCkh(_, _) => "CombinedCkh",
             Self::CombinedSqlx(_, _) => "CombinedSqlx",
-        })
+        };
+
+        write!(f, "{}", analytics_provider)
     }
 }
 
@@ -505,7 +520,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
                     .load_metrics(dimensions, pub_key, filters, granularity, time_range, pool)
@@ -527,6 +542,36 @@ impl AnalyticsProvider {
         }
     }
 
+    pub async fn get_auth_event_metrics(
+        &self,
+        metric: &AuthEventMetrics,
+        merchant_id: &str,
+        publishable_key: &str,
+        granularity: &Option<Granularity>,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+        match self {
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
+            Self::Clickhouse(pool) => {
+                metric
+                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .await
+            }
+            Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
+                metric
+                    .load_metrics(
+                        merchant_id,
+                        publishable_key,
+                        granularity,
+                        // Since API events are ckh only use ckh here
+                        time_range,
+                        ckh_pool,
+                    )
+                    .await
+            }
+        }
+    }
+
     pub async fn get_api_event_metrics(
         &self,
         metric: &ApiEventMetrics,
@@ -537,7 +582,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(ckh_pool)
             | Self::CombinedCkh(_, ckh_pool)
             | Self::CombinedSqlx(_, ckh_pool) => {
@@ -598,6 +643,51 @@ pub enum AnalyticsConfig {
     },
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for AnalyticsConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let analytics_config = value.get_inner();
+        let decrypted_password = match analytics_config {
+            // Todo: Perform kms decryption of clickhouse password
+            Self::Clickhouse { .. } => masking::Secret::new(String::default()),
+            Self::Sqlx { sqlx }
+            | Self::CombinedCkh { sqlx, .. }
+            | Self::CombinedSqlx { sqlx, .. } => {
+                secret_management_client
+                    .get_secret(sqlx.password.clone())
+                    .await?
+            }
+        };
+
+        Ok(value.transition_state(|conf| match conf {
+            Self::Sqlx { sqlx } => Self::Sqlx {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+            },
+            Self::Clickhouse { clickhouse } => Self::Clickhouse { clickhouse },
+            Self::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+                clickhouse,
+            },
+            Self::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+                clickhouse,
+            },
+        }))
+    }
+}
+
 impl Default for AnalyticsConfig {
     fn default() -> Self {
         Self::Sqlx {
@@ -613,3 +703,34 @@ pub struct ReportConfig {
     pub dispute_function: String,
     pub region: String,
 }
+
+/// Analytics Flow routes Enums
+/// Info - Dimensions and filters available for the domain
+/// Filters - Set of values present for the dimension
+/// Metrics - Analytical data on dimensions and metrics
+#[derive(Debug, Display, Clone, PartialEq, Eq)]
+pub enum AnalyticsFlow {
+    GetInfo,
+    GetPaymentMetrics,
+    GetRefundsMetrics,
+    GetSdkMetrics,
+    GetAuthMetrics,
+    GetPaymentFilters,
+    GetRefundFilters,
+    GetSdkEventFilters,
+    GetApiEvents,
+    GetSdkEvents,
+    GeneratePaymentReport,
+    GenerateDisputeReport,
+    GenerateRefundReport,
+    GetApiEventMetrics,
+    GetApiEventFilters,
+    GetConnectorEvents,
+    GetOutgoingWebhookEvents,
+    GetGlobalSearchResults,
+    GetSearchResults,
+    GetDisputeFilters,
+    GetDisputeMetrics,
+}
+
+impl FlowMetric for AnalyticsFlow {}

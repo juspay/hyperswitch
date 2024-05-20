@@ -12,20 +12,20 @@ use crate::{
 };
 
 mod average_payment_time;
+mod load_time;
 mod payment_attempts;
 mod payment_data_filled_count;
 mod payment_method_selected_count;
 mod payment_methods_call_count;
-mod payment_success_count;
 mod sdk_initiated_count;
 mod sdk_rendered_count;
 
 use average_payment_time::AveragePaymentTime;
+use load_time::LoadTime;
 use payment_attempts::PaymentAttempts;
 use payment_data_filled_count::PaymentDataFilledCount;
 use payment_method_selected_count::PaymentMethodSelectedCount;
 use payment_methods_call_count::PaymentMethodsCallCount;
-use payment_success_count::PaymentSuccessCount;
 use sdk_initiated_count::SdkInitiatedCount;
 use sdk_rendered_count::SdkRenderedCount;
 
@@ -82,18 +82,6 @@ where
         match self {
             Self::PaymentAttempts => {
                 PaymentAttempts
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::PaymentSuccessCount => {
-                PaymentSuccessCount
                     .load_metrics(
                         dimensions,
                         publishable_key,
@@ -166,6 +154,18 @@ where
             }
             Self::AveragePaymentTime => {
                 AveragePaymentTime
+                    .load_metrics(
+                        dimensions,
+                        publishable_key,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
+                    .await
+            }
+            Self::LoadTime => {
+                LoadTime
                     .load_metrics(
                         dimensions,
                         publishable_key,

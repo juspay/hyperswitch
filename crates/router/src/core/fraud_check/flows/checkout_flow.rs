@@ -63,7 +63,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector_auth_type: auth_type,
             description: None,
             return_url: None,
-            payment_method_id: None,
+            payment_method_status: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
@@ -86,11 +86,17 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                     })
                     .transpose()
                     .unwrap_or_default(),
-                email: customer.clone().and_then(|customer_data| {
-                    customer_data
-                        .email
-                        .and_then(|email| Email::try_from(email.into_inner().expose()).ok())
-                }),
+                email: customer
+                    .clone()
+                    .and_then(|customer_data| {
+                        customer_data
+                            .email
+                            .map(|email| Email::try_from(email.into_inner().expose()))
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "customer.customer_data.email",
+                    })?,
                 gateway: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
@@ -121,6 +127,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
+            connector_response: None,
         };
 
         Ok(router_data)

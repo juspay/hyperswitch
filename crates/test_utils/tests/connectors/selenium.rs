@@ -9,7 +9,7 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     io::Read,
-    path::MAIN_SEPARATOR,
+    path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR},
     time::Duration,
 };
 
@@ -862,7 +862,7 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
         .map(|str| {
             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
             fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
+            fp.join(MAIN_SEPARATOR_STR)
         })
         .unwrap();
     if env::consts::OS == "macos" {
@@ -880,7 +880,7 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
         .map(|str| {
             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
             fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
+            fp.join(MAIN_SEPARATOR_STR)
         })
         .unwrap();
     if env::consts::OS == "macos" {

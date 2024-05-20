@@ -1,12 +1,21 @@
 //! Types that can be used in other crates
-use error_stack::{IntoReport, ResultExt};
+use std::{fmt::Display, str::FromStr};
+
+use diesel::{
+    backend::Backend,
+    deserialize::FromSql,
+    serialize::{Output, ToSql},
+    sql_types::Jsonb,
+    AsExpression, FromSqlRow,
+};
+use error_stack::{report, ResultExt};
+use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer};
 
 use crate::{
     consts,
-    errors::{CustomResult, PercentageError},
+    errors::{CustomResult, ParsingError, PercentageError},
 };
-
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct Percentage<const PRECISION: u8> {
@@ -28,12 +37,11 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         if Self::is_valid_string_value(&value)? {
             Ok(Self {
                 percentage: value
-                    .parse()
-                    .into_report()
+                    .parse::<f32>()
                     .change_context(PercentageError::InvalidPercentageValue)?,
             })
         } else {
-            Err(PercentageError::InvalidPercentageValue.into())
+            Err(report!(PercentageError::InvalidPercentageValue))
                 .attach_printable(get_invalid_percentage_error_message(PRECISION))
         }
     }
@@ -48,11 +56,10 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         let max_amount = i64::MAX / 10000;
         if amount > max_amount {
             // value gets rounded off after i64::MAX/10000
-            Err(PercentageError::UnableToApplyPercentage {
+            Err(report!(PercentageError::UnableToApplyPercentage {
                 percentage: self.percentage,
                 amount,
-            }
-            .into())
+            }))
             .attach_printable(format!(
                 "Cannot calculate percentage for amount greater than {}",
                 max_amount
@@ -69,8 +76,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     }
     fn is_valid_float_string(value: &str) -> CustomResult<f32, PercentageError> {
         value
-            .parse()
-            .into_report()
+            .parse::<f32>()
             .change_context(PercentageError::InvalidPercentageValue)
     }
     fn is_valid_range(value: f32) -> bool {
@@ -148,4 +154,61 @@ pub enum Surcharge {
     Fixed(i64),
     /// Surcharge percentage
     Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
+}
+
+/// This struct lets us represent a semantic version type
+#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
+#[diesel(sql_type = Jsonb)]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SemanticVersion(#[serde(with = "Version")] Version);
+
+impl SemanticVersion {
+    /// returns major version number
+    pub fn get_major(&self) -> u64 {
+        self.0.major
+    }
+    /// Constructs new SemanticVersion instance
+    pub fn new(major: u64, minor: u64, patch: u64) -> Self {
+        Self(Version::new(major, minor, patch))
+    }
+}
+
+impl Display for SemanticVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for SemanticVersion {
+    type Err = error_stack::Report<ParsingError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Version::from_str(s).change_context(
+            ParsingError::StructParseFailure("SemanticVersion"),
+        )?))
+    }
+}
+
+impl<DB: Backend> FromSql<Jsonb, DB> for SemanticVersion
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for SemanticVersion
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
 }

@@ -3,36 +3,23 @@ pub use api_models::payments::{
     CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
     MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
     PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
-    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
-    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+    PaymentListFilters, PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2,
+    PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
+    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
     PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
     PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
     PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
     VerifyRequest, VerifyResponse, WalletData,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     core::errors,
     services::api,
     types::{self, api as api_types},
 };
-
-pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTransactionType>;
-}
-
-impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTransactionType> {
-        match (&self.mandate_data, &self.mandate_id) {
-            (None, None) => None,
-            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
-            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
-        }
-    }
-}
 
 impl super::Router for PaymentsRequest {}
 
@@ -98,7 +85,6 @@ impl PaymentIdTypeExt for PaymentIdType {
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "payment_id",
             })
-            .into_report()
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
     }
@@ -114,12 +100,13 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     fn validate_and_get_mandate_type(
         &self,
     ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError> {
-        match (&self.mandate_data, &self.mandate_id) {
+        match (&self.mandate_data, &self.recurring_details) {
             (None, None) => Ok(None),
             (Some(_), Some(_)) => Err(errors::ValidationError::InvalidValue {
-                message: "Expected one out of mandate_id and mandate_data but got both".to_string(),
-            })
-            .into_report(),
+                message: "Expected one out of recurring_details and mandate_data but got both"
+                    .to_string(),
+            }
+            .into()),
             (_, Some(_)) => Ok(Some(MandateTransactionType::RecurringMandateTransaction)),
             (Some(_), _) => Ok(Some(MandateTransactionType::NewMandateTransaction)),
         }
@@ -259,7 +246,10 @@ mod payments_test {
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
             amount: Some(Amount::from(200)),
-            payment_method_data: Some(PaymentMethodData::Card(card())),
+            payment_method_data: Some(PaymentMethodDataRequest {
+                payment_method_data: Some(PaymentMethodData::Card(card())),
+                billing: None,
+            }),
             ..PaymentsRequest::default()
         }
     }

@@ -2,7 +2,7 @@ use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, AppState};
@@ -120,8 +120,8 @@ fn validate_card_bin(bin: &str) -> RouterResult<()> {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "data".to_string(),
             expected_format: "a 6 digit number".to_string(),
-        })
-        .into_report()
+        }
+        .into())
     }
 }
 
@@ -132,8 +132,8 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "data".to_string(),
             expected_format: "an 8 digit number".to_string(),
-        })
-        .into_report()
+        }
+        .into())
     }
 }
 
@@ -176,8 +176,8 @@ pub async fn insert_entry_into_blocklist(
                     return Err(errors::ApiErrorResponse::PreconditionFailed {
                         message: "data associated with the given fingerprint is already blocked"
                             .to_string(),
-                    })
-                    .into_report();
+                    }
+                    .into());
                 }
 
                 // if it is a db not found error, we can proceed as normal
@@ -259,8 +259,8 @@ async fn duplicate_check_insert_bin(
         Ok(_) => {
             return Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "provided bin is already blocked".to_string(),
-            })
-            .into_report();
+            }
+            .into());
         }
 
         Err(e) if e.current_context().is_db_not_found() => {}
@@ -319,7 +319,7 @@ where
     {
         generate_fingerprint(
             state,
-            StrongSecret::new(card.card_number.clone().get_card_no()),
+            StrongSecret::new(card.card_number.get_card_no()),
             StrongSecret::new(merchant_fingerprint_secret.clone()),
             api_models::enums::LockerChoice::HyperswitchCardVault,
         )
@@ -343,7 +343,7 @@ where
         .as_ref()
         .and_then(|pm_data| match pm_data {
             api_models::payments::PaymentMethodData::Card(card) => {
-                Some(card.card_number.clone().get_card_isin())
+                Some(card.card_number.get_card_isin())
             }
             _ => None,
         });
@@ -355,7 +355,7 @@ where
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 api_models::payments::PaymentMethodData::Card(card) => {
-                    Some(card.card_number.clone().get_extended_card_bin())
+                    Some(card.card_number.get_extended_card_bin())
                 }
                 _ => None,
             });
@@ -464,7 +464,7 @@ pub async fn generate_payment_fingerprint(
         {
             generate_fingerprint(
                 state,
-                StrongSecret::new(card.card_number.clone().get_card_no()),
+                StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
                 api_models::enums::LockerChoice::HyperswitchCardVault,
             )

@@ -2,7 +2,8 @@ use std::{collections::HashSet, ops::Not};
 
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{enums, user_role as storage};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -47,7 +48,7 @@ pub trait UserRoleInterface {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError>;
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn list_user_roles_by_user_id(
         &self,
@@ -64,6 +65,7 @@ pub trait UserRoleInterface {
 
 #[async_trait::async_trait]
 impl UserRoleInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_user_role(
         &self,
         user_role: storage::UserRoleNew,
@@ -72,10 +74,10 @@ impl UserRoleInterface for Store {
         user_role
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
@@ -83,10 +85,10 @@ impl UserRoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::find_by_user_id(&conn, user_id.to_owned())
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -99,10 +101,10 @@ impl UserRoleInterface for Store {
             merchant_id.to_owned(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -117,10 +119,10 @@ impl UserRoleInterface for Store {
             update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn update_user_roles_by_user_id_org_id(
         &self,
         user_id: &str,
@@ -135,26 +137,27 @@ impl UserRoleInterface for Store {
             update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
+
         storage::UserRole::delete_by_user_id_merchant_id(
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -162,10 +165,10 @@ impl UserRoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::list_by_user_id(&conn, user_id.to_owned())
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn transfer_org_ownership_between_users(
         &self,
         from_user_id: &str,
@@ -239,9 +242,7 @@ impl UserRoleInterface for Store {
             Ok::<_, errors::DatabaseError>(())
         })
         .await
-        .into_report()
-        .map_err(Into::into)
-        .into_report()?;
+        .map_err(|error| report!(errors::StorageError::from(report!(error))))?;
 
         Ok(())
     }
@@ -264,10 +265,7 @@ impl UserRoleInterface for MockDb {
             })?
         }
         let user_role = storage::UserRole {
-            id: user_roles
-                .len()
-                .try_into()
-                .into_report()
+            id: i32::try_from(user_roles.len())
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: user_role.user_id,
             merchant_id: user_role.merchant_id,
@@ -379,8 +377,8 @@ impl UserRoleInterface for MockDb {
                         status,
                         modified_by,
                     } => {
-                        user_role.status = status.to_owned();
-                        user_role.last_modified_by = modified_by.to_owned();
+                        status.clone_into(&mut user_role.status);
+                        modified_by.clone_into(&mut user_role.last_modified_by);
                     }
                 }
                 updated_user_roles.push(user_role.to_owned());
@@ -462,18 +460,19 @@ impl UserRoleInterface for MockDb {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
-        let user_role_index = user_roles
+
+        match user_roles
             .iter()
-            .position(|user_role| {
-                user_role.user_id == user_id && user_role.merchant_id == merchant_id
-            })
-            .ok_or(errors::StorageError::ValueNotFound(format!(
-                "No user available for user_id = {user_id}"
-            )))?;
-        user_roles.remove(user_role_index);
-        Ok(true)
+            .position(|role| role.user_id == user_id && role.merchant_id == merchant_id)
+        {
+            Some(index) => Ok(user_roles.remove(index)),
+            None => Err(errors::StorageError::ValueNotFound(
+                "Cannot find user role to delete".to_string(),
+            )
+            .into()),
+        }
     }
 
     async fn list_user_roles_by_user_id(
@@ -524,7 +523,7 @@ impl UserRoleInterface for super::KafkaStore {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
             .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
             .await

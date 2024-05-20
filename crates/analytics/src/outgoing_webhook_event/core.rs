@@ -1,6 +1,6 @@
 use api_models::analytics::outgoing_webhook_event::OutgoingWebhookLogsRequest;
 use common_utils::errors::ReportSwitchExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::events::{get_outgoing_webhook_event, OutgoingWebhookLogsResult};
 use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
@@ -14,7 +14,6 @@ pub async fn outgoing_webhook_events_core(
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
             "Outgoing Webhook Events Logs not implemented for SQLX",
         ))
-        .into_report()
         .attach_printable("SQL Analytics is not implemented for Outgoing Webhook Events"),
         AnalyticsProvider::Clickhouse(ckh_pool)
         | AnalyticsProvider::CombinedSqlx(_, ckh_pool)

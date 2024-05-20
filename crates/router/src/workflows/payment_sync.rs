@@ -10,7 +10,6 @@ use crate::{
     consts,
     core::{
         errors::StorageErrorExt,
-        payment_methods::Oss,
         payments::{self as payment_flows, operations},
     },
     db::StorageInterface,
@@ -59,25 +58,22 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let (mut payment_data, _, customer, _, _) =
-            Box::pin(payment_flows::payments_operation_core::<
-                api::PSync,
-                _,
-                _,
-                _,
-                Oss,
-            >(
+        // TODO: Add support for ReqState in PT flows
+        let (mut payment_data, _, customer, _, _) = Box::pin(
+            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
                 state,
+                state.get_req_state(),
                 merchant_account.clone(),
-                key_store,
+                key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
                 None,
                 api::HeaderPayload::default(),
-            ))
-            .await?;
+            ),
+        )
+        .await?;
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -121,11 +117,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
                     let payment_attempt_update =
-                        data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
+                        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            status: api_models::enums::AttemptStatus::AuthenticationFailed,
+                            status: api_models::enums::AttemptStatus::Failure,
                             error_code: None,
                             error_message: None,
                             error_reason: Some(Some(
@@ -136,6 +132,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             unified_code: None,
                             unified_message: None,
                             connector_transaction_id: None,
+                            payment_method_data: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -175,15 +172,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    Box::pin(utils::trigger_payments_webhook::<
-                        _,
-                        api_models::payments::PaymentsRequest,
-                        _,
-                    >(
+                    Box::pin(utils::trigger_payments_webhook(
                         merchant_account,
                         business_profile,
+                        &key_store,
                         payment_data,
-                        None,
                         customer,
                         state,
                         operation,
@@ -247,12 +240,12 @@ pub async fn get_sync_process_schedule_time(
         });
     let mapping = match mapping {
         Ok(x) => x,
-        Err(err) => {
-            logger::info!("Redis Mapping Error: {}", err);
+        Err(error) => {
+            logger::info!(?error, "Redis Mapping Error");
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -267,7 +260,7 @@ pub async fn retry_sync_task(
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
+        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {
@@ -301,7 +294,7 @@ mod tests {
             vec![schedule_time_delta, first_retry_time_delta],
             vec![
                 cpt_default.start_after,
-                *cpt_default.frequency.first().unwrap()
+                cpt_default.frequencies.first().unwrap().0
             ]
         );
     }

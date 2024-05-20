@@ -1,17 +1,19 @@
 use std::collections::HashMap;
 
 use api_models::user as user_api;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, pii};
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::ExposeInterface;
+use totp_rs::{Algorithm, TOTP};
 
 use crate::{
+    consts,
     core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
     services::{
         authentication::{AuthToken, UserFromToken},
-        authorization::roles::{self, RoleInfo},
+        authorization::roles::RoleInfo,
     },
     types::domain::{self, MerchantAccount, UserFromStorage},
 };
@@ -64,7 +66,7 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
-        roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
+        RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -74,7 +76,7 @@ pub async fn generate_jwt_auth_token(
     state: &AppState,
     user: &UserFromStorage,
     user_role: &UserRole,
-) -> UserResult<Secret<String>> {
+) -> UserResult<masking::Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         user_role.merchant_id.clone(),
@@ -83,16 +85,16 @@ pub async fn generate_jwt_auth_token(
         user_role.org_id.clone(),
     )
     .await?;
-    Ok(Secret::new(token))
+    Ok(masking::Secret::new(token))
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: AppState,
+    state: &AppState,
     user: &UserFromStorage,
     merchant_id: String,
     org_id: String,
     role_id: String,
-) -> UserResult<Secret<String>> {
+) -> UserResult<masking::Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         merchant_id,
@@ -101,14 +103,14 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
         org_id,
     )
     .await?;
-    Ok(Secret::new(token))
+    Ok(masking::Secret::new(token))
 }
 
 pub fn get_dashboard_entry_response(
     state: &AppState,
     user: UserFromStorage,
     user_role: UserRole,
-    token: Secret<String>,
+    token: masking::Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
     let verification_days_left = get_verification_days_left(state, &user)?;
 
@@ -137,24 +139,38 @@ pub fn get_verification_days_left(
 pub fn get_multiple_merchant_details_with_status(
     user_roles: Vec<UserRole>,
     merchant_accounts: Vec<MerchantAccount>,
+    roles: Vec<RoleInfo>,
 ) -> UserResult<Vec<user_api::UserMerchantAccount>> {
-    let roles: HashMap<_, _> = user_roles
+    let merchant_account_map = merchant_accounts
         .into_iter()
-        .map(|user_role| (user_role.merchant_id.clone(), user_role))
-        .collect();
+        .map(|merchant_account| (merchant_account.merchant_id.clone(), merchant_account))
+        .collect::<HashMap<_, _>>();
 
-    merchant_accounts
+    let role_map = roles
         .into_iter()
-        .map(|merchant| {
-            let role = roles
-                .get(merchant.merchant_id.as_str())
-                .ok_or(UserErrors::InternalServerError.into())
-                .attach_printable("Merchant exists but user role doesn't")?;
+        .map(|role_info| (role_info.get_role_id().to_string(), role_info))
+        .collect::<HashMap<_, _>>();
+
+    user_roles
+        .into_iter()
+        .map(|user_role| {
+            let merchant_account = merchant_account_map
+                .get(&user_role.merchant_id)
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("Merchant account for user role doesn't exist")?;
+
+            let role_info = role_map
+                .get(&user_role.role_id)
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("Role info for user role doesn't exist")?;
 
             Ok(user_api::UserMerchantAccount {
-                merchant_id: merchant.merchant_id.clone(),
-                merchant_name: merchant.merchant_name.clone(),
-                is_active: role.status == UserStatus::Active,
+                merchant_id: user_role.merchant_id,
+                merchant_name: merchant_account.merchant_name.clone(),
+                is_active: user_role.status == UserStatus::Active,
+                role_id: user_role.role_id,
+                role_name: role_info.get_role_name().to_string(),
+                org_id: user_role.org_id,
             })
         })
         .collect()
@@ -166,7 +182,36 @@ pub async fn get_user_from_db_by_email(
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .store
-        .find_user_by_email(email.get_secret().expose().as_str())
+        .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)
+}
+
+pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> masking::Secret<String> {
+    match resp {
+        user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
+        user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
+    }
+}
+
+pub fn generate_default_totp(
+    email: pii::Email,
+    secret: Option<masking::Secret<String>>,
+) -> UserResult<TOTP> {
+    let secret = secret
+        .map(|sec| totp_rs::Secret::Encoded(sec.expose()))
+        .unwrap_or_else(totp_rs::Secret::generate_secret)
+        .to_bytes()
+        .change_context(UserErrors::InternalServerError)?;
+
+    TOTP::new(
+        Algorithm::SHA1,
+        consts::user::TOTP_DIGITS,
+        consts::user::TOTP_TOLERANCE,
+        consts::user::TOTP_VALIDITY_DURATION_IN_SECONDS,
+        secret,
+        Some(consts::user::TOTP_ISSUER_NAME.to_string()),
+        email.expose().expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
 }

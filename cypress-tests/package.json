@@ -1,0 +1,13 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "cypress": "npx cypress open",
+    "cypress-e2e": "npx cypress run --e2e",
+    "cypress:ci": "npx cypress run --headless"
+  },
+  "author": "",
+  "license": "ISC"
+}

@@ -1,7 +1,8 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::payouts::{
-    PayoutActionRequest, PayoutCreateRequest, PayoutCreateResponse, PayoutRetrieveRequest,
+    PayoutActionRequest, PayoutCreateRequest, PayoutCreateResponse, PayoutListConstraints,
+    PayoutListFilterConstraints, PayoutListFilters, PayoutListResponse, PayoutRetrieveRequest,
 };
 
 impl ApiEventMetric for PayoutRetrieveRequest {
@@ -23,6 +24,30 @@ impl ApiEventMetric for PayoutCreateResponse {
 }
 
 impl ApiEventMetric for PayoutActionRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout)
+    }
+}
+
+impl ApiEventMetric for PayoutListConstraints {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout)
+    }
+}
+
+impl ApiEventMetric for PayoutListFilterConstraints {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout)
+    }
+}
+
+impl ApiEventMetric for PayoutListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout)
+    }
+}
+
+impl ApiEventMetric for PayoutListFilters {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payout)
     }

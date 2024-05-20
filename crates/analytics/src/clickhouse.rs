@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use actix_web::http::StatusCode;
 use common_utils::errors::ParsingError;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
 use super::{
+    auth_events::metrics::AuthEventMetricRow,
     health_check::HealthCheck,
     payments::{
         distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
@@ -71,7 +72,6 @@ impl ClickhouseClient {
             .body(format!("{query}\nFORMAT JSON"))
             .send()
             .await
-            .into_report()
             .change_context(ClickhouseError::ConnectionError)?;
 
         logger::debug!(clickhouse_response=?response, query=?query, "Clickhouse response");
@@ -79,16 +79,14 @@ impl ClickhouseClient {
             response.text().await.map_or_else(
                 |er| {
                     Err(ClickhouseError::ResponseError)
-                        .into_report()
                         .attach_printable_lazy(|| format!("Error: {er:?}"))
                 },
-                |t| Err(ClickhouseError::ResponseNotOK(t)).into_report(),
+                |t| Err(report!(ClickhouseError::ResponseNotOK(t))),
             )
         } else {
             Ok(response
                 .json::<CkhOutput<serde_json::Value>>()
                 .await
-                .into_report()
                 .change_context(ClickhouseError::ResponseError)?
                 .data)
         }
@@ -135,10 +133,11 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
-            AnalyticsCollection::SdkEvents => TableEngine::BasicTree,
-            AnalyticsCollection::ApiEvents => TableEngine::BasicTree,
-            AnalyticsCollection::ConnectorEvents => TableEngine::BasicTree,
-            AnalyticsCollection::OutgoingWebhookEvent => TableEngine::BasicTree,
+            AnalyticsCollection::SdkEvents
+            | AnalyticsCollection::ApiEvents
+            | AnalyticsCollection::ConnectorEvents
+            | AnalyticsCollection::ConnectorEventsAnalytics
+            | AnalyticsCollection::OutgoingWebhookEvent => TableEngine::BasicTree,
         }
     }
 }
@@ -149,7 +148,7 @@ where
 {
     fn load_row(row: Self::Row) -> common_utils::errors::CustomResult<T, QueryExecutionError> {
         row.try_into()
-            .change_context(QueryExecutionError::RowExtractionFailure)
+            .map_err(|error| error.change_context(QueryExecutionError::RowExtractionFailure))
     }
 }
 
@@ -161,6 +160,7 @@ impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::metrics::SdkEventMetricAnalytics for ClickhouseClient {}
 impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
+impl super::auth_events::metrics::AuthEventMetricAnalytics for ClickhouseClient {}
 impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
@@ -188,11 +188,9 @@ impl TryInto<ApiLogsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<ApiLogsResult, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse ApiLogsResult in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse ApiLogsResult in clickhouse results",
+        ))
     }
 }
 
@@ -200,11 +198,9 @@ impl TryInto<SdkEventsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<SdkEventsResult, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse SdkEventsResult in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse SdkEventsResult in clickhouse results",
+        ))
     }
 }
 
@@ -212,11 +208,9 @@ impl TryInto<ConnectorEventsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<ConnectorEventsResult, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse ConnectorEventsResult in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse ConnectorEventsResult in clickhouse results",
+        ))
     }
 }
 
@@ -224,11 +218,9 @@ impl TryInto<PaymentMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<PaymentMetricRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse PaymentMetricRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentMetricRow in clickhouse results",
+        ))
     }
 }
 
@@ -236,11 +228,9 @@ impl TryInto<PaymentDistributionRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<PaymentDistributionRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse PaymentDistributionRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse PaymentDistributionRow in clickhouse results",
+        ))
     }
 }
 
@@ -248,11 +238,9 @@ impl TryInto<FilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<FilterRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse FilterRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse FilterRow in clickhouse results",
+        ))
     }
 }
 
@@ -260,11 +248,9 @@ impl TryInto<RefundMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<RefundMetricRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse RefundMetricRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse RefundMetricRow in clickhouse results",
+        ))
     }
 }
 
@@ -272,22 +258,18 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<RefundFilterRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse RefundFilterRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse RefundFilterRow in clickhouse results",
+        ))
     }
 }
 impl TryInto<DisputeMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<DisputeMetricRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse DisputeMetricRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse DisputeMetricRow in clickhouse results",
+        ))
     }
 }
 
@@ -295,11 +277,9 @@ impl TryInto<DisputeFilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<DisputeFilterRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse DisputeFilterRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse DisputeFilterRow in clickhouse results",
+        ))
     }
 }
 
@@ -307,11 +287,9 @@ impl TryInto<ApiEventMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<ApiEventMetricRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse ApiEventMetricRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse ApiEventMetricRow in clickhouse results",
+        ))
     }
 }
 
@@ -319,11 +297,9 @@ impl TryInto<LatencyAvg> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<LatencyAvg, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse LatencyAvg in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse LatencyAvg in clickhouse results",
+        ))
     }
 }
 
@@ -331,11 +307,9 @@ impl TryInto<SdkEventMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<SdkEventMetricRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse SdkEventMetricRow in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse SdkEventMetricRow in clickhouse results",
+        ))
     }
 }
 
@@ -343,11 +317,19 @@ impl TryInto<SdkEventFilter> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<SdkEventFilter, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse SdkEventFilter in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse SdkEventFilter in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<AuthEventMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<AuthEventMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse AuthEventMetricRow in clickhouse results",
+        ))
     }
 }
 
@@ -355,11 +337,9 @@ impl TryInto<ApiEventFilter> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<ApiEventFilter, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse ApiEventFilter in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse ApiEventFilter in clickhouse results",
+        ))
     }
 }
 
@@ -367,11 +347,9 @@ impl TryInto<OutgoingWebhookLogsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
     fn try_into(self) -> Result<OutgoingWebhookLogsResult, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse OutgoingWebhookLogsResult in clickhouse results",
-            ))
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse OutgoingWebhookLogsResult in clickhouse results",
+        ))
     }
 }
 
@@ -379,11 +357,9 @@ impl ToSql<ClickhouseClient> for PrimitiveDateTime {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         let format =
             time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
-                .into_report()
                 .change_context(ParsingError::DateTimeParsingError)
                 .attach_printable("Failed to parse format description")?;
         self.format(&format)
-            .into_report()
             .change_context(ParsingError::EncodeError(
                 "failed to encode to clickhouse date-time format",
             ))
@@ -398,6 +374,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::Refund => Ok("refunds".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
             Self::ApiEvents => Ok("api_events_audit".to_string()),
+            Self::ConnectorEventsAnalytics => Ok("connector_events".to_string()),
             Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
@@ -460,6 +437,20 @@ where
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
+            Self::Percentile {
+                field,
+                alias,
+                percentile,
+            } => {
+                format!(
+                    "quantilesExact(0.{})({})[1]{}",
+                    percentile.map_or_else(|| "50".to_owned(), |percentile| percentile.to_string()),
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to percentile aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
         })
     }
 }
@@ -490,7 +481,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
@@ -513,7 +504,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))

@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use api_models::enums;
 use base64::Engine;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as square;
 
@@ -27,6 +27,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -214,7 +215,7 @@ impl
             amount: router_data.request.amount,
         };
 
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
             authorize_session_token_data,
         ));
@@ -898,7 +899,6 @@ impl api::IncomingWebhook for Square {
             super_utils::get_header_key_value("x-square-hmacsha256-signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
             .decode(encoded_signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(signature)
     }
@@ -915,7 +915,6 @@ impl api::IncomingWebhook for Square {
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let authority = header_value
             .to_str()
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         Ok(format!(

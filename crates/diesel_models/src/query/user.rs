@@ -1,13 +1,11 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_utils::pii;
 use diesel::{
     associations::HasTable, debug_query, result::Error as DieselError, ExpressionMethods,
     JoinOnDsl, QueryDsl,
 };
-use error_stack::IntoReport;
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use error_stack::report;
+use router_env::logger;
 pub mod sample_data;
 
 use crate::{
@@ -23,14 +21,16 @@ use crate::{
 };
 
 impl UserNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<User> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl User {
-    pub async fn find_by_user_email(conn: &PgPooledConn, user_email: &str) -> StorageResult<Self> {
+    pub async fn find_by_user_email(
+        conn: &PgPooledConn,
+        user_email: &pii::Email,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             users_dsl::email.eq(user_email.to_owned()),
@@ -66,7 +66,7 @@ impl User {
 
     pub async fn update_by_user_email(
         conn: &PgPooledConn,
-        user_email: &str,
+        user_email: &pii::Email,
         user_update: UserUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<
@@ -103,10 +103,11 @@ impl User {
         query
             .get_results_async::<(Self, UserRole)>(conn)
             .await
-            .into_report()
-            .map_err(|err| match err.current_context() {
-                DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
-                _ => err.change_context(errors::DatabaseError::Others),
+            .map_err(|err| match err {
+                DieselError::NotFound => {
+                    report!(err).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => report!(err).change_context(errors::DatabaseError::Others),
             })
     }
 }

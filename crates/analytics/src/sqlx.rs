@@ -8,7 +8,7 @@ use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use sqlx::{
     postgres::{PgArgumentBuffer, PgPoolOptions, PgRow, PgTypeInfo, PgValueRef},
@@ -100,10 +100,10 @@ where
     Type: DbType + FromStr + Display,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> sqlx::encode::IsNull {
-        self.0.to_string().encode(buf)
+        <String as Encode<'q, Postgres>>::encode(self.0.to_string(), buf)
     }
     fn size_hint(&self) -> usize {
-        self.0.to_string().size_hint()
+        <String as Encode<'q, Postgres>>::size_hint(&self.0.to_string())
     }
 }
 
@@ -138,9 +138,7 @@ where
     for<'a> T: FromRow<'a, PgRow>,
 {
     fn load_row(row: PgRow) -> CustomResult<T, QueryExecutionError> {
-        T::from_row(&row)
-            .into_report()
-            .change_context(QueryExecutionError::RowExtractionFailure)
+        T::from_row(&row).change_context(QueryExecutionError::RowExtractionFailure)
     }
 }
 
@@ -163,7 +161,6 @@ impl AnalyticsDataSource for SqlxClient {
         sqlx::query(&format!("{query};"))
             .fetch_all(&self.pool)
             .await
-            .into_report()
             .change_context(QueryExecutionError::DatabaseError)
             .attach_printable_lazy(|| format!("Failed to run query {query}"))?
             .into_iter()
@@ -179,7 +176,6 @@ impl HealthCheck for SqlxClient {
             .fetch_all(&self.pool)
             .await
             .map(|_| ())
-            .into_report()
             .change_context(QueryExecutionError::DatabaseError)
     }
 }
@@ -519,8 +515,10 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::PaymentIntent => Ok("payment_intent".to_string()),
-            Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
-                .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
+            Self::ConnectorEvents | Self::ConnectorEventsAnalytics => {
+                Err(error_stack::report!(ParsingError::UnknownError)
+                    .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?
+            }
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
@@ -567,6 +565,20 @@ where
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
+            Self::Percentile {
+                field,
+                alias,
+                percentile,
+            } => {
+                format!(
+                    "percentile_cont(0.{}) within group (order by {} asc){}",
+                    percentile.map_or_else(|| "50".to_owned(), |percentile| percentile.to_string()),
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to percentile aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
         })
     }
 }
@@ -597,7 +609,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
@@ -620,7 +632,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))

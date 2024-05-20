@@ -4,7 +4,8 @@ use serde::Serialize;
 use serde_json::json;
 use time::OffsetDateTime;
 
-use super::{EventType, RawEvent};
+use super::EventType;
+use crate::services::kafka::KafkaMessage;
 
 #[derive(Debug, Serialize)]
 pub struct ConnectorEvent {
@@ -89,14 +90,12 @@ impl ConnectorEvent {
     }
 }
 
-impl TryFrom<ConnectorEvent> for RawEvent {
-    type Error = serde_json::Error;
+impl KafkaMessage for ConnectorEvent {
+    fn event_type(&self) -> EventType {
+        EventType::ConnectorApiLogs
+    }
 
-    fn try_from(value: ConnectorEvent) -> Result<Self, Self::Error> {
-        Ok(Self {
-            event_type: EventType::ConnectorApiLogs,
-            key: value.request_id.clone(),
-            payload: serde_json::to_value(value)?,
-        })
+    fn key(&self) -> String {
+        self.request_id.clone()
     }
 }

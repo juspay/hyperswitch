@@ -1,11 +1,13 @@
 use diesel_models::{user as storage, user_role::UserRole};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Secret;
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    pii,
     services::Store,
 };
 pub mod sample_data;
@@ -19,7 +21,7 @@ pub trait UserInterface {
 
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
     async fn find_user_by_id(
@@ -35,7 +37,7 @@ pub trait UserInterface {
 
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
@@ -52,6 +54,7 @@ pub trait UserInterface {
 
 #[async_trait::async_trait]
 impl UserInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_user(
         &self,
         user_data: storage::UserNew,
@@ -60,21 +63,21 @@ impl UserInterface for Store {
         user_data
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_email(&conn, user_email)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_user_by_id(
         &self,
         user_id: &str,
@@ -82,10 +85,10 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn update_user_by_user_id(
         &self,
         user_id: &str,
@@ -94,22 +97,22 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_id(&conn, user_id, user)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_email(&conn, user_email, user)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -117,10 +120,10 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::delete_by_user_id(&conn, user_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_users_and_roles_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -128,8 +131,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -151,11 +153,7 @@ impl UserInterface for MockDb {
         }
         let time_now = common_utils::date_time::now();
         let user = storage::User {
-            id: users
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
+            id: i32::try_from(users.len()).change_context(errors::StorageError::MockDbError)?,
             user_id: user_data.user_id,
             email: user_data.email,
             name: user_data.name,
@@ -164,6 +162,10 @@ impl UserInterface for MockDb {
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
             preferred_merchant_id: user_data.preferred_merchant_id,
+            totp_status: user_data.totp_status,
+            totp_secret: user_data.totp_secret,
+            totp_recovery_codes: user_data.totp_recovery_codes,
+            last_password_modified_at: user_data.last_password_modified_at,
         };
         users.push(user.clone());
         Ok(user)
@@ -171,20 +173,16 @@ impl UserInterface for MockDb {
 
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let users = self.users.lock().await;
-        let user_email_pii: common_utils::pii::Email = user_email
-            .to_string()
-            .try_into()
-            .map_err(|_| errors::StorageError::MockDbError)?;
         users
             .iter()
-            .find(|user| user.email == user_email_pii)
+            .find(|user| user.email.eq(user_email))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for email = {user_email}"
+                    "No user available for email = {user_email:?}"
                 ))
                 .into(),
             )
@@ -224,16 +222,31 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::AccountUpdate {
                         name,
-                        password,
                         is_verified,
                         preferred_merchant_id,
                     } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        password: password.clone().unwrap_or(user.password.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         preferred_merchant_id: preferred_merchant_id
                             .clone()
                             .or(user.preferred_merchant_id.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::TotpUpdate {
+                        totp_status,
+                        totp_secret,
+                        totp_recovery_codes,
+                    } => storage::User {
+                        totp_status: totp_status.unwrap_or(user.totp_status),
+                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
+                        totp_recovery_codes: totp_recovery_codes
+                            .clone()
+                            .or(user.totp_recovery_codes.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };
@@ -249,17 +262,13 @@ impl UserInterface for MockDb {
 
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
-        let user_email_pii: common_utils::pii::Email = user_email
-            .to_string()
-            .try_into()
-            .map_err(|_| errors::StorageError::MockDbError)?;
         users
             .iter_mut()
-            .find(|user| user.email == user_email_pii)
+            .find(|user| user.email.eq(user_email))
             .map(|user| {
                 *user = match &update_user {
                     storage::UserUpdate::VerifyUser => storage::User {
@@ -268,16 +277,31 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::AccountUpdate {
                         name,
-                        password,
                         is_verified,
                         preferred_merchant_id,
                     } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        password: password.clone().unwrap_or(user.password.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         preferred_merchant_id: preferred_merchant_id
                             .clone()
                             .or(user.preferred_merchant_id.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::TotpUpdate {
+                        totp_status,
+                        totp_secret,
+                        totp_recovery_codes,
+                    } => storage::User {
+                        totp_status: totp_status.unwrap_or(user.totp_status),
+                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
+                        totp_recovery_codes: totp_recovery_codes
+                            .clone()
+                            .or(user.totp_recovery_codes.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };
@@ -285,7 +309,7 @@ impl UserInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for user_email = {user_email}"
+                    "No user available for user_email = {user_email:?}"
                 ))
                 .into(),
             )

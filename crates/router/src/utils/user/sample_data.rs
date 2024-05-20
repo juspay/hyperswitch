@@ -2,9 +2,9 @@ use api_models::{
     enums::Connector::{DummyConnector4, DummyConnector7},
     user::sample_data::SampleDataRequest,
 };
-use data_models::payments::payment_intent::PaymentIntentNew;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
 use time::OffsetDateTime;
 
@@ -44,7 +44,6 @@ pub async fn generate_sample_data(
 
     let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
         serde_json::from_value(merchant_from_db.primary_business_details.clone())
-            .into_report()
             .change_context(SampleDataError::InternalServerError)
             .attach_printable("Error while parsing primary business details")?;
 
@@ -84,7 +83,6 @@ pub async fn generate_sample_data(
     // 10 percent payments should be failed
     #[allow(clippy::as_conversions)]
     let failure_attempts = usize::try_from((sample_data_size as f32 / 10.0).round() as i64)
-        .into_report()
         .change_context(SampleDataError::InvalidParameters)?;
 
     let failure_after_attempts = sample_data_size / failure_attempts;
@@ -92,7 +90,6 @@ pub async fn generate_sample_data(
     // 20 percent refunds for payments
     #[allow(clippy::as_conversions)]
     let number_of_refunds = usize::try_from((sample_data_size as f32 / 5.0).round() as i64)
-        .into_report()
         .change_context(SampleDataError::InvalidParameters)?;
 
     let mut refunds_count = 0;
@@ -190,7 +187,9 @@ pub async fn generate_sample_data(
             client_secret: Some(client_secret),
             business_country: business_country_default,
             business_label: business_label_default.clone(),
-            active_attempt: data_models::RemoteStorageObject::ForeignID(attempt_id.clone()),
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                attempt_id.clone(),
+            ),
             attempt_count: 1,
             customer_id: Some("hs-dashboard-user".to_string()),
             amount_captured: Some(amount * 100),
@@ -218,6 +217,8 @@ pub async fn generate_sample_data(
             authorization_count: Default::default(),
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
+            request_external_three_ds_authentication: None,
+            frm_metadata: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

@@ -1,19 +1,25 @@
 use std::sync::Arc;
 
-use data_models::{
-    errors::StorageError,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-};
 use diesel_models::{self as store};
 use error_stack::ResultExt;
 use futures::lock::Mutex;
+use hyperswitch_domain_models::{
+    errors::StorageError,
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 use redis_interface::RedisSettings;
 
 use crate::redis::RedisStore;
 
 pub mod payment_attempt;
 pub mod payment_intent;
+#[cfg(feature = "payouts")]
+pub mod payout_attempt;
+#[cfg(feature = "payouts")]
+pub mod payouts;
 pub mod redis_conn;
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 
 #[derive(Clone)]
 pub struct MockDb {
@@ -35,9 +41,9 @@ pub struct MockDb {
     pub disputes: Arc<Mutex<Vec<store::Dispute>>>,
     pub lockers: Arc<Mutex<Vec<store::LockerMockUp>>>,
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
-    pub captures: Arc<Mutex<Vec<crate::store::capture::Capture>>>,
-    pub merchant_key_store: Arc<Mutex<Vec<crate::store::merchant_key_store::MerchantKeyStore>>>,
-    pub business_profiles: Arc<Mutex<Vec<crate::store::business_profile::BusinessProfile>>>,
+    pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
+    pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
+    pub business_profiles: Arc<Mutex<Vec<store::business_profile::BusinessProfile>>>,
     pub reverse_lookups: Arc<Mutex<Vec<store::ReverseLookup>>>,
     pub payment_link: Arc<Mutex<Vec<store::payment_link::PaymentLink>>>,
     pub organizations: Arc<Mutex<Vec<store::organization::Organization>>>,
@@ -45,7 +51,13 @@ pub struct MockDb {
     pub user_roles: Arc<Mutex<Vec<store::user_role::UserRole>>>,
     pub authorizations: Arc<Mutex<Vec<store::authorization::Authorization>>>,
     pub dashboard_metadata: Arc<Mutex<Vec<store::user::dashboard_metadata::DashboardMetadata>>>,
+    #[cfg(feature = "payouts")]
+    pub payout_attempt: Arc<Mutex<Vec<store::payout_attempt::PayoutAttempt>>>,
+    #[cfg(feature = "payouts")]
+    pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
+    pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
+    pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
 }
 
 impl MockDb {
@@ -83,7 +95,19 @@ impl MockDb {
             user_roles: Default::default(),
             authorizations: Default::default(),
             dashboard_metadata: Default::default(),
+            #[cfg(feature = "payouts")]
+            payout_attempt: Default::default(),
+            #[cfg(feature = "payouts")]
+            payouts: Default::default(),
+            authentications: Default::default(),
             roles: Default::default(),
+            user_key_store: Default::default(),
         })
     }
 }
+
+#[cfg(not(feature = "payouts"))]
+impl PayoutsInterface for MockDb {}
+
+#[cfg(not(feature = "payouts"))]
+impl PayoutAttemptInterface for MockDb {}

@@ -2,7 +2,7 @@
 resolver = "2"
 members = ["crates/*"]
 package.edition = "2021"
-package.rust-version = "1.65"
+package.rust-version = "1.70"
 package.license = "Apache-2.0"
 
 [profile.release]

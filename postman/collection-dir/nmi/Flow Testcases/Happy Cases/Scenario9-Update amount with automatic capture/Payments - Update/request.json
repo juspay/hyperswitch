@@ -18,18 +18,14 @@
       }
     },
     "raw_json_formatted": {
-      "amount": "{{another_random_number}}"
+      "amount": "{{another_random_number}}",
+      "amount_to_capture": "{{another_random_number}}"
     }
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id"],
     "variable": [
       {
         "key": "id",

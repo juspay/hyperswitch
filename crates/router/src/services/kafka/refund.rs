@@ -65,4 +65,8 @@ impl<'a> super::KafkaMessage for KafkaRefund<'a> {
             self.merchant_id, self.payment_id, self.attempt_id, self.refund_id
         )
     }
+
+    fn event_type(&self) -> crate::events::EventType {
+        crate::events::EventType::Refund
+    }
 }

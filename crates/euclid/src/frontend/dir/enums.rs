@@ -6,6 +6,8 @@ pub use crate::enums::{
     Country as BillingCountry, Currency as PaymentCurrency, MandateAcceptanceType, MandateType,
     PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
 };
+#[cfg(feature = "payouts")]
+pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
 
 #[derive(
     Clone,
@@ -14,7 +16,7 @@ pub use crate::enums::{
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -34,7 +36,7 @@ pub enum CardType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -59,7 +61,7 @@ pub enum PayLaterType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -87,6 +89,7 @@ pub enum WalletType {
     TouchNGo,
     Swish,
     Cashapp,
+    Venmo,
 }
 
 #[derive(
@@ -96,7 +99,7 @@ pub enum WalletType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -128,7 +131,7 @@ pub enum VoucherType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -162,7 +165,7 @@ pub enum BankRedirectType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -184,6 +187,7 @@ pub enum BankTransferType {
     PermataBankTransfer,
     Pix,
     Pse,
+    LocalBankTransfer,
 }
 
 #[derive(
@@ -193,7 +197,7 @@ pub enum BankTransferType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -213,7 +217,7 @@ pub enum GiftCardType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -235,7 +239,7 @@ pub enum CardRedirectType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -254,7 +258,7 @@ pub enum CryptoType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -273,7 +277,7 @@ pub enum UpiType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
@@ -295,7 +299,7 @@ pub enum BankDebitType {
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     serde::Serialize,
