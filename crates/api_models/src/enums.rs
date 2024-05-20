@@ -591,6 +591,7 @@ pub fn convert_authentication_connector(connector_name: &str) -> Option<Authenti
     AuthenticationConnectors::from_str(connector_name).ok()
 }
 
+#[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
 }
