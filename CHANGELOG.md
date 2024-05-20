@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.20.2
+
+### Features
+
+- Add an api for toggle KV for all merchants ([#4600](https://github.com/juspay/hyperswitch/pull/4600)) ([`7f53461`](https://github.com/juspay/hyperswitch/commit/7f5346169edc4266b7b08578aac7aef1ede630f3))
+
+**Full Changelog:** [`2024.05.20.1...2024.05.20.2`](https://github.com/juspay/hyperswitch/compare/2024.05.20.1...2024.05.20.2)
+
+- - -
+
+## 2024.05.20.1
+
+### Features
+
+- Soft kill kv ([#4582](https://github.com/juspay/hyperswitch/pull/4582)) ([`3fa59d4`](https://github.com/juspay/hyperswitch/commit/3fa59d4bac01de8fa25e28340a57e578d9980032))
+
+**Full Changelog:** [`2024.05.20.0...2024.05.20.1`](https://github.com/juspay/hyperswitch/compare/2024.05.20.0...2024.05.20.1)
+
+- - -
+
+## 2024.05.20.0
+
+### Features
+
+- Added client_source, client_version in payment_attempt from payments confirm request headers ([#4657](https://github.com/juspay/hyperswitch/pull/4657)) ([`7e44bbc`](https://github.com/juspay/hyperswitch/commit/7e44bbca63c1818c0fabdf2734d9b0ae5d639fe1))
+
+### Bug Fixes
+
+- **docker:** Fix stack overflow for docker images ([#4660](https://github.com/juspay/hyperswitch/pull/4660)) ([`a62f69d`](https://github.com/juspay/hyperswitch/commit/a62f69d447245273c73611309055d2341a47b783))
+- Address non-digit character cases in card number validation ([#4649](https://github.com/juspay/hyperswitch/pull/4649)) ([`8c0d72e`](https://github.com/juspay/hyperswitch/commit/8c0d72e225c56b7bece733d9565fc8774deaa490))
+
+### Refactors
+
+- **FRM:** Refactor frm configs ([#4581](https://github.com/juspay/hyperswitch/pull/4581)) ([`853f3b4`](https://github.com/juspay/hyperswitch/commit/853f3b4854ff9ec1e169b7633f1e9bf8259e9ceb))
+
+**Full Changelog:** [`2024.05.17.0...2024.05.20.0`](https://github.com/juspay/hyperswitch/compare/2024.05.17.0...2024.05.20.0)
+
+- - -
+
 ## 2024.05.17.0
 
 ### Bug Fixes
