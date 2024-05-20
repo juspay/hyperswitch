@@ -297,7 +297,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
+                resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
                 redirection_data: Some(services::RedirectForm::Mifinity {
                     initialization_token,
                 }),
@@ -358,10 +358,17 @@ impl<F, T>
             .iter()
             .map(|payload| payload.payment_response.transaction_reference.clone())
             .collect();
-        let status = &item.response.payload.clone().first().unwrap().status;
+        let status = item
+            .response
+            .payload
+            .first()
+            .map(|payload| payload.to_owned().status.clone())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "status",
+            })?;
 
         Ok(Self {
-            status: enums::AttemptStatus::from(&status.clone()),
+            status: enums::AttemptStatus::from(status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_reference),
                 redirection_data: None,
@@ -373,6 +380,16 @@ impl<F, T>
             }),
             ..item.data
         })
+    }
+}
+
+impl From<MifinityPaymentStatus> for enums::AttemptStatus {
+    fn from(item: MifinityPaymentStatus) -> Self {
+        match item {
+            MifinityPaymentStatus::Successful => Self::Charged,
+            MifinityPaymentStatus::Failed => Self::Failure,
+            MifinityPaymentStatus::Pending | MifinityPaymentStatus::NotCompleted => Self::Pending,
+        }
     }
 }
 
