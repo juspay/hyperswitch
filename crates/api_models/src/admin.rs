@@ -758,7 +758,7 @@ pub struct PaymentMethodsEnabled {
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: common_enums::PaymentMethod,
 
-    /// Subtype of payment methd
+    /// Subtype of payment method
     #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }

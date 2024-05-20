@@ -99,7 +99,6 @@ pub async fn list_payment_method_api(
         payload,
         |state, auth, req, _| {
             cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
-            // list_payment_methods_from_graph(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
