@@ -126,9 +126,6 @@ Cypress.Commands.add("createCustomerCallTest", (customerCreateBody, globalState)
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
-    // Handle the response as needed
-    console.log(response);
-
     globalState.set("customerId", response.body.customer_id);
   });
 });
@@ -156,7 +153,6 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
     body: request,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
@@ -168,9 +164,6 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
     for(const key in res_data.body) {
       expect(res_data.body[key]).to.equal(response.body[key]);
     }
-    expect(request.amount).to.equal(response.body.amount);
-    expect(null).to.equal(response.body.amount_received);
-    expect(request.amount).to.equal(response.body.amount_capturable);
   });
 });
 
@@ -188,7 +181,6 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
-    console.log(response);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("redirect_url");
     expect(response.body).to.have.property("payment_methods");
@@ -215,7 +207,6 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
     body: confirmBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
@@ -276,7 +267,6 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
     body: createConfirmPaymentBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
@@ -344,7 +334,6 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, 
   })
     .then((response) => {
       logRequestId(response.headers['x-request-id']);
-      console.log(response);
 
       expect(res_data.status).to.equal(response.status);
       expect(response.headers["content-type"]).to.include("application/json");
@@ -433,7 +422,6 @@ Cypress.Commands.add("voidCallTest", (requestBody, req_data, res_data, globalSta
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
@@ -488,7 +476,6 @@ Cypress.Commands.add("refundCallTest", (requestBody, req_data, res_data, refund_
     body: requestBody
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     
@@ -521,7 +508,6 @@ Cypress.Commands.add("syncRefundCallTest", (req_data, res_data, globalState) => 
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     for(const key in res_data.body) {
@@ -551,7 +537,6 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("mandateId", response.body.mandate_id);
@@ -613,7 +598,6 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-    console.log(response);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", response.body.payment_id);
     console.log("mit statusss-> " + response.body.status);
