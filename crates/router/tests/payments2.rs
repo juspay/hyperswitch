@@ -3,7 +3,7 @@
 mod utils;
 
 use router::{
-    core::{payment_methods::Oss, payments},
+    core::payments,
     db::StorageImpl,
     types::api::{self, enums as api_enums},
     *,
@@ -131,7 +131,6 @@ async fn payments_create_core() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),
@@ -322,7 +321,6 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
-        Oss,
     >(
         state.clone(),
         state.get_req_state(),

@@ -26,7 +26,7 @@ use crate::{
         api::{self, enums as api_enums},
         domain,
         storage::enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ApplePayPredecryptData,
     },
     unimplemented_payment_method,
@@ -1670,13 +1670,13 @@ pub struct CybersourceErrorInformation {
 }
 
 impl<F, T>
-    From<(
+    ForeignFrom<(
         &CybersourceErrorInformationResponse,
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
         Option<enums::AttemptStatus>,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    fn from(
+    fn foreign_from(
         (error_response, item, transaction_status): (
             &CybersourceErrorInformationResponse,
             types::ResponseRouterData<
@@ -1726,9 +1726,10 @@ fn get_error_response_if_failure(
     ),
 ) -> Option<types::ErrorResponse> {
     if utils::is_payment_failure(status) {
-        Some(types::ErrorResponse::from((
+        Some(types::ErrorResponse::foreign_from((
             &info_response.error_information,
             &info_response.risk_information,
+            Some(status),
             http_code,
             info_response.id.clone(),
         )))
@@ -1821,11 +1822,13 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => Ok(Self::from((
-                &error_response.clone(),
-                item,
-                Some(enums::AttemptStatus::Failure),
-            ))),
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
+                Ok(Self::foreign_from((
+                    &error_response.clone(),
+                    item,
+                    Some(enums::AttemptStatus::Failure),
+                )))
+            }
         }
     }
 }
@@ -2188,9 +2191,10 @@ impl<F>
                 let status = enums::AttemptStatus::from(info_response.status);
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
-                    let response = Err(types::ErrorResponse::from((
+                    let response = Err(types::ErrorResponse::foreign_from((
                         &info_response.error_information,
                         &risk_info,
+                        Some(status),
                         item.http_code,
                         info_response.id.clone(),
                     )));
@@ -2313,11 +2317,13 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => Ok(Self::from((
-                &error_response.clone(),
-                item,
-                Some(enums::AttemptStatus::Failure),
-            ))),
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
+                Ok(Self::foreign_from((
+                    &error_response.clone(),
+                    item,
+                    Some(enums::AttemptStatus::Failure),
+                )))
+            }
         }
     }
 }
@@ -2366,7 +2372,7 @@ impl<F>
                 })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(Self::from((&error_response.clone(), item, None)))
+                Ok(Self::foreign_from((&error_response.clone(), item, None)))
             }
         }
     }
@@ -2403,7 +2409,7 @@ impl<F>
                 })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(Self::from((&error_response.clone(), item, None)))
+                Ok(Self::foreign_from((&error_response.clone(), item, None)))
             }
         }
     }
@@ -2514,7 +2520,7 @@ impl<F, T>
 }
 
 impl<F, T>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             CybersourcePaymentsIncrementalAuthorizationResponse,
@@ -2525,7 +2531,7 @@ impl<F, T>
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn foreign_try_from(
         data: (
             types::ResponseRouterData<
                 F,
@@ -2613,9 +2619,10 @@ impl<F>
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
                     Ok(Self {
-                        response: Err(types::ErrorResponse::from((
+                        response: Err(types::ErrorResponse::foreign_from((
                             &app_response.error_information,
                             &risk_info,
+                            Some(status),
                             item.http_code,
                             app_response.id.clone(),
                         ))),
@@ -2694,13 +2701,15 @@ impl From<CybersourceRefundStatus> for enums::RefundStatus {
             CybersourceRefundStatus::Succeeded | CybersourceRefundStatus::Transmitted => {
                 Self::Success
             }
-            CybersourceRefundStatus::Failed | CybersourceRefundStatus::Voided => Self::Failure,
+            CybersourceRefundStatus::Cancelled
+            | CybersourceRefundStatus::Failed
+            | CybersourceRefundStatus::Voided => Self::Failure,
             CybersourceRefundStatus::Pending => Self::Pending,
         }
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourceRefundStatus {
     Succeeded,
@@ -2708,6 +2717,7 @@ pub enum CybersourceRefundStatus {
     Failed,
     Pending,
     Voided,
+    Cancelled,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2715,6 +2725,7 @@ pub enum CybersourceRefundStatus {
 pub struct CybersourceRefundResponse {
     id: String,
     status: CybersourceRefundStatus,
+    error_information: Option<CybersourceErrorInformation>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, CybersourceRefundResponse>>
@@ -2724,11 +2735,24 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CybersourceRefundRes
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, CybersourceRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status.clone());
+        let response = if utils::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse::foreign_from((
+                &item.response.error_information,
+                &None,
+                None,
+                item.http_code,
+                item.response.id.clone(),
+            )))
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -2737,21 +2761,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CybersourceRefundRes
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RsyncApplicationInformation {
-    status: CybersourceRefundStatus,
+    status: Option<CybersourceRefundStatus>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CybersourceRsyncApplicationResponse {
+pub struct CybersourceRsyncResponse {
     id: String,
-    application_information: RsyncApplicationInformation,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum CybersourceRsyncResponse {
-    RsyncApplicationResponse(Box<CybersourceRsyncApplicationResponse>),
-    ErrorInformation(CybersourceErrorInformationResponse),
+    application_information: Option<RsyncApplicationInformation>,
+    error_information: Option<CybersourceErrorInformation>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncResponse>>
@@ -2779,7 +2797,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
                 }),
                 ..item.data
             }),
-        }
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
     }
 }
 
@@ -3073,17 +3096,19 @@ pub struct AuthenticationErrorInformation {
 }
 
 impl
-    From<(
+    ForeignFrom<(
         &Option<CybersourceErrorInformation>,
         &Option<ClientRiskInformation>,
+        Option<enums::AttemptStatus>,
         u16,
         String,
     )> for types::ErrorResponse
 {
-    fn from(
-        (error_data, risk_information, status_code, transaction_id): (
+    fn foreign_from(
+        (error_data, risk_information, attempt_status, status_code, transaction_id): (
             &Option<CybersourceErrorInformation>,
             &Option<ClientRiskInformation>,
+            Option<enums::AttemptStatus>,
             u16,
             String,
         ),
@@ -3120,7 +3145,7 @@ impl
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(error_reason.clone()),
             status_code,
-            attempt_status: Some(enums::AttemptStatus::Failure),
+            attempt_status,
             connector_transaction_id: Some(transaction_id.clone()),
         }
     }

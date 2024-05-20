@@ -237,39 +237,26 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
-        card_holder_name: Option<Secret<String>>,
-        billing_details: Option<BankRedirectBilling>,
     },
     Bizum {},
     Blik {
         blik_code: Option<String>,
     },
     Eps {
-        billing_details: Option<BankRedirectBilling>,
         bank_name: Option<common_enums::BankNames>,
-        country: Option<common_enums::CountryAlpha2>,
     },
     Giropay {
-        billing_details: Option<BankRedirectBilling>,
         bank_account_bic: Option<Secret<String>>,
         bank_account_iban: Option<Secret<String>>,
-        country: Option<common_enums::CountryAlpha2>,
     },
     Ideal {
-        billing_details: Option<BankRedirectBilling>,
         bank_name: Option<common_enums::BankNames>,
-        country: Option<common_enums::CountryAlpha2>,
     },
-    Interac {
-        country: common_enums::CountryAlpha2,
-        email: Email,
-    },
+    Interac {},
     OnlineBankingCzechRepublic {
         issuer: common_enums::BankNames,
     },
-    OnlineBankingFinland {
-        email: Option<Email>,
-    },
+    OnlineBankingFinland {},
     OnlineBankingPoland {
         issuer: common_enums::BankNames,
     },
@@ -278,32 +265,20 @@ pub enum BankRedirectData {
     },
     OpenBankingUk {
         issuer: Option<common_enums::BankNames>,
-        country: Option<common_enums::CountryAlpha2>,
     },
     Przelewy24 {
         bank_name: Option<common_enums::BankNames>,
-        billing_details: BankRedirectBilling,
     },
     Sofort {
-        billing_details: Option<BankRedirectBilling>,
-        country: Option<common_enums::CountryAlpha2>,
         preferred_language: Option<String>,
     },
-    Trustly {
-        country: common_enums::CountryAlpha2,
-    },
+    Trustly {},
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
     },
     OnlineBankingThailand {
         issuer: common_enums::BankNames,
     },
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct BankRedirectBilling {
-    pub billing_name: Option<Secret<String>>,
-    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -404,79 +379,20 @@ pub enum BankDebitData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
-    AchBankTransfer {
-        /// The billing details for ACH Bank Transfer
-        billing_details: AchBillingDetails,
-    },
-    SepaBankTransfer {
-        /// The billing details for SEPA
-        billing_details: SepaAndBacsBillingDetails,
-
-        /// The two-letter ISO country code for SEPA and BACS
-        country: api_models::enums::CountryAlpha2,
-    },
-    BacsBankTransfer {
-        /// The billing details for SEPA
-        billing_details: SepaAndBacsBillingDetails,
-    },
-    MultibancoBankTransfer {
-        /// The billing details for Multibanco
-        billing_details: MultibancoBillingDetails,
-    },
-    PermataBankTransfer {
-        /// The billing details for Permata Bank Transfer
-        billing_details: DokuBillingDetails,
-    },
-    BcaBankTransfer {
-        /// The billing details for BCA Bank Transfer
-        billing_details: DokuBillingDetails,
-    },
-    BniVaBankTransfer {
-        /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
-    },
-    BriVaBankTransfer {
-        /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
-    },
-    CimbVaBankTransfer {
-        /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
-    },
-    DanamonVaBankTransfer {
-        /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
-    },
-    MandiriVaBankTransfer {
-        /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
-    },
+    AchBankTransfer {},
+    SepaBankTransfer {},
+    BacsBankTransfer {},
+    MultibancoBankTransfer {},
+    PermataBankTransfer {},
+    BcaBankTransfer {},
+    BniVaBankTransfer {},
+    BriVaBankTransfer {},
+    CimbVaBankTransfer {},
+    DanamonVaBankTransfer {},
+    MandiriVaBankTransfer {},
     Pix {},
     Pse {},
-    LocalBankTransfer {
-        bank_code: Option<String>,
-    },
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct AchBillingDetails {
-    /// The Email ID for ACH billing
-    pub email: Email,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct DokuBillingDetails {
-    /// The billing first name for Doku
-    pub first_name: Secret<String>,
-    /// The billing second name for Doku
-    pub last_name: Option<Secret<String>>,
-    /// The Email ID for Doku billing
-    pub email: Email,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct MultibancoBillingDetails {
-    pub email: Email,
+    LocalBankTransfer { bank_code: Option<String> },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -710,54 +626,34 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 card_number,
                 card_exp_month,
                 card_exp_year,
-                card_holder_name,
-                billing_details,
+                ..
             } => Self::BancontactCard {
                 card_number,
                 card_exp_month,
                 card_exp_year,
-                card_holder_name,
-                billing_details: billing_details.map(BankRedirectBilling::from),
             },
             api_models::payments::BankRedirectData::Bizum {} => Self::Bizum {},
             api_models::payments::BankRedirectData::Blik { blik_code } => Self::Blik { blik_code },
-            api_models::payments::BankRedirectData::Eps {
-                billing_details,
-                bank_name,
-                country,
-            } => Self::Eps {
-                billing_details: billing_details.map(BankRedirectBilling::from),
-                bank_name,
-                country,
-            },
-            api_models::payments::BankRedirectData::Giropay {
-                billing_details,
-                bank_account_bic,
-                bank_account_iban,
-                country,
-            } => Self::Giropay {
-                billing_details: billing_details.map(BankRedirectBilling::from),
-                bank_account_bic,
-                bank_account_iban,
-                country,
-            },
-            api_models::payments::BankRedirectData::Ideal {
-                billing_details,
-                bank_name,
-                country,
-            } => Self::Ideal {
-                billing_details: billing_details.map(BankRedirectBilling::from),
-                bank_name,
-                country,
-            },
-            api_models::payments::BankRedirectData::Interac { country, email } => {
-                Self::Interac { country, email }
+            api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
+                Self::Eps { bank_name }
             }
+            api_models::payments::BankRedirectData::Giropay {
+                bank_account_bic,
+                bank_account_iban,
+                ..
+            } => Self::Giropay {
+                bank_account_bic,
+                bank_account_iban,
+            },
+            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+                Self::Ideal { bank_name }
+            }
+            api_models::payments::BankRedirectData::Interac { .. } => Self::Interac {},
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
                 Self::OnlineBankingCzechRepublic { issuer }
             }
-            api_models::payments::BankRedirectData::OnlineBankingFinland { email } => {
-                Self::OnlineBankingFinland { email }
+            api_models::payments::BankRedirectData::OnlineBankingFinland { .. } => {
+                Self::OnlineBankingFinland {}
             }
             api_models::payments::BankRedirectData::OnlineBankingPoland { issuer } => {
                 Self::OnlineBankingPoland { issuer }
@@ -765,46 +661,22 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => {
                 Self::OnlineBankingSlovakia { issuer }
             }
-            api_models::payments::BankRedirectData::OpenBankingUk { issuer, country } => {
-                Self::OpenBankingUk { issuer, country }
+            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => {
+                Self::OpenBankingUk { issuer }
             }
-            api_models::payments::BankRedirectData::Przelewy24 {
-                bank_name,
-                billing_details,
-            } => Self::Przelewy24 {
-                bank_name,
-                billing_details: BankRedirectBilling {
-                    billing_name: billing_details.billing_name,
-                    email: billing_details.email,
-                },
-            },
+            api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. } => {
+                Self::Przelewy24 { bank_name }
+            }
             api_models::payments::BankRedirectData::Sofort {
-                billing_details,
-                country,
-                preferred_language,
-            } => Self::Sofort {
-                billing_details: billing_details.map(BankRedirectBilling::from),
-                country,
-                preferred_language,
-            },
-            api_models::payments::BankRedirectData::Trustly { country } => {
-                Self::Trustly { country }
-            }
+                preferred_language, ..
+            } => Self::Sofort { preferred_language },
+            api_models::payments::BankRedirectData::Trustly { .. } => Self::Trustly {},
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
             api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => {
                 Self::OnlineBankingThailand { issuer }
             }
-        }
-    }
-}
-
-impl From<api_models::payments::BankRedirectBilling> for BankRedirectBilling {
-    fn from(billing: api_models::payments::BankRedirectBilling) -> Self {
-        Self {
-            billing_name: billing.billing_name,
-            email: billing.email,
         }
     }
 }
@@ -922,88 +794,44 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
 impl From<api_models::payments::BankTransferData> for BankTransferData {
     fn from(value: api_models::payments::BankTransferData) -> Self {
         match value {
-            api_models::payments::BankTransferData::AchBankTransfer { billing_details } => {
-                Self::AchBankTransfer {
-                    billing_details: AchBillingDetails {
-                        email: billing_details.email,
-                    },
-                }
+            api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+                Self::AchBankTransfer {}
             }
-            api_models::payments::BankTransferData::SepaBankTransfer {
-                billing_details,
-                country,
-            } => Self::SepaBankTransfer {
-                billing_details: SepaAndBacsBillingDetails {
-                    email: billing_details.email,
-                    name: billing_details.name,
-                },
-                country,
-            },
-            api_models::payments::BankTransferData::BacsBankTransfer { billing_details } => {
-                Self::BacsBankTransfer {
-                    billing_details: SepaAndBacsBillingDetails {
-                        email: billing_details.email,
-                        name: billing_details.name,
-                    },
-                }
+            api_models::payments::BankTransferData::SepaBankTransfer { .. } => {
+                Self::SepaBankTransfer {}
             }
-            api_models::payments::BankTransferData::MultibancoBankTransfer { billing_details } => {
-                Self::MultibancoBankTransfer {
-                    billing_details: MultibancoBillingDetails {
-                        email: billing_details.email,
-                    },
-                }
+            api_models::payments::BankTransferData::BacsBankTransfer { .. } => {
+                Self::BacsBankTransfer {}
             }
-            api_models::payments::BankTransferData::PermataBankTransfer { billing_details } => {
-                Self::PermataBankTransfer {
-                    billing_details: DokuBillingDetails::from(billing_details),
-                }
+            api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                Self::MultibancoBankTransfer {}
             }
-            api_models::payments::BankTransferData::BcaBankTransfer { billing_details } => {
-                Self::BcaBankTransfer {
-                    billing_details: DokuBillingDetails::from(billing_details),
-                }
+            api_models::payments::BankTransferData::PermataBankTransfer { .. } => {
+                Self::PermataBankTransfer {}
             }
-            api_models::payments::BankTransferData::BniVaBankTransfer { billing_details } => {
-                Self::BniVaBankTransfer {
-                    billing_details: DokuBillingDetails::from(billing_details),
-                }
+            api_models::payments::BankTransferData::BcaBankTransfer { .. } => {
+                Self::BcaBankTransfer {}
             }
-            api_models::payments::BankTransferData::BriVaBankTransfer { billing_details } => {
-                Self::BriVaBankTransfer {
-                    billing_details: DokuBillingDetails::from(billing_details),
-                }
+            api_models::payments::BankTransferData::BniVaBankTransfer { .. } => {
+                Self::BniVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::CimbVaBankTransfer { billing_details } => {
-                Self::CimbVaBankTransfer {
-                    billing_details: DokuBillingDetails::from(billing_details),
-                }
+            api_models::payments::BankTransferData::BriVaBankTransfer { .. } => {
+                Self::BriVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::DanamonVaBankTransfer { billing_details } => {
-                Self::DanamonVaBankTransfer {
-                    billing_details: DokuBillingDetails::from(billing_details),
-                }
+            api_models::payments::BankTransferData::CimbVaBankTransfer { .. } => {
+                Self::CimbVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::MandiriVaBankTransfer { billing_details } => {
-                Self::MandiriVaBankTransfer {
-                    billing_details: DokuBillingDetails::from(billing_details),
-                }
+            api_models::payments::BankTransferData::DanamonVaBankTransfer { .. } => {
+                Self::DanamonVaBankTransfer {}
+            }
+            api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                Self::MandiriVaBankTransfer {}
             }
             api_models::payments::BankTransferData::Pix {} => Self::Pix {},
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
             }
-        }
-    }
-}
-
-impl From<api_models::payments::DokuBillingDetails> for DokuBillingDetails {
-    fn from(billing: api_models::payments::DokuBillingDetails) -> Self {
-        Self {
-            first_name: billing.first_name,
-            last_name: billing.last_name,
-            email: billing.email,
         }
     }
 }
