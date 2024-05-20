@@ -132,12 +132,12 @@ jobs:
   pr_contains_database_and_schema_changes_checks:
     name: Verify PR contains appropriate label if database and schema changes exists
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
       
     steps: 
       - name: Get changed fiels
         shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
           echo "migration_and_schema_changes=false" >> $GITHUB_ENV
           echo "openapi_changes=false" >> $GITHUB_ENV
