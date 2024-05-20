@@ -137,7 +137,7 @@ jobs:
       - name: Get changed fiels
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "migration_and_schema_changes=false" >> $GITHUB_ENV
           echo "openapi_changes=false" >> $GITHUB_ENV
