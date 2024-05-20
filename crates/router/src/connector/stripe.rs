@@ -40,13 +40,13 @@ use crate::{
 };
 
 pub struct Stripe {
-    boxed_convert: Box<dyn AmountConvertor<Output = FloatMajorUnit> + Send + Sync>,
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Stripe {
-    pub fn new() -> Self {
-        Self {
-            boxed_convert: Box::new(FloatMajorUnitForConnector),
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 
@@ -55,7 +55,7 @@ impl Stripe {
         i: MinorUnit,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<errors::ConnectorError>> {
-        self.boxed_convert
+        self.amount_converter
             .convert(i, currency)
             .change_context(errors::ConnectorError::ParsingFailed)
     }
@@ -65,7 +65,7 @@ impl Stripe {
         i: FloatMajorUnit,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
-        self.boxed_convert
+        self.amount_converter
             .convert_back(i, currency)
             .change_context(errors::ConnectorError::ParsingFailed)
     }
