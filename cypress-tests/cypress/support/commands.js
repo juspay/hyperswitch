@@ -156,13 +156,21 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
+    if(response.status === "200"){
+      
+    }
     expect(response.body).to.have.property("client_secret");
     const clientSecret = response.body.client_secret;
-    globalState.set("clientSecret", clientSecret);
-    globalState.set("paymentID", response.body.payment_id);
-    cy.log(clientSecret);
-    for(const key in res_data.body) {
-      expect(res_data.body[key]).to.equal(response.body[key]);
+    if(response.status === "200"){
+      globalState.set("clientSecret", clientSecret);
+      globalState.set("paymentID", response.body.payment_id);
+      cy.log(clientSecret);
+      for(const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
+      }
+      expect(request.amount).to.equal(response.body.amount);
+      expect(null).to.equal(response.body.amount_received);
+      expect(request.amount).to.equal(response.body.amount_capturable);
     }
   });
 });
@@ -270,40 +278,42 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
-    
-    if (response.body.capture_method === "automatic") {
-      expect(response.body).to.have.property("status");
-      globalState.set("paymentAmount", createConfirmPaymentBody.amount);
-      globalState.set("paymentID", response.body.payment_id);
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-          .to.have.property("redirect_to_url")
-          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
-      }
-      else if (response.body.authentication_type === "no_three_ds") {
-        for(const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+
+    if(response.status === "200"){
+      if (response.body.capture_method === "automatic") {
+        expect(response.body).to.have.property("status");
+        globalState.set("paymentAmount", createConfirmPaymentBody.amount);
+        globalState.set("paymentID", response.body.payment_id);
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+            .to.have.property("redirect_to_url")
+            globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
         }
-      } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        else if (response.body.authentication_type === "no_three_ds") {
+          for(const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          // Handle other authentication types as needed
+          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        }
       }
-    }
-    else if (response.body.capture_method === "manual") {
-      expect(response.body).to.have.property("status");
-      globalState.set("paymentAmount", createConfirmPaymentBody.amount);
-      globalState.set("paymentID", response.body.payment_id);
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-          .to.have.property("redirect_to_url")
-          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
-      }
-      else if (response.body.authentication_type === "no_three_ds") {
-        for(const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
-        }      } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+      else if (response.body.capture_method === "manual") {
+        expect(response.body).to.have.property("status");
+        globalState.set("paymentAmount", createConfirmPaymentBody.amount);
+        globalState.set("paymentID", response.body.payment_id);
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+            .to.have.property("redirect_to_url")
+            globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
+        }
+        else if (response.body.authentication_type === "no_three_ds") {
+          for(const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }      } else {
+          // Handle other authentication types as needed
+          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        }
       }
     }
     else{
@@ -338,32 +348,34 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, 
       expect(res_data.status).to.equal(response.status);
       expect(response.headers["content-type"]).to.include("application/json");
       globalState.set("paymentID", paymentIntentID);
-      if (response.body.capture_method === "automatic") {
-        if (response.body.authentication_type === "three_ds") {
-          expect(response.body).to.have.property("next_action")
-            .to.have.property("redirect_to_url");
-          const nextActionUrl = response.body.next_action.redirect_to_url;
-        } else if (response.body.authentication_type === "no_three_ds") {
-          for(const key in res_data.body) {
-            expect(res_data.body[key]).to.equal(response.body[key]);
+      if(response.status === "200"){
+        if (response.body.capture_method === "automatic") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body).to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+          } else if (response.body.authentication_type === "no_three_ds") {
+            for(const key in res_data.body) {
+              expect(res_data.body[key]).to.equal(response.body[key]);
+            }
+            expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+          } else {
+            // Handle other authentication types as needed
+            throw new Error(`Unsupported authentication type: ${authentication_type}`);
           }
-          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
-        } else {
-          // Handle other authentication types as needed
-          throw new Error(`Unsupported authentication type: ${authentication_type}`);
-        }
-      } else if (response.body.capture_method === "manual") {
-        if (response.body.authentication_type === "three_ds") {
-          expect(response.body).to.have.property("next_action")
-            .to.have.property("redirect_to_url")
-        }
-        else if (response.body.authentication_type === "no_three_ds") {
-          for(const key in res_data.body) {
-            expect(res_data.body[key]).to.equal(response.body[key]);
-          }          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
-        } else {
-          // Handle other authentication types as needed
-          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        } else if (response.body.capture_method === "manual") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body).to.have.property("next_action")
+              .to.have.property("redirect_to_url")
+          }
+          else if (response.body.authentication_type === "no_three_ds") {
+            for(const key in res_data.body) {
+              expect(res_data.body[key]).to.equal(response.body[key]);
+            }          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+          } else {
+            // Handle other authentication types as needed
+            throw new Error(`Unsupported authentication type: ${authentication_type}`);
+          }
         }
       }
       else {
