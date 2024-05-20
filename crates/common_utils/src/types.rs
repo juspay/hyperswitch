@@ -1,11 +1,8 @@
 //! Types that can be used in other crates
 use std::{
-    fmt::Display,
-    ops::{Add, Sub},
-    primitive::i64,
-    str::FromStr,
+    fmt::Display, num::{ParseFloatError, TryFromIntError}, ops::{Add, Sub}, primitive::i64, str::FromStr
 };
-
+use common_enums::enums;
 use diesel::{
     backend::Backend,
     deserialize,
@@ -255,6 +252,54 @@ impl MinorUnit {
     pub fn new(value: i64) -> Self {
         Self(value)
     }
+
+     /// Convert the amount to its major denomination based on Currency and return String
+     pub fn to_major_unit_as_string(&self, currency: enums::Currency) -> Result<String, TryFromIntError> {
+        let amount_f64 = self.to_major_unit_asf64(currency)?;
+        Ok(format!("{:.2}", amount_f64.0))
+    }
+
+    /// Convert the amount to its major denomination based on Currency and return f64
+    pub fn to_major_unit_asf64(&self, currency: enums::Currency) -> Result<FloatMajorUnit, TryFromIntError> {
+        let amount_f64: f64 = u32::try_from(self.0)?.into();
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_f64
+        } else if currency.is_three_decimal_currency() {
+            amount_f64 / 1000.00
+        } else {
+            amount_f64 / 100.00
+        };
+        Ok(FloatMajorUnit::new(amount))
+    }
+
+    ///Convert the higher decimal amount to its major absolute units
+    pub fn to_minor_unit_as_string(&self, currency: enums::Currency) -> Result<String, ParseFloatError> {
+        let amount_f64 = self.0.to_string().parse::<f64>()?;
+        let amount_string = if currency.is_zero_decimal_currency() {
+            amount_f64
+        } else if currency.is_three_decimal_currency() {
+            amount_f64 * 1000.00
+        } else {
+            amount_f64 * 100.00
+        };
+        Ok(amount_string.to_string())
+    }
+
+    /// Convert the amount to its major denomination based on Currency and check for zero decimal currency and return String
+    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+    pub fn to_major_unit_as_string_with_zero_decimal_check(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<StringMajorUnit, TryFromIntError> {
+        let amount_f64 = self.to_major_unit_asf64(currency)?;
+        if currency.is_zero_decimal_currency() {
+            Ok(StringMajorUnit::new(amount_f64.0.to_string()))
+        } else {
+            let amount_string = format!("{:.2}", amount_f64.0);
+            Ok(StringMajorUnit::new(amount_string))
+        }
+    }
 }
 
 impl Display for MinorUnit {
@@ -309,3 +354,109 @@ impl Sub for MinorUnit {
         Self(self.0 - a2.0)
     }
 }
+
+/// This struct represents Money unit on which conversion will be done
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+)]
+pub struct Money {
+    amount: MinorUnit,
+    currency: enums::Currency
+}
+
+// connector amount unit 
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+)]
+pub struct FloatMajorUnit(f64);
+
+impl FloatMajorUnit{
+    /// forms a new major unit from amount
+    pub fn new(value: f64) -> Self {
+        Self(value)
+    }
+
+    pub fn to_minor_unit_as_i64(&self, currency:enums::Currency) -> Result<MinorUnit, ParseFloatError> {
+        let amount_f64 = self.0;
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_f64
+        } else if currency.is_three_decimal_currency() {
+            amount_f64 * 1000.00
+        } else {
+            amount_f64 * 100.00
+        };
+        Ok(MinorUnit::new(amount as i64))
+    }
+}
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+)]
+pub struct StringMajorUnit(String);
+
+impl StringMajorUnit {
+    /// forms a new major unit from amount
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    pub fn to_minor_unit_as_i64(&self, currency:enums::Currency) -> Result<MinorUnit, ParseFloatError> {
+        let amount_f64 = self.0.parse::<f64>()?;
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_f64
+        } else if currency.is_three_decimal_currency() {
+            amount_f64 * 1000.00
+        } else {
+            amount_f64 * 100.00
+        };
+        Ok(MinorUnit::new(amount as i64))
+    }
+}
+
+
+pub trait AmountConvertor : Send {
+    type Output;
+    fn convert(&self, i: MinorUnit, currency:enums::Currency) -> Result<Self::Output, TryFromIntError>;
+    fn convert_back(&self, i:Self::Output, currency:enums::Currency) -> Result<MinorUnit,ParseFloatError>;
+}
+
+impl AmountConvertor for FloatMajorUnit {
+    type Output = FloatMajorUnit;
+    fn convert(&self, i: MinorUnit, currency: enums::Currency) -> Result<Self::Output, TryFromIntError> {
+        i.to_major_unit_asf64(currency)
+    }
+    fn convert_back(&self, i: FloatMajorUnit, currency:enums::Currency) -> Result<MinorUnit,ParseFloatError> {
+        i.to_minor_unit_as_i64(currency)
+    }
+}
+
+impl AmountConvertor for StringMajorUnit {
+    type Output = StringMajorUnit;
+    fn convert(&self, i: MinorUnit, currency: enums::Currency) -> Result<Self::Output, TryFromIntError> {
+        i.to_major_unit_as_string_with_zero_decimal_check(currency)
+    }
+    fn convert_back(&self, i: StringMajorUnit,  currency:enums::Currency) -> Result<MinorUnit,ParseFloatError> {
+        i.to_minor_unit_as_i64(currency)
+    }
+}
+

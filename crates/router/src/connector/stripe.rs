@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
-use common_utils::request::RequestContent;
+use common_utils::{request::RequestContent, types::AmountConvertor, types::FloatMajorUnit, types::MinorUnit};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -36,7 +36,25 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Stripe;
+pub struct Stripe{
+    boxed_convert : Box<dyn AmountConvertor< Output = FloatMajorUnit + Send>>
+}
+
+impl Stripe {
+    pub fn new() -> Self {
+        Self {
+            boxed_convert: Box::new(FloatMajorUnit::new),
+        }
+    }
+
+    pub fn convert_amount(&self, i: MinorUnit, currency: enums::Currency) -> Result<FloatMajorUnit, error_stack::Report<errors::ConnectorError>> {
+        self.boxed_convert.convert(i, currency).change_context(errors::ConnectorError::ParsingFailed)
+    }
+
+    pub fn convert_back(&self,  i: FloatMajorUnit, currency: enums::Currency) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+        self.boxed_convert.convert_back(i, currency).change_context(errors::ConnectorError::ParsingFailed)
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripe
 where
@@ -916,6 +934,8 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let sahkal = self.convert_amount(MinorUnit::new(23), req.request.currency)?;
+        let sahkal_back_convert =  self.convert_back(FloatMajorUnit::new(1.00), req.request.currency)?;
         match &req.request.payment_method_data {
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
@@ -2733,3 +2753,4 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
