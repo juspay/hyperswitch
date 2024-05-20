@@ -1,4 +1,12 @@
 //! Types that can be used in other crates
+use std::{
+    fmt::Display,
+    num::{ParseFloatError, TryFromIntError},
+    ops::{Add, Sub},
+    primitive::i64,
+    str::FromStr,
+};
+
 use common_enums::enums;
 use diesel::{
     backend::Backend,
@@ -12,13 +20,6 @@ use diesel::{
 use error_stack::{report, ResultExt};
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer};
-use std::{
-    fmt::Display,
-    num::{ParseFloatError, TryFromIntError},
-    ops::{Add, Sub},
-    primitive::i64,
-    str::FromStr,
-};
 use utoipa::ToSchema;
 
 use crate::{
