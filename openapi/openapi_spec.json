@@ -11536,6 +11536,11 @@
           }
         }
       },
+      "MinorUnit": {
+        "type": "integer",
+        "format": "int64",
+        "description": "This Unit struct represents MinorUnit in which core amount works"
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
