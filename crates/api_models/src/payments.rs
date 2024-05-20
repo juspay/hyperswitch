@@ -2513,7 +2513,7 @@ pub struct SwishQrData {}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
     pub destination_account_number: Secret<String>,
-    pub dob: Date,
+    pub dob: Secret<Date>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

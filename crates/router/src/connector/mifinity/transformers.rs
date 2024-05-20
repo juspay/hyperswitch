@@ -94,7 +94,7 @@ pub struct MifinityClient {
     dialing_code: String,
     nationality: api_models::enums::CountryAlpha2,
     email_address: Email,
-    dob: Date,
+    dob: Secret<Date>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -125,7 +125,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         dialing_code: phone_details.get_country_code()?,
                         nationality: item.router_data.get_billing_country()?,
                         email_address: item.router_data.get_billing_email()?,
-                        dob: data.dob,
+                        dob: data.dob.clone(),
                     };
                     let address = MifinityAddress {
                         address_line1: item.router_data.get_billing_line1()?,
@@ -258,7 +258,7 @@ pub struct MifinityClientResponse {
     dialing_code: String,
     nationality: String,
     email_address: String,
-    dob: Date,
+    dob: Secret<Date>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -358,9 +358,10 @@ impl<F, T>
             .iter()
             .map(|payload| payload.payment_response.transaction_reference.clone())
             .collect();
+        let status = &item.response.payload.clone().first().unwrap().status;
 
         Ok(Self {
-            status: enums::AttemptStatus::Charged,
+            status: enums::AttemptStatus::from(&status.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_reference),
                 redirection_data: None,
@@ -374,6 +375,7 @@ impl<F, T>
         })
     }
 }
+
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
