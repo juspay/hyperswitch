@@ -41,6 +41,7 @@ pub struct PaymentMetricRow {
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub end_bucket: Option<PrimitiveDateTime>,
+    pub merchant_id: Option<String>,
 }
 
 pub trait PaymentMetricAnalytics: LoadRow<PaymentMetricRow> {}
@@ -53,11 +54,11 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
+        merchant_ids: &[String],
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>>;
 }
 
@@ -74,22 +75,22 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
+        merchant_ids: &[String],
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         match self {
             Self::PaymentSuccessRate => {
                 PaymentSuccessRate
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -97,11 +98,11 @@ where
                 PaymentCount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -109,11 +110,11 @@ where
                 PaymentSuccessCount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -121,11 +122,11 @@ where
                 PaymentProcessedAmount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -133,11 +134,11 @@ where
                 AvgTicketSize
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -145,11 +146,11 @@ where
                 RetriesCount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -157,11 +158,11 @@ where
                 ConnectorSuccessRate
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }

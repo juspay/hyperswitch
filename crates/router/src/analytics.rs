@@ -25,7 +25,7 @@ pub mod routes {
         routes::AppState,
         services::{
             api,
-            authentication::{self as auth, AuthenticationData},
+            authentication::{self as auth, AuthenticationData, AuthenticationDataOrg},
             authorization::permissions::Permission,
             ApplicationResponse,
         },
@@ -158,14 +158,10 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req, _| async move {
-                analytics::payments::get_metrics(
-                    &state.pool,
-                    &auth.merchant_account.merchant_id,
-                    req,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+            |state, auth: AuthenticationDataOrg, req, _| async move {
+                analytics::payments::get_metrics(&state.pool, req, &auth.org_merchant_ids)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -194,7 +190,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req, _| async move {
+            |state, auth: AuthenticationDataOrg, req, _| async move {
                 analytics::refunds::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
@@ -293,14 +289,10 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
-                analytics::payments::get_filters(
-                    &state.pool,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+            |state, auth: AuthenticationDataOrg, req, _| async move {
+                analytics::payments::get_filters(&state.pool, req, &auth.org_merchant_ids)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

@@ -100,10 +100,10 @@ impl AnalyticsProvider {
         &self,
         metric: &PaymentMetrics,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
+        merchant_ids: &[String],
     ) -> types::MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         // Metrics to get the fetch time for each payment metric
         metrics::request::record_operation_time(
@@ -113,11 +113,11 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
                                 pool,
+                                merchant_ids
                             )
                             .await
                     }
@@ -125,11 +125,11 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
                                 pool,
+                                merchant_ids
                             )
                             .await
                     }
@@ -137,20 +137,20 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
                                 ckh_pool,
+                                merchant_ids
                             ),
                             metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
                                 sqlx_pool,
+                                merchant_ids
                             ));
                         match (&sqlx_result, &ckh_result) {
                             (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
@@ -166,20 +166,20 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
                                 ckh_pool,
+                                merchant_ids
                             ),
                             metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
                                 sqlx_pool,
+                                merchant_ids
                             ));
                         match (&sqlx_result, &ckh_result) {
                             (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
@@ -204,7 +204,7 @@ impl AnalyticsProvider {
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        merchant_ids: &[String],
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -218,7 +218,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                merchant_ids,
                                 filters,
                                 granularity,
                                 time_range,
@@ -231,7 +231,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                merchant_ids,
                                 filters,
                                 granularity,
                                 time_range,
@@ -244,7 +244,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                merchant_ids,
                                 filters,
                                 granularity,
                                 time_range,
@@ -254,7 +254,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                merchant_ids,
                                 filters,
                                 granularity,
                                 time_range,
@@ -275,7 +275,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                merchant_ids,
                                 filters,
                                 granularity,
                                 time_range,
@@ -285,7 +285,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                merchant_ids,
                                 filters,
                                 granularity,
                                 time_range,

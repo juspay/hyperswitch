@@ -46,6 +46,13 @@ pub struct AuthenticationData {
     pub key_store: domain::MerchantKeyStore,
 }
 
+#[derive(Clone, Debug)]
+pub struct AuthenticationDataOrg {
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+    pub org_merchant_ids: Vec<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(
     tag = "api_auth_type",
@@ -703,6 +710,76 @@ where
         }
     };
     decode_jwt(&token, state).await
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataOrg, A> for JWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataOrg, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
+        let org_id = payload.org_id;
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+        //get merchant ids if the user is org admin or return with default merchant id
+        let org_merchant_ids: Vec<String> = match permissions
+            .iter()
+            .find(|&permission| *permission == Permission::OrgAnalytics)
+        {
+            Some(_) => {
+                let organization = state
+                    .store()
+                    .list_merchant_accounts_by_organization_id(&org_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+
+                organization
+                    .iter()
+                    .map(|org| org.merchant_id.clone())
+                    .collect()
+            }
+            None => vec![merchant.merchant_id.clone()],
+        };
+
+        let auth = AuthenticationDataOrg {
+            merchant_account: merchant,
+            key_store,
+            org_merchant_ids,
+        };
+
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+                user_id: None,
+            },
+        ))
+    }
 }
 
 #[async_trait]

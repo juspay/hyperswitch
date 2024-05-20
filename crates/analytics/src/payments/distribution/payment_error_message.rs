@@ -32,7 +32,7 @@ where
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        merchant_ids: &[String],
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -70,7 +70,7 @@ where
         filters.set_filter_clause(&mut query_builder).switch()?;
 
         query_builder
-            .add_filter_clause("merchant_id", merchant_id)
+            .add_filter_in_range_clause("merchant_id", merchant_ids)
             .switch()?;
 
         time_range

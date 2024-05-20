@@ -31,6 +31,7 @@ pub struct PaymentDistributionRow {
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub end_bucket: Option<PrimitiveDateTime>,
+    pub merchant_id: Option<String>,
 }
 
 pub trait PaymentDistributionAnalytics: LoadRow<PaymentDistributionRow> {}
@@ -45,7 +46,7 @@ where
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        merchant_ids: &[String],
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -67,7 +68,7 @@ where
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        merchant_ids: &[String],
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -79,7 +80,7 @@ where
                     .load_distribution(
                         distribution,
                         dimensions,
-                        merchant_id,
+                        merchant_ids,
                         filters,
                         granularity,
                         time_range,
