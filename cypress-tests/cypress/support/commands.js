@@ -498,6 +498,7 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, amount, details, co
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url");
         const nextActionUrl = response.body.next_action.redirect_to_url;
+        globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
         cy.log(response.body);
         cy.log(nextActionUrl);
       } else if (response.body.authentication_type === "no_three_ds") {

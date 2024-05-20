@@ -342,3 +342,318 @@ describe("Card - Refund flow test", () => {
     });
 
 });
+
+
+    context("Card - Full Refund flow test for 3DS", () => {
+
+        it("create-payment-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "automatic", globalState);
+        });
+
+        it("payment_methods-call-test", () => {
+            cy.paymentMethodsCallTest(globalState);
+        });
+
+        it("Confirm 3DS", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.task('cli_log', "GLOBAL STATE -> " + JSON.stringify(globalState.data));
+            cy.confirmCallTest(confirmBody, det, true, globalState);
+          });
+        
+          it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 6500, det, globalState);
+        });
+    });
+
+    context("Card - Partial Refund flow test for 3DS", () => {
+
+        it("create-payment-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "automatic", globalState);
+        });
+
+        it("payment_methods-call-test", () => {
+            cy.paymentMethodsCallTest(globalState);
+        });
+
+        it("Confirm 3DS", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.task('cli_log', "GLOBAL STATE -> " + JSON.stringify(globalState.data));
+            cy.confirmCallTest(confirmBody, det, true, globalState);
+          });
+        
+          it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 1200, det, globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 1200, det, globalState);
+        });
+    });
+
+    context("Fully Refund Card-ThreeDS payment flow test Create+Confirm", () => {
+
+        it("create+confirm-payment-call-test", () => {
+          console.log("confirm -> " + globalState.get("connectorId"));
+          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+          cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"three_ds", "automatic", globalState);
+        });
+
+        it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+    
+          it("retrieve-payment-call-test", () => {  
+            cy.retrievePaymentCallTest(globalState);
+          });
+  
+          it("refund-call-test", () => {
+              let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+              cy.refundCallTest(refundBody, 6540, det, globalState);
+          });
+      
+      });
+
+    context("Partially Refund Card-ThreeDS payment flow test Create+Confirm", () => {
+
+        it("create+confirm-payment-call-test", () => {
+          let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+          cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"three_ds", "automatic", globalState);
+        });
+        
+        it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+
+         it("retrieve-payment-call-test", () => {  
+          cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 3000, det, globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 3000, det, globalState);
+        });
+
+        it("sync-refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.syncRefundCallTest(det, globalState);
+        });
+    
+    });
+
+    context("Card - Full Refund for fully captured 3DS payment", () => {
+
+        it("create-payment-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "manual", globalState);
+        });
+
+        it("payment_methods-call-test", () => {
+            cy.paymentMethodsCallTest(globalState);
+        });
+
+
+        it("confirm-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.confirmCallTest(confirmBody, det, true, globalState);
+        });
+
+        it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("capture-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
+        });
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 6500, det, globalState);
+        });
+
+        it("sync-refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.syncRefundCallTest(det, globalState);
+        });
+    });
+
+    context("Card - Partial Refund for fully captured 3DS payment", () => {
+
+        it("create-payment-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "manual", globalState);
+        });
+
+        it("payment_methods-call-test", () => {
+            cy.paymentMethodsCallTest(globalState);
+        });
+
+        it("confirm-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.confirmCallTest(confirmBody, det, true, globalState);
+        });
+
+        it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("capture-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
+        });
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 5000, det, globalState);
+        });
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 500, det, globalState);
+        });
+
+        it("sync-refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.syncRefundCallTest(det, globalState);
+        });
+        
+    });
+
+    context("Card - Full Refund for partially captured 3DS payment", () => {
+
+        it("create-payment-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "manual", globalState);
+        });
+
+        it("payment_methods-call-test", () => {
+            cy.paymentMethodsCallTest(globalState);
+        });
+
+        it("confirm-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.confirmCallTest(confirmBody, det, true, globalState);
+        });
+
+        it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("capture-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.captureCallTest(captureBody, 4000, det.paymentSuccessfulStatus, globalState);
+        });
+
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 4000, det, globalState);
+        });
+
+        it("sync-refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.syncRefundCallTest(det, globalState);
+        });
+    });
+
+    context("Card - partial Refund for partially captured 3DS payment", () => {
+
+        it("create-payment-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.createPaymentIntentTest(createPaymentBody, det, "three_ds", "manual", globalState);
+        });
+    
+        it("payment_methods-call-test", () => {
+            cy.paymentMethodsCallTest(globalState);
+        });
+    
+        it("confirm-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.confirmCallTest(confirmBody, det, true, globalState);
+        });
+
+        it("Handle redirection", () => {
+            let expected_redirection = confirmBody["return_url"];
+            cy.handleRedirection(globalState, expected_redirection);
+          })
+    
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+    
+        it("capture-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.captureCallTest(captureBody, 4000, det.paymentSuccessfulStatus, globalState);
+        });
+    
+        it("retrieve-payment-call-test", () => {
+            cy.retrievePaymentCallTest(globalState);
+        });
+    
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.refundCallTest(refundBody, 3000, det, globalState);
+        });
+    
+        it("sync-refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DS"];
+            cy.syncRefundCallTest(det, globalState);
+        });
+    });
+

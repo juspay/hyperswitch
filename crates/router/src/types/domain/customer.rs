@@ -23,6 +23,7 @@ pub struct Customer {
     pub connector_customer: Option<serde_json::Value>,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
+    pub updated_by: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -47,6 +48,7 @@ impl super::behaviour::Conversion for Customer {
             connector_customer: self.connector_customer,
             address_id: self.address_id,
             default_payment_method_id: self.default_payment_method_id,
+            updated_by: self.updated_by,
         })
     }
 
@@ -75,6 +77,7 @@ impl super::behaviour::Conversion for Customer {
                 connector_customer: item.connector_customer,
                 address_id: item.address_id,
                 default_payment_method_id: item.default_payment_method_id,
+                updated_by: item.updated_by,
             })
         }
         .await
@@ -98,6 +101,7 @@ impl super::behaviour::Conversion for Customer {
             modified_at: now,
             connector_customer: self.connector_customer,
             address_id: self.address_id,
+            updated_by: self.updated_by,
         })
     }
 }

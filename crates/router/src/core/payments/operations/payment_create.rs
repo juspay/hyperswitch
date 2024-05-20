@@ -446,7 +446,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            frm_metadata: request.frm_metadata.clone(),
             recurring_details,
             poll_config: None,
         };
@@ -661,6 +660,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
+        if let Some(amount) = request.amount {
+            helpers::validate_max_amount(amount)?;
+        }
         if let Some(session_expiry) = &request.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
@@ -928,6 +930,8 @@ impl PaymentCreate {
                 fingerprint_id: None,
                 authentication_connector: None,
                 authentication_id: None,
+                client_source: None,
+                client_version: None,
             },
             additional_pm_data,
         ))
@@ -1035,6 +1039,7 @@ impl PaymentCreate {
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
+            frm_metadata: request.frm_metadata.clone(),
         })
     }
 

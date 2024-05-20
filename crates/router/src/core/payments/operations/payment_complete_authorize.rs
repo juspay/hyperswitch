@@ -303,7 +303,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            frm_metadata: None,
             recurring_details,
             poll_config: None,
         };

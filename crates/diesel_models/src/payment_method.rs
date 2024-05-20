@@ -1,3 +1,4 @@
+use common_enums::MerchantStorageScheme;
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
@@ -41,6 +42,7 @@ pub struct PaymentMethod {
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
+    pub updated_by: Option<String>,
 }
 
 #[derive(
@@ -77,6 +79,13 @@ pub struct PaymentMethodNew {
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
+    pub updated_by: Option<String>,
+}
+
+impl PaymentMethodNew {
+    pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme) {
+        self.updated_by = Some(storage_scheme.to_string());
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -116,6 +125,17 @@ pub enum PaymentMethodUpdate {
     },
 }
 
+impl PaymentMethodUpdate {
+    pub fn convert_to_payment_method_update(
+        self,
+        storage_scheme: MerchantStorageScheme,
+    ) -> PaymentMethodUpdateInternal {
+        let mut update_internal: PaymentMethodUpdateInternal = self.into();
+        update_internal.updated_by = Some(storage_scheme.to_string());
+        update_internal
+    }
+}
+
 #[derive(
     Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -129,6 +149,7 @@ pub struct PaymentMethodUpdateInternal {
     locker_id: Option<String>,
     payment_method: Option<storage_enums::PaymentMethod>,
     connector_mandate_details: Option<serde_json::Value>,
+    updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     payment_method_issuer: Option<String>,
 }
@@ -148,6 +169,7 @@ impl PaymentMethodUpdateInternal {
             network_transaction_id,
             status,
             connector_mandate_details,
+            updated_by,
             ..
         } = self;
 
@@ -160,6 +182,7 @@ impl PaymentMethodUpdateInternal {
             status: status.unwrap_or(source.status),
             connector_mandate_details: connector_mandate_details
                 .map_or(source.connector_mandate_details, Some),
+            updated_by: updated_by.map_or(source.updated_by, Some),
             ..source
         }
     }
@@ -177,6 +200,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
             },
@@ -191,6 +215,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
             },
@@ -203,6 +228,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
             },
@@ -218,6 +244,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
             },
@@ -230,6 +257,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
             },
@@ -249,6 +277,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id,
                 payment_method,
                 connector_mandate_details: None,
+                updated_by: None,
                 payment_method_issuer,
                 payment_method_type,
             },
@@ -263,6 +292,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method: None,
                 connector_mandate_details,
                 network_transaction_id: None,
+                updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
             },
@@ -302,6 +332,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             status: payment_method_new.status,
             network_transaction_id: payment_method_new.network_transaction_id.clone(),
             client_secret: payment_method_new.client_secret.clone(),
+            updated_by: payment_method_new.updated_by.clone(),
             payment_method_billing_address: payment_method_new
                 .payment_method_billing_address
                 .clone(),
