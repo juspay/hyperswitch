@@ -70,6 +70,8 @@ pub struct PaymentAttempt {
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -150,6 +152,8 @@ pub struct PaymentAttemptNew {
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -233,6 +237,8 @@ pub enum PaymentAttemptUpdate {
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
+        client_source: Option<String>,
+        client_version: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -388,6 +394,8 @@ pub struct PaymentAttemptUpdateInternal {
     authentication_id: Option<String>,
     fingerprint_id: Option<String>,
     payment_method_billing_address_id: Option<String>,
+    client_source: Option<String>,
+    client_version: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -453,6 +461,8 @@ impl PaymentAttemptUpdate {
             authentication_id,
             payment_method_billing_address_id,
             fingerprint_id,
+            client_source,
+            client_version,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -501,6 +511,8 @@ impl PaymentAttemptUpdate {
             payment_method_billing_address_id: payment_method_billing_address_id
                 .or(source.payment_method_billing_address_id),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
+            client_source: client_source.or(source.client_source),
+            client_version: client_version.or(source.client_version),
             ..source
         }
     }
@@ -587,6 +599,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_billing_address_id,
                 fingerprint_id,
                 payment_method_id,
+                client_source,
+                client_version,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -616,6 +630,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 fingerprint_id,
                 payment_method_id,
                 capture_method,
+                client_source,
+                client_version,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
