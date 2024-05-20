@@ -132,13 +132,6 @@ pub async fn create_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in db")?;
 
-    if response.status == enums::PaymentMethodStatus::AwaitingData {
-        add_payment_method_status_update_task(db, &response, merchant_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method task in process tracker")?;
-    }
-
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
             db,
@@ -289,6 +282,13 @@ pub async fn get_client_secret_or_add_payment_method(
             merchant_account.storage_scheme,
         )
         .await?;
+
+        if res.status == enums::PaymentMethodStatus::AwaitingData {
+            add_payment_method_status_update_task(db, &res, enums::PaymentMethodStatus::Inactive, merchant_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add payment method task in process tracker")?;
+        }
 
         Ok(services::api::ApplicationResponse::Json(
             api::PaymentMethodResponse::foreign_from(res),

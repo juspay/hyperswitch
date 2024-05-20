@@ -273,15 +273,16 @@ fn generate_task_id_for_payment_method_status_workflow(
 pub async fn add_payment_method_status_update_task(
     db: &dyn db::StorageInterface,
     payment_method: &diesel_models::PaymentMethod,
+    status: enums::PaymentMethodStatus,
     merchant_id: &str,
 ) -> Result<(), errors::ProcessTrackerError> {
     let created_at = payment_method.created_at;
     let schedule_time =
-        created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+        created_at.saturating_add(time::Duration::seconds(30));
 
     let tracking_data = storage::PaymentMethodStatusTrackingData {
         payment_method_id: payment_method.payment_method_id.clone(),
-        status: payment_method.status,
+        status,
         merchant_id: merchant_id.to_string(),
     };
 

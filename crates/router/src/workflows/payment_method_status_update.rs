@@ -1,4 +1,4 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, date_time};
 use diesel_models::enums as storage_enums;
 // use router_env::logger;
 use scheduler::workflows::ProcessTrackerWorkflow;
@@ -8,6 +8,7 @@ use crate::{
     logger::error,
     routes::{metrics, AppState},
     types::storage::{self, PaymentMethodStatusTrackingData},
+    consts,
 };
 
 pub struct PaymentMethodStatusUpdateWorkflow;
@@ -25,10 +26,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             .clone()
             .parse_value("PaymentMethodStatusTrackingData")?;
 
-        // let task_id = process.id.clone();
-        // let retry_count = process.retry_count;
+        let task_id = process.id.clone();
+        let retry_count = process.retry_count;
         let pm_id = tracking_data.payment_method_id;
-        // let pm_status = tracking_data.status;
+        let pm_status = tracking_data.status;
         let merchant_id = tracking_data.merchant_id;
 
         let key_store = state
@@ -48,18 +49,37 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             .await?;
 
         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-            status: Some(storage_enums::PaymentMethodStatus::Inactive),
+            status: Some(pm_status),
         };
 
-        db.update_payment_method(payment_method, pm_update, merchant_account.storage_scheme)
+        let res = db.update_payment_method(payment_method, pm_update, merchant_account.storage_scheme)
             .await
-            .map_err(|err| errors::ProcessTrackerError::EStorageError(err))?;
+            .map_err(errors::ProcessTrackerError::EStorageError);
 
-
-        // Need to decide on retry count
-        db.as_scheduler()
+        if let Ok(_pm) = res {
+            db.as_scheduler()
             .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
             .await?;
+        } else if retry_count + 1  == 5 {
+            db.as_scheduler()
+            .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+            .await?;
+        } else {
+            let updated_schedule_time = date_time::now().saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+            let updated_process_tracker_data = storage::ProcessTrackerUpdate::Update {
+                name: None,
+                retry_count: Some(retry_count + 1),
+                schedule_time: Some(updated_schedule_time),
+                tracking_data: None,
+                business_status: None,
+                status: Some(storage_enums::ProcessTrackerStatus::New),
+                updated_at: Some(date_time::now()),
+            };
+
+            let task_ids = vec![task_id];
+            db.process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
+                .await?;
+        };
 
         Ok(())
     }
