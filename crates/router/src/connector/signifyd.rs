@@ -715,7 +715,7 @@ impl api::IncomingWebhook for Signifyd {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let resource: signifyd::api::SignifydWebhookBody = request
+        let resource: signifyd::SignifydWebhookBody = request
             .body
             .parse_struct("SignifydWebhookBody")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
@@ -728,7 +728,7 @@ impl api::IncomingWebhook for Signifyd {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let resource: signifyd::api::SignifydWebhookBody = request
+        let resource: signifyd::SignifydWebhookBody = request
             .body
             .parse_struct("SignifydWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
@@ -739,7 +739,7 @@ impl api::IncomingWebhook for Signifyd {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let resource: signifyd::api::SignifydWebhookBody = request
+        let resource: signifyd::SignifydWebhookBody = request
             .body
             .parse_struct("SignifydWebhookBody")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;

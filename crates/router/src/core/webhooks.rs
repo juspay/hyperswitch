@@ -700,7 +700,7 @@ pub(crate) async fn frm_incoming_webhook_flow(
             webhooks::IncomingWebhookEvent::FrmApproved => {
                 println!("frm approved");
                 let payments_response = Box::pin(payments::payments_core::<
-                    api::Approve,
+                    api::Capture,
                     api::PaymentsResponse,
                     _,
                     _,
@@ -713,6 +713,7 @@ pub(crate) async fn frm_incoming_webhook_flow(
                     payments::PaymentApprove,
                     api::PaymentsCaptureRequest {
                         payment_id: payment_attempt.payment_id,
+                        amount_to_capture: Some(payment_attempt.amount),
                         ..Default::default()
                     },
                     services::api::AuthFlow::Merchant,
@@ -743,7 +744,7 @@ pub(crate) async fn frm_incoming_webhook_flow(
             webhooks::IncomingWebhookEvent::FrmRejected => {
                 println!("frm rejected");
                 let payments_response = Box::pin(payments::payments_core::<
-                    api::Reject,
+                    api::Void,
                     api::PaymentsResponse,
                     _,
                     _,
@@ -753,7 +754,7 @@ pub(crate) async fn frm_incoming_webhook_flow(
                     req_state,
                     merchant_account.clone(),
                     key_store.clone(),
-                    payments::PaymentCancel,
+                    payments::PaymentReject,
                     api::PaymentsCancelRequest {
                         payment_id: payment_attempt.payment_id.clone(),
                         cancellation_reason: Some("Rejected by merchant".to_string()),
