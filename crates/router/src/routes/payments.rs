@@ -7,8 +7,8 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
-use router_env::{env, instrument, tracing, types, Flow};
 use masking::PeekInterface;
+use router_env::{env, instrument, tracing, types, Flow};
 
 use super::app::ReqState;
 use crate::{
@@ -852,7 +852,7 @@ pub async fn payments_complete_authorize(
             )
         },
         // &auth::PublishableKeyAuth,
-         &*auth_type,
+        &*auth_type,
         locking_action,
     ))
     .await

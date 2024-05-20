@@ -180,9 +180,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.clone().as_deref(),
             merchant_id.as_ref(),
-            payment_intent
-                .customer_id
-                .as_ref(),
+            payment_intent.customer_id.as_ref(),
             key_store,
             payment_id.as_ref(),
             storage_scheme,
