@@ -679,7 +679,7 @@ pub async fn mandates_incoming_webhook_flow(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub(crate) async fn frm_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
+pub(crate) async fn frm_incoming_webhook_flow(
     state: AppState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
@@ -705,7 +705,6 @@ pub(crate) async fn frm_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
                     _,
                     _,
                     _,
-                    Ctx,
                 >(
                     state.clone(),
                     req_state,
@@ -742,14 +741,13 @@ pub(crate) async fn frm_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
                 }
             }
             webhooks::IncomingWebhookEvent::FrmRejected => {
-                println!("frm approved");
+                println!("frm rejected");
                 let payments_response = Box::pin(payments::payments_core::<
                     api::Reject,
                     api::PaymentsResponse,
                     _,
                     _,
                     _,
-                    Ctx,
                 >(
                     state.clone(),
                     req_state,
@@ -1947,7 +1945,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 .await
                 .attach_printable("Incoming webhook flow for external authentication failed")?
             }
-            api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow::<Ctx>(
+            api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow(
                 state.clone(),
                 req_state,
                 merchant_account,
