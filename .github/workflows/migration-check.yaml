@@ -42,15 +42,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check Hyperswitch Migrations and Schema
-        shell: bash
-        run: |
-          echo "migration_and_schema_changes=false" >> $GITHUB_ENV
-
-          if ! git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/diesel_models/src/schema.rs migrations/; then
-            echo "migration_and_schema_changes=true" >> $GITHUB_ENV
-          fi
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -61,13 +52,6 @@ jobs:
           crate: diesel_cli
           features: postgres
           args: "--no-default-features"
-
-      - name: Attach 'M-database-changes' label if PR contains database changes
-        if: env.migration_and_schema_changes == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
 
       - name: Verify `diesel migration run`
         shell: bash
