@@ -219,6 +219,7 @@ pub async fn generate_sample_data(
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: None,
             charges: None,
+            frm_metadata: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

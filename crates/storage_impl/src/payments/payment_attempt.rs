@@ -411,6 +411,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .clone(),
                     fingerprint_id: payment_attempt.fingerprint_id.clone(),
                     charge_id: payment_attempt.charge_id.clone(),
+                    client_source: payment_attempt.client_source.clone(),
+                    client_version: payment_attempt.client_version.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1166,6 +1168,8 @@ impl DataModelExt for PaymentAttempt {
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
             charge_id: self.charge_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
         }
     }
 
@@ -1231,6 +1235,8 @@ impl DataModelExt for PaymentAttempt {
             payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
             charge_id: storage_model.charge_id,
+            client_source: storage_model.client_source,
+            client_version: storage_model.client_version,
         }
     }
 }
@@ -1294,6 +1300,8 @@ impl DataModelExt for PaymentAttemptNew {
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
             charge_id: self.charge_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
         }
     }
 
@@ -1357,6 +1365,8 @@ impl DataModelExt for PaymentAttemptNew {
             payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
             charge_id: storage_model.charge_id,
+            client_source: storage_model.client_source,
+            client_version: storage_model.client_version,
         }
     }
 }
@@ -1475,6 +1485,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
+                client_source,
+                client_version,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1503,6 +1515,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
+                client_source,
+                client_version,
             },
             Self::VoidUpdate {
                 status,
@@ -1782,6 +1796,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
+                client_source,
+                client_version,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1810,6 +1826,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
+                client_source,
+                client_version,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

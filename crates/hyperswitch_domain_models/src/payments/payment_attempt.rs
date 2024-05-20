@@ -167,6 +167,8 @@ pub struct PaymentAttempt {
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
     pub charge_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -251,6 +253,8 @@ pub struct PaymentAttemptNew {
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
     pub charge_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -329,6 +333,8 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
         payment_method_id: Option<String>,
+        client_source: Option<String>,
+        client_version: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,

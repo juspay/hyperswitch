@@ -446,7 +446,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            frm_metadata: request.frm_metadata.clone(),
             recurring_details,
             poll_config: None,
         };
@@ -932,6 +931,8 @@ impl PaymentCreate {
                 authentication_connector: None,
                 authentication_id: None,
                 charge_id: None,
+                client_source: None,
+                client_version: None,
             },
             additional_pm_data,
         ))
@@ -1053,6 +1054,7 @@ impl PaymentCreate {
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
             charges,
+            frm_metadata: request.frm_metadata.clone(),
         })
     }
 

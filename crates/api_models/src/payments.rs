@@ -464,7 +464,8 @@ pub struct PaymentsRequest {
     pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
-    pub frm_metadata: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
@@ -556,9 +557,11 @@ impl RequestSurchargeDetails {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
 }
 
@@ -3430,6 +3433,10 @@ pub struct PaymentsResponse {
 
     /// Fee information to be charged on the payment being collected
     pub charges: Option<PaymentChargeResponse>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
+    #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]

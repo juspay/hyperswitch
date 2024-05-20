@@ -59,6 +59,7 @@ pub struct PaymentIntent {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -113,6 +114,7 @@ pub struct PaymentIntentNew {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +171,7 @@ pub enum PaymentIntentUpdate {
         session_expiry: Option<PrimitiveDateTime>,
         fingerprint_id: Option<String>,
         request_external_three_ds_authentication: Option<bool>,
+        frm_metadata: Option<pii::SecretSerdeValue>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -239,6 +242,7 @@ pub struct PaymentIntentUpdateInternal {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentIntentUpdate {
@@ -275,6 +279,7 @@ impl PaymentIntentUpdate {
             fingerprint_id,
             request_external_three_ds_authentication,
             charges,
+            frm_metadata,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -313,6 +318,8 @@ impl PaymentIntentUpdate {
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
             charges: charges.or(source.charges),
+
+            frm_metadata: frm_metadata.or(source.frm_metadata),
             ..source
         }
     }
@@ -342,6 +349,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 session_expiry,
                 fingerprint_id,
                 request_external_three_ds_authentication,
+                frm_metadata,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -364,6 +372,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 session_expiry,
                 fingerprint_id,
                 request_external_three_ds_authentication,
+                frm_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -547,7 +556,8 @@ mod tests {
     "incremental_authorization_allowed": null,
     "authorization_count": null,
     "session_expiry": null,
-    "fingerprint_id": null
+    "fingerprint_id": null,
+    "frm_metadata": null
 }"#;
         let deserialized_payment_intent =
             serde_json::from_str::<super::PaymentIntent>(serialized_payment_intent);

@@ -2966,6 +2966,7 @@ mod tests {
             ),
             request_external_three_ds_authentication: None,
             charges: None,
+            frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3025,6 +3026,7 @@ mod tests {
             ),
             request_external_three_ds_authentication: None,
             charges: None,
+            frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3083,6 +3085,7 @@ mod tests {
             ),
             request_external_three_ds_authentication: None,
             charges: None,
+            frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3555,6 +3558,8 @@ impl AttemptType {
             payment_method_billing_address_id: None,
             fingerprint_id: None,
             charge_id: None,
+            client_source: None,
+            client_version: None,
         }
     }
 
