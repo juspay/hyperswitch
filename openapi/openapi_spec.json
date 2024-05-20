@@ -29,7 +29,6 @@
         "description": "Payments - Create\n\n**Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.\n\nTo completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.\n\nDepending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:\n\n1. Payments - Create\n\n2. Payments - Update\n\n3. Payments - Confirm\n\n4. Payments - Capture.\n\nUse the client secret returned in this API along with your publishable key to make subsequent API calls from your client",
         "operationId": "Create a Payment",
         "requestBody": {
-          
           "content": {
             "application/json": {
               "schema": {
@@ -7198,6 +7197,9 @@
         }
       },
       "CashappQr": {
+        "type": "object"
+      },
+      "CiTesting": {
         "type": "object"
       },
       "Comparison": {
