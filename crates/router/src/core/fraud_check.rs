@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use api_models::{admin::FrmConfigs, enums as api_enums, payments::AdditionalPaymentData};
+use api_models::{admin::FrmConfigs, enums as api_enums};
 use common_enums::CaptureMethod;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -20,10 +20,7 @@ use super::errors::{ConnectorErrorExt, RouterResponse};
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::{
-            self, flows::ConstructFlowSpecificData, helpers::get_additional_payment_data,
-            operations::BoxedOperation,
-        },
+        payments::{self, flows::ConstructFlowSpecificData, operations::BoxedOperation},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -185,15 +182,14 @@ where
                                     .expose()
                                     .parse_value("FrmConfigs")
                                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                                        field_name: "frm_configs".to_string(),
-                                        expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
-                                    })
+                                            field_name: "frm_configs".to_string(),
+                                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","flow": "post"}]}]"#.to_string(),
+                                        })
                                 })
                                 .collect::<Result<Vec<_>, _>>()?;
 
                             let mut is_frm_connector_enabled = false;
                             let mut is_frm_pm_enabled = false;
-                            let mut is_frm_pmt_enabled = false;
                             let filtered_frm_config = frm_configs_struct
                                 .iter()
                                 .filter(|frm_config| {
@@ -243,76 +239,11 @@ where
                                 })
                                 .collect::<Vec<_>>()
                                 .concat();
-
-                            let additional_payment_data = match &payment_data.payment_method_data {
-                                Some(pmd) => {
-                                    let additional_payment_data =
-                                        get_additional_payment_data(pmd, db, &profile_id).await;
-                                    Some(additional_payment_data)
-                                }
-                                None => payment_data
-                                    .payment_attempt
-                                    .payment_method_data
-                                    .as_ref()
-                                    .map(|pm_data| {
-                                        pm_data.clone().parse_value::<AdditionalPaymentData>(
-                                            "AdditionalPaymentData",
-                                        )
-                                    })
-                                    .transpose()
-                                    .unwrap_or_default(), // Making this default in case of error as we don't want to fail payment for frm errors
-                            };
-                            let filtered_payment_method_types = filtered_payment_methods
-                                .iter()
-                                .map(|frm_pm_config| {
-                                    let filtered_pm_config_by_pmt = frm_pm_config
-                                        .payment_method_types
-                                        .iter()
-                                        .filter(|frm_pm_config_by_pmt| {
-                                            match (
-                                                &payment_data
-                                                    .clone()
-                                                    .payment_attempt
-                                                    .payment_method_type,
-                                                frm_pm_config_by_pmt.payment_method_type,
-                                            ) {
-                                                (Some(curr), Some(conf))
-                                                    if curr.to_string() == conf.to_string() =>
-                                                {
-                                                    is_frm_pmt_enabled = true;
-                                                    true
-                                                }
-                                                (None, Some(conf)) => match additional_payment_data
-                                                    .clone()
-                                                {
-                                                    Some(AdditionalPaymentData::Card(card)) => {
-                                                        let card_type = card
-                                                            .card_type
-                                                            .unwrap_or_else(|| "debit".to_string());
-                                                        let is_enabled = card_type.to_lowercase()
-                                                            == conf.to_string().to_lowercase();
-                                                        if is_enabled {
-                                                            is_frm_pmt_enabled = true;
-                                                        }
-                                                        is_enabled
-                                                    }
-                                                    _ => false,
-                                                },
-                                                _ => false,
-                                            }
-                                        })
-                                        .collect::<Vec<_>>();
-                                    filtered_pm_config_by_pmt
-                                })
-                                .collect::<Vec<_>>()
-                                .concat();
-                            let is_frm_enabled =
-                                is_frm_connector_enabled && is_frm_pm_enabled && is_frm_pmt_enabled;
+                            let is_frm_enabled = is_frm_connector_enabled && is_frm_pm_enabled;
                             logger::debug!(
-                                "is_frm_connector_enabled {:?}, is_frm_pm_enabled:  {:?},is_frm_pmt_enabled : {:?},  is_frm_enabled :{:?}",
+                                "is_frm_connector_enabled {:?}, is_frm_pm_enabled:  {:?}, is_frm_enabled :{:?}",
                                 is_frm_connector_enabled,
                                 is_frm_pm_enabled,
-                                is_frm_pmt_enabled,
                                 is_frm_enabled
                             );
                             // filtered_frm_config...
@@ -324,18 +255,19 @@ where
                                 frm_enabled_pm: filtered_payment_methods
                                     .first()
                                     .and_then(|pm| pm.payment_method),
-                                frm_enabled_pm_type: filtered_payment_method_types
+                                // flow type should be consumed from payment_method.flow. To provide backward compatibility, if we don't find it there, we consume it from payment_method.payment_method_types[0].flow_type.
+                                frm_preferred_flow_type: filtered_payment_methods
                                     .first()
-                                    .and_then(|pmt| pmt.payment_method_type),
-                                frm_action: filtered_payment_method_types
-                                    // .clone()
-                                    .first()
-                                    .map(|pmt| pmt.action.clone())
-                                    .unwrap_or(api_enums::FrmAction::ManualReview),
-                                frm_preferred_flow_type: filtered_payment_method_types
-                                    .first()
-                                    .map(|pmt| pmt.flow.clone())
-                                    .unwrap_or(api_enums::FrmPreferredFlowTypes::Pre),
+                                    .and_then(|pm| pm.flow.clone())
+                                    .or(filtered_payment_methods.first().and_then(|pm| {
+                                        pm.payment_method_types.as_ref().and_then(|pmt| {
+                                            pmt.first().map(|pmts| pmts.flow.clone())
+                                        })
+                                    }))
+                                    .ok_or(errors::ApiErrorResponse::InvalidDataFormat {
+                                            field_name: "frm_configs".to_string(),
+                                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","flow": "post"}]}]"#.to_string(),
+                                    })?,
                             };
                             logger::debug!(
                                 "frm_routing_configs: {:?} {:?} {:?} {:?}",
@@ -411,13 +343,13 @@ where
 
     let payment_to_frm_data = PaymentToFrmData {
         amount: payment_data.amount,
-        payment_intent: payment_data.payment_intent,
+        payment_intent: payment_data.payment_intent.to_owned(),
         payment_attempt: payment_data.payment_attempt,
         merchant_account: merchant_account.to_owned(),
         address: payment_data.address.clone(),
         connector_details: frm_connector_details.clone(),
         order_details,
-        frm_metadata: payment_data.frm_metadata.clone(),
+        frm_metadata: payment_data.payment_intent.frm_metadata,
     };
 
     let fraud_check_operation: operation::BoxedFraudCheckOperation<F> =
@@ -495,12 +427,7 @@ where
                 payment_data.frm_message = Some(frm_fraud_check.clone());
                 if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
                     *should_continue_transaction = false;
-                    if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
-                        frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
-                    } else if matches!(frm_configs.frm_action, api_enums::FrmAction::ManualReview) {
-                        *should_continue_capture = false;
-                        frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
-                    }
+                    frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
                 }
                 logger::debug!(
                     "frm_updated_data: {:?} {:?}",
@@ -511,6 +438,9 @@ where
             } else if matches!(
                 frm_configs.frm_preferred_flow_type,
                 api_enums::FrmPreferredFlowTypes::Post
+            ) && !matches!(
+                frm_data.fraud_check.frm_status,
+                FraudCheckStatus::TransactionFailure // Incase of TransactionFailure frm status(No frm decision is taken by frm processor), if capture method is automatic we should not change it to manual.
             ) {
                 *should_continue_capture = false;
                 Some(frm_data.to_owned())
@@ -571,11 +501,7 @@ where
                 let mut frm_suggestion = None;
                 payment_data.frm_message = Some(frm_fraud_check.clone());
                 if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
-                    if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
-                        frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
-                    } else if matches!(frm_configs.frm_action, api_enums::FrmAction::ManualReview) {
-                        frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
-                    }
+                    frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
                 } else if matches!(frm_fraud_check.frm_status, FraudCheckStatus::ManualReview) {
                     frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
                 }
