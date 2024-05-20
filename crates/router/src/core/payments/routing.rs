@@ -551,7 +551,9 @@ pub async fn get_merchant_kgraph<'a>(
     };
 
     let cached_kgraph = KGRAPH_CACHE
-        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(key.as_str())
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(
+            key.as_str(),
+        )
         .await;
 
     let kgraph = if let Some(graph) = cached_kgraph {
