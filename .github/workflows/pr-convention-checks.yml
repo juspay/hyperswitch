@@ -139,17 +139,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "migration_and_schema_changes=false" >> $GITHUB_ENV
-          echo "openapi_changes=false" >> $GITHUB_ENV
+          migration_and_schema_changes=false
+          openapi_changes=false
 
           files_changed="$(gh api --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" --paginate https://api.github.com/repos/juspay/hyperswitch/pulls/${{ github.event.pull_request.number }}/files --jq '.[] | .filename')"
 
           if echo $files_changed | grep --quiet --extended-regexp '(migrations/* | crates/diesel_models/src/schema.rs)' ; then
-            migration_and_schema_changes='true'
+            migration_and_schema_changes='true' >> $GITHUB_ENV
           fi
           
           if echo $files_changed | grep --quiet --extended-regexp '(openapi/src/openapi.rs)'; then
-            openapi_changes='true'
+            openapi_changes='true' >> $GITHUB_ENV
           fi
 
 
