@@ -842,7 +842,7 @@ pub async fn payments_complete_authorize(
         payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
             payment_id.clone(),
         )),
-        shipping:  payload.shipping.clone(),
+        shipping: payload.shipping.clone(),
         ..Default::default()
     };
 
