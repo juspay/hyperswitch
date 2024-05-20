@@ -16,8 +16,7 @@ use crate::{
     connector::utils::PaymentResponseRouterData,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        mandate,
-        payment_methods::{self, PaymentMethodRetrieve},
+        mandate, payment_methods,
         payments::{
             helpers::{
                 self as payments_helpers,

@@ -1,8 +1,8 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::refunds::{
-    RefundListMetaData, RefundListRequest, RefundListResponse, RefundRequest, RefundResponse,
-    RefundUpdateRequest, RefundsRetrieveRequest,
+    RefundListFilters, RefundListMetaData, RefundListRequest, RefundListResponse, RefundRequest,
+    RefundResponse, RefundUpdateRequest, RefundsRetrieveRequest,
 };
 
 impl ApiEventMetric for RefundRequest {
@@ -57,6 +57,12 @@ impl ApiEventMetric for RefundListResponse {
 }
 
 impl ApiEventMetric for RefundListMetaData {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+impl ApiEventMetric for RefundListFilters {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
     }
