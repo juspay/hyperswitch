@@ -127,6 +127,7 @@ iso_currency = "0.4.4"
 actix-http = "3.6.0"
 events = { version = "0.1.0", path = "../events" }
 totp-rs = { version = "5.5.1", features = ["gen_secret", "otpauth"]}
+serde_repr = "0.1.19"
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }

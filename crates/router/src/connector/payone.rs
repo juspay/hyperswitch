@@ -166,24 +166,43 @@ impl ConnectorCommon for Payone {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        match response.errors.first() {
-            Some(error) => Ok(ErrorResponse {
-                status_code: error.http_status_code,
-                code: error.code.clone(),
-                message: error.message.clone(),
-                reason: None,
-                attempt_status: None,
-                connector_transaction_id: None,
-            }),
-            None => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-                attempt_status: None,
-                connector_transaction_id: None,
-            }),
+        match response.errors {
+            Some(errors) => 
+            {
+                let first_error = errors.first();
+                let code = first_error.map(|error| error.code.clone());  
+                Ok(ErrorResponse {
+                    status_code:res.status_code,
+                    code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: 
+                        errors
+                            .iter()
+                            .map(|error| format!("{} : {}", error.code, error.message))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    reason: Some(
+                        errors
+                            .iter()
+                            .map(|error| format!("{} : {}", error.code, error.message))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    ),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            },
+          None => {
+            Ok(ErrorResponse {
+                status_code:res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: None,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+            }
+        )
         }
+    }
     }
 }
 impl ConnectorValidation for Payone {}
