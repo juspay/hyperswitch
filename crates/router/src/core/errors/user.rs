@@ -68,8 +68,10 @@ pub enum UserErrors {
     RoleNameAlreadyExists,
     #[error("TOTPNotSetup")]
     TotpNotSetup,
-    #[error("InvalidTOTP")]
+    #[error("InvalidTotp")]
     InvalidTotp,
+    #[error("TotpRequired")]
+    TotpRequired,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -179,6 +181,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidTotp => {
                 AER::BadRequest(ApiError::new(sub_code, 37, self.get_error_message(), None))
             }
+            Self::TotpRequired => {
+                AER::BadRequest(ApiError::new(sub_code, 38, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -217,6 +222,7 @@ impl UserErrors {
             Self::RoleNameAlreadyExists => "Role name already exists",
             Self::TotpNotSetup => "TOTP not setup",
             Self::InvalidTotp => "Invalid TOTP",
+            Self::TotpRequired => "TOTP required",
         }
     }
 }
