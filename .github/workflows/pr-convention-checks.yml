@@ -129,8 +129,8 @@ jobs:
             fi
           done <<< "${linked_issues}"
 
-  pr_containing_database_and_schema_changes_checks:
-    name: Verify PR has appropriate table if database and schema changes exists
+  pr_contains_database_and_schema_changes_checks:
+    name: Verify PR contains appropriate label if database and schema changes exists
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
@@ -143,15 +143,12 @@ jobs:
           echo "openapi_changes=false" >> $GITHUB_ENV
 
           files_changed="$(gh api --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" --paginate https://api.github.com/repos/juspay/hyperswitch/pulls/${{ github.event.pull_request.number }}/files --jq '.[] | .filename')"
-          migration_and_schema_changed_files="$(echo $files_changed | grep --extended-regexp '^(migrations/*|crates/diesel_models/src/schema.rs)')"
 
-          if [-z "$migration_and_schema_changed_files" ]; then
+          if ! echo $files_changed | grep --quiet --extended-regexp '^(migrations/*|crates/diesel_models/src/schema.rs)' ; then
             migration_and_schema_changes='true'
           fi
-
-          openapi_changed_file="$(echo $files_changed | grep --extended-regexp '^(openapi/src/openapi.rs)')"
           
-          if [-z "$openapi_changed_file" ]; then
+          if ! echo $files_changed | grep --quiet --extended-regexp '^(openapi/src/openapi.rs)'; then
             openapi_changes='true'
           fi
 
