@@ -223,45 +223,13 @@ pub struct ChargeRefunds {
     /// Identifier for charge created for the payment
     pub charge_id: String,
 
-    /// Options for refunding charges
-    pub options: Option<ChargeRefundsOptions>,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(untagged)]
-/// Options for different charge types
-pub enum ChargeRefundsOptions {
-    /// Funds are transferred to the main account.
-    /// Any deductions (platform, Stripe fees etc.) are made from platform's main account.
-    ///
-    /// Refunds are made to the platform's main account.
-    Destination(DestinationChargeRefund),
-
-    /// Funds are directly transferred to the reseller's account.
-    /// Any deductions (platform, Stripe fees etc.) are made from reseller's account.
-    ///
-    /// Refunds are made directly to the reseller's account using charge_id.
-    Direct(DirectChargeRefund),
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-/// Options for direct charge refunds
-pub struct DirectChargeRefund {
     /// Toggle for reverting the application fee that was collected for the payment.
-    /// If set to false, the funds are pulled from the reseller's account.
-    pub revert_platform_fee: bool,
-}
-
-#[derive(Clone, Debug, ToSchema, Eq, PartialEq, Deserialize, Serialize)]
-/// Options for destination charge refunds
-pub struct DestinationChargeRefund {
-    /// Toggle for reverting the application fee that was collected for the payment.
-    /// If set to false, the funds are pulled from the reseller's account.
-    pub revert_platform_fee: bool,
+    /// If set to false, the funds are pulled from the destination account.
+    pub revert_platform_fee: Option<bool>,
 
     /// Toggle for reverting the transfer that was made during the charge.
     /// If set to false, the funds are pulled from the main platform's account.
-    pub revert_transfer: bool,
+    pub revert_transfer: Option<bool>,
 }
 
 impl<DB: Backend> FromSql<Jsonb, DB> for ChargeRefunds

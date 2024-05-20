@@ -305,17 +305,41 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_intent.charges.as_ref(),
         payment_attempt.charge_id.as_ref(),
     ) {
-        (Some(charges), Some(_)) => {
+        (Some(charges), Some(charge_id)) => {
             let payment_charges: PaymentCharges = charges
                 .peek()
                 .clone()
                 .parse_value("PaymentCharges")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse charges in to PaymentCharges")?;
+
+            let refund_request = refund.charges.clone().get_required_value("charges")?;
+
+            let options = match payment_charges.charge_type {
+                api_models::enums::PaymentChargeType::Stripe(
+                    api_models::enums::StripeChargeType::Direct,
+                ) => types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
+                    revert_platform_fee: refund_request
+                        .revert_platform_fee
+                        .get_required_value("revert_platform_fee")?,
+                }),
+                api_models::enums::PaymentChargeType::Stripe(
+                    api_models::enums::StripeChargeType::Destination,
+                ) => types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
+                    revert_platform_fee: refund_request
+                        .revert_platform_fee
+                        .get_required_value("revert_platform_fee")?,
+                    revert_transfer: refund_request
+                        .revert_transfer
+                        .get_required_value("revert_transfer")?,
+                }),
+            };
+
             Some(ChargeRefunds {
+                charge_id: charge_id.to_string(),
                 charge_type: payment_charges.charge_type,
                 transfer_account_id: payment_charges.transfer_account_id,
-                request: refund.charges.clone().get_required_value("charges")?,
+                options,
             })
         }
         _ => None,

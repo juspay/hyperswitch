@@ -2900,22 +2900,17 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
             }
             .into()),
             Some(charges) => {
-                let (refund_application_fee, reverse_transfer) = match charges.request.options {
-                    Some(api_models::refunds::ChargeRefundsOptions::Direct(
-                        api_models::refunds::DirectChargeRefund {
-                            revert_platform_fee,
-                        },
-                    )) => (Some(revert_platform_fee), None),
-                    Some(api_models::refunds::ChargeRefundsOptions::Destination(
-                        api_models::refunds::DestinationChargeRefund {
-                            revert_platform_fee,
-                            revert_transfer,
-                        },
-                    )) => (Some(revert_platform_fee), Some(revert_transfer)),
-                    _ => (None, None),
+                let (refund_application_fee, reverse_transfer) = match charges.options {
+                    types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
+                        revert_platform_fee,
+                    }) => (Some(revert_platform_fee), None),
+                    types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
+                        revert_platform_fee,
+                        revert_transfer,
+                    }) => (Some(revert_platform_fee), Some(revert_transfer)),
                 };
                 Ok(Self {
-                    charge: charges.request.charge_id.clone(),
+                    charge: charges.charge_id.clone(),
                     refund_application_fee,
                     reverse_transfer,
                     amount: Some(amount),

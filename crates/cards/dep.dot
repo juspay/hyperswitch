@@ -1,0 +1,57 @@
+digraph G {
+    "analytics" -> "api_models";
+    "analytics" -> "common_utils";
+    "analytics" -> "diesel_models";
+    "analytics" -> "external_services";
+    "analytics" -> "hyperswitch_domain_models";
+    "analytics" -> "hyperswitch_interfaces";
+    "analytics" -> "masking";
+    "analytics" -> "router_env";
+    "analytics" -> "storage_impl";
+    
+    "api_models" -> "cards";
+    "api_models" -> "common_enums";
+    "api_models" -> "common_utils";
+    "api_models" -> "euclid";
+    "api_models" -> "masking";
+    "api_models" -> "router_derive";
+    
+    "cards" -> "common_utils";
+    "cards" -> "masking";
+    "cards" -> "router_env";
+    
+    "common_enums" -> "router_derive";
+    
+    "common_utils" -> "common_enums";
+    "common_utils" -> "masking";
+    "common_utils" -> "router_env";
+    
+    "diesel_models" -> "common_enums";
+    "diesel_models" -> "common_utils";
+    "diesel_models" -> "masking";
+    "diesel_models" -> "router_derive";
+    "diesel_models" -> "router_env";
+    
+    "external_services" -> "common_utils";
+    "external_services" -> "hyperswitch_interfaces";
+    "external_services" -> "masking";
+    "external_services" -> "router_env";
+    
+    "hyperswitch_domain_models" -> "api_models";
+    "hyperswitch_domain_models" -> "common_enums";
+    "hyperswitch_domain_models" -> "common_utils";
+    "hyperswitch_domain_models" -> "diesel_models";
+    "hyperswitch_domain_models" -> "masking";
+    
+    "hyperswitch_interfaces" -> "common_utils";
+    "hyperswitch_interfaces" -> "masking";
+    
+    "storage_impl" -> "api_models";
+    "storage_impl" -> "common_utils";
+    "storage_impl" -> "diesel_models";
+    "storage_impl" -> "hyperswitch_domain_models";
+    "storage_impl" -> "masking";
+    "storage_impl" -> "redis_interface";
+    "storage_impl" -> "router_derive";
+    "storage_impl" -> "router_env";
+}

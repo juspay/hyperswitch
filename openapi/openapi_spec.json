@@ -7276,26 +7276,17 @@
             "type": "string",
             "description": "Identifier for charge created for the payment"
           },
-          "options": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ChargeRefundsOptions"
-              }
-            ],
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
+            "nullable": true
+          },
+          "revert_transfer": {
+            "type": "boolean",
+            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
             "nullable": true
           }
         }
-      },
-      "ChargeRefundsOptions": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/DestinationChargeRefund"
-          },
-          {
-            "$ref": "#/components/schemas/DirectChargeRefund"
-          }
-        ],
-        "description": "Options for different charge types"
       },
       "Comparison": {
         "type": "object",
@@ -8471,43 +8462,12 @@
           }
         }
       },
-      "DestinationChargeRefund": {
-        "type": "object",
-        "description": "Options for destination charge refunds",
-        "required": [
-          "revert_platform_fee",
-          "revert_transfer"
-        ],
-        "properties": {
-          "revert_platform_fee": {
-            "type": "boolean",
-            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the reseller's account."
-          },
-          "revert_transfer": {
-            "type": "boolean",
-            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account."
-          }
-        }
-      },
       "DeviceChannel": {
         "type": "string",
         "enum": [
           "APP",
           "BRW"
         ]
-      },
-      "DirectChargeRefund": {
-        "type": "object",
-        "description": "Options for direct charge refunds",
-        "required": [
-          "revert_platform_fee"
-        ],
-        "properties": {
-          "revert_platform_fee": {
-            "type": "boolean",
-            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the reseller's account."
-          }
-        }
       },
       "DisputeResponse": {
         "type": "object",

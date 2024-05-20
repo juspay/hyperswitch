@@ -23,7 +23,7 @@ pub use api_models::{enums::Connector, mandates};
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
-use common_utils::{pii, pii::Email, types as common_types};
+use common_utils::{pii, pii::Email};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 pub use hyperswitch_domain_models::{
@@ -910,9 +910,27 @@ pub struct RefundsData {
 
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct ChargeRefunds {
-    pub charge_type: api_models::enums::PaymentChargeType,
+    pub charge_id: String,
     pub transfer_account_id: String,
-    pub request: common_types::ChargeRefunds,
+    pub charge_type: api_models::enums::PaymentChargeType,
+    pub options: ChargeRefundsOptions,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum ChargeRefundsOptions {
+    Destination(DestinationChargeRefund),
+    Direct(DirectChargeRefund),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DirectChargeRefund {
+    pub revert_platform_fee: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DestinationChargeRefund {
+    pub revert_platform_fee: bool,
+    pub revert_transfer: bool,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
