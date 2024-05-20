@@ -25,7 +25,7 @@ use crate::{
     services::{self, api},
     types::{
         api::{
-            enums::{AttemptStatus, FrmAction, IntentStatus},
+            enums::{AttemptStatus, IntentStatus},
             fraud_check as frm_api, payments as payment_types, Capture, Void,
         },
         domain,
@@ -186,7 +186,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         req_state: ReqState,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
-        frm_configs: FrmConfigsObject,
+        _frm_configs: FrmConfigsObject,
         frm_suggestion: &mut Option<FrmSuggestion>,
         key_store: domain::MerchantKeyStore,
         payment_data: &mut payments::PaymentData<F>,
@@ -194,7 +194,6 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
         if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
-            && matches!(frm_configs.frm_action, FrmAction::CancelTxn)
             && matches!(
                 frm_data.fraud_check.last_step,
                 FraudCheckLastStep::CheckoutOrSale
@@ -242,9 +241,10 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             )
             .await?;
             frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
-        } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
-            && matches!(frm_configs.frm_action, FrmAction::ManualReview)
-        {
+        } else if matches!(
+            frm_data.fraud_check.frm_status,
+            FraudCheckStatus::ManualReview
+        ) {
             *frm_suggestion = Some(FrmSuggestion::FrmManualReview);
         } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Legit)
             && matches!(
@@ -477,25 +477,34 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
         };
 
         if let Some(frm_suggestion) = frm_suggestion {
-            let (payment_attempt_status, payment_intent_status) = match frm_suggestion {
-                FrmSuggestion::FrmCancelTransaction => {
-                    (AttemptStatus::Failure, IntentStatus::Failed)
-                }
-                FrmSuggestion::FrmManualReview => (
-                    AttemptStatus::Unresolved,
-                    IntentStatus::RequiresMerchantAction,
-                ),
-                FrmSuggestion::FrmAuthorizeTransaction => {
-                    (AttemptStatus::Authorized, IntentStatus::RequiresCapture)
-                }
-            };
+            let (payment_attempt_status, payment_intent_status, merchant_decision, error_message) =
+                match frm_suggestion {
+                    FrmSuggestion::FrmCancelTransaction => (
+                        AttemptStatus::Failure,
+                        IntentStatus::Failed,
+                        Some(MerchantDecision::Rejected.to_string()),
+                        Some(Some(CANCEL_INITIATED.to_string())),
+                    ),
+                    FrmSuggestion::FrmManualReview => (
+                        AttemptStatus::Unresolved,
+                        IntentStatus::RequiresMerchantAction,
+                        None,
+                        None,
+                    ),
+                    FrmSuggestion::FrmAuthorizeTransaction => (
+                        AttemptStatus::Authorized,
+                        IntentStatus::RequiresCapture,
+                        None,
+                        None,
+                    ),
+                };
             payment_data.payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt.clone(),
                     PaymentAttemptUpdate::RejectUpdate {
                         status: payment_attempt_status,
                         error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
-                        error_message: Some(Some(CANCEL_INITIATED.to_string())),
+                        error_message,
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
                     frm_data.merchant_account.storage_scheme,
@@ -508,7 +517,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                     payment_data.payment_intent.clone(),
                     PaymentIntentUpdate::RejectUpdate {
                         status: payment_intent_status,
-                        merchant_decision: Some(MerchantDecision::Rejected.to_string()),
+                        merchant_decision,
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
                     frm_data.merchant_account.storage_scheme,

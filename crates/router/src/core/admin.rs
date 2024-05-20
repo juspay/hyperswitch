@@ -1382,6 +1382,13 @@ pub async fn kv_for_merchant(
             Ok(merchant_account)
         }
         (true, MerchantStorageScheme::PostgresOnly) => {
+            if state.conf.as_ref().is_kv_soft_kill_mode() {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Kv cannot be enabled when application is in soft_kill_mode"
+                        .to_owned(),
+                })?
+            }
+
             db.update_merchant(
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
