@@ -152,7 +152,7 @@ jobs:
           openapi_changed_file="$(echo $files_changed | grep --extended-regexp '^(openapi/src/openapi.rs)')"
           
           if [-z "$openapi_changed_file" ]; then
-            openapi_changed='true'
+            openapi_changes='true'
           fi
 
 
@@ -164,7 +164,7 @@ jobs:
         run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
 
       - name: Attach 'M-api-contract-changes' label if PR contains database changes
-        if: env.openapi_changed == 'true'
+        if: env.openapi_changes == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
