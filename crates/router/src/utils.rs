@@ -56,6 +56,7 @@ use crate::{
         transformers::ForeignFrom,
     },
 };
+use time::{format_description, OffsetDateTime};
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -160,7 +161,15 @@ impl<E> ConnectorResponseExt
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
 }
-
+pub fn get_current_date_time_in_rfc1123_format() -> CustomResult<String, errors::ConnectorError> {
+    let format = format_description::parse(
+        "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
+    )
+    .change_context(errors::ConnectorError::InvalidDateFormat)?;
+    OffsetDateTime::now_utc()
+        .format(&format)
+        .change_context(errors::ConnectorError::InvalidDateFormat)
+}
 #[derive(Debug)]
 pub struct QrImage {
     pub data: String,

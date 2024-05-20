@@ -1793,10 +1793,6 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
-        api_enums::Connector::Payone => {
-            payone::transformers::PayoneAuthType::try_from(val)?;
-            Ok(())
-        }
         // api_enums::Connector::Mifinity => {
         //     mifinity::transformers::MifinityAuthType::try_from(val)?;
         //     Ok(())
@@ -1966,6 +1962,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Paypal => {
             paypal::transformers::PaypalAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Payone => {
+            payone::transformers::PayoneAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Payu => {

@@ -25,7 +25,7 @@ use crate::{
 use crate::{core::errors, types::{self,api,storage::enums as storage_enums}};
 
 pub struct PayoneRouterData<T> {
-    pub amount: String,
+    pub amount:String,
     pub router_data: T,
 }
 
@@ -127,7 +127,7 @@ pub struct Card {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OmnichannelPayoutSpecificInput {
     payment_id: String,
@@ -147,13 +147,13 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
         match request.payout_type.to_owned() {
             storage_enums::PayoutType::Card => {
                 let amount_of_money: AmountOfMoney = AmountOfMoney {
-                    amount: item.router_data.request.amount,
+                    amount: item.amount.parse::<i64>().change_context(errors::ConnectorError::ParsingFailed)?,
                     currency_code: item.router_data.request.destination_currency.to_string(),
                 };
-                let _card_issuer =
+                let card_issuer =
                     CardAndCardIssuer::try_from(&item.router_data.get_payout_method_data()?)?;
-                let card = _card_issuer.0;
-                let card_issuer = _card_issuer.1;
+                let card = card_issuer.0;
+                let card_issuer = card_issuer.1;
 
                 let card_payout_method_specific_input: CardPayoutMethodSpecificInput =
                     CardPayoutMethodSpecificInput {
@@ -208,7 +208,7 @@ impl TryFrom<&PayoutMethodData> for CardAndCardIssuer {
                         .change_context(errors::ConnectorError::MissingRequiredField {
                             field_name: "payout_method_data.card.holder_name",
                         })?,
-                    expiry_date: match card.get_expiry_date_as_mmyy() {
+                    expiry_date: match card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()) {
                         Ok(date) => date,
                         Err(_) => Err(errors::ConnectorError::MissingRequiredField {
                             field_name: "payout_method_data.card.expiry_date",
@@ -225,7 +225,7 @@ impl TryFrom<&PayoutMethodData> for CardAndCardIssuer {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayoneStatus {
     Created,
@@ -238,16 +238,7 @@ pub enum PayoneStatus {
     Cancelled,
     Reversed,
 }
-#[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PayoneTransferDetails {
-    transfer_purpose: Option<String>,
-    source_of_funds: Option<String>,
-    transfer_purpose_sub_transfer_purpose: Option<String>,
-}
 
-#[allow(dead_code)]
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -257,7 +248,6 @@ pub struct PayonePayoutFulfillResponse {
     status: PayoneStatus,
 }
 
-#[allow(dead_code)]
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -270,7 +260,7 @@ impl ForeignFrom<PayoneStatus> for storage_enums::PayoutStatus {
     fn foreign_from(payone_status: PayoneStatus) -> Self {
         match payone_status {
             PayoneStatus::AccountCredited => Self::Success,
-            PayoneStatus::RejectedCredit | PayoneStatus::Rejected => Self::Cancelled,
+            PayoneStatus::RejectedCredit | PayoneStatus::Rejected |
             PayoneStatus::Cancelled | PayoneStatus::Reversed => Self::Cancelled,
             PayoneStatus::Created
             | PayoneStatus::PendingApproval

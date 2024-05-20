@@ -10,7 +10,6 @@ use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
-use time::{format_description, OffsetDateTime};
 
 use self::transformers as payone;
 #[cfg(feature = "payouts")]
@@ -32,7 +31,8 @@ use crate::{
     },
     utils::BytesExt,
 };
-
+#[cfg(feature = "payouts")]
+use crate::utils::get_current_date_time_in_rfc1123_format;
 #[derive(Debug, Clone)]
 pub struct Payone;
 
@@ -64,15 +64,7 @@ impl Payone {
         Ok(signature_header)
     }
 }
-pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {
-    let format = format_description::parse(
-        "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
-    )
-    .change_context(errors::ConnectorError::InvalidDateFormat)?;
-    OffsetDateTime::now_utc()
-        .format(&format)
-        .change_context(errors::ConnectorError::InvalidDateFormat)
-}
+
 impl api::Payment for Payone {}
 impl api::PaymentSession for Payone {}
 impl api::ConnectorAccessToken for Payone {}
@@ -110,7 +102,7 @@ where
         let content_type = Self::get_content_type(self);
         let base_url = self.base_url(connectors);
         let url = Self::get_url(self, req, connectors)?;
-        let date_header = get_current_date_time()?;
+        let date_header = get_current_date_time_in_rfc1123_format()?;
         let path: String = url.replace(base_url, "/");
 
         let authorization_header: String = self.generate_signature(
