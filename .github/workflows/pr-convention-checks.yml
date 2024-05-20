@@ -128,3 +128,42 @@ jobs:
               exit 1
             fi
           done <<< "${linked_issues}"
+
+  pr_containing_database_and_schema_changes_checks:
+    name: Verify PR has appropriate table if database and schema changes exists
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+      
+    steps: 
+      - name: Get changed fiels
+        shell: bash
+        run: |
+          echo "migration_and_schema_changes=false" >> $GITHUB_ENV
+          echo "openapi_changes=false" >> $GITHUB_ENV
+
+          files_changed="$(gh api --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" --paginate https://api.github.com/repos/juspay/hyperswitch/pulls/${{ github.event.pull_request.number }}/files --jq '.[] | .filename')"
+          migration_and_schema_changed_files="$(echo $files_changed | grep --extended-regexp '^(migrations/*|crates/diesel_models/src/schema.rs)')"
+
+          if [-z "$migration_and_schema_changed_files" ]; then
+            migration_and_schema_changes='true'
+
+          openapi_changed_file="$(echo $files_changed | grep --extended-regexp '^(openapi/src/openapi.rs)')"
+          
+          if [-z "$openapi_changed_file" ]; then
+            openapi_changed='true'
+
+
+      - name: Attach 'M-database-changes' label if PR contains database changes
+        if: env.migration_and_schema_changes == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
+
+      - name: Attach 'M-api-contract-changes' label if PR contains database changes
+        if: env.openapi_changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
