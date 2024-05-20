@@ -376,7 +376,6 @@ impl<F, T>
     }
 }
 
-
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MifinityErrorResponse {
