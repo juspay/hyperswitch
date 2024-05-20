@@ -167,10 +167,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
-            &payment_intent
+            payment_intent
                 .customer_id
-                .clone()
-                .or_else(|| request.customer_id.clone()),
+                .as_ref()
+                .map(|customer_id| customer_id.as_str())
+                .or_else(|| {
+                    request
+                        .customer_id
+                        .as_ref()
+                        .map(|customer_id| customer_id.into_inner())
+                }),
         )?;
 
         let shipping_address = helpers::get_address_by_id(
@@ -309,7 +315,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         };
 
         let customer_details = Some(CustomerDetails {
-            customer_id: request.customer_id.clone(),
+            customer_id: request
+                .customer_id
+                .as_ref()
+                .map(|customer_id| customer_id.into_inner().to_string()),
             name: request.name.clone(),
             email: request.email.clone(),
             phone: request.phone.clone(),

@@ -26,6 +26,7 @@ use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
     ephemeral_key::EphemeralKeyCreateResponse,
+    id_types,
     mandates::RecurringDetails,
     refunds,
 };
@@ -176,8 +177,30 @@ mod client_secret_tests {
     }
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq)]
 pub struct CustomerDetails {
+    /// The identifier for the customer.
+    pub id: id_types::CustomerId,
+
+    /// The customer's name
+    #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
+    pub name: Option<Secret<String>>,
+
+    /// The customer's email address
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<Email>,
+
+    /// The customer's phone number
+    #[schema(value_type = Option<String>, max_length = 10, example = "3141592653")]
+    pub phone: Option<Secret<String>>,
+
+    /// The country code for the customer's phone number
+    #[schema(max_length = 2, example = "+1")]
+    pub phone_country_code: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema, PartialEq)]
+pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
     pub id: String,
 
@@ -278,7 +301,7 @@ pub struct PaymentsRequest {
 
     /// The identifier for the customer object. This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_types::CustomerId>,
 
     /// The customer's email address This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
@@ -3161,7 +3184,7 @@ pub struct PaymentsResponse {
     pub customer_id: Option<String>,
 
     /// Details of customer attached to this payment
-    pub customer: Option<CustomerDetails>,
+    pub customer: Option<CustomerDetailsResponse>,
 
     /// A description of the payment
     #[schema(example = "It's my first payment request")]
@@ -3648,7 +3671,8 @@ impl From<&PaymentsRequest> for MandateValidationFields {
                 .as_ref()
                 .map(|customer_details| &customer_details.id)
                 .or(req.customer_id.as_ref())
-                .map(ToOwned::to_owned),
+                .map(|customer_id| customer_id.into_inner())
+                .map(ToString::to_string),
             mandate_data: req.mandate_data.clone(),
             setup_future_usage: req.setup_future_usage,
             off_session: req.off_session,

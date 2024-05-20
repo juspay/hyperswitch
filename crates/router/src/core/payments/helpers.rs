@@ -606,7 +606,7 @@ pub async fn get_token_for_recurring_mandate(
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
     let payment_method_id = {
-        if mandate.customer_id != customer {
+        if mandate.customer_id != customer.into_inner() {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "customer_id must match mandate customer_id".into()
             }))?
@@ -993,7 +993,7 @@ fn validate_new_mandate_request(
 
 pub fn validate_customer_id_mandatory_cases(
     has_setup_future_usage: bool,
-    customer_id: &Option<String>,
+    customer_id: Option<&str>,
 ) -> RouterResult<()> {
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -1395,8 +1395,12 @@ pub fn validate_customer_details_in_request(
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(customer_details) = request.customer.as_ref() {
         validate_options_for_inequality(
-            request.customer_id.as_ref(),
-            Some(&customer_details.id),
+            request
+                .customer_id
+                .as_ref()
+                .map(|customer_id| customer_id.to_string())
+                .as_ref(),
+            Some(customer_details.id.into_inner().to_string()).as_ref(),
             "customer_id",
         )?;
 
@@ -1437,8 +1441,10 @@ pub fn get_customer_details_from_request(
     let customer_id = request
         .customer
         .as_ref()
-        .map(|customer_details| customer_details.id.clone())
-        .or(request.customer_id.clone());
+        .map(|customer_details| &customer_details.id)
+        .or(request.customer_id.as_ref())
+        .map(|customer_id| customer_id.into_inner())
+        .map(ToString::to_string);
 
     let customer_name = request
         .customer
@@ -3866,7 +3872,11 @@ pub fn validate_customer_access(
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
     if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_same_customer = request.customer_id == payment_intent.customer_id;
+        let is_same_customer = request
+            .customer_id
+            .as_ref()
+            .map(|customer_id| customer_id.into_inner().to_string())
+            == payment_intent.customer_id;
         if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),

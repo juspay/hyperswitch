@@ -725,11 +725,14 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                &request
+                request
                     .customer
-                    .clone()
-                    .map(|customer| customer.id)
-                    .or(request.customer_id.clone()),
+                    .as_ref()
+                    .map(|customer| customer.id.into_inner())
+                    .or(request
+                        .customer_id
+                        .as_ref()
+                        .map(|customer_id| customer_id.into_inner())),
             )?;
         }
 
@@ -1050,7 +1053,7 @@ impl PaymentCreate {
         match request.customer_id.clone() {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
-                customer_id,
+                customer_id.into_inner().to_string(),
                 merchant_account.merchant_id.clone(),
             )
             .await

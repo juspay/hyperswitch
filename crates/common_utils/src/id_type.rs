@@ -1,6 +1,6 @@
 //! Common ID types
 
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Deref};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -16,7 +16,7 @@ fn validate_alphanumeric_id(input_string: Cow<'static, str>) -> bool {
         .all(|char| char.is_alphanumeric() || matches!(char, '_' | '-'))
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Clone, Eq)]
 /// A type for alphanumeric ids
 pub struct AlphaNumericId(String);
 
@@ -44,11 +44,27 @@ impl AlphaNumericId {
 
         Ok(Self(input_string.to_string()))
     }
+
+    /// Get the inner value as &str
+    pub fn into_inner(&self) -> &str {
+        &self.0
+    }
 }
 
-/// A common type of id that can be used for merchant reference ids
-#[derive(Debug)]
+/// A common type of id that can be used for merchant reference ids in api models
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct MerchantReferenceId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
+
+/// Deref can be implemented safely because the type is always valid once it is deserialized
+impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deref
+    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
+{
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.into_inner()
+    }
+}
 
 /// Error genereted from violation of constraints for MerchantReferenceId
 #[derive(Debug, Deserialize, Serialize, Error)]
@@ -95,6 +111,11 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> MerchantReferenceId<MAX_LENGTH,
         };
 
         Ok(Self(alphanumeric_id))
+    }
+
+    /// Get the inner value as &str
+    pub fn into_inner(&self) -> &str {
+        self.0.into_inner()
     }
 }
 

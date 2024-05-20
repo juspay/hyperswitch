@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments;
+use api_models::{id_types, payments};
 use common_utils::{date_time, ext_traits::StringExt, pii as secret};
 use error_stack::ResultExt;
 use router_env::logger;
@@ -152,7 +152,7 @@ impl From<Shipping> for payments::Address {
 #[derive(Default, Deserialize, Clone)]
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
-    pub customer: Option<String>,
+    pub customer: Option<id_types::CustomerId>,
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub description: Option<String>,
     pub currency: Option<String>,

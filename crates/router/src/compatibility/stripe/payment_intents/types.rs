@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments;
+use api_models::{id_types, payments};
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -245,7 +245,7 @@ pub struct StripePaymentIntentRequest {
     pub amount_capturable: Option<i64>,
     pub confirm: Option<bool>,
     pub capture_method: Option<api_enums::CaptureMethod>,
-    pub customer: Option<String>,
+    pub customer: Option<id_types::CustomerId>,
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
     pub receipt_email: Option<Email>,
