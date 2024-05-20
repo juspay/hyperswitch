@@ -147,11 +147,13 @@ jobs:
 
           if [-z "$migration_and_schema_changed_files" ]; then
             migration_and_schema_changes='true'
+          fi
 
           openapi_changed_file="$(echo $files_changed | grep --extended-regexp '^(openapi/src/openapi.rs)')"
           
           if [-z "$openapi_changed_file" ]; then
             openapi_changed='true'
+          fi
 
 
       - name: Attach 'M-database-changes' label if PR contains database changes
