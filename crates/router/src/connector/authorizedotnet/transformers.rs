@@ -1,6 +1,7 @@
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
+    pii,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
@@ -315,6 +316,179 @@ pub struct AuthorizedotnetPaymentCancelOrCaptureRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 // The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
+pub struct CreateCustomerProfileRequest {
+    create_customer_profile_request: AuthorizedotnetZeroMandateRequest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetZeroMandateRequest {
+    merchant_authentication: AuthorizedotnetAuthType,
+    profile: Profile,
+    validation_mode: ValidationMode,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Profile {
+    merchant_customer_id: String,
+    description: String,
+    email: pii::Email,
+    payment_profiles: PaymentProfiles,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PaymentProfiles {
+    customer_type: CustomerType,
+    payment: PaymentDetails,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CustomerType {
+    Individual,
+    Business,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ValidationMode {
+    TestMode,
+    LiveMode,
+}
+
+impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(ccard) => {
+                let merchant_authentication =
+                    AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+                Ok(Self {
+                    create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
+                        merchant_authentication,
+                        profile: Profile {
+                            // merchant_customer_id: item.customer_id.ok_or_else(missing_field_err("email"))?,
+                            // description: item.description.ok_or_else(missing_field_err("email"))?,
+                            merchant_customer_id: item.customer_id.clone().unwrap(),
+                            description: item.description.clone().unwrap(),
+                            email: utils::PaymentsSetupMandateRequestData::get_email(
+                                &item.request,
+                            )?,
+                            payment_profiles: PaymentProfiles {
+                                customer_type: CustomerType::Individual,
+                                payment: PaymentDetails::CreditCard(CreditCardDetails {
+                                    card_number: (*ccard.card_number).clone(),
+                                    expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                                    card_code: None,
+                                }),
+                            },
+                        },
+                        validation_mode: ValidationMode::TestMode,
+                    },
+                })
+            }
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => todo!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetSetupMandateResponse {
+    customer_profile_id: Option<String>,
+    customer_payment_profile_id_list: Vec<String>,
+    validation_direct_response_list: Option<Vec<Secret<String>>>,
+    pub messages: ResponseMessages,
+}
+
+// zero dollar response
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            AuthorizedotnetSetupMandateResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            AuthorizedotnetSetupMandateResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response.messages.result_code {
+            ResultCode::Ok => Ok(Self {
+                status: enums::AttemptStatus::Charged,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: item.response.customer_profile_id.map(|mandate_id| {
+                        types::MandateReference {
+                            connector_mandate_id: Some(mandate_id),
+                            //fix this
+                            payment_method_id: item
+                                .response
+                                .customer_payment_profile_id_list
+                                .first()
+                                .cloned(),
+                        }
+                    }),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                }),
+                ..item.data
+            }),
+            ResultCode::Error => {
+                let mut error_code = String::new();
+                let mut error_reason = String::new();
+                for val in item.response.messages.message.iter() {
+                    error_code.push_str(&val.code);
+                    error_code.push_str("; ");
+                    error_reason.push_str(&val.text);
+                    error_reason.push_str(" ");
+                }
+                let response = Err(types::ErrorResponse {
+                    code: error_code,
+                    message: item.response.messages.result_code.to_string(),
+                    reason: Some(error_reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                });
+                Ok(Self {
+                    response,
+                    status: enums::AttemptStatus::Failure,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+// The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
 pub struct CreateTransactionRequest {
     create_transaction_request: AuthorizedotnetPaymentsRequest,
 }
@@ -506,7 +680,7 @@ pub struct ResponseMessage {
     pub text: String,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize, strum::Display)]
 enum ResultCode {
     #[default]
     Ok,
