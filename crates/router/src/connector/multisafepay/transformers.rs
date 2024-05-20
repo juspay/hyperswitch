@@ -758,19 +758,15 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             }
             domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 match bank_redirect_data {
-                    domain::BankRedirectData::Ideal {
-                        billing_details: _,
-                        bank_name,
-                        country: _,
-                    } => Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
-                        IdealInfo {
+                    domain::BankRedirectData::Ideal { bank_name, .. } => Some(
+                        GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(IdealInfo {
                             issuer_id: MultisafepayBankNames::try_from(&bank_name.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
                                     field_name: "ideal.bank_name",
                                 },
                             )?)?,
-                        },
-                    ))),
+                        })),
+                    ),
                     domain::BankRedirectData::BancontactCard { .. }
                     | domain::BankRedirectData::Bizum { .. }
                     | domain::BankRedirectData::Blik { .. }
