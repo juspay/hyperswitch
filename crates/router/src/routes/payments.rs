@@ -809,35 +809,6 @@ pub async fn payments_complete_authorize(
 
     tracing::Span::current().record("payment_id", &payment_id);
 
-    // let shipping = payload.shipping.clone();
-
-    // let address = shipping.clone().and_then(|shipping| shipping.address);
-
-    // let address_details = address
-    //     .as_ref()
-    //     .map(|address| api_models::payments::AddressDetails {
-    //         city: address.city.clone(),
-    //         country: address.country,
-    //         line1: address.line1.clone(),
-    //         line2: address.line2.clone(),
-    //         line3: address.line3.clone(),
-    //         zip: address.zip.clone(),
-    //         state: address.state.clone(),
-    //         first_name: address.first_name.clone(),
-    //         last_name: address.last_name.clone(),
-    //     });
-
-    // let phone_details = shipping.as_ref().map(|shipping| PhoneDetails {
-    //     number: shipping
-    //         .phone
-    //         .as_ref()
-    //         .and_then(|phone| phone.number.clone()),
-    //     country_code: shipping
-    //         .phone
-    //         .as_ref()
-    //         .and_then(|phone| phone.country_code.clone()),
-    // });
-
     let payment_confirm_req = payment_types::PaymentsRequest {
         payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
             payment_id.clone(),
