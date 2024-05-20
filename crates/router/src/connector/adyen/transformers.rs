@@ -4632,7 +4632,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     },
                     merchant_account,
                     payment_data: PayoutPaymentMethodData::PayoutBankData(bank_data),
-                    reference: item.router_data.request.payout_id.to_owned(),
+                    reference: item.router_data.connector_request_reference_id.to_owned(),
                     shopper_reference: item.router_data.merchant_id.to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {

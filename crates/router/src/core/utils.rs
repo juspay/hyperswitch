@@ -191,8 +191,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW
-            .to_string(),
+        connector_request_reference_id: payout_attempt.payout_attempt_id.clone(),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
         test_mode,
