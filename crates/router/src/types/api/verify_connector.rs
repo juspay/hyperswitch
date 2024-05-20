@@ -12,7 +12,7 @@ use crate::{
     AppState,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VerifyConnectorData {
     pub connector: &'static (dyn api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,

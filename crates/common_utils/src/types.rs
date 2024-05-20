@@ -1,7 +1,4 @@
 //! Types that can be used in other crates
-use std::{
-    fmt::Display, num::{ParseFloatError, TryFromIntError}, ops::{Add, Sub}, primitive::i64, str::FromStr
-};
 use common_enums::enums;
 use diesel::{
     backend::Backend,
@@ -15,6 +12,13 @@ use diesel::{
 use error_stack::{report, ResultExt};
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer};
+use std::{
+    fmt::Display,
+    num::{ParseFloatError, TryFromIntError},
+    ops::{Add, Sub},
+    primitive::i64,
+    str::FromStr,
+};
 use utoipa::ToSchema;
 
 use crate::{
@@ -253,14 +257,20 @@ impl MinorUnit {
         Self(value)
     }
 
-     /// Convert the amount to its major denomination based on Currency and return String
-     pub fn to_major_unit_as_string(&self, currency: enums::Currency) -> Result<String, TryFromIntError> {
+    /// Convert the amount to its major denomination based on Currency and return String
+    pub fn to_major_unit_as_string(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<String, TryFromIntError> {
         let amount_f64 = self.to_major_unit_asf64(currency)?;
         Ok(format!("{:.2}", amount_f64.0))
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
-    pub fn to_major_unit_asf64(&self, currency: enums::Currency) -> Result<FloatMajorUnit, TryFromIntError> {
+    pub fn to_major_unit_asf64(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<FloatMajorUnit, TryFromIntError> {
         let amount_f64: f64 = u32::try_from(self.0)?.into();
         let amount = if currency.is_zero_decimal_currency() {
             amount_f64
@@ -273,7 +283,10 @@ impl MinorUnit {
     }
 
     ///Convert the higher decimal amount to its major absolute units
-    pub fn to_minor_unit_as_string(&self, currency: enums::Currency) -> Result<String, ParseFloatError> {
+    pub fn to_minor_unit_as_string(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<String, ParseFloatError> {
         let amount_f64 = self.0.to_string().parse::<f64>()?;
         let amount_string = if currency.is_zero_decimal_currency() {
             amount_f64
@@ -357,41 +370,48 @@ impl Sub for MinorUnit {
 
 /// This struct represents Money unit on which conversion will be done
 #[derive(
-    Default,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    ToSchema,
+    Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq, Hash, ToSchema,
 )]
 pub struct Money {
     amount: MinorUnit,
-    currency: enums::Currency
+    currency: enums::Currency,
 }
 
-// connector amount unit 
-#[derive(
-    Default,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Clone,
-    Copy,
-    PartialEq,
-)]
+// connector amount unit
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct FloatMajorUnit(f64);
 
-impl FloatMajorUnit{
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnitForConnector;
+
+impl AmountConvertor for FloatMajorUnitForConnector {
+    type Output = FloatMajorUnit;
+    fn convert(
+        &self,
+        i: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, TryFromIntError> {
+        i.to_major_unit_asf64(currency)
+    }
+    fn convert_back(
+        &self,
+        i: FloatMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError> {
+        i.to_minor_unit_as_i64(currency)
+    }
+}
+
+impl FloatMajorUnit {
     /// forms a new major unit from amount
     pub fn new(value: f64) -> Self {
         Self(value)
     }
 
-    pub fn to_minor_unit_as_i64(&self, currency:enums::Currency) -> Result<MinorUnit, ParseFloatError> {
+    pub fn to_minor_unit_as_i64(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError> {
         let amount_f64 = self.0;
         let amount = if currency.is_zero_decimal_currency() {
             amount_f64
@@ -403,15 +423,7 @@ impl FloatMajorUnit{
         Ok(MinorUnit::new(amount as i64))
     }
 }
-#[derive(
-    Default,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Clone,
-    PartialEq,
-    Eq,
-)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
 pub struct StringMajorUnit(String);
 
 impl StringMajorUnit {
@@ -420,7 +432,10 @@ impl StringMajorUnit {
         Self(value)
     }
 
-    pub fn to_minor_unit_as_i64(&self, currency:enums::Currency) -> Result<MinorUnit, ParseFloatError> {
+    pub fn to_minor_unit_as_i64(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError> {
         let amount_f64 = self.0.parse::<f64>()?;
         let amount = if currency.is_zero_decimal_currency() {
             amount_f64
@@ -433,30 +448,53 @@ impl StringMajorUnit {
     }
 }
 
-
-pub trait AmountConvertor : Send {
+pub trait AmountConvertor: Send {
     type Output;
-    fn convert(&self, i: MinorUnit, currency:enums::Currency) -> Result<Self::Output, TryFromIntError>;
-    fn convert_back(&self, i:Self::Output, currency:enums::Currency) -> Result<MinorUnit,ParseFloatError>;
+    fn convert(
+        &self,
+        i: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, TryFromIntError>;
+
+    fn convert_back(
+        &self,
+        i: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError>;
 }
 
 impl AmountConvertor for FloatMajorUnit {
     type Output = FloatMajorUnit;
-    fn convert(&self, i: MinorUnit, currency: enums::Currency) -> Result<Self::Output, TryFromIntError> {
+    fn convert(
+        &self,
+        i: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, TryFromIntError> {
         i.to_major_unit_asf64(currency)
     }
-    fn convert_back(&self, i: FloatMajorUnit, currency:enums::Currency) -> Result<MinorUnit,ParseFloatError> {
+    fn convert_back(
+        &self,
+        i: FloatMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError> {
         i.to_minor_unit_as_i64(currency)
     }
 }
 
 impl AmountConvertor for StringMajorUnit {
     type Output = StringMajorUnit;
-    fn convert(&self, i: MinorUnit, currency: enums::Currency) -> Result<Self::Output, TryFromIntError> {
+    fn convert(
+        &self,
+        i: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, TryFromIntError> {
         i.to_major_unit_as_string_with_zero_decimal_check(currency)
     }
-    fn convert_back(&self, i: StringMajorUnit,  currency:enums::Currency) -> Result<MinorUnit,ParseFloatError> {
+    fn convert_back(
+        &self,
+        i: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError> {
         i.to_minor_unit_as_i64(currency)
     }
 }
-
