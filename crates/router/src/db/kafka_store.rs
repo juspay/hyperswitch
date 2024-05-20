@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::{errors::CustomResult, pii, types::TenantID};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -25,7 +25,6 @@ use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
 };
-use serde::Serialize;
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
@@ -75,9 +74,6 @@ use crate::{
         AccessToken,
     },
 };
-
-#[derive(Clone, Serialize)]
-pub struct TenantID(pub String);
 
 #[derive(Clone)]
 pub struct KafkaStore {
