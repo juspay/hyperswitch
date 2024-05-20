@@ -164,8 +164,10 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
                             payment_product_id: PaymentProductId::try_from(card_data.get_card_issuer()?)? ,  
                         }
                     },
-                    PayoutMethodData::Bank(_) => todo!(),
-                    PayoutMethodData::Wallet(_) => todo!(),
+                    PayoutMethodData::Bank(_) |
+                    PayoutMethodData::Wallet(_) =>  Err(errors::ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("Payout"),
+                    ))?
                 };
                 Ok(Self {
                     amount_of_money,
