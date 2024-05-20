@@ -467,6 +467,7 @@ async fn store_bank_details_in_payment_methods(
                 network_transaction_id: None,
                 client_secret: None,
                 payment_method_billing_address: None,
+                updated_by: None,
             };
 
             new_entries.push(pm_new);

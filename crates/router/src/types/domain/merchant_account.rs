@@ -134,7 +134,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 ..Default::default()
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
-                recon_status,
+                recon_status: Some(recon_status),
                 ..Default::default()
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {

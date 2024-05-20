@@ -276,27 +276,32 @@ pub struct PaymentsRequest {
     /// Passing this object creates a new customer or attaches an existing customer to the payment
     pub customer: Option<CustomerDetails>,
 
-    /// The identifier for the customer object. This field will be deprecated soon, use the customer object instead
+    /// The identifier for the customer object.
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
 
-    /// The customer's email address This field will be deprecated soon, use the customer object instead
-    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    /// The customer's email address.
+    /// This field will be deprecated soon, use the customer object instead
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub email: Option<Email>,
 
     /// The customer's name.
     /// This field will be deprecated soon, use the customer object instead.
-    #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon, use the customer object instead
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer phone number
     /// This field will be deprecated soon, use the customer object instead
-    #[schema(max_length = 255, example = "+1")]
+    #[schema(max_length = 255, example = "+1", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub phone_country_code: Option<String>,
 
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
@@ -459,7 +464,8 @@ pub struct PaymentsRequest {
     pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
-    pub frm_metadata: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
@@ -534,9 +540,11 @@ impl RequestSurchargeDetails {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
 }
 
@@ -1450,9 +1458,9 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
-            Self::BankRedirect(_) => None,
+            Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
             Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
-            Self::BankTransfer(_) => None,
+            Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
@@ -1814,11 +1822,11 @@ pub enum BankRedirectData {
     },
     Interac {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
 
-        #[schema(value_type = String, example = "john.doe@example.com")]
-        email: Email,
+        #[schema(value_type = Option<String>, example = "john.doe@example.com")]
+        email: Option<Email>,
     },
     OnlineBankingCzechRepublic {
         // Issuer banks
@@ -1978,7 +1986,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                 ..
             } => get_billing_address_inner(billing_details.as_ref(), country.as_ref(), None),
             Self::Interac { country, email } => {
-                get_billing_address_inner(None, Some(country), Some(email))
+                get_billing_address_inner(None, country.as_ref(), email.as_ref())
             }
             Self::OnlineBankingFinland { email } => {
                 get_billing_address_inner(None, None, email.as_ref())
@@ -3157,7 +3165,12 @@ pub struct PaymentsResponse {
     pub currency: String,
 
     /// The identifier for the customer object. If not provided the customer ID will be autogenerated.
-    #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    /// This field will be deprecated soon. Please refer to `customer.id`
+    #[schema(
+        max_length = 255,
+        example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+        deprecated
+    )]
     pub customer_id: Option<String>,
 
     /// Details of customer attached to this payment
@@ -3241,15 +3254,18 @@ pub struct PaymentsResponse {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 
     /// description: The customer's email address
-    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    /// This field will be deprecated soon. Please refer to `customer.email` object
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
     pub email: crypto::OptionalEncryptableEmail,
 
     /// description: The customer's name
-    #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
+    /// This field will be deprecated soon. Please refer to `customer.name` object
+    #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
     pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    /// This field will be deprecated soon. Please refer to `customer.phone` object
+    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653", deprecated)]
     pub phone: crypto::OptionalEncryptablePhone,
 
     /// The URL to redirect after the completion of the operation
@@ -3397,6 +3413,10 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated: Option<PrimitiveDateTime>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
+    #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -3576,9 +3596,11 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmountFilter {
+    /// The start amount to filter list of transactions which are greater than or equal to the start amount
     pub start_amount: Option<i64>,
+    /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
 }
 
@@ -3867,6 +3889,25 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     /// The list of allowed card networks (ex: AMEX,JCB etc)
     pub allowed_card_networks: Vec<String>,
+    /// Is billing address required
+    pub billing_address_required: Option<bool>,
+    /// Billing address parameters
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address_parameters: Option<GpayBillingAddressParameters>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GpayBillingAddressParameters {
+    /// Is billing phone number required
+    pub phone_number_required: bool,
+    /// Billing address format
+    pub format: GpayBillingAddressFormat,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum GpayBillingAddressFormat {
+    FULL,
+    MIN,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4081,6 +4122,12 @@ pub struct GooglePayThirdPartySdk {
 pub struct GooglePaySessionResponse {
     /// The merchant info
     pub merchant_info: GpayMerchantInfo,
+    /// Is shipping address required
+    pub shipping_address_required: bool,
+    /// Is email required
+    pub email_required: bool,
+    /// Shipping address parameters
+    pub shipping_address_parameters: GpayShippingAddressParameters,
     /// List of the allowed payment meythods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
@@ -4093,6 +4140,13 @@ pub struct GooglePaySessionResponse {
     pub sdk_next_action: SdkNextAction,
     /// Secrets for sdk display and payment
     pub secrets: Option<SecretInfoToInitiateSdk>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GpayShippingAddressParameters {
+    /// Is shipping phone number required
+    pub phone_number_required: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4216,6 +4270,25 @@ pub struct ApplePayPaymentRequest {
     /// The list of supported networks
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
+    /// The required billing contact fields for connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required_billing_contact_fields: Option<ApplePayBillingContactFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The required shipping contacht fields for connector
+    pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayBillingContactFields(pub Vec<ApplePayAddressParameters>);
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ApplePayShippingContactFields(pub Vec<ApplePayAddressParameters>);
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ApplePayAddressParameters {
+    PostalAddress,
+    Phone,
+    Email,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
