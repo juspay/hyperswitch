@@ -67,12 +67,12 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(match pm_token {
+                    payment_method_id: match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
-                    }),
+                    },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
@@ -86,12 +86,12 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(match pm_token {
+                    payment_method_id: match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
-                    }),
+                    },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
