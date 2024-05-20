@@ -851,7 +851,6 @@ pub async fn payments_complete_authorize(
                 HeaderPayload::default(),
             )
         },
-        // &auth::PublishableKeyAuth,
         &*auth_type,
         locking_action,
     ))
