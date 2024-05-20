@@ -13575,6 +13575,9 @@
       },
       "PaymentsCompleteAuthorizeRequest": {
         "type": "object",
+        "required": [
+          "client_secret"
+        ],
         "properties": {
           "shipping": {
             "allOf": [
@@ -13583,6 +13586,10 @@
               }
             ],
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
           }
         }
       },
