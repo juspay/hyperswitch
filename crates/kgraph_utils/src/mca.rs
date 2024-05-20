@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
@@ -6,7 +8,6 @@ use euclid::{
     types::{NumValue, NumValueRefinement},
 };
 use hyperswitch_constraint_graph as cgraph;
-use std::str::FromStr;
 use strum::IntoEnumIterator;
 
 use crate::{
