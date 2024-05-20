@@ -1210,7 +1210,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             );
         let response = if is_pull_mechanism_enabled
             || authentication.authentication_type
-                == Some(common_enums::DecoupledAuthenticationType::Frictionless)
+                != Some(common_enums::DecoupledAuthenticationType::Challenge)
         {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
