@@ -21,6 +21,7 @@ masking = { version = "0.1.0", path = "../masking/" }
 serde = "1.0.197"
 serde_json = "1.0.115"
 thiserror = "1.0.58"
+strum = { version = "0.26", features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.5"

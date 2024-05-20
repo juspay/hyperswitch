@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
@@ -8,6 +6,8 @@ use euclid::{
     types::{NumValue, NumValueRefinement},
 };
 use hyperswitch_constraint_graph as cgraph;
+use std::str::FromStr;
+use strum::IntoEnumIterator;
 
 use crate::{
     error::KgraphError,
@@ -261,7 +261,50 @@ fn compile_payment_method_enabled(
 
     Ok(agg_id)
 }
-fn compile_graph_for_countries(
+#[macro_export]
+macro_rules! collect_global_variants {
+    ($parent_enum:ident) => {
+        &mut dir::enums::$parent_enum::iter()
+            .map(dir::DirValue::$parent_enum)
+            .collect::<Vec<_>>()
+    };
+}
+fn global_vec_pmt(
+    enabled_pmt: Vec<dir::DirValue>,
+    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+) -> Vec<cgraph::NodeId> {
+    let mut global_vector: Vec<dir::DirValue> = Vec::new();
+
+    global_vector.append(collect_global_variants!(CardType));
+    global_vector.append(collect_global_variants!(PayLaterType));
+    global_vector.append(collect_global_variants!(WalletType));
+    global_vector.append(collect_global_variants!(BankRedirectType));
+    global_vector.append(collect_global_variants!(BankDebitType));
+    global_vector.append(collect_global_variants!(CryptoType));
+    global_vector.append(collect_global_variants!(RewardType));
+    global_vector.append(collect_global_variants!(UpiType));
+    global_vector.append(collect_global_variants!(VoucherType));
+    global_vector.append(collect_global_variants!(GiftCardType));
+    global_vector.append(collect_global_variants!(BankTransferType));
+    global_vector.append(collect_global_variants!(CardRedirectType));
+    let global_vector = global_vector
+        .into_iter()
+        .filter(|p| enabled_pmt.clone().into_iter().any(|d| &d != p))
+        .collect::<Vec<_>>();
+    let nodes = global_vector
+        .clone()
+        .into_iter()
+        .map(|dir_v| {
+            builder.make_value_node(
+                cgraph::NodeValue::Value(dir_v),
+                Some("Payment Method Type"),
+                None::<()>,
+            )
+        })
+        .collect::<Vec<_>>();
+    nodes
+}
+fn compile_graph_for_countries_and_currencies(
     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
     config: &CurrencyCountryFlowFilter,
     payment_method_type_node: cgraph::NodeId,
@@ -299,7 +342,7 @@ fn compile_graph_for_countries(
         agg_nodes.push((
             currency_agg,
             cgraph::Relation::Positive,
-            cgraph::Strength::Strong,
+            cgraph::Strength::Normal,
         ))
     }
     if let Some(capture_method) = config
@@ -308,7 +351,7 @@ fn compile_graph_for_countries(
     {
         let make_capture_node = builder.make_value_node(
             cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(capture_method)),
-            Some("Configs for Currency"),
+            Some("Configs for CaptureMethod"),
             None::<()>,
         );
         agg_nodes.push((
@@ -333,7 +376,7 @@ fn compile_config_graph(
     connector: &api_enums::RoutableConnectors,
 ) -> Result<cgraph::NodeId, KgraphError> {
     let mut agg_node_id: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
-
+    let mut in_agg_pmt: Vec<dir::DirValue> = Vec::new();
     if let Some(pmt) = config
         .connector_configs
         .get(connector)
@@ -343,6 +386,8 @@ fn compile_config_graph(
         for key in pmt.keys().cloned() {
             match key {
                 PaymentMethodFilterKey::PaymentMethodType(pm) => {
+                    let dir_val_pm = pm.into_dir_value().map(Into::into)?;
+                    in_agg_pmt.push(dir_val_pm);
                     let pmt_id = builder.make_value_node(
                         pm.into_dir_value().map(Into::into)?,
                         Some("PaymentMethodType"),
@@ -350,7 +395,9 @@ fn compile_config_graph(
                     );
                     let curr = pmt
                         .get(&PaymentMethodFilterKey::PaymentMethodType(pm))
-                        .map(|country| compile_graph_for_countries(builder, country, pmt_id))
+                        .map(|country| {
+                            compile_graph_for_countries_and_currencies(builder, country, pmt_id)
+                        })
                         .transpose()?;
 
                     if let Some(country_currency) = curr {
@@ -362,6 +409,8 @@ fn compile_config_graph(
                     }
                 }
                 PaymentMethodFilterKey::CardNetwork(cn) => {
+                    let dir_val_cn = cn.clone().into_dir_value()?;
+                    in_agg_pmt.push(dir_val_cn);
                     let cn_id = builder.make_value_node(
                         cn.clone().into_dir_value().map(Into::into)?,
                         Some("CardNetwork"),
@@ -369,7 +418,9 @@ fn compile_config_graph(
                     );
                     let curr = pmt
                         .get(&PaymentMethodFilterKey::CardNetwork(cn.clone()))
-                        .map(|country| compile_graph_for_countries(builder, country, cn_id))
+                        .map(|country| {
+                            compile_graph_for_countries_and_currencies(builder, country, cn_id)
+                        })
                         .transpose()?;
 
                     if let Some(_country_currency) = curr {
@@ -383,10 +434,28 @@ fn compile_config_graph(
             }
         }
     }
+    let global_vector_pmt: Vec<cgraph::NodeId> = global_vec_pmt(in_agg_pmt, builder);
+    let any_agg_pmt: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = global_vector_pmt
+        .into_iter()
+        .map(|node| (node, cgraph::Relation::Positive, cgraph::Strength::Normal))
+        .collect::<Vec<_>>();
+    let in_agg_node = builder
+        .make_any_aggregator(
+            &any_agg_pmt,
+            Some("In Aggregator For Payment Method Types"),
+            None::<()>,
+            None,
+        )
+        .map_err(KgraphError::GraphConstructionError)?;
 
-    let info = "Config";
+    agg_node_id.push((
+        in_agg_node,
+        cgraph::Relation::Positive,
+        cgraph::Strength::Normal,
+    ));
+
     builder
-        .make_any_aggregator(&agg_node_id, Some(info), None::<()>, None)
+        .make_any_aggregator(&agg_node_id, Some("Configs"), None::<()>, None)
         .map_err(KgraphError::GraphConstructionError)
 }
 
@@ -460,7 +529,7 @@ fn compile_merchant_connector_graph(
             None::<cgraph::DomainId>,
         )
         .map_err(KgraphError::GraphConstructionError)?;
-
+    println!("<<builder7{builder:?}");
     Ok(())
 }
 
@@ -511,45 +580,64 @@ mod tests {
             test_mode: None,
             disabled: None,
             metadata: None,
-            payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
-                payment_method: api_enums::PaymentMethod::Card,
-                payment_method_types: Some(vec![
-                    RequestPaymentMethodTypes {
-                        payment_method_type: api_enums::PaymentMethodType::Credit,
-                        payment_experience: None,
-                        card_networks: Some(vec![
-                            api_enums::CardNetwork::Visa,
-                            api_enums::CardNetwork::Mastercard,
-                        ]),
-                        accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
-                            api_enums::Currency::USD,
-                            api_enums::Currency::INR,
-                        ])),
-                        accepted_countries: None,
-                        minimum_amount: Some(10),
-                        maximum_amount: Some(1000),
-                        recurring_enabled: true,
-                        installment_payment_enabled: true,
-                    },
-                    RequestPaymentMethodTypes {
-                        payment_method_type: api_enums::PaymentMethodType::Debit,
-                        payment_experience: None,
-                        card_networks: Some(vec![
-                            api_enums::CardNetwork::Maestro,
-                            api_enums::CardNetwork::JCB,
-                        ]),
-                        accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
-                            api_enums::Currency::GBP,
-                            api_enums::Currency::PHP,
-                        ])),
-                        accepted_countries: None,
-                        minimum_amount: Some(10),
-                        maximum_amount: Some(1000),
-                        recurring_enabled: true,
-                        installment_payment_enabled: true,
-                    },
-                ]),
-            }]),
+            payment_methods_enabled: Some(vec![
+                PaymentMethodsEnabled {
+                    payment_method: api_enums::PaymentMethod::Card,
+                    payment_method_types: Some(vec![
+                        RequestPaymentMethodTypes {
+                            payment_method_type: api_enums::PaymentMethodType::Credit,
+                            payment_experience: None,
+                            card_networks: Some(vec![
+                                api_enums::CardNetwork::Visa,
+                                api_enums::CardNetwork::Mastercard,
+                            ]),
+                            accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
+                                api_enums::Currency::USD,
+                                api_enums::Currency::INR,
+                            ])),
+                            accepted_countries: None,
+                            minimum_amount: Some(10),
+                            maximum_amount: Some(1000),
+                            recurring_enabled: true,
+                            installment_payment_enabled: true,
+                        },
+                        RequestPaymentMethodTypes {
+                            payment_method_type: api_enums::PaymentMethodType::Debit,
+                            payment_experience: None,
+                            card_networks: Some(vec![
+                                api_enums::CardNetwork::Maestro,
+                                api_enums::CardNetwork::JCB,
+                            ]),
+                            accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
+                                api_enums::Currency::GBP,
+                                api_enums::Currency::PHP,
+                            ])),
+                            accepted_countries: None,
+                            minimum_amount: Some(10),
+                            maximum_amount: Some(1000),
+                            recurring_enabled: true,
+                            installment_payment_enabled: true,
+                        },
+                    ]),
+                },
+                // PaymentMethodsEnabled {
+                //     payment_method: api_enums::PaymentMethod::Wallet,
+                //     payment_method_types: Some(vec![RequestPaymentMethodTypes {
+                //         payment_method_type: api_enums::PaymentMethodType::GooglePay,
+                //         payment_experience: None,
+                //         card_networks: None,
+                //         accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
+                //             api_enums::Currency::USD,
+                //             api_enums::Currency::INR,
+                //         ])),
+                //         accepted_countries: None,
+                //         minimum_amount: Some(10),
+                //         maximum_amount: Some(1000),
+                //         recurring_enabled: true,
+                //         installment_payment_enabled: true,
+                //     }]),
+                // },
+            ]),
             frm_configs: None,
             connector_webhook_details: None,
             profile_id: None,
@@ -569,7 +657,9 @@ mod tests {
             connector_configs: HashMap::from([(
                 api_enums::RoutableConnectors::Stripe,
                 PaymentMethodFilters(HashMap::from([(
-                    PaymentMethodFilterKey::PaymentMethodType(api_enums::PaymentMethodType::Credit),
+                    PaymentMethodFilterKey::PaymentMethodType(
+                        api_enums::PaymentMethodType::GooglePay,
+                    ),
                     currency_country_flow_filter,
                 )])),
             )]),
@@ -598,7 +688,8 @@ mod tests {
             &mut CycleCheck::new(),
             None,
         );
-
+        let err = result.clone();
+        println!("result+err{err:?}");
         assert!(result.is_ok());
     }
 

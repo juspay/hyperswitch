@@ -1,6 +1,8 @@
 use std::sync::{Arc, Weak};
 
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::Deserialize;
+use serde_json::json;
 
 use crate::{
     builder,
@@ -13,7 +15,8 @@ use crate::{
     },
 };
 
-struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
+#[derive(Debug)]
+struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V> + std::fmt::Debug> {
     ctx: &'a C,
     node: &'a Node<V>,
     node_id: NodeId,
@@ -72,7 +75,7 @@ where
         domains: Option<&[&str]>,
     ) -> Result<(), GraphError<V>>
     where
-        C: CheckingContext<Value = V>,
+        C: CheckingContext<Value = V> + std::fmt::Debug,
     {
         let domains = domains
             .map(|domain_idents| {
@@ -111,7 +114,7 @@ where
         domains: Option<&[DomainId]>,
     ) -> Result<(), GraphError<V>>
     where
-        C: CheckingContext<Value = V>,
+        C: CheckingContext<Value = V> + std::fmt::Debug,
     {
         let node = self.nodes.get(node_id).ok_or(GraphError::NodeNotFound)?;
 
@@ -140,6 +143,7 @@ where
                 ctx,
                 domains,
             };
+
             match &node.node_type {
                 NodeType::AllAggregator => self.validate_all_aggregator(check_node_context),
 
@@ -158,7 +162,7 @@ where
         vald: CheckNodeContext<'_, V, C>,
     ) -> Result<(), GraphError<V>>
     where
-        C: CheckingContext<Value = V>,
+        C: CheckingContext<Value = V> + std::fmt::Debug,
     {
         let mut unsatisfied = Vec::<Weak<AnalysisTrace<V>>>::new();
 
@@ -198,7 +202,7 @@ where
                 info: self.node_info.get(vald.node_id).cloned().flatten(),
                 metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
             });
-
+            println!("ENTER HERE{err:?}");
             vald.memo.insert(
                 (vald.node_id, vald.relation, vald.strength),
                 Err(Arc::clone(&err)),
@@ -207,6 +211,7 @@ where
         } else {
             vald.memo
                 .insert((vald.node_id, vald.relation, vald.strength), Ok(()));
+
             Ok(())
         }
     }
@@ -216,7 +221,7 @@ where
         vald: CheckNodeContext<'_, V, C>,
     ) -> Result<(), GraphError<V>>
     where
-        C: CheckingContext<Value = V>,
+        C: CheckingContext<Value = V> + std::fmt::Debug,
     {
         let mut unsatisfied = Vec::<Weak<AnalysisTrace<V>>>::new();
         let mut matched_one = false;
@@ -279,8 +284,9 @@ where
         expected: &FxHashSet<V>,
     ) -> Result<(), GraphError<V>>
     where
-        C: CheckingContext<Value = V>,
+        C: CheckingContext<Value = V> + std::fmt::Debug,
     {
+        println!("HSS{expected:?}");
         let the_key = expected
             .iter()
             .next()
@@ -289,8 +295,12 @@ where
                     .to_string(),
             })?
             .get_key();
+        println!("HSS{the_key:?}");
+        let a = vald.ctx;
+        println!("NODECTX:{a:?}");
 
         let ctx_vals = if let Some(vals) = vald.ctx.get_values_by_key(&the_key) {
+            println!("vald{vals:?}");
             vals
         } else {
             return if let Strength::Weak = vald.strength {
@@ -305,7 +315,7 @@ where
                     info: self.node_info.get(vald.node_id).cloned().flatten(),
                     metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
                 });
-
+                println!("ENTERHERE1:?{err:?}");
                 vald.memo.insert(
                     (vald.node_id, vald.relation, vald.strength),
                     Err(Arc::clone(&err)),
@@ -324,7 +334,7 @@ where
                     info: self.node_info.get(vald.node_id).cloned().flatten(),
                     metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
                 });
-
+                println!("ENTERHER:?{err:?}");
                 vald.memo.insert(
                     (vald.node_id, vald.relation, vald.strength),
                     Err(Arc::clone(&err)),
@@ -344,7 +354,7 @@ where
         val: &NodeValue<V>,
     ) -> Result<(), GraphError<V>>
     where
-        C: CheckingContext<Value = V>,
+        C: CheckingContext<Value = V> + std::fmt::Debug,
     {
         let mut errors = Vec::<Weak<AnalysisTrace<V>>>::new();
         let mut matched_one = false;
@@ -438,7 +448,7 @@ where
                 metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
                 predecessors: Some(error::ValueTracePredecessor::OneOf(errors.clone())),
             });
-
+            println!("ENterHEre2{err:?}");
             vald.memo.insert(
                 (vald.node_id, vald.relation, vald.strength),
                 Err(Arc::clone(&err)),

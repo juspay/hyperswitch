@@ -1,23 +1,22 @@
 use std::{fmt::Debug, sync::Weak};
 
-use hyperswitch_constraint_graph as cgraph;
-use rustc_hash::{FxHashMap, FxHashSet};
-
 use crate::{
     dssa::types,
     frontend::dir,
     types::{DataType, Metadata},
 };
+use hyperswitch_constraint_graph as cgraph;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub mod euclid_graph_prelude {
-    pub use hyperswitch_constraint_graph as cgraph;
-    pub use rustc_hash::{FxHashMap, FxHashSet};
-
     pub use crate::{
         dssa::graph::*,
         frontend::dir::{enums::*, DirKey, DirKeyKind, DirValue},
         types::*,
     };
+    pub use hyperswitch_constraint_graph as cgraph;
+    pub use rustc_hash::{FxHashMap, FxHashSet};
+    pub use strum::EnumIter;
 }
 
 impl cgraph::KeyNode for dir::DirKey {}
@@ -71,6 +70,7 @@ impl<V: cgraph::ValueNode> AnalysisError<V> {
     }
 }
 
+#[derive(Debug)]
 pub struct AnalysisContext {
     keywise_values: FxHashMap<dir::DirKey, FxHashSet<dir::DirValue>>,
 }
@@ -164,6 +164,9 @@ impl cgraph::CheckingContext for AnalysisContext {
         &self,
         key: &<Self::Value as cgraph::ValueNode>::Key,
     ) -> Option<Vec<Self::Value>> {
+        println!("XXXX{key:?}");
+        let keyw = &self.keywise_values;
+        println!("WWWW{keyw:?}");
         self.keywise_values
             .get(key)
             .map(|set| set.iter().cloned().collect())
