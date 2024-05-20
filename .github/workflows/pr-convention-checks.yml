@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
       
     steps: 
-      - name: Get changed fiels
+      - name: Get changed files
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -151,8 +151,17 @@ jobs:
           
           if echo $files_changed | grep --quiet --extended-regexp '(openapi/src/openapi.rs)'; then
             openapi_changes='true' >> $GITHUB_ENV
+            echo $openapi_changes
           fi
+          echo migration_and_schema_changes=$migration_and_schema_changes >> $GITHUB_ENV
+          echo test='hello' >> $GITHUB_ENV 
 
+      - name: Get changed fiels
+        shell: bash
+        run: |
+          echo $migration_and_schema_changes
+          echo $openapi_changes
+          echo $test
 
       - name: Attach 'M-database-changes' label if PR contains database changes
         if: env.migration_and_schema_changes == 'true'
