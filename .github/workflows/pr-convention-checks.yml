@@ -146,6 +146,7 @@ jobs:
 
           if echo $files_changed | grep --quiet --extended-regexp '(migrations/* | crates/diesel_models/src/schema.rs)' ; then
             migration_and_schema_changes='true' >> $GITHUB_ENV
+            echo $migration_and_schema_changes
           fi
           
           if echo $files_changed | grep --quiet --extended-regexp '(openapi/src/openapi.rs)'; then
@@ -161,7 +162,7 @@ jobs:
         run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
 
       - name: Attach 'M-api-contract-changes' label if PR contains database changes
-        if: env.openapi_changes == 'true'
+        if: env.openapi_changes == 'false'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
