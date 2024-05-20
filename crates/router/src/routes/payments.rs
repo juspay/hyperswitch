@@ -8,6 +8,7 @@ use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
 use router_env::{env, instrument, tracing, types, Flow};
+use masking::PeekInterface;
 
 use super::app::ReqState;
 use crate::{
@@ -805,7 +806,7 @@ pub async fn payments_complete_authorize(
     let mut payload = json_payload.into_inner();
 
     let payment_id = path.into_inner();
-    payload.payment_id = payment_id.clone();
+    payload.payment_id.clone_from(&payment_id);
 
     tracing::Span::current().record("payment_id", &payment_id);
 
@@ -814,8 +815,15 @@ pub async fn payments_complete_authorize(
             payment_id.clone(),
         )),
         shipping: payload.shipping.clone(),
+        client_secret: Some(payload.client_secret.peek().clone()),
         ..Default::default()
     };
+
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payment_confirm_req) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
@@ -837,13 +845,14 @@ pub async fn payments_complete_authorize(
                 auth.key_store,
                 payments::operations::payment_complete_authorize::CompleteAuthorize,
                 payment_confirm_req.clone(),
-                api::AuthFlow::Merchant,
+                auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
             )
         },
-        &auth::PublishableKeyAuth,
+        // &auth::PublishableKeyAuth,
+         &*auth_type,
         locking_action,
     ))
     .await

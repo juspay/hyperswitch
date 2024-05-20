@@ -59,6 +59,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
@@ -180,8 +182,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_id.as_ref(),
             payment_intent
                 .customer_id
-                .as_ref()
-                .or(payment_intent.customer_id.as_ref()),
+                .as_ref(),
             key_store,
             payment_id.as_ref(),
             storage_scheme,

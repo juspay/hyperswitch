@@ -4350,6 +4350,9 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub payment_id: String,
     /// The shipping address for the payment
     pub shipping: Option<Address>,
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
