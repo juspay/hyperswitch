@@ -188,6 +188,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         fingerprint_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -526,6 +527,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 tax_amount,
                 fingerprint_id,
                 updated_by,
+                payment_method_billing_address_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -544,6 +546,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_billing_address_id,
                 updated_by,
                 ..Default::default()
             },

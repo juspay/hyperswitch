@@ -20,7 +20,7 @@ describe("Card - Sync payment flow test", () => {
     cy.task('setGlobalState', globalState.data);
   })
   it("create-payment-call-test", () => {
-    let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+    let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DS"];
     cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
   });
 
@@ -30,7 +30,7 @@ describe("Card - Sync payment flow test", () => {
 
   it("confirm-call-test", () => {
     console.log("confirm -> " + globalState.get("connectorId"));
-    let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+    let det = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DS"];
     console.log("det -> " + det.card);
     cy.confirmCallTest(confirmBody, det, true, globalState);
   });

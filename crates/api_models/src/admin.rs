@@ -523,7 +523,7 @@ pub struct MerchantConnectorWebhookDetails {
     pub additional_secret: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorInfo {
     pub connector_label: String,
     pub merchant_connector_id: String,
@@ -913,6 +913,12 @@ pub struct BusinessProfileCreate {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    /// Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -982,6 +988,9 @@ pub struct BusinessProfileResponse {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    // Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1046,6 +1055,12 @@ pub struct BusinessProfileUpdate {
 
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
+
+    // Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -1113,7 +1128,7 @@ pub struct ExtendedCardInfoConfig {
     #[schema(value_type = String)]
     pub public_key: Secret<String>,
     /// TTL for extended card info
-    #[schema(default = 900, maximum = 3600, value_type = u16)]
+    #[schema(default = 900, maximum = 7200, value_type = u16)]
     #[serde(default)]
     pub ttl_in_secs: TtlForExtendedCardInfo,
 }
@@ -1137,7 +1152,7 @@ impl<'de> Deserialize<'de> for TtlForExtendedCardInfo {
         // Check if value exceeds the maximum allowed
         if value > consts::MAX_TTL_FOR_EXTENDED_CARD_INFO {
             Err(serde::de::Error::custom(
-                "ttl_in_secs must be less than or equal to 3600 (1hr)",
+                "ttl_in_secs must be less than or equal to 7200 (2hrs)",
             ))
         } else {
             Ok(Self(value))

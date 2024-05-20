@@ -1,9 +1,15 @@
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
-use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
+use diesel_models::{
+    enums::{TotpStatus, UserStatus},
+    user as storage_user,
+    user_role::UserRoleNew,
+};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+#[cfg(feature = "email")]
+use external_services::email::EmailData;
+use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "email")]
 use router_env::env;
 use router_env::logger;
@@ -349,11 +355,8 @@ pub async fn change_password(
         .store
         .update_user_by_user_id(
             user.get_user_id(),
-            diesel_models::user::UserUpdate::AccountUpdate {
-                name: None,
+            diesel_models::user::UserUpdate::PasswordUpdate {
                 password: Some(new_password_hash),
-                is_verified: None,
-                preferred_merchant_id: None,
             },
         )
         .await
@@ -419,6 +422,98 @@ pub async fn forgot_password(
     Ok(ApplicationResponse::StatusOk)
 }
 
+pub async fn rotate_password(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    request: user_api::RotatePasswordRequest,
+    _req_state: ReqState,
+) -> UserResponse<()> {
+    let user: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let password = domain::UserPassword::new(request.password.to_owned())?;
+    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+
+    if user.compare_password(request.password).is_ok() {
+        return Err(UserErrors::ChangePasswordError.into());
+    }
+
+    let user = state
+        .store
+        .update_user_by_user_id(
+            &user_token.user_id,
+            storage_user::UserUpdate::PasswordUpdate {
+                password: Some(hash_password),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+#[cfg(feature = "email")]
+pub async fn reset_password_token_only_flow(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    request: user_api::ResetPasswordRequest,
+) -> UserResponse<()> {
+    let token = request.token.expose();
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+
+    auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
+
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_user_id() != user_token.user_id {
+        return Err(UserErrors::LinkInvalid.into());
+    }
+
+    let password = domain::UserPassword::new(request.password)?;
+    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+
+    let user = state
+        .store
+        .update_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+            storage_user::UserUpdate::PasswordUpdate {
+                password: Some(hash_password),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+        .await
+        .map_err(|e| logger::error!(?e));
+    let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
 #[cfg(feature = "email")]
 pub async fn reset_password(
     state: AppState,
@@ -432,7 +527,6 @@ pub async fn reset_password(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let password = domain::UserPassword::new(request.password)?;
-
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     let user = state
@@ -441,11 +535,8 @@ pub async fn reset_password(
             &email_token
                 .get_email()
                 .change_context(UserErrors::InternalServerError)?,
-            storage_user::UserUpdate::AccountUpdate {
-                name: None,
+            storage_user::UserUpdate::PasswordUpdate {
                 password: Some(hash_password),
-                is_verified: Some(true),
-                preferred_merchant_id: None,
             },
         )
         .await
@@ -481,6 +572,7 @@ pub async fn invite_multiple_user(
     user_from_token: auth::UserFromToken,
     requests: Vec<user_api::InviteUserRequest>,
     req_state: ReqState,
+    is_token_only: Option<bool>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
         return Err(report!(UserErrors::MaxInvitationsError))
@@ -488,7 +580,8 @@ pub async fn invite_multiple_user(
     }
 
     let responses = futures::future::join_all(requests.iter().map(|request| async {
-        match handle_invitation(&state, &user_from_token, request, &req_state).await {
+        match handle_invitation(&state, &user_from_token, request, &req_state, is_token_only).await
+        {
             Ok(response) => response,
             Err(error) => InviteMultipleUserResponse {
                 email: request.email.clone(),
@@ -508,6 +601,7 @@ async fn handle_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: &ReqState,
+    is_token_only: Option<bool>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
@@ -546,7 +640,14 @@ async fn handle_invitation(
         .err()
         .unwrap_or(false)
     {
-        handle_new_user_invitation(state, user_from_token, request, req_state.clone()).await
+        handle_new_user_invitation(
+            state,
+            user_from_token,
+            request,
+            req_state.clone(),
+            is_token_only,
+        )
+        .await
     } else {
         Err(UserErrors::InternalServerError.into())
     }
@@ -629,6 +730,7 @@ async fn handle_new_user_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: ReqState,
+    is_token_only: Option<bool>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -667,25 +769,36 @@ async fn handle_new_user_invitation(
         })?;
 
     let is_email_sent;
+    // TODO: Adding this to avoid clippy lints, remove this once the token only flow is being used
+    let _ = is_token_only;
+
     #[cfg(feature = "email")]
     {
         // TODO: Adding this to avoid clippy lints
         // Will be adding actual usage for this variable later
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
-        let email_contents = email_types::InviteUser {
-            recipient_email: invitee_email,
-            user_name: domain::UserName::new(new_user.get_name())?,
-            settings: state.conf.clone(),
-            subject: "You have been invited to join Hyperswitch Community!",
-            merchant_id: user_from_token.merchant_id.clone(),
+        let email_contents: Box<dyn EmailData + Send + 'static> = if let Some(true) = is_token_only
+        {
+            Box::new(email_types::InviteRegisteredUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(new_user.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id.clone(),
+            })
+        } else {
+            Box::new(email_types::InviteUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(new_user.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id.clone(),
+            })
         };
         let send_email_result = state
             .email_client
-            .compose_and_send_email(
-                Box::new(email_contents),
-                state.conf.proxy.https_url.as_ref(),
-            )
+            .compose_and_send_email(email_contents, state.conf.proxy.https_url.as_ref())
             .await;
         logger::info!(?send_email_result);
         is_email_sent = send_email_result.is_ok();
@@ -1114,11 +1227,11 @@ pub async fn create_merchant_account(
 
 pub async fn list_merchants_for_user(
     state: AppState,
-    user_from_token: auth::UserFromToken,
+    user_from_token: Box<dyn auth::GetUserIdFromAuth>,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_token.user_id.as_str())
+        .list_user_roles_by_user_id(user_from_token.get_user_id().as_str())
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1332,9 +1445,13 @@ pub async fn verify_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
-        .await
-        .map_err(|e| logger::error!(?e));
+    if matches!(user_token.origin, domain::Origin::VerifyEmail)
+        || matches!(user_token.origin, domain::Origin::MagicLink)
+    {
+        let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+            .await
+            .map_err(|e| logger::error!(?e));
+    }
 
     let current_flow =
         domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
@@ -1449,7 +1566,6 @@ pub async fn update_user_details(
 
     let user_update = storage_user::UserUpdate::AccountUpdate {
         name: name.map(|x| x.get_secret().expose()),
-        password: None,
         is_verified: None,
         preferred_merchant_id: req.preferred_merchant_id,
     };
@@ -1496,4 +1612,123 @@ pub async fn user_from_email(
         token_type: next_flow.get_flow().into(),
     };
     auth::cookies::set_cookie_response(response, token)
+}
+
+pub async fn begin_totp(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+) -> UserResponse<user_api::BeginTotpResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_totp_status() == TotpStatus::Set {
+        return Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
+            secret: None,
+        }));
+    }
+
+    let totp = utils::user::generate_default_totp(user_from_db.get_email(), None)?;
+    let recovery_codes = domain::RecoveryCodes::generate_new();
+
+    let key_store = user_from_db.get_or_create_key_store(&state).await?;
+
+    state
+        .store
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: Some(TotpStatus::InProgress),
+                totp_secret: Some(
+                    // TODO: Impl conversion trait for User and move this there
+                    domain::types::encrypt::<String, masking::WithType>(
+                        totp.get_secret_base32().into(),
+                        key_store.key.peek(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .into(),
+                ),
+                totp_recovery_codes: Some(
+                    recovery_codes
+                        .get_hashed()
+                        .change_context(UserErrors::InternalServerError)?,
+                ),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
+        secret: Some(user_api::TotpSecret {
+            secret: totp.get_secret_base32().into(),
+            totp_url: totp.get_url().into(),
+            recovery_codes: recovery_codes.into_inner(),
+        }),
+    }))
+}
+
+pub async fn verify_totp(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::VerifyTotpRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if let Some(user_totp) = req.totp {
+        if user_from_db.get_totp_status() == TotpStatus::NotSet {
+            return Err(UserErrors::TotpNotSetup.into());
+        }
+
+        let user_totp_secret = user_from_db
+            .decrypt_and_get_totp_secret(&state)
+            .await?
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let totp =
+            utils::user::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
+
+        if totp
+            .generate_current()
+            .change_context(UserErrors::InternalServerError)?
+            != user_totp.expose()
+        {
+            return Err(UserErrors::InvalidTotp.into());
+        }
+
+        if user_from_db.get_totp_status() == TotpStatus::InProgress {
+            state
+                .store
+                .update_user_by_user_id(
+                    user_from_db.get_user_id(),
+                    storage_user::UserUpdate::TotpUpdate {
+                        totp_status: Some(TotpStatus::Set),
+                        totp_secret: None,
+                        totp_recovery_codes: None,
+                    },
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+        }
+    }
+
+    let current_flow = domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::TOTP.into())?;
+    let next_flow = current_flow.next(user_from_db, &state).await?;
+    let token = next_flow.get_token(&state).await?;
+
+    auth::cookies::set_cookie_response(
+        user_api::TokenResponse {
+            token: token.clone(),
+            token_type: next_flow.get_flow().into(),
+        },
+        token,
+    )
 }

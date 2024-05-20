@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutVendorAccountDetails};
@@ -22,17 +22,19 @@ use serde::Serializer;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
-use crate::types::{fraud_check, storage::enums as storage_enums};
+use crate::types::fraud_check;
 use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::{types::AuthenticationData, PaymentData, RecurringMandatePaymentData},
+        payments::{types::AuthenticationData, PaymentData},
     },
     pii::PeekInterface,
     types::{
-        self, api, domain, transformers::ForeignTryFrom, ApplePayPredecryptData,
-        BrowserInformation, PaymentsCancelData, ResponseId,
+        self, api, domain,
+        storage::enums as storage_enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
+        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -75,6 +77,7 @@ pub trait RouterData {
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn get_billing_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_email(&self) -> Result<Email, Error>;
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -85,7 +88,9 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
@@ -171,7 +176,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .get_payment_method_billing()
             .and_then(|a| a.address.as_ref())
             .and_then(|ad| ad.country)
-            .ok_or_else(missing_field_err("billing.address.country"))
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.country",
+            ))
     }
 
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
@@ -228,6 +235,15 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                     .address
                     .and_then(|billing_address_details| billing_address_details.first_name.clone())
             })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.first_name",
+            ))
+    }
+
+    fn get_billing_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.first_name",
             ))
@@ -399,7 +415,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error> {
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error> {
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
@@ -623,7 +641,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             })
     }
     fn is_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            }))
             || self
                 .mandate_id
                 .as_ref()
@@ -690,7 +711,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            })
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
@@ -1490,31 +1514,6 @@ impl AddressDetailsData for api::AddressDetails {
     }
 }
 
-pub trait BankRedirectBillingData {
-    fn get_billing_name(&self) -> Result<Secret<String>, Error>;
-}
-
-impl BankRedirectBillingData for domain::BankRedirectBilling {
-    fn get_billing_name(&self) -> Result<Secret<String>, Error> {
-        self.billing_name
-            .clone()
-            .ok_or_else(missing_field_err("billing_details.billing_name"))
-    }
-}
-
-pub trait BankDirectDebitBillingData {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
-}
-
-impl BankDirectDebitBillingData for domain::BankDebitBilling {
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
-        self.address
-            .as_ref()
-            .and_then(|address| address.country)
-            .ok_or_else(missing_field_err("billing_details.country"))
-    }
-}
-
 pub trait MandateData {
     fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error>;
@@ -1540,7 +1539,7 @@ pub trait RecurringMandateData {
     fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
 }
 
-impl RecurringMandateData for RecurringMandatePaymentData {
+impl RecurringMandateData for types::RecurringMandatePaymentData {
     fn get_original_payment_amount(&self) -> Result<i64, Error> {
         self.original_payment_authorized_amount
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
@@ -2176,7 +2175,7 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
 }
 
 impl
-    From<(
+    ForeignFrom<(
         Option<String>,
         Option<String>,
         Option<String>,
@@ -2185,7 +2184,7 @@ impl
         Option<String>,
     )> for types::ErrorResponse
 {
-    fn from(
+    fn foreign_from(
         (code, message, reason, http_code, attempt_status, connector_transaction_id): (
             Option<String>,
             Option<String>,
@@ -2298,5 +2297,331 @@ mod error_code_error_message_tests {
             })
         );
         assert_eq!(error_code_error_message_none, None);
+    }
+}
+
+pub fn is_mandate_supported(
+    selected_pmd: domain::payments::PaymentMethodData,
+    payment_method_type: Option<types::storage::enums::PaymentMethodType>,
+    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
+    connector: &'static str,
+) -> Result<(), Error> {
+    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
+        Ok(())
+    } else {
+        match payment_method_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
+}
+
+#[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
+pub enum PaymentMethodDataType {
+    Card,
+    Knet,
+    Benefit,
+    MomoAtm,
+    CardRedirect,
+    AliPayQr,
+    AliPayRedirect,
+    AliPayHkRedirect,
+    MomoRedirect,
+    KakaoPayRedirect,
+    GoPayRedirect,
+    GcashRedirect,
+    ApplePay,
+    ApplePayRedirect,
+    ApplePayThirdPartySdk,
+    DanaRedirect,
+    GooglePay,
+    GooglePayRedirect,
+    GooglePayThirdPartySdk,
+    MbWayRedirect,
+    MobilePayRedirect,
+    PaypalRedirect,
+    PaypalSdk,
+    SamsungPay,
+    TwintRedirect,
+    VippsRedirect,
+    TouchNGoRedirect,
+    WeChatPayRedirect,
+    WeChatPayQr,
+    CashappQr,
+    SwishQr,
+    KlarnaRedirect,
+    KlarnaSdk,
+    AffirmRedirect,
+    AfterpayClearpayRedirect,
+    PayBrightRedirect,
+    WalleyRedirect,
+    AlmaRedirect,
+    AtomeRedirect,
+    BancontactCard,
+    Bizum,
+    Blik,
+    Eps,
+    Giropay,
+    Ideal,
+    Interac,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    OpenBankingUk,
+    Przelewy24,
+    Sofort,
+    Trustly,
+    OnlineBankingFpx,
+    OnlineBankingThailand,
+    AchBankDebit,
+    SepaBankDebit,
+    BecsBankDebit,
+    BacsBankDebit,
+    AchBankTransfer,
+    SepaBankTransfer,
+    BacsBankTransfer,
+    MultibancoBankTransfer,
+    PermataBankTransfer,
+    BcaBankTransfer,
+    BniVaBankTransfer,
+    BriVaBankTransfer,
+    CimbVaBankTransfer,
+    DanamonVaBankTransfer,
+    MandiriVaBankTransfer,
+    Pix,
+    Pse,
+    Crypto,
+    MandatePayment,
+    Reward,
+    Upi,
+    Boleto,
+    Efecty,
+    PagoEfectivo,
+    RedCompra,
+    RedPagos,
+    Alfamart,
+    Indomaret,
+    Oxxo,
+    SevenEleven,
+    Lawson,
+    MiniStop,
+    FamilyMart,
+    Seicomart,
+    PayEasy,
+    Givex,
+    PaySafeCar,
+    CardToken,
+    LocalBankTransfer,
+}
+
+impl From<types::domain::payments::PaymentMethodData> for PaymentMethodDataType {
+    fn from(pm_data: types::domain::payments::PaymentMethodData) -> Self {
+        match pm_data {
+            types::domain::payments::PaymentMethodData::Card(_) => Self::Card,
+            types::domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
+                match card_redirect_data {
+                    types::domain::CardRedirectData::Knet {} => Self::Knet,
+                    types::domain::payments::CardRedirectData::Benefit {} => Self::Benefit,
+                    types::domain::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm,
+                    types::domain::payments::CardRedirectData::CardRedirect {} => {
+                        Self::CardRedirect
+                    }
+                }
+            }
+            types::domain::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                types::domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
+                types::domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
+                types::domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                types::domain::payments::WalletData::MomoRedirect(_) => Self::MomoRedirect,
+                types::domain::payments::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
+                types::domain::payments::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
+                types::domain::payments::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                types::domain::payments::WalletData::ApplePay(_) => Self::ApplePay,
+                types::domain::payments::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
+                types::domain::payments::WalletData::ApplePayThirdPartySdk(_) => {
+                    Self::ApplePayThirdPartySdk
+                }
+                types::domain::payments::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                types::domain::payments::WalletData::GooglePay(_) => Self::GooglePay,
+                types::domain::payments::WalletData::GooglePayRedirect(_) => {
+                    Self::GooglePayRedirect
+                }
+                types::domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
+                    Self::GooglePayThirdPartySdk
+                }
+                types::domain::payments::WalletData::MbWayRedirect(_) => Self::MbWayRedirect,
+                types::domain::payments::WalletData::MobilePayRedirect(_) => {
+                    Self::MobilePayRedirect
+                }
+                types::domain::payments::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
+                types::domain::payments::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                types::domain::payments::WalletData::SamsungPay(_) => Self::SamsungPay,
+                types::domain::payments::WalletData::TwintRedirect {} => Self::TwintRedirect,
+                types::domain::payments::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                types::domain::payments::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
+                types::domain::payments::WalletData::WeChatPayRedirect(_) => {
+                    Self::WeChatPayRedirect
+                }
+                types::domain::payments::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
+                types::domain::payments::WalletData::CashappQr(_) => Self::CashappQr,
+                types::domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
+            },
+            types::domain::payments::PaymentMethodData::PayLater(pay_later_data) => {
+                match pay_later_data {
+                    types::domain::payments::PayLaterData::KlarnaRedirect { .. } => {
+                        Self::KlarnaRedirect
+                    }
+                    types::domain::payments::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
+                    types::domain::payments::PayLaterData::AffirmRedirect {} => {
+                        Self::AffirmRedirect
+                    }
+                    types::domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                        Self::AfterpayClearpayRedirect
+                    }
+                    types::domain::payments::PayLaterData::PayBrightRedirect {} => {
+                        Self::PayBrightRedirect
+                    }
+                    types::domain::payments::PayLaterData::WalleyRedirect {} => {
+                        Self::WalleyRedirect
+                    }
+                    types::domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                    types::domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                }
+            }
+            types::domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                match bank_redirect_data {
+                    types::domain::payments::BankRedirectData::BancontactCard { .. } => {
+                        Self::BancontactCard
+                    }
+                    types::domain::payments::BankRedirectData::Bizum {} => Self::Bizum,
+                    types::domain::payments::BankRedirectData::Blik { .. } => Self::Blik,
+                    types::domain::payments::BankRedirectData::Eps { .. } => Self::Eps,
+                    types::domain::payments::BankRedirectData::Giropay { .. } => Self::Giropay,
+                    types::domain::payments::BankRedirectData::Ideal { .. } => Self::Ideal,
+                    types::domain::payments::BankRedirectData::Interac { .. } => Self::Interac,
+                    types::domain::payments::BankRedirectData::OnlineBankingCzechRepublic {
+                        ..
+                    } => Self::OnlineBankingCzechRepublic,
+                    types::domain::payments::BankRedirectData::OnlineBankingFinland { .. } => {
+                        Self::OnlineBankingFinland
+                    }
+                    types::domain::payments::BankRedirectData::OnlineBankingPoland { .. } => {
+                        Self::OnlineBankingPoland
+                    }
+                    types::domain::payments::BankRedirectData::OnlineBankingSlovakia { .. } => {
+                        Self::OnlineBankingSlovakia
+                    }
+                    types::domain::payments::BankRedirectData::OpenBankingUk { .. } => {
+                        Self::OpenBankingUk
+                    }
+                    types::domain::payments::BankRedirectData::Przelewy24 { .. } => {
+                        Self::Przelewy24
+                    }
+                    types::domain::payments::BankRedirectData::Sofort { .. } => Self::Sofort,
+                    types::domain::payments::BankRedirectData::Trustly { .. } => Self::Trustly,
+                    types::domain::payments::BankRedirectData::OnlineBankingFpx { .. } => {
+                        Self::OnlineBankingFpx
+                    }
+                    types::domain::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                        Self::OnlineBankingThailand
+                    }
+                }
+            }
+            types::domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data {
+                    types::domain::payments::BankDebitData::AchBankDebit { .. } => {
+                        Self::AchBankDebit
+                    }
+                    types::domain::payments::BankDebitData::SepaBankDebit { .. } => {
+                        Self::SepaBankDebit
+                    }
+                    types::domain::payments::BankDebitData::BecsBankDebit { .. } => {
+                        Self::BecsBankDebit
+                    }
+                    types::domain::payments::BankDebitData::BacsBankDebit { .. } => {
+                        Self::BacsBankDebit
+                    }
+                }
+            }
+            types::domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match *bank_transfer_data {
+                    types::domain::payments::BankTransferData::AchBankTransfer { .. } => {
+                        Self::AchBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::SepaBankTransfer { .. } => {
+                        Self::SepaBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::BacsBankTransfer { .. } => {
+                        Self::BacsBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::MultibancoBankTransfer {
+                        ..
+                    } => Self::MultibancoBankTransfer,
+                    types::domain::payments::BankTransferData::PermataBankTransfer { .. } => {
+                        Self::PermataBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::BcaBankTransfer { .. } => {
+                        Self::BcaBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::BniVaBankTransfer { .. } => {
+                        Self::BniVaBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::BriVaBankTransfer { .. } => {
+                        Self::BriVaBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::CimbVaBankTransfer { .. } => {
+                        Self::CimbVaBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::DanamonVaBankTransfer { .. } => {
+                        Self::DanamonVaBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                        Self::MandiriVaBankTransfer
+                    }
+                    types::domain::payments::BankTransferData::Pix {} => Self::Pix,
+                    types::domain::payments::BankTransferData::Pse {} => Self::Pse,
+                    types::domain::payments::BankTransferData::LocalBankTransfer { .. } => {
+                        Self::LocalBankTransfer
+                    }
+                }
+            }
+            types::domain::payments::PaymentMethodData::Crypto(_) => Self::Crypto,
+            types::domain::payments::PaymentMethodData::MandatePayment => Self::MandatePayment,
+            types::domain::payments::PaymentMethodData::Reward => Self::Reward,
+            types::domain::payments::PaymentMethodData::Upi(_) => Self::Upi,
+            types::domain::payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data
+            {
+                types::domain::payments::VoucherData::Boleto(_) => Self::Boleto,
+                types::domain::payments::VoucherData::Efecty => Self::Efecty,
+                types::domain::payments::VoucherData::PagoEfectivo => Self::PagoEfectivo,
+                types::domain::payments::VoucherData::RedCompra => Self::RedCompra,
+                types::domain::payments::VoucherData::RedPagos => Self::RedPagos,
+                types::domain::payments::VoucherData::Alfamart(_) => Self::Alfamart,
+                types::domain::payments::VoucherData::Indomaret(_) => Self::Indomaret,
+                types::domain::payments::VoucherData::Oxxo => Self::Oxxo,
+                types::domain::payments::VoucherData::SevenEleven(_) => Self::SevenEleven,
+                types::domain::payments::VoucherData::Lawson(_) => Self::Lawson,
+                types::domain::payments::VoucherData::MiniStop(_) => Self::MiniStop,
+                types::domain::payments::VoucherData::FamilyMart(_) => Self::FamilyMart,
+                types::domain::payments::VoucherData::Seicomart(_) => Self::Seicomart,
+                types::domain::payments::VoucherData::PayEasy(_) => Self::PayEasy,
+            },
+            types::domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
+                match *gift_card_data {
+                    types::domain::payments::GiftCardData::Givex(_) => Self::Givex,
+                    types::domain::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+                }
+            }
+            types::domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
+        }
     }
 }

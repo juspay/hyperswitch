@@ -162,6 +162,10 @@ impl UserInterface for MockDb {
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
             preferred_merchant_id: user_data.preferred_merchant_id,
+            totp_status: user_data.totp_status,
+            totp_secret: user_data.totp_secret,
+            totp_recovery_codes: user_data.totp_recovery_codes,
+            last_password_modified_at: user_data.last_password_modified_at,
         };
         users.push(user.clone());
         Ok(user)
@@ -218,16 +222,31 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::AccountUpdate {
                         name,
-                        password,
                         is_verified,
                         preferred_merchant_id,
                     } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        password: password.clone().unwrap_or(user.password.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         preferred_merchant_id: preferred_merchant_id
                             .clone()
                             .or(user.preferred_merchant_id.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::TotpUpdate {
+                        totp_status,
+                        totp_secret,
+                        totp_recovery_codes,
+                    } => storage::User {
+                        totp_status: totp_status.unwrap_or(user.totp_status),
+                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
+                        totp_recovery_codes: totp_recovery_codes
+                            .clone()
+                            .or(user.totp_recovery_codes.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };
@@ -258,16 +277,31 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::AccountUpdate {
                         name,
-                        password,
                         is_verified,
                         preferred_merchant_id,
                     } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        password: password.clone().unwrap_or(user.password.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         preferred_merchant_id: preferred_merchant_id
                             .clone()
                             .or(user.preferred_merchant_id.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::TotpUpdate {
+                        totp_status,
+                        totp_secret,
+                        totp_recovery_codes,
+                    } => storage::User {
+                        totp_status: totp_status.unwrap_or(user.totp_status),
+                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
+                        totp_recovery_codes: totp_recovery_codes
+                            .clone()
+                            .or(user.totp_recovery_codes.clone()),
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
                 };

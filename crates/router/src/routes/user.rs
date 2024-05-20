@@ -5,6 +5,7 @@ use api_models::{
     errors::types::ApiErrorResponse,
     user::{self as user_api},
 };
+use common_enums::TokenPurpose;
 use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
 
@@ -323,6 +324,23 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
+pub async fn list_merchants_for_user_with_spt(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::UserMerchantAccountList;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user, _, _| user_core::list_merchants_for_user(state, user),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn get_user_role_details(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -358,6 +376,24 @@ pub async fn list_users_for_merchant_account(
     .await
 }
 
+pub async fn rotate_password(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::RotatePasswordRequest>,
+) -> HttpResponse {
+    let flow = Flow::RotatePassword;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_core::rotate_password,
+        &auth::SinglePurposeJWTAuth(TokenPurpose::ForceSetPassword),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "email")]
 pub async fn forgot_password(
     state: web::Data<AppState>,
@@ -382,31 +418,52 @@ pub async fn reset_password(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ResetPasswordRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ResetPassword;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload.into_inner(),
-        |state, _, payload, _| user_core::reset_password(state, payload),
-        &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+    let is_token_only = query.into_inner().token_only;
+    if let Some(true) = is_token_only {
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload.into_inner(),
+            |state, user, payload, _| {
+                user_core::reset_password_token_only_flow(state, user, payload)
+            },
+            &auth::SinglePurposeJWTAuth(TokenPurpose::ResetPassword),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    } else {
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload.into_inner(),
+            |state, _, payload, _| user_core::reset_password(state, payload),
+            &auth::NoAuth,
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
 }
 pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::InviteMultipleUser;
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
-        user_core::invite_multiple_user,
+        |state, user, payload, req_state| {
+            user_core::invite_multiple_user(state, user, payload, req_state, is_token_only)
+        },
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
@@ -572,6 +629,38 @@ pub async fn user_from_email(
         json_payload.into_inner(),
         |state, _: (), req_body, _| user_core::user_from_email(state, req_body),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::TotpBegin;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::begin_totp(state, user),
+        &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn totp_verify(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyTotpRequest>,
+) -> HttpResponse {
+    let flow = Flow::TotpVerify;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req_body, _| user_core::verify_totp(state, user, req_body),
+        &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await
