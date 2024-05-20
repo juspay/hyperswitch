@@ -2779,23 +2779,48 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, CybersourceRsyncResponse>,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            CybersourceRsyncResponse::RsyncApplicationResponse(rsync_response) => Ok(Self {
-                response: Ok(types::RefundsResponseData {
-                    connector_refund_id: rsync_response.id,
-                    refund_status: enums::RefundStatus::from(
-                        rsync_response.application_information.status,
-                    ),
-                }),
-                ..item.data
-            }),
-            CybersourceRsyncResponse::ErrorInformation(error_response) => Ok(Self {
-                status: item.data.status,
-                response: Ok(types::RefundsResponseData {
-                    refund_status: common_enums::RefundStatus::Pending,
-                    connector_refund_id: error_response.id.clone(),
-                }),
-                ..item.data
+        let response = match item
+            .response
+            .application_information
+            .and_then(|application_information| application_information.status)
+        {
+            Some(status) => {
+                let refund_status = enums::RefundStatus::from(status.clone());
+                if utils::is_refund_failure(refund_status) {
+                    if status == CybersourceRefundStatus::Voided {
+                        Err(types::ErrorResponse::foreign_from((
+                            &Some(CybersourceErrorInformation {
+                                message: Some(consts::REFUND_VOIDED.to_string()),
+                                reason: None,
+                            }),
+                            &None,
+                            None,
+                            item.http_code,
+                            item.response.id.clone(),
+                        )))
+                    } else {
+                        Err(types::ErrorResponse::foreign_from((
+                            &item.response.error_information,
+                            &None,
+                            None,
+                            item.http_code,
+                            item.response.id.clone(),
+                        )))
+                    }
+                } else {
+                    Ok(types::RefundsResponseData {
+                        connector_refund_id: item.response.id,
+                        refund_status,
+                    })
+                }
+            }
+
+            None => Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id.clone(),
+                refund_status: match item.data.response {
+                    Ok(response) => response.refund_status,
+                    Err(_) => common_enums::RefundStatus::Pending,
+                },
             }),
         };
 
