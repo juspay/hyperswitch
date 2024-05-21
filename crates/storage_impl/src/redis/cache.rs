@@ -145,7 +145,7 @@ impl Cache {
 
     /// Check if a key exists in cache
     pub async fn exists(&self, key: &str) -> bool {
-        self.contains_key(key)
+        self.inner.contains_key(key)
     }
 
     pub async fn remove(&self, key: &str) {
