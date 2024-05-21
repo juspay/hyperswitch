@@ -458,6 +458,31 @@ pub async fn merchant_account_toggle_kv(
     )
     .await
 }
+
+/// Merchant Account - Toggle KV
+///
+/// Toggle KV mode for all Merchant Accounts
+#[instrument(skip_all)]
+pub async fn merchant_account_toggle_all_kv(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::ToggleAllKVRequest>,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyUpdate;
+    let payload = json_payload.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, payload, _| toggle_kv_for_all_merchants(state, payload.kv_enabled),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,

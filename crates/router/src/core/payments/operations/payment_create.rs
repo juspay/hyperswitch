@@ -4,7 +4,10 @@ use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
 };
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    types::MinorUnit,
+};
 use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
@@ -287,7 +290,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount,
+                payment_intent.amount.get_amount_as_i64(),
                 false,
             )?;
         }
@@ -878,7 +881,7 @@ impl PaymentCreate {
                 attempt_id,
                 status,
                 currency,
-                amount: amount.into(),
+                amount: MinorUnit::from(amount),
                 payment_method,
                 capture_method: request.capture_method,
                 capture_on: request.capture_on,
@@ -904,7 +907,7 @@ impl PaymentCreate {
                 external_three_ds_authentication_attempted: None,
                 mandate_data,
                 payment_method_billing_address_id,
-                net_amount: i64::default(),
+                net_amount: MinorUnit::new(i64::default()),
                 save_to_locker: None,
                 connector: None,
                 error_message: None,
@@ -920,7 +923,7 @@ impl PaymentCreate {
                 error_reason: None,
                 connector_response_reference_id: None,
                 multiple_capture_count: None,
-                amount_capturable: i64::default(),
+                amount_capturable: MinorUnit::new(i64::default()),
                 updated_by: String::default(),
                 authentication_data: None,
                 encoded_data: None,
@@ -998,7 +1001,7 @@ impl PaymentCreate {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
             status,
-            amount: amount.into(),
+            amount: MinorUnit::from(amount),
             currency,
             description: request.description.clone(),
             created_at,
@@ -1111,7 +1114,7 @@ async fn create_payment_link(
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
         link_to_pay: payment_link.clone(),
-        amount: amount.into(),
+        amount: MinorUnit::from(amount),
         currency: request.currency,
         created_at,
         last_modified_at,

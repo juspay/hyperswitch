@@ -7,6 +7,7 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use api_models::payments::{Address, HeaderPayload, PhoneDetails};
 use error_stack::report;
+use masking::PeekInterface;
 use router_env::{env, instrument, tracing, types, Flow};
 
 use super::app::ReqState;
@@ -749,7 +750,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     .await
 }
 #[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
-pub async fn payments_complete_authorize(
+pub async fn payments_complete_authorize_redirect(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
@@ -795,7 +796,7 @@ pub async fn payments_complete_authorize(
 
 /// Payments - Complete Authorize
 #[instrument(skip_all, fields(flow =? Flow::PaymentsCompleteAuthorize, payment_id))]
-pub async fn payments_complete_authorize_flow(
+pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsCompleteAuthorizeRequest>,
@@ -809,46 +810,20 @@ pub async fn payments_complete_authorize_flow(
 
     tracing::Span::current().record("payment_id", &payment_id);
 
-    let shipping = payload.shipping.clone();
-
-    let address = shipping.clone().and_then(|shipping| shipping.address);
-
-    let address_details = address
-        .as_ref()
-        .map(|address| api_models::payments::AddressDetails {
-            city: address.city.clone(),
-            country: address.country,
-            line1: address.line1.clone(),
-            line2: address.line2.clone(),
-            line3: address.line3.clone(),
-            zip: address.zip.clone(),
-            state: address.state.clone(),
-            first_name: address.first_name.clone(),
-            last_name: address.last_name.clone(),
-        });
-
-    let phone_details = shipping.as_ref().map(|shipping| PhoneDetails {
-        number: shipping
-            .phone
-            .as_ref()
-            .and_then(|phone| phone.number.clone()),
-        country_code: shipping
-            .phone
-            .as_ref()
-            .and_then(|phone| phone.country_code.clone()),
-    });
-
     let payment_confirm_req = payment_types::PaymentsRequest {
         payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
             payment_id.clone(),
         )),
-        shipping: Some(Address {
-            address: address_details,
-            phone: phone_details,
-            email: shipping.and_then(|shipping| shipping.email),
-        }),
+        shipping: payload.shipping.clone(),
+        client_secret: Some(payload.client_secret.peek().clone()),
         ..Default::default()
     };
+
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payment_confirm_req) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
@@ -870,13 +845,13 @@ pub async fn payments_complete_authorize_flow(
                 auth.key_store,
                 payments::operations::payment_complete_authorize::CompleteAuthorize,
                 payment_confirm_req.clone(),
-                api::AuthFlow::Merchant,
+                auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &*auth_type,
         locking_action,
     ))
     .await

@@ -63,7 +63,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount,
+                payment_intent.amount.get_amount_as_i64(),
                 false,
             )?;
         }
@@ -337,9 +337,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
                         .or(payment_attempt.get_total_surcharge_amount());
-                    (amount + surcharge_amount.unwrap_or(0)).into()
+                    amount + surcharge_amount.unwrap_or_default()
                 };
-                (Box::new(operations::PaymentConfirm), amount)
+                (Box::new(operations::PaymentConfirm), amount.into())
             } else {
                 (Box::new(self), amount)
             };
@@ -692,7 +692,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
-
         payment_data.payment_intent = state
             .store
             .update_payment_intent(

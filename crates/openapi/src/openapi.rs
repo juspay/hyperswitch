@@ -81,6 +81,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_incremental_authorization,
         routes::payment_link::payment_link_retrieve,
         routes::payments::payments_external_authentication,
+        routes::payments::payments_complete_authorize,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -183,6 +184,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::poll::retrieve_poll_status,
     ),
     components(schemas(
+        common_utils::types::MinorUnit,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,

@@ -94,13 +94,6 @@ pub struct Cache {
     inner: MokaCache<String, Arc<dyn Cacheable>>,
 }
 
-impl std::ops::Deref for Cache {
-    type Target = MokaCache<String, Arc<dyn Cacheable>>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
 impl Cache {
     /// With given `time_to_live` and `time_to_idle` creates a moka cache.
     ///
@@ -122,16 +115,16 @@ impl Cache {
     }
 
     pub async fn push<T: Cacheable>(&self, key: String, val: T) {
-        self.insert(key, Arc::new(val)).await;
+        self.inner.insert(key, Arc::new(val)).await;
     }
 
     pub async fn get_val<T: Clone + Cacheable>(&self, key: &str) -> Option<T> {
-        let val = self.get(key).await?;
+        let val = self.inner.get(key).await?;
         (*val).as_any().downcast_ref::<T>().cloned()
     }
 
     pub async fn remove(&self, key: &str) {
-        self.invalidate(key).await;
+        self.inner.invalidate(key).await;
     }
 }
 
@@ -208,7 +201,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let data = fun().await?;
-    in_memory.async_map(|cache| cache.invalidate(key)).await;
+    in_memory.async_map(|cache| cache.remove(key)).await;
 
     let redis_conn = store
         .get_redis_conn()
