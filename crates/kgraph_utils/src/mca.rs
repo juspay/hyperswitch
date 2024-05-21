@@ -294,7 +294,7 @@ fn global_vec_pmt(
         .into_iter()
         .filter(|p| enabled_pmt.clone().into_iter().any(|d| &d != p))
         .collect::<Vec<_>>();
-    let nodes = global_vector
+    global_vector
         .clone()
         .into_iter()
         .map(|dir_v| {
@@ -304,8 +304,7 @@ fn global_vec_pmt(
                 None::<()>,
             )
         })
-        .collect::<Vec<_>>();
-    nodes
+        .collect::<Vec<_>>()
 }
 fn compile_graph_for_countries_and_currencies(
     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
@@ -367,7 +366,7 @@ fn compile_graph_for_countries_and_currencies(
     builder
         .make_all_aggregator(
             &agg_nodes,
-            Some("Country & Currency Configs"),
+            Some("Country & Currency Configs With Payment Method Type"),
             None::<()>,
             None,
         )
@@ -391,15 +390,28 @@ fn compile_config_graph(
                 PaymentMethodFilterKey::PaymentMethodType(pm) => {
                     let dir_val_pm = pm.into_dir_value().map(Into::into)?;
                     pmt_enabled.push(dir_val_pm);
-                    let pmt_id = builder.make_value_node(
-                        pm.into_dir_value().map(Into::into)?,
-                        Some("PaymentMethodType"),
-                        None::<()>,
-                    );
+
                     let curr = pmt
                         .get(&PaymentMethodFilterKey::PaymentMethodType(pm))
                         .map(|country| {
-                            compile_graph_for_countries_and_currencies(builder, country, pmt_id)
+                            let pm_node = if pm == api_enums::PaymentMethodType::Credit
+                                || pm == api_enums::PaymentMethodType::Debit
+                            {
+                                builder.make_value_node(
+                                    cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(
+                                        dir::enums::PaymentMethod::Card,
+                                    )),
+                                    Some("PaymentMethod"),
+                                    None::<()>,
+                                )
+                            } else {
+                                builder.make_value_node(
+                                    pm.into_dir_value().map(Into::into)?,
+                                    Some("PaymentMethodType"),
+                                    None::<()>,
+                                )
+                            };
+                            compile_graph_for_countries_and_currencies(builder, country, pm_node)
                         })
                         .transpose()?;
 
@@ -656,15 +668,24 @@ mod tests {
                 capture_method: Some(api_enums::CaptureMethod::Manual),
             }),
         };
+
         let config_map = CountryCurrencyFilter {
             connector_configs: HashMap::from([(
                 api_enums::RoutableConnectors::Stripe,
-                PaymentMethodFilters(HashMap::from([(
-                    PaymentMethodFilterKey::PaymentMethodType(
-                        api_enums::PaymentMethodType::GooglePay,
+                PaymentMethodFilters(HashMap::from([
+                    (
+                        PaymentMethodFilterKey::PaymentMethodType(
+                            api_enums::PaymentMethodType::Credit,
+                        ),
+                        currency_country_flow_filter.clone(),
                     ),
-                    currency_country_flow_filter,
-                )])),
+                    (
+                        PaymentMethodFilterKey::PaymentMethodType(
+                            api_enums::PaymentMethodType::Debit,
+                        ),
+                        currency_country_flow_filter,
+                    ),
+                ])),
             )]),
             default_configs: None,
         };
@@ -682,7 +703,7 @@ mod tests {
             &AnalysisContext::from_dir_values([
                 dirval!(Connector = Stripe),
                 dirval!(PaymentMethod = Card),
-                dirval!(CardType = Credit),
+                dirval!(CardType = Debit),
                 dirval!(CardNetwork = Visa),
                 dirval!(PaymentCurrency = INR),
                 dirval!(PaymentAmount = 101),
@@ -691,8 +712,7 @@ mod tests {
             &mut CycleCheck::new(),
             None,
         );
-        let err = result.clone();
-        println!("result+err{err:?}");
+
         assert!(result.is_ok());
     }
 

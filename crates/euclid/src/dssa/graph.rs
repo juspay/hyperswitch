@@ -166,9 +166,6 @@ impl cgraph::CheckingContext for AnalysisContext {
         &self,
         key: &<Self::Value as cgraph::ValueNode>::Key,
     ) -> Option<Vec<Self::Value>> {
-        println!("XXXX{key:?}");
-        let keyw = &self.keywise_values;
-        println!("WWWW{keyw:?}");
         self.keywise_values
             .get(key)
             .map(|set| set.iter().cloned().collect())
