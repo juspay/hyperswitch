@@ -1053,7 +1053,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let additional_data: Option<AdditionalCardInfo> = card_detail_from_locker.map(From::from);
 
-        let encode_additonal_pm_to_value = additional_data
+        let encode_additional_pm_to_value = additional_data
             .map(|additional_data| AdditionalPaymentData::Card(Box::new(additional_data)))
             .as_ref()
             .map(Encode::encode_to_value)
@@ -1117,7 +1117,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_connector = connector.clone();
         let m_capture_method = capture_method;
         let m_payment_token = payment_token.clone();
-        let m_additional_pm_data = additional_pm_data.clone().or(encode_additonal_pm_to_value);
+        let m_additional_pm_data = additional_pm_data.clone().or(encode_additional_pm_to_value);
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
