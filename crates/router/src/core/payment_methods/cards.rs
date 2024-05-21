@@ -2795,7 +2795,11 @@ pub async fn filter_payment_methods(
                         &payment_method_type_info,
                         req.installment_payment_enabled,
                     )
-                    && filter_amount_based(&payment_method_type_info, req.amount)
+                    && filter_amount_based(
+                        &payment_method_type_info,
+                        req.amount
+                            .map(|minor_amount| minor_amount.get_amount_as_i64()),
+                    )
                 {
                     let mut payment_method_object = payment_method_type_info;
 
@@ -3289,10 +3293,10 @@ fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
-    let amount = payment_intent.amount;
+    let amount = payment_intent.amount.get_amount_as_i64();
     (pm.maximum_amount.map_or(true, |amt| amount <= amt.into())
         && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
-        || payment_intent.amount == 0
+        || payment_intent.amount.get_amount_as_i64() == 0
 }
 
 async fn filter_payment_mandate_based(
