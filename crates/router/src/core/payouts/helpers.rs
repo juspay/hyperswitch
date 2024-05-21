@@ -620,6 +620,7 @@ pub async fn get_or_create_customer_details(
                 modified_at: common_utils::date_time::now(),
                 address_id: None,
                 default_payment_method_id: None,
+                updated_by: None,
             };
 
             Ok(Some(

@@ -166,6 +166,7 @@ pub struct KVRouterStore<T: DatabaseStore> {
     drainer_num_partitions: u8,
     ttl_for_kv: u32,
     pub request_id: Option<String>,
+    soft_kill_mode: bool,
 }
 
 #[async_trait::async_trait]
@@ -174,19 +175,17 @@ where
     RouterStore<T>: DatabaseStore,
     T: DatabaseStore,
 {
-    type Config = (RouterStore<T>, String, u8, u32);
-    async fn new(
-        config: Self::Config,
-        schema: &str,
-        _test_transaction: bool,
-    ) -> StorageResult<Self> {
-        let (router_store, _, drainer_num_partitions, ttl_for_kv) = config;
+    type Config = (RouterStore<T>, String, u8, u32, Option<bool>);
+    async fn new(config: Self::Config, schema: &str, _test_transaction: bool) -> StorageResult<Self> {
+        let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) =
+            config;
         let drainer_stream_name = format!("{}_{}", schema, config.1);
         Ok(Self::from_store(
             router_store,
             drainer_stream_name,
             drainer_num_partitions,
             ttl_for_kv,
+            soft_kill_mode,
         ))
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -209,6 +208,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         drainer_stream_name: String,
         drainer_num_partitions: u8,
         ttl_for_kv: u32,
+        soft_kill: Option<bool>,
     ) -> Self {
         let request_id = store.request_id.clone();
 
@@ -218,6 +218,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             drainer_num_partitions,
             ttl_for_kv,
             request_id,
+            soft_kill_mode: soft_kill.unwrap_or(false),
         }
     }
 

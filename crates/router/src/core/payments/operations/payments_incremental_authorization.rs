@@ -75,7 +75,7 @@ impl<F: Send + Clone>
             })?
         }
 
-        if request.amount < payment_intent.amount {
+        if payment_intent.amount > request.amount {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Amount should be greater than original authorized amount".to_owned(),
             })?

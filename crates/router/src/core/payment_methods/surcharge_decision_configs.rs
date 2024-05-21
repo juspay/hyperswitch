@@ -367,7 +367,7 @@ fn get_surcharge_details_from_surcharge_output(
                 .attach_printable("Failed to Calculate tax amount")
         })
         .transpose()?
-        .unwrap_or(0);
+        .unwrap_or_default();
     Ok(types::SurchargeDetails {
         original_amount: payment_attempt.amount,
         surcharge: match surcharge_details.surcharge {

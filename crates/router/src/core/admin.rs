@@ -1382,6 +1382,13 @@ pub async fn kv_for_merchant(
             Ok(merchant_account)
         }
         (true, MerchantStorageScheme::PostgresOnly) => {
+            if state.conf.as_ref().is_kv_soft_kill_mode() {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Kv cannot be enabled when application is in soft_kill_mode"
+                        .to_owned(),
+                })?
+            }
+
             db.update_merchant(
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
@@ -1416,6 +1423,36 @@ pub async fn kv_for_merchant(
         api_models::admin::ToggleKVResponse {
             merchant_id: updated_merchant_account.merchant_id,
             kv_enabled: kv_status,
+        },
+    ))
+}
+
+pub async fn toggle_kv_for_all_merchants(
+    state: SessionState,
+    enable: bool,
+) -> RouterResponse<api_models::admin::ToggleAllKVResponse> {
+    let db = state.store.as_ref();
+    let storage_scheme = if enable {
+        MerchantStorageScheme::RedisKv
+    } else {
+        MerchantStorageScheme::PostgresOnly
+    };
+
+    let total_update = db
+        .update_all_merchant_account(storage::MerchantAccountUpdate::StorageSchemeUpdate {
+            storage_scheme,
+        })
+        .await
+        .map_err(|error| {
+            error
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to switch merchant_storage_scheme for all merchants")
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ToggleAllKVResponse {
+            total_updated: total_update,
+            kv_enabled: enable,
         },
     ))
 }

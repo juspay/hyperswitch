@@ -116,6 +116,7 @@ pub async fn create_customer(
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
+            updated_by: None,
         })
     }
     .await

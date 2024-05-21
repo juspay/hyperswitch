@@ -60,16 +60,16 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
             let key = match key {
                 CacheKind::Config(key) => {
-                    CONFIG_CACHE.invalidate(key.as_ref()).await;
+                    CONFIG_CACHE.remove(key.as_ref()).await;
                     key
                 }
                 CacheKind::Accounts(key) => {
-                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
                     key
                 }
                 CacheKind::All(key) => {
-                    CONFIG_CACHE.invalidate(key.as_ref()).await;
-                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    CONFIG_CACHE.remove(key.as_ref()).await;
+                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
                     key
                 }
             };
