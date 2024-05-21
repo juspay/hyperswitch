@@ -1046,7 +1046,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_method_info
             .as_ref()
             .async_map(|pm| async move {
-                cards::get_card_details_without_locker_fallback(&pm, key, state).await
+                cards::get_card_details_without_locker_fallback(pm, key, state).await
             })
             .await
             .transpose()?;
