@@ -2052,7 +2052,7 @@ fn get_connector_by_connector_name(
                 frm_connector_data.connector_name.to_string(),
             )
         }
-        
+
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             connector_name,
