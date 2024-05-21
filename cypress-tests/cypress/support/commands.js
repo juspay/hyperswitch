@@ -444,7 +444,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, req_data, res_data, globalSta
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
-    if(response.body.payment_id !== undefined) {
+    if(response.status === 200) {
       for(const key in res_data.body) {
         expect(res_data.body[key]).to.equal(response.body[key]);
       }
