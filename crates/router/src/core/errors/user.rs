@@ -66,7 +66,7 @@ pub enum UserErrors {
     RoleNameParsingError,
     #[error("RoleNameAlreadyExists")]
     RoleNameAlreadyExists,
-    #[error("TOTPNotSetup")]
+    #[error("TotpNotSetup")]
     TotpNotSetup,
     #[error("InvalidTotp")]
     InvalidTotp,
