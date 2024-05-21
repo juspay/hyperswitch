@@ -25,7 +25,7 @@ use euclid::{
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
-    utils::CountryCurrencyFilter,
+    types::CountryCurrencyFilter,
 };
 use masking::PeekInterface;
 use rand::{

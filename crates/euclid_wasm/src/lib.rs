@@ -91,8 +91,8 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .collect::<Result<_, _>>()
         .map_err(|_| "invalid connector name received")
         .err_to_js()?;
-    let pm_filter = kgraph_utils::utils::PaymentMethodFilters(HashMap::new());
-    let config = kgraph_utils::utils::CountryCurrencyFilter {
+    let pm_filter = kgraph_utils::types::PaymentMethodFilters(HashMap::new());
+    let config = kgraph_utils::types::CountryCurrencyFilter {
         connector_configs: HashMap::new(),
         default_configs: Some(pm_filter),
     };

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::{self, routing as routing_types};
 use diesel_models::enums as storage_enums;
 use euclid::{enums as dsl_enums, frontend::ast as dsl_ast};
-use kgraph_utils::utils;
+use kgraph_utils::types;
 
 use crate::{
     configs::settings,
@@ -59,7 +59,7 @@ impl ForeignFrom<storage_enums::MandateDataType> for dsl_enums::MandateType {
     }
 }
 
-impl ForeignFrom<settings::PaymentMethodFilterKey> for utils::PaymentMethodFilterKey {
+impl ForeignFrom<settings::PaymentMethodFilterKey> for types::PaymentMethodFilterKey {
     fn foreign_from(from: settings::PaymentMethodFilterKey) -> Self {
         match from {
             settings::PaymentMethodFilterKey::PaymentMethodType(pmt) => {
@@ -69,7 +69,7 @@ impl ForeignFrom<settings::PaymentMethodFilterKey> for utils::PaymentMethodFilte
         }
     }
 }
-impl ForeignFrom<settings::CurrencyCountryFlowFilter> for utils::CurrencyCountryFlowFilter {
+impl ForeignFrom<settings::CurrencyCountryFlowFilter> for types::CurrencyCountryFlowFilter {
     fn foreign_from(from: settings::CurrencyCountryFlowFilter) -> Self {
         Self {
             currency: from.currency,
@@ -78,14 +78,14 @@ impl ForeignFrom<settings::CurrencyCountryFlowFilter> for utils::CurrencyCountry
         }
     }
 }
-impl ForeignFrom<settings::NotAvailableFlows> for utils::NotAvailableFlows {
+impl ForeignFrom<settings::NotAvailableFlows> for types::NotAvailableFlows {
     fn foreign_from(from: settings::NotAvailableFlows) -> Self {
         Self {
             capture_method: from.capture_method,
         }
     }
 }
-impl ForeignFrom<settings::PaymentMethodFilters> for utils::PaymentMethodFilters {
+impl ForeignFrom<settings::PaymentMethodFilters> for types::PaymentMethodFilters {
     fn foreign_from(from: settings::PaymentMethodFilters) -> Self {
         let iter_map = from
             .0

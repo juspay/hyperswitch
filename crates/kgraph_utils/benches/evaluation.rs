@@ -13,7 +13,7 @@ use euclid::{
     types::{NumValue, NumValueRefinement},
 };
 use hyperswitch_constraint_graph::{CycleCheck, Memoization};
-use kgraph_utils::{error::KgraphError, transformers::IntoDirValue, utils::CountryCurrencyFilter};
+use kgraph_utils::{error::KgraphError, transformers::IntoDirValue, types::CountryCurrencyFilter};
 
 fn build_test_data<'a>(
     total_enabled: usize,
