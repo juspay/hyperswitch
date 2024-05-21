@@ -276,7 +276,6 @@ fn global_vec_pmt(
 ) -> Vec<cgraph::NodeId> {
     let mut global_vector: Vec<dir::DirValue> = Vec::new();
 
-    global_vector.append(collect_global_variants!(CardType));
     global_vector.append(collect_global_variants!(PayLaterType));
     global_vector.append(collect_global_variants!(WalletType));
     global_vector.append(collect_global_variants!(BankRedirectType));
@@ -288,6 +287,9 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(GiftCardType));
     global_vector.append(collect_global_variants!(BankTransferType));
     global_vector.append(collect_global_variants!(CardRedirectType));
+    global_vector.push(dir::DirValue::PaymentMethod(
+        dir::enums::PaymentMethod::Card,
+    ));
     let global_vector = global_vector
         .into_iter()
         .filter(|p| enabled_pmt.clone().into_iter().any(|d| &d != p))
@@ -440,7 +442,7 @@ fn compile_config_graph(
         .into_iter()
         .map(|node| (node, cgraph::Relation::Positive, cgraph::Strength::Normal))
         .collect::<Vec<_>>();
-    let in_agg_node = builder
+    let any_agg_node = builder
         .make_any_aggregator(
             &any_agg_pmt,
             Some("In Aggregator For Payment Method Types"),
@@ -450,7 +452,7 @@ fn compile_config_graph(
         .map_err(KgraphError::GraphConstructionError)?;
 
     agg_node_id.push((
-        in_agg_node,
+        any_agg_node,
         cgraph::Relation::Positive,
         cgraph::Strength::Normal,
     ));
