@@ -698,7 +698,6 @@ pub(crate) async fn frm_incoming_webhook_flow(
                 .await?;
         match event_type {
             webhooks::IncomingWebhookEvent::FrmApproved => {
-                println!("frm approved");
                 let payments_response = Box::pin(payments::payments_core::<
                     api::Capture,
                     api::PaymentsResponse,
@@ -742,7 +741,6 @@ pub(crate) async fn frm_incoming_webhook_flow(
                 }
             }
             webhooks::IncomingWebhookEvent::FrmRejected => {
-                println!("frm rejected");
                 let payments_response = Box::pin(payments::payments_core::<
                     api::Void,
                     api::PaymentsResponse,

@@ -1,14 +1,15 @@
 pub mod transformers;
 use std::fmt::Debug;
 
-use base64::Engine;
 #[cfg(feature = "frm")]
+use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use ring::hmac;
 use transformers as signifyd;
 
+#[cfg(feature = "frm")]
 use super::utils as connector_utils;
 use crate::{
     configs::settings,
@@ -649,6 +650,7 @@ impl
     }
 }
 
+#[cfg(feature = "frm")]
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Signifyd {
     fn get_webhook_source_verification_algorithm(

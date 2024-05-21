@@ -399,7 +399,9 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 field_name: "frm_metadata",
             })?
             .parse_value("Signifyd Frm Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "frm_metadata",
+            })?;
         let ship_address = item.get_shipping_address()?;
         let street_addr = ship_address.get_line1()?;
         let city_addr = ship_address.get_city()?;
