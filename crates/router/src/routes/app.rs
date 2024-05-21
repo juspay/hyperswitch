@@ -394,10 +394,6 @@ impl Payments {
                         .route(web::post().to(payments_complete_authorize)),
                 )
                 .service(
-                    web::resource("/{payment_id}/complete_authorize")
-                        .route(web::post().to(payments_complete_authorize_flow)),
-                )
-                .service(
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments_incremental_authorization)),
                 )
                 .service(

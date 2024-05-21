@@ -5,7 +5,7 @@ use crate::{
 pub mod helpers;
 
 use actix_web::{web, Responder};
-use api_models::payments::{Address, HeaderPayload, PhoneDetails};
+use api_models::payments::HeaderPayload;
 use error_stack::report;
 use masking::PeekInterface;
 use router_env::{env, instrument, tracing, types, Flow};
