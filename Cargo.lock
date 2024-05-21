@@ -3944,6 +3944,7 @@ dependencies = [
  "masking",
  "serde",
  "serde_json",
+ "strum 0.26.2",
  "thiserror",
 ]
 
