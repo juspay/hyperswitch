@@ -30,7 +30,7 @@ use rand::{
     SeedableRng,
 };
 use rustc_hash::FxHashMap;
-use storage_impl::redis::cache::{KGRAPH_CACHE, ROUTING_CACHE};
+use storage_impl::redis::cache::{CGRAPH_CACHE, ROUTING_CACHE};
 
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -550,7 +550,7 @@ pub async fn get_merchant_kgraph<'a>(
         api_enums::TransactionType::Payout => format!("kgraph_po_{}", merchant_id),
     };
 
-    let cached_kgraph = KGRAPH_CACHE
+    let cached_kgraph = CGRAPH_CACHE
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(
             key.as_str(),
         )
@@ -559,7 +559,7 @@ pub async fn get_merchant_kgraph<'a>(
     let kgraph = if let Some(graph) = cached_kgraph {
         graph
     } else {
-        refresh_kgraph_cache(
+        refresh_cgraph_cache(
             state,
             key_store,
             key.clone(),
@@ -573,7 +573,7 @@ pub async fn get_merchant_kgraph<'a>(
     Ok(kgraph)
 }
 
-pub async fn refresh_kgraph_cache<'a>(
+pub async fn refresh_cgraph_cache<'a>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
     key: String,
@@ -624,7 +624,7 @@ pub async fn refresh_kgraph_cache<'a>(
             .attach_printable("when construction kgraph")?,
     );
 
-    KGRAPH_CACHE.push(key, kgraph.clone()).await;
+    CGRAPH_CACHE.push(key, Arc::clone(&kgraph)).await;
 
     Ok(kgraph)
 }

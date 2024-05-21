@@ -25,7 +25,7 @@ const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
 const ROUTING_CACHE_PREFIX: &str = "routing";
 
 /// Prefix for kgraph cache key
-const KGRAPH_CACHE_PREFIX: &str = "kgraph";
+const CGRAPH_CACHE_PREFIX: &str = "cgraph";
 
 /// Prefix for all kinds of cache key
 const ALL_CACHE_PREFIX: &str = "all_cache_kind";
@@ -50,8 +50,8 @@ pub static ACCOUNTS_CACHE: Lazy<Cache> =
 pub static ROUTING_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
-/// Kgraph Cache
-pub static KGRAPH_CACHE: Lazy<Cache> =
+/// CGraph Cache
+pub static CGRAPH_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
@@ -63,7 +63,7 @@ pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
     Routing(Cow<'a, str>),
-    KGraph(Cow<'a, str>),
+    CGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
 
@@ -73,7 +73,7 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
             CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
             CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
             CacheKind::Routing(s) => format!("{ROUTING_CACHE_PREFIX},{s}"),
-            CacheKind::KGraph(s) => format!("{KGRAPH_CACHE_PREFIX},{s}"),
+            CacheKind::CGraph(s) => format!("{CGRAPH_CACHE_PREFIX},{s}"),
             CacheKind::All(s) => format!("{ALL_CACHE_PREFIX},{s}"),
         };
         Self::from_string(value)
@@ -92,7 +92,7 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
             ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
             CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
             ROUTING_CACHE_PREFIX => Ok(Self::Routing(Cow::Owned(split.1.to_string()))),
-            KGRAPH_CACHE_PREFIX => Ok(Self::KGraph(Cow::Owned(split.1.to_string()))),
+            CGRAPH_CACHE_PREFIX => Ok(Self::CGraph(Cow::Owned(split.1.to_string()))),
             ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
