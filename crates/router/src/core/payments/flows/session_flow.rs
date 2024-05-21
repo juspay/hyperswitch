@@ -677,14 +677,15 @@ fn create_paypal_sdk_session_token(
             expected_format: "paypal_sdk_metadata_format".to_string(),
         })?;
 
-    // [TODO: Add Dynamic fields support for payal sdk]
-
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Paypal(Box::new(
                 payment_types::PaypalSessionTokenResponse {
                     connector: connector.connector_name.to_string(),
                     session_token: paypal_sdk_data.data.client_id,
+                    sdk_next_action: payment_types::SdkNextAction {
+                        next_action: payment_types::NextActionCall::CompleteAuthorize,
+                    },
                 },
             )),
         }),

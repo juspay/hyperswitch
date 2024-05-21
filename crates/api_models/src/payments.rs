@@ -4173,6 +4173,8 @@ pub struct PaypalSessionTokenResponse {
     pub connector: String,
     /// The session token for PayPal
     pub session_token: String,
+    /// The next action for the sdk (ex: calling confirm or sync call)
+    pub sdk_next_action: SdkNextAction,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4209,6 +4211,8 @@ pub enum NextActionCall {
     Confirm,
     /// The next action call is sync
     Sync,
+    /// The next action call is Complete Authorize
+    CompleteAuthorize,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
