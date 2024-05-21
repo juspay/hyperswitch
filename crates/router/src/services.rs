@@ -66,7 +66,14 @@ pub async fn get_store(
     let store: RouterStore<StoreType> = if test_transaction {
         RouterStore::test_store(conf, schema, &config.redis, master_enc_key).await?
     } else {
-        RouterStore::from_config(conf, schema, master_enc_key, cache_store, consts::PUB_SUB_CHANNEL).await?
+        RouterStore::from_config(
+            conf,
+            schema,
+            master_enc_key,
+            cache_store,
+            consts::PUB_SUB_CHANNEL,
+        )
+        .await?
     };
 
     #[cfg(feature = "kv_store")]
@@ -87,8 +94,7 @@ pub async fn get_cache_store(
     shut_down_signal: oneshot::Sender<()>,
     _test_transaction: bool,
 ) -> StorageResult<Arc<RedisStore>> {
-    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal)
-        .await
+    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal).await
 }
 
 #[inline]
