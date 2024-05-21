@@ -1951,7 +1951,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 business_profile,
             ))
             .await
-            .attach_printable("Incoming webhook flow for external authentication failed")?,
+            .attach_printable("Incoming webhook flow for fraud check failed")?,
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
