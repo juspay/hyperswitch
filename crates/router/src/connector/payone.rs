@@ -15,7 +15,7 @@ use self::transformers as payone;
 #[cfg(feature = "payouts")]
 use crate::services;
 #[cfg(feature = "payouts")]
-use crate::utils::get_current_date_time_in_rfc1123_format;
+use crate::utils::get_formatted_date_time;
 use crate::{
     configs::settings,
     consts,
