@@ -5420,11 +5420,11 @@ dependencies = [
  "error-stack",
  "fred",
  "futures 0.3.30",
- "router_env",
  "serde",
  "thiserror",
  "tokio 1.37.0",
  "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
