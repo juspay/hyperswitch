@@ -686,11 +686,7 @@ pub(crate) async fn frm_incoming_webhook_flow(
     key_store: domain::MerchantKeyStore,
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
-    _request_details: &api::IncomingWebhookRequestDetails<'_>,
-    _connector: &(dyn api::Connector + Sync),
     object_ref_id: api::ObjectReferenceId,
-    _business_profile: diesel_models::business_profile::BusinessProfile,
-    _merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let payment_attempt =
@@ -712,7 +708,7 @@ pub(crate) async fn frm_incoming_webhook_flow(
                     payments::PaymentApprove,
                     api::PaymentsCaptureRequest {
                         payment_id: payment_attempt.payment_id,
-                        amount_to_capture: Some(payment_attempt.amount),
+                        amount_to_capture: payment_attempt.amount_to_capture,
                         ..Default::default()
                     },
                     services::api::AuthFlow::Merchant,
@@ -755,7 +751,9 @@ pub(crate) async fn frm_incoming_webhook_flow(
                     payments::PaymentReject,
                     api::PaymentsCancelRequest {
                         payment_id: payment_attempt.payment_id.clone(),
-                        cancellation_reason: Some("Rejected by merchant".to_string()),
+                        cancellation_reason: Some(
+                            "Rejected by merchant based on FRM decision".to_string(),
+                        ),
                         ..Default::default()
                     },
                     services::api::AuthFlow::Merchant,
@@ -1951,11 +1949,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 key_store,
                 source_verified,
                 event_type,
-                &request_details,
-                connector,
                 object_ref_id,
-                business_profile,
-                merchant_connector_account,
             ))
             .await
             .attach_printable("Incoming webhook flow for external authentication failed")?,
