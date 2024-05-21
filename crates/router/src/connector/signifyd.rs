@@ -31,7 +31,7 @@ use crate::{
     consts,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        api::fraud_check as frm_api, domain, fraud_check as frm_types, s, ErrorResponse, Response,
+        api::fraud_check as frm_api, domain, fraud_check as frm_types, ErrorResponse, Response,
     },
     utils::BytesExt,
 };
