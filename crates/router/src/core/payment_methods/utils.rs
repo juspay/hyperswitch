@@ -54,14 +54,14 @@ fn compile_pm_graph(
     if let Some(payment_method_types) = pm_enabled.payment_method_types {
         for pmt in payment_method_types {
             // Connector supported for Update mandate filter
-            if let Ok(Some(connector_eligible_for_update_mandates_node)) =
+            let res = 
                 construct_supported_connectors_for_update_mandate_node(
                     builder,
                     supported_payment_methods_for_update_mandate,
                     pmt.clone(),
                     &pm_enabled.payment_method,
-                )
-            {
+                );
+            if let Ok(Some(connector_eligible_for_update_mandates_node)) = res {
                 agg_or_nodes_for_mandate_filters.push((
                     connector_eligible_for_update_mandates_node,
                     cgraph::Relation::Positive,
@@ -89,6 +89,7 @@ fn compile_pm_graph(
                             supported_connectors,
                         )
                     {
+                        println!(">>>>>>>>>>>>>>>>>>>>>>>>>Code comes here 2");
                         agg_or_nodes_for_mandate_filters.push((
                             connector_eligible_for_mandates_node,
                             cgraph::Relation::Positive,
@@ -97,7 +98,36 @@ fn compile_pm_graph(
                     }
                 }
             }
+            let payment_type_non_mandate_value_node = builder.make_value_node(
+                cgraph::NodeValue::Value(DirValue::PaymentType(euclid::enums::PaymentType::NonMandate)),
+                None,
+                None::<()>,
+            );
+            let payment_type_setup_mandate_value_node = builder.make_value_node(
+                cgraph::NodeValue::Value(DirValue::PaymentType(euclid::enums::PaymentType::SetupMandate)),
+                None,
+                None::<()>,
+            );
 
+            let non_major_mandate_any_node = builder.make_any_aggregator(&[
+
+                (
+                    payment_type_non_mandate_value_node,
+                    cgraph::Relation::Positive,
+                    cgraph::Strength::Strong,
+                ),
+                (
+                    payment_type_setup_mandate_value_node,
+                    cgraph::Relation::Positive,
+                    cgraph::Strength::Strong,
+                ),
+            ], None, None::<()>, None).map_err(KgraphError::GraphConstructionError)?;
+
+            agg_or_nodes_for_mandate_filters.push((
+                non_major_mandate_any_node,
+                cgraph::Relation::Positive,
+                cgraph::Strength::Strong,
+            ));
             let agg_or_node = builder
                 .make_any_aggregator(&agg_or_nodes_for_mandate_filters, None, None::<()>, None)
                 .map_err(KgraphError::GraphConstructionError)?;
@@ -108,7 +138,7 @@ fn compile_pm_graph(
                 cgraph::Strength::Strong,
             ));
 
-            // Capture Method filter
+            // // Capture Method filter
             config
                 .0
                 .get(connector.as_str())
@@ -243,6 +273,13 @@ fn construct_supported_connectors_for_update_mandate_node(
         None::<()>,
     );
 
+    let payment_type_value_node = builder.make_value_node(
+        cgraph::NodeValue::Value(DirValue::PaymentType(euclid::enums::PaymentType::UpdateMandate)),
+        None,
+        None::<()>,
+    );
+
+    let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
     let mut card_dir_values = Vec::new();
     let mut non_card_dir_values = Vec::new();
 
@@ -292,9 +329,44 @@ fn construct_supported_connectors_for_update_mandate_node(
                         }),
                 );
             }
+            let card_in_node = builder
+                    .make_in_aggregator(card_dir_values, None, None::<()>)
+                    .map_err(KgraphError::GraphConstructionError)?;
+
+            let card_and_node = builder
+                .make_all_aggregator(
+                    &[
+                        (
+                            card_value_node,
+                            cgraph::Relation::Positive,
+                            cgraph::Strength::Strong,
+                        ),
+                        (
+                            payment_type_value_node,
+                            cgraph::Relation::Positive,
+                            cgraph::Strength::Strong,
+                        ),
+                        (
+                            card_in_node,
+                            cgraph::Relation::Positive,
+                            cgraph::Strength::Strong,
+                        ),
+                    ],
+                    None,
+                    None::<()>,
+                    None,
+                )
+                .map_err(KgraphError::GraphConstructionError)?;
+
+            agg_nodes.push((
+                card_and_node,
+                cgraph::Relation::Positive,
+                cgraph::Strength::Strong,
+            ));
         } else {
             if let Some(connector_list) = supported_pm_for_mandates.0.get(&pmt.payment_method_type)
             {
+                println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>non card flow here {:?}", connector_list);
                 non_card_dir_values.extend(
                     connector_list
                         .connector_list
@@ -310,73 +382,49 @@ fn construct_supported_connectors_for_update_mandate_node(
                                 })
                         }),
                 );
+            let non_card_mandate_in_node = builder
+                .make_in_aggregator(non_card_dir_values, None, None::<()>)
+                .map_err(KgraphError::GraphConstructionError)?;
+
+            let non_card_and_node = builder
+                .make_all_aggregator(
+                    &[
+                        (
+                            card_value_node,
+                            cgraph::Relation::Negative,
+                            cgraph::Strength::Strong,
+                        ),
+                        (
+                            payment_type_value_node,
+                            cgraph::Relation::Positive,
+                            cgraph::Strength::Strong,
+                        ),
+                        (
+                            non_card_mandate_in_node,
+                            cgraph::Relation::Positive,
+                            cgraph::Strength::Strong,
+                        ),
+                    ],
+                    None,
+                    None::<()>,
+                    None,
+                )
+                .map_err(KgraphError::GraphConstructionError)?;
+
+            agg_nodes.push((
+                non_card_and_node,
+                cgraph::Relation::Positive,
+                cgraph::Strength::Strong,
+            ));
             }
         }
     }
 
-    let card_mandate_in_node = builder
-        .make_in_aggregator(card_dir_values, None, None::<()>)
-        .map_err(KgraphError::GraphConstructionError)?;
-
-    let non_card_mandate_in_node = builder
-        .make_in_aggregator(non_card_dir_values, None, None::<()>)
-        .map_err(KgraphError::GraphConstructionError)?;
-
-    let card_and_node = builder
-        .make_all_aggregator(
-            &[
-                (
-                    card_value_node,
-                    cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
-                ),
-                (
-                    card_mandate_in_node,
-                    cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
-                ),
-            ],
-            None,
-            None::<()>,
-            None,
-        )
-        .map_err(KgraphError::GraphConstructionError)?;
-
-    let non_card_and_node = builder
-        .make_all_aggregator(
-            &[
-                (
-                    card_value_node,
-                    cgraph::Relation::Negative,
-                    cgraph::Strength::Strong,
-                ),
-                (
-                    non_card_mandate_in_node,
-                    cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
-                ),
-            ],
-            None,
-            None::<()>,
-            None,
-        )
-        .map_err(KgraphError::GraphConstructionError)?;
 
     Ok(Some(
         builder
             .make_any_aggregator(
-                &[
-                    (
-                        card_and_node,
-                        cgraph::Relation::Positive,
-                        cgraph::Strength::Strong,
-                    ),
-                    (
-                        non_card_and_node,
-                        cgraph::Relation::Positive,
-                        cgraph::Strength::Strong,
-                    ),
-                ],
+                &agg_nodes,
                 Some("any node for card and non card pm"),
                 None::<()>,
                 None,
@@ -389,6 +437,11 @@ fn construct_supported_connectors_for_mandate_node(
     builder: &mut cgraph::ConstraintGraphBuilder<'_, DirValue>,
     eligible_connectors: Vec<api_enums::Connector>,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
+    let payment_type_value_node = builder.make_value_node(
+        cgraph::NodeValue::Value(DirValue::PaymentType(euclid::enums::PaymentType::NewMandate)),
+        None,
+        None::<()>,
+    );
     let connectors_from_config: Vec<DirValue> = eligible_connectors
         .into_iter()
         .filter_map(|connector| {
@@ -404,10 +457,24 @@ fn construct_supported_connectors_for_mandate_node(
     if connectors_from_config.is_empty() {
         return Ok(None);
     } else {
-        Ok(Some(
-            builder
+        let connector_in_aggregator = builder
                 .make_in_aggregator(connectors_from_config, None, None::<()>)
-                .map_err(KgraphError::GraphConstructionError)?,
+                .map_err(KgraphError::GraphConstructionError)?;
+        Ok(Some(
+            builder.make_all_aggregator(
+                &[
+                    (
+                        payment_type_value_node,
+                        cgraph::Relation::Positive,
+                        cgraph::Strength::Strong,
+                    ),
+                    (
+                        connector_in_aggregator,
+                        cgraph::Relation::Positive,
+                        cgraph::Strength::Strong,
+                    ),
+                ],
+                None, None::<()>, None).map_err(KgraphError::GraphConstructionError)?
         ))
     }
 }

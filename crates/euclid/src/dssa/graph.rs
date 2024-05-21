@@ -766,6 +766,77 @@ mod test {
     }
 
     #[test]
+    fn test_pk() {
+        let mut graph = cgraph::ConstraintGraphBuilder::new();
+        let _node_3 = graph.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(enums::Pay::Manual)),
+            None,
+            None::<()>,
+        );
+        let _node_4 = graph
+            .make_in_aggregator(
+                Vec::from_iter([
+                    dir::DirValue::PaymentMethod(enums::PaymentMethod::Card),
+                    dir::DirValue::PaymentMethod(enums::PaymentMethod::Wallet),
+                ]),
+                None,
+                None::<()>,
+            )
+            .expect("Failed to make In aggregator");
+        graph
+            .make_edge(
+                _node_4,
+                _node_3,
+                cgraph::Strength::Strong,
+                cgraph::Relation::Negative,
+                None::<cgraph::DomainId>,
+            )
+            .expect("Failed to make edge");
+        let _node_1 = graph.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(enums::CaptureMethod::Automatic)),
+            None,
+            None::<()>,
+        );
+        let _node_2 = graph
+            .make_in_aggregator(
+                Vec::from_iter([
+                    dir::DirValue::PaymentMethod(enums::PaymentMethod::Card),
+                    dir::DirValue::PaymentMethod(enums::PaymentMethod::Wallet),
+                ]),
+                None,
+                None::<()>,
+            )
+            .expect("Failed to make In aggregator");
+        graph
+            .make_edge(
+                _node_2,
+                _node_1,
+                cgraph::Strength::Strong,
+                cgraph::Relation::Negative,
+                None::<cgraph::DomainId>,
+            )
+            .expect("Failed to make edge");
+        let build_graph = graph.build();
+        println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>CG is \n {:?} \n", build_graph.get_viz_digraph_string());
+
+        let memo = &mut cgraph::Memoization::new();
+        let result = build_graph.key_value_analysis(
+            dirval!(CaptureMethod = Automatic),
+            &AnalysisContext::from_dir_values([
+                dirval!(CaptureMethod = Automatic),
+                dirval!(PaymentMethod = PayLater),
+                dirval!(PaymentMethod = BankRedirect),
+                dirval!(PaymentMethod = Card),
+            ]),
+            memo,
+            &mut CycleCheck::new(),
+            None,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_in_aggregator_failure_trace() {
         let graph = knowledge! {
             PaymentMethod(in [Card, Wallet]) ->> CaptureMethod(Automatic);
