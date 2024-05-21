@@ -22,11 +22,52 @@ pub mod euclid_graph_prelude {
 
 impl cgraph::KeyNode for dir::DirKey {}
 
+impl cgraph::NodeViz for dir::DirKey {
+    fn viz(&self) -> String {
+        self.kind.to_string()
+    }
+}
+
 impl cgraph::ValueNode for dir::DirValue {
     type Key = dir::DirKey;
 
     fn get_key(&self) -> Self::Key {
         Self::get_key(self)
+    }
+}
+
+impl cgraph::NodeViz for dir::DirValue {
+    fn viz(&self) -> String {
+        match self {
+            Self::PaymentMethod(pm) => pm.to_string(),
+            Self::CardBin(bin) => bin.value.clone(),
+            Self::CardType(ct) => ct.to_string(),
+            Self::CardNetwork(cn) => cn.to_string(),
+            Self::PayLaterType(plt) => plt.to_string(),
+            Self::WalletType(wt) => wt.to_string(),
+            Self::UpiType(ut) => ut.to_string(),
+            Self::BankTransferType(btt) => btt.to_string(),
+            Self::BankRedirectType(brt) => brt.to_string(),
+            Self::BankDebitType(bdt) => bdt.to_string(),
+            Self::CryptoType(ct) => ct.to_string(),
+            Self::RewardType(rt) => rt.to_string(),
+            Self::PaymentAmount(amt) => amt.number.to_string(),
+            Self::PaymentCurrency(curr) => curr.to_string(),
+            Self::AuthenticationType(at) => at.to_string(),
+            Self::CaptureMethod(cm) => cm.to_string(),
+            Self::BusinessCountry(bc) => bc.to_string(),
+            Self::BillingCountry(bc) => bc.to_string(),
+            Self::Connector(conn) => conn.connector.to_string(),
+            Self::MetaData(mv) => format!("[{} = {}]", mv.key, mv.value),
+            Self::MandateAcceptanceType(mat) => mat.to_string(),
+            Self::MandateType(mt) => mt.to_string(),
+            Self::PaymentType(pt) => pt.to_string(),
+            Self::VoucherType(vt) => vt.to_string(),
+            Self::GiftCardType(gct) => gct.to_string(),
+            Self::BusinessLabel(bl) => bl.value.to_string(),
+            Self::SetupFutureUsage(sfu) => sfu.to_string(),
+            Self::CardRedirectType(crt) => crt.to_string(),
+        }
     }
 }
 

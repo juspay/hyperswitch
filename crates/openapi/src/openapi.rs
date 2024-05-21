@@ -184,6 +184,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::poll::retrieve_poll_status,
     ),
     components(schemas(
+        common_utils::types::MinorUnit,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,

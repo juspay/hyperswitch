@@ -27,7 +27,7 @@ use api_models::{
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     pii,
-    types::Surcharge,
+    types::{MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -694,7 +694,7 @@ where
     O: Send + Clone + Sync,
 {
     if let Some(surcharge_amount) = payment_data.payment_attempt.surcharge_amount {
-        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or(0);
+        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or_default();
         let final_amount =
             payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
@@ -2482,8 +2482,8 @@ impl EventInfo for PaymentEvent {
 
 #[derive(Debug, Default, Clone)]
 pub struct IncrementalAuthorizationDetails {
-    pub additional_amount: i64,
-    pub total_amount: i64,
+    pub additional_amount: MinorUnit,
+    pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
 }
@@ -3807,7 +3807,7 @@ pub async fn payment_external_authentication(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
     let currency = payment_attempt.currency.get_required_value("currency")?;
-    let amount = payment_attempt.get_total_amount().into();
+    let amount = payment_attempt.get_total_amount();
     let shipping_address = helpers::create_or_find_address_for_payment_by_request(
         db,
         None,
@@ -3914,7 +3914,7 @@ pub async fn payment_external_authentication(
         browser_info,
         business_profile,
         merchant_connector_account,
-        amount,
+        Some(amount),
         Some(currency),
         authentication::MessageCategory::Payment,
         req.device_channel,
