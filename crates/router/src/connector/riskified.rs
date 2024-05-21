@@ -2,38 +2,46 @@ pub mod transformers;
 use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
-use base64::Engine;
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface};
-use ring::hmac;
-use transformers as riskified;
-
-#[cfg(feature = "frm")]
 use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
+
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
-    headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
     },
 };
 #[cfg(feature = "frm")]
 use crate::{
+    consts,
     events::connector_api_logs::ConnectorEvent,
-    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
+    headers,
+    services::request,
+    types::{
+        api::fraud_check as frm_api, domain, fraud_check as frm_types, ErrorResponse, Response,
+    },
     utils::BytesExt,
 };
+#[cfg(feature = "frm")]
+use base64::Engine;
+#[cfg(feature = "frm")]
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+#[cfg(feature = "frm")]
+use error_stack::ResultExt;
+#[cfg(feature = "frm")]
+use masking::{ExposeInterface, PeekInterface};
+#[cfg(feature = "frm")]
+use ring::hmac;
+#[cfg(feature = "frm")]
+use transformers as riskified;
 
 #[derive(Debug, Clone)]
 pub struct Riskified;
 
 impl Riskified {
+    #[cfg(feature = "frm")]
     pub fn generate_authorization_signature(
         &self,
         auth: &riskified::RiskifiedAuthType,
@@ -56,6 +64,7 @@ impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Ri
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
+    #[cfg(feature = "frm")]
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,

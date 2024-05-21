@@ -2032,7 +2032,9 @@ fn get_connector_by_connector_name(
 ) -> CustomResult<(&'static (dyn api::Connector + Sync), String), errors::ApiErrorResponse> {
     let authentication_connector =
         api_models::enums::convert_authentication_connector(connector_name);
+    #[cfg(feature = "frm")]
     let frm_connector = api_models::enums::convert_frm_connector(connector_name);
+
     let (connector, connector_name) = if authentication_connector.is_some() {
         let authentication_connector_data =
             api::AuthenticationConnectorData::get_connector_by_name(connector_name)?;
@@ -2040,14 +2042,17 @@ fn get_connector_by_connector_name(
             authentication_connector_data.connector,
             authentication_connector_data.connector_name.to_string(),
         )
-    } else if frm_connector.is_some() {
-        let frm_connector_data =
-            api::FraudCheckConnectorData::get_connector_by_name(connector_name)?;
-        (
-            frm_connector_data.connector,
-            frm_connector_data.connector_name.to_string(),
-        )
     } else {
+        #[cfg(feature = "frm")]
+        if frm_connector.is_some() {
+            let frm_connector_data =
+                api::FraudCheckConnectorData::get_connector_by_name(connector_name)?;
+            (
+                frm_connector_data.connector,
+                frm_connector_data.connector_name.to_string(),
+            )
+        }
+        
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             connector_name,

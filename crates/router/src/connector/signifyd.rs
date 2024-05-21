@@ -3,30 +3,36 @@ use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
 use base64::Engine;
+#[cfg(feature = "frm")]
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+#[cfg(feature = "frm")]
 use error_stack::ResultExt;
+#[cfg(feature = "frm")]
 use masking::PeekInterface;
+#[cfg(feature = "frm")]
 use ring::hmac;
+#[cfg(feature = "frm")]
 use transformers as signifyd;
 
 #[cfg(feature = "frm")]
 use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
     },
 };
 #[cfg(feature = "frm")]
 use crate::{
+    consts,
     events::connector_api_logs::ConnectorEvent,
-    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
+    types::{
+        api::fraud_check as frm_api, domain, fraud_check as frm_types, s, ErrorResponse, Response,
+    },
     utils::BytesExt,
 };
 
@@ -65,6 +71,7 @@ impl ConnectorCommon for Signifyd {
         connectors.signifyd.base_url.as_ref()
     }
 
+    #[cfg(feature = "frm")]
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
