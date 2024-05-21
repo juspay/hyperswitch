@@ -8,22 +8,23 @@ use thiserror::Error;
 use crate::fp_utils::when;
 
 /// This functions checks for the input string to contain valid characters
-/// Returns true if the string is valid or else false
-fn validate_alphanumeric_id(input_string: Cow<'static, str>) -> bool {
+/// Returns Some(char) if there are any invalid characters, else None
+fn get_invlaid_input_charcter(input_string: Cow<'static, str>) -> Option<char> {
     input_string
         .trim()
         .chars()
-        .all(|char| char.is_alphanumeric() || matches!(char, '_' | '-'))
+        .filter(|char| !char.is_ascii_alphanumeric() && !matches!(char, '_' | '-'))
+        .next()
 }
 
 #[derive(Debug, PartialEq, Serialize, Clone, Eq)]
 /// A type for alphanumeric ids
 pub struct AlphaNumericId(String);
 
-#[derive(Debug, Deserialize, Serialize, Error)]
-#[error("contains invalid characters, allowed characters are alphanumeric, _ and -")]
+#[derive(Debug, Deserialize, Serialize, Error, Eq, PartialEq)]
+#[error("value `{0}` contains invalid character `{1}`")]
 /// The error type for alphanumeric id
-pub struct AlphaNumericIdError;
+pub struct AlphaNumericIdError(String, char);
 
 impl<'de> Deserialize<'de> for AlphaNumericId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -38,9 +39,15 @@ impl<'de> Deserialize<'de> for AlphaNumericId {
 impl AlphaNumericId {
     /// Creates a new alphanumeric id from string
     pub fn new(input_string: Cow<'static, str>) -> Result<Self, AlphaNumericIdError> {
-        when(!validate_alphanumeric_id(input_string.clone()), || {
-            Err(AlphaNumericIdError)
-        })?;
+        let invalid_character = get_invlaid_input_charcter(input_string.clone());
+        println!("hola {invalid_character:?}");
+
+        if let Some(invalid_character) = invalid_character {
+            Err(AlphaNumericIdError(
+                input_string.to_string(),
+                invalid_character,
+            ))?
+        }
 
         Ok(Self(input_string.to_string()))
     }
@@ -67,7 +74,7 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deref
 }
 
 /// Error genereted from violation of constraints for MerchantReferenceId
-#[derive(Debug, Deserialize, Serialize, Error)]
+#[derive(Debug, Deserialize, Serialize, Error, PartialEq, Eq)]
 pub enum MerchantReferenceIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
     #[error("the maximum allowed length for this field is {MAX_LENGTH}")]
     /// Maximum length of string violated
@@ -83,8 +90,8 @@ pub enum MerchantReferenceIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
 }
 
 impl From<AlphaNumericIdError> for MerchantReferenceIdError<0, 0> {
-    fn from(_alphanumeric_id_error: AlphaNumericIdError) -> Self {
-        Self::AlphanumericIdError(AlphaNumericIdError)
+    fn from(alphanumeric_id_error: AlphaNumericIdError) -> Self {
+        Self::AlphanumericIdError(alphanumeric_id_error)
     }
 }
 
@@ -206,16 +213,20 @@ mod merchant_reference_id_tests {
     }
 
     #[test]
-    fn test_invalid_ref_id_error_type() {
-        let parsed_merchant_reference_id =
-            MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::new(INVALID_REF_ID_JSON.into());
+    fn test_invalid_ref_id_error_message() {
+        let parsed_merchant_reference_id = serde_json::from_str::<
+            MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>,
+        >(INVALID_REF_ID_JSON);
 
-        assert!(
-            parsed_merchant_reference_id.is_err_and(|error_type| matches!(
-                error_type,
-                MerchantReferenceIdError::AlphanumericIdError(AlphaNumericIdError)
-            ))
-        );
+        let expected_error_message =
+            r#"value `cus abcdefghijklmnopqrstuv` contains invalid character ` `"#;
+
+        let error_message = parsed_merchant_reference_id
+            .err()
+            .map(|error| error.to_string())
+            .unwrap();
+
+        assert_eq!(error_message, expected_error_message);
     }
 
     #[test]
