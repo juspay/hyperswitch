@@ -14,6 +14,8 @@ use router_env::{instrument, tracing};
 use self::transformers as payone;
 #[cfg(feature = "payouts")]
 use crate::services;
+#[cfg(feature = "payouts")]
+use crate::utils::get_current_date_time_in_rfc1123_format;
 use crate::{
     configs::settings,
     consts,
@@ -31,8 +33,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-#[cfg(feature = "payouts")]
-use crate::utils::get_current_date_time_in_rfc1123_format;
 #[derive(Debug, Clone)]
 pub struct Payone;
 
@@ -167,19 +167,17 @@ impl ConnectorCommon for Payone {
         router_env::logger::info!(connector_response=?response);
 
         match response.errors {
-            Some(errors) => 
-            {
+            Some(errors) => {
                 let first_error = errors.first();
-                let code = first_error.map(|error| error.code.clone());  
+                let code = first_error.map(|error| error.code.clone());
                 Ok(ErrorResponse {
-                    status_code:res.status_code,
+                    status_code: res.status_code,
                     code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: 
-                        errors
-                            .iter()
-                            .map(|error| format!("{} : {}", error.code, error.message))
-                            .collect::<Vec<_>>()
-                            .join(", "),
+                    message: errors
+                        .iter()
+                        .map(|error| format!("{} : {}", error.code, error.message))
+                        .collect::<Vec<_>>()
+                        .join(", "),
                     reason: Some(
                         errors
                             .iter()
@@ -190,19 +188,16 @@ impl ConnectorCommon for Payone {
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
-            },
-          None => {
-            Ok(ErrorResponse {
-                status_code:res.status_code,
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: None,
-                    attempt_status: None,
-                    connector_transaction_id: None,
             }
-        )
+            None => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
         }
-    }
     }
 }
 impl ConnectorValidation for Payone {}

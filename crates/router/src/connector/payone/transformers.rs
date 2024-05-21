@@ -6,8 +6,7 @@ use cards::CardNumber;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-// #[cfg(feature = "payouts")]
-use serde_repr::{Serialize_repr, Deserialize_repr};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer};
 
@@ -16,27 +15,23 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{ CardData, RouterData},
+    connector::utils::{CardData, RouterData},
     core::errors,
     types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 #[cfg(not(feature = "payouts"))]
-use crate::{core::errors, types::{self,api,storage::enums as storage_enums}};
+use crate::{
+    core::errors,
+    types::{self, api, storage::enums as storage_enums},
+};
 
 pub struct PayoneRouterData<T> {
-    pub amount:i64,
+    pub amount: i64,
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &api::CurrencyUnit,
-        storage_enums::Currency,
-        i64,
-        T,
-    )> for PayoneRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, storage_enums::Currency, i64, T)> for PayoneRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
@@ -126,13 +121,6 @@ pub struct Card {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OmnichannelPayoutSpecificInput {
-    payment_id: String,
-}
-
-#[cfg(feature = "payouts")]
 impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
     for PayonePayoutFulfillRequest
 {
@@ -147,27 +135,34 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
                     amount: item.amount,
                     currency_code: item.router_data.request.destination_currency.to_string(),
                 };
-                let card_payout_method_specific_input = match item.router_data.get_payout_method_data()?{
-                    PayoutMethodData::Card(card_data) => {
-                        CardPayoutMethodSpecificInput{
-                            card: Card {
-                                card_number: card_data.card_number.clone(),
-                                card_holder_name: card_data
-                                    .card_holder_name
-                                    .clone()
-                                    .get_required_value("card_holder_name")
-                                    .change_context(errors::ConnectorError::MissingRequiredField {
-                                        field_name: "payout_method_data.card.holder_name",
-                                    })?,
-                                expiry_date: card_data.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
-                            },
-                            payment_product_id: PaymentProductId::try_from(card_data.get_card_issuer()?)? ,  
-                        }
+                let card_payout_method_specific_input = match item
+                    .router_data
+                    .get_payout_method_data()?
+                {
+                    PayoutMethodData::Card(card_data) => CardPayoutMethodSpecificInput {
+                        card: Card {
+                            card_number: card_data.card_number.clone(),
+                            card_holder_name: card_data
+                                .card_holder_name
+                                .clone()
+                                .get_required_value("card_holder_name")
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "payout_method_data.card.holder_name",
+                                })?,
+                            expiry_date: card_data
+                                .get_card_expiry_month_year_2_digit_with_delimiter(
+                                    "".to_string(),
+                                )?,
+                        },
+                        payment_product_id: PaymentProductId::try_from(
+                            card_data.get_card_issuer()?,
+                        )?,
                     },
-                    PayoutMethodData::Bank(_) |
-                    PayoutMethodData::Wallet(_) =>  Err(errors::ConnectorError::NotImplemented(
-                        get_unimplemented_payment_method_error_message("Payout"),
-                    ))?
+                    PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            get_unimplemented_payment_method_error_message("Payout"),
+                        ))?
+                    }
                 };
                 Ok(Self {
                     amount_of_money,
@@ -185,7 +180,7 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
 #[repr(i32)]
 pub enum PaymentProductId {
     Visa = 1,
-    MasterCard =3,
+    MasterCard = 3,
 }
 
 impl TryFrom<CardIssuer> for PaymentProductId {
@@ -194,12 +189,12 @@ impl TryFrom<CardIssuer> for PaymentProductId {
         match issuer {
             CardIssuer::Master => Ok(Self::MasterCard),
             CardIssuer::Visa => Ok(Self::Visa),
-            CardIssuer::AmericanExpress |
-            CardIssuer::Maestro |
-            CardIssuer::Discover |
-            CardIssuer::DinersClub |
-            CardIssuer::JCB|
-            CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotImplemented(
+            CardIssuer::AmericanExpress
+            | CardIssuer::Maestro
+            | CardIssuer::Discover
+            | CardIssuer::DinersClub
+            | CardIssuer::JCB
+            | CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("payone"),
             )
             .into()),
@@ -243,7 +238,7 @@ impl ForeignFrom<PayoneStatus> for storage_enums::PayoutStatus {
     fn foreign_from(payone_status: PayoneStatus) -> Self {
         match payone_status {
             PayoneStatus::AccountCredited => Self::Success,
-            PayoneStatus::RejectedCredit | PayoneStatus::Rejected |
+            PayoneStatus::RejectedCredit | PayoneStatus::Rejected => Self::Failed,
             PayoneStatus::Cancelled | PayoneStatus::Reversed => Self::Cancelled,
             PayoneStatus::Created
             | PayoneStatus::PendingApproval
