@@ -247,17 +247,17 @@ pub trait AmountConvertor: Send {
     ) -> Result<MinorUnit, ParseFloatError>;
 }
 
-/// Connector required amount type 
+/// Connector required amount type
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct StringMajorUnitForConnector;
 
 impl AmountConvertor for StringMajorUnitForConnector {
     type Output = StringMajorUnit;
     fn convert(
-            &self,
-            i: MinorUnit,
-            currency: enums::Currency,
-        ) -> Result<Self::Output, TryFromIntError> {
+        &self,
+        i: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, TryFromIntError> {
         i.to_major_unit_as_string(currency)
     }
 
@@ -270,7 +270,7 @@ impl AmountConvertor for StringMajorUnitForConnector {
     }
 }
 
-/// Connector required amount type 
+/// Connector required amount type
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct FloatMajorUnitForConnector;
 
@@ -291,10 +291,6 @@ impl AmountConvertor for FloatMajorUnitForConnector {
         i.to_minor_unit_as_i64(currency)
     }
 }
-
-
-
-
 
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
@@ -438,7 +434,6 @@ impl Sub for MinorUnit {
     }
 }
 
-
 /// Connector specific types to send
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
@@ -466,7 +461,6 @@ impl FloatMajorUnit {
         Ok(MinorUnit::new(amount as i64))
     }
 }
-
 
 /// Connector specific types to send
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
