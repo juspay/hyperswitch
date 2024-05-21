@@ -44,7 +44,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
     #[inline]
     async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
-        logger::debug!("Started on message");
+        logger::debug!("Started on message: {:?}", self.tenant);
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
             logger::debug!("Invalidating {message:?}");

@@ -71,7 +71,8 @@ where
                 db_conf,
                 schema,
                 encryption_key,
-                Self::cache_store(&cache_conf, cache_error_signal, inmemory_cache_stream).await?,
+                Self::cache_store(&cache_conf, cache_error_signal).await?,
+                inmemory_cache_stream,
             )
             .await
             .attach_printable("failed to create store")
@@ -97,15 +98,22 @@ impl<T: DatabaseStore> RouterStore<T> {
         schema: &str,
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
+        inmemory_cache_stream: &str,
     ) -> StorageResult<Self> {
         let db_store = T::new(db_conf, schema, false).await?;
         let redis_conn = cache_store.redis_conn.clone();
+        let cache_store = Arc::new(RedisStore {
+            redis_conn: Arc::new(RedisConnectionPool::clone(&redis_conn, schema)),
+        });
+        cache_store
+            .subscribe_to_channel(inmemory_cache_stream)
+            .await
+            .change_context(StorageError::InitializationError)
+            .attach_printable("Failed to subscribe to inmemory cache stream")?;
 
         Ok(Self {
             db_store,
-            cache_store: Arc::new(RedisStore {
-                redis_conn: Arc::new(RedisConnectionPool::clone(&redis_conn, schema)),
-            }),
+            cache_store,
             master_encryption_key: encryption_key,
             request_id: None,
         })
@@ -114,18 +122,12 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn cache_store(
         cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
-        inmemory_cache_stream: &str,
     ) -> StorageResult<Arc<RedisStore>> {
         let cache_store = RedisStore::new(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("Failed to create cache store")?;
         cache_store.set_error_callback(cache_error_signal);
-        cache_store
-            .subscribe_to_channel(inmemory_cache_stream)
-            .await
-            .change_context(StorageError::InitializationError)
-            .attach_printable("Failed to subscribe to inmemory cache stream")?;
         Ok(Arc::new(cache_store))
     }
 
