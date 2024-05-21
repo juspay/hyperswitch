@@ -687,14 +687,15 @@ pub(crate) async fn frm_incoming_webhook_flow(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
     object_ref_id: api::ObjectReferenceId,
+    business_profile: diesel_models::business_profile::BusinessProfile,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let payment_attempt =
             get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_account)
                 .await?;
-        match event_type {
+        let payment_response = match event_type {
             webhooks::IncomingWebhookEvent::FrmApproved => {
-                let payments_response = Box::pin(payments::payments_core::<
+                Box::pin(payments::payments_core::<
                     api::Capture,
                     api::PaymentsResponse,
                     _,
@@ -716,28 +717,10 @@ pub(crate) async fn frm_incoming_webhook_flow(
                     None,
                     HeaderPayload::default(),
                 ))
-                .await?;
-                match payments_response {
-                    services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                        let payment_id = payments_response
-                            .payment_id
-                            .clone()
-                            .get_required_value("payment_id")
-                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("payment id not received from payments core")?;
-                        let status = payments_response.status;
-                        let _event_type: Option<enums::EventType> =
-                            payments_response.status.foreign_into();
-                        let response = WebhookResponseTracker::Payment { payment_id, status };
-                        Ok(response)
-                    }
-                    _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-                        "Did not get payment id as object reference id in webhook payments flow",
-                    )?,
-                }
+                .await?
             }
             webhooks::IncomingWebhookEvent::FrmRejected => {
-                let payments_response = Box::pin(payments::payments_core::<
+                Box::pin(payments::payments_core::<
                     api::Void,
                     api::PaymentsResponse,
                     _,
@@ -761,27 +744,42 @@ pub(crate) async fn frm_incoming_webhook_flow(
                     None,
                     HeaderPayload::default(),
                 ))
-                .await?;
-                match payments_response {
-                    services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                        let payment_id = payments_response
-                            .payment_id
-                            .clone()
-                            .get_required_value("payment_id")
-                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("payment id not received from payments core")?;
-                        let status = payments_response.status;
-                        let _event_type: Option<enums::EventType> =
-                            payments_response.status.foreign_into();
-                        let response = WebhookResponseTracker::Payment { payment_id, status };
-                        Ok(response)
-                    }
-                    _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-                        "Did not get payment id as object reference id in webhook payments flow",
-                    )?,
-                }
+                .await?
             }
-            _ => Err(report!(errors::ApiErrorResponse::EventNotFound)),
+            _ => Err(errors::ApiErrorResponse::EventNotFound)?,
+        };
+        match payment_response {
+            services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
+                let payment_id = payments_response
+                    .payment_id
+                    .clone()
+                    .get_required_value("payment_id")
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("payment id not received from payments core")?;
+                let status = payments_response.status;
+                let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+                if let Some(outgoing_event_type) = event_type {
+                    let primary_object_created_at = payments_response.created;
+                    create_event_and_trigger_outgoing_webhook(
+                        state,
+                        merchant_account,
+                        business_profile,
+                        &key_store,
+                        outgoing_event_type,
+                        enums::EventClass::Payments,
+                        payment_id.clone(),
+                        enums::EventObjectType::PaymentDetails,
+                        api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                        primary_object_created_at,
+                    )
+                    .await?;
+                };
+                let response = WebhookResponseTracker::Payment { payment_id, status };
+                Ok(response)
+            }
+            _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+                "Did not get payment id as object reference id in webhook payments flow",
+            )?,
         }
     } else {
         logger::error!("Webhook source verification failed for frm webhooks flow");
@@ -1950,6 +1948,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 source_verified,
                 event_type,
                 object_ref_id,
+                business_profile,
             ))
             .await
             .attach_printable("Incoming webhook flow for external authentication failed")?,
