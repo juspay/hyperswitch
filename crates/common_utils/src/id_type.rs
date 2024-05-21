@@ -13,8 +13,7 @@ fn get_invlaid_input_charcter(input_string: Cow<'static, str>) -> Option<char> {
     input_string
         .trim()
         .chars()
-        .filter(|char| !char.is_ascii_alphanumeric() && !matches!(char, '_' | '-'))
-        .next()
+        .find(|char| !char.is_ascii_alphanumeric() && !matches!(char, '_' | '-'))
 }
 
 #[derive(Debug, PartialEq, Serialize, Clone, Eq)]
