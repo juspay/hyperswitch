@@ -86,11 +86,6 @@ impl IntoDirValue for ast::ConnectorChoice {
         Ok(dir::DirValue::Connector(Box::new(self)))
     }
 }
-impl IntoDirValue for api_enums::Country {
-    fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
-        Ok(dir::DirValue::BillingCountry(self))
-    }
-}
 
 impl IntoDirValue for api_enums::PaymentMethod {
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {

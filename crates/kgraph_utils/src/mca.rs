@@ -439,9 +439,8 @@ fn compile_graph_for_countries_and_currencies(
     if let Some(country) = config.country.clone() {
         let node_country = country
             .into_iter()
-            .map(api_enums::Country::from_alpha2)
-            .map(IntoDirValue::into_dir_value)
-            .collect::<Result<Vec<_>, _>>()?;
+            .map(|country| dir::DirValue::BillingCountry(api_enums::Country::from_alpha2(country)))
+            .collect();
         let country_agg = builder
             .make_in_aggregator(node_country, Some("Configs for Country"), None::<()>)
             .map_err(KgraphError::GraphConstructionError)?;
@@ -505,8 +504,8 @@ fn compile_config_graph(
         .or(config.default_configs.as_ref())
         .map(|inner| inner.0.clone())
     {
-        for (pm_filter_key, currency_country_filter_value) in pmt {
-            match (pm_filter_key, currency_country_filter_value) {
+        for pm_filter_key in pmt {
+            match pm_filter_key {
                 (kgraph_types::PaymentMethodFilterKey::PaymentMethodType(pm), filter) => {
                     let dir_val_pm = get_dir_value_payment_method(pm)?;
 
