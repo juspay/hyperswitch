@@ -131,9 +131,10 @@ fn get_pm_and_subsequent_auth_detail(
     item: &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<
     (
-        PaymentDetails,
+        Option<PaymentDetails>,
         Option<ProcessingOptions>,
         Option<SubsequentAuthInformation>,
+        Option<CustomerProfileDetails>,
     ),
     error_stack::Report<errors::ConnectorError>,
 > {
@@ -159,7 +160,12 @@ fn get_pm_and_subsequent_auth_detail(
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
                     });
-                    Ok((payment_details, processing_options, subseuent_auth_info))
+                    Ok((
+                        Some(payment_details),
+                        processing_options,
+                        subseuent_auth_info,
+                        None,
+                    ))
                 }
                 domain::PaymentMethodData::CardRedirect(_)
                 | domain::PaymentMethodData::Wallet(_)
@@ -180,27 +186,52 @@ fn get_pm_and_subsequent_auth_detail(
                 }
             }
         }
-        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
+        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+            connector_mandate_id,
+        )) => Ok((
+            None,
+            Some(ProcessingOptions {
+                is_subsequent_auth: true,
+            }),
+            None,
+            Some(CustomerProfileDetails {
+                customer_profile_id: Secret::from(
+                    connector_mandate_id
+                        .connector_mandate_id
+                        .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                ),
+                payment_profile: PaymentProfileDetails {
+                    payment_profile_id: Secret::from(
+                        connector_mandate_id
+                            .payment_method_id
+                            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                    ),
+                },
+            }),
+        )),
+        None => {
             match item.router_data.request.payment_method_data {
                 domain::PaymentMethodData::Card(ref ccard) => {
                     Ok((
-                        PaymentDetails::CreditCard(CreditCardDetails {
+                        Some(PaymentDetails::CreditCard(CreditCardDetails {
                             card_number: (*ccard.card_number).clone(),
                             // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
                             expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                             card_code: Some(ccard.card_cvc.clone()),
-                        }),
+                        })),
                         Some(ProcessingOptions {
                             is_subsequent_auth: true,
                         }),
                         None,
+                        None,
                     ))
                 }
                 domain::PaymentMethodData::Wallet(ref wallet_data) => Ok((
-                    get_wallet_data(
+                    Some(get_wallet_data(
                         wallet_data,
                         &item.router_data.request.complete_authorize_url,
-                    )?,
+                    )?),
+                    None,
                     None,
                     None,
                 )),
@@ -231,13 +262,30 @@ struct TransactionRequest {
     transaction_type: TransactionType,
     amount: f64,
     currency_code: String,
-    payment: PaymentDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    profile: Option<CustomerProfileDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payment: Option<PaymentDetails>,
     order: Order,
+    #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct CustomerProfileDetails {
+    customer_profile_id: Secret<String>,
+    payment_profile: PaymentProfileDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct PaymentProfileDetails {
+    payment_profile_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -527,7 +575,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let (payment_details, processing_options, subsequent_auth_information) =
+        let (payment_details, processing_options, subsequent_auth_information, profile) =
             get_pm_and_subsequent_auth_detail(item)?;
         let authorization_indicator_type = match item.router_data.request.capture_method {
             Some(capture_method) => Some(AuthorizationIndicator {
@@ -535,23 +583,27 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             }),
             None => None,
         };
-        let bill_to = item
-            .router_data
-            .get_optional_billing()
-            .and_then(|billing_address| billing_address.address.as_ref())
-            .map(|address| BillTo {
-                first_name: address.first_name.clone(),
-                last_name: address.last_name.clone(),
-                address: address.line1.clone(),
-                city: address.city.clone(),
-                state: address.state.clone(),
-                zip: address.zip.clone(),
-                country: address.country,
-            });
+        let bill_to = match profile {
+            Some(_) => None,
+            None => item
+                .router_data
+                .get_optional_billing()
+                .and_then(|billing_address| billing_address.address.as_ref())
+                .map(|address| BillTo {
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
+                    address: address.line1.clone(),
+                    city: address.city.clone(),
+                    state: address.state.clone(),
+                    zip: address.zip.clone(),
+                    country: address.country,
+                }),
+        };
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
             currency_code: item.router_data.request.currency.to_string(),
+            profile,
             payment: payment_details,
             order: Order {
                 description: item.router_data.connector_request_reference_id.clone(),

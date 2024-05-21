@@ -422,14 +422,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        let connector_req = match connector_router_data
-            .router_data
-            .request
-            .connector_mandate_id()
-        {
-            None => authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?,
-            Some(_) => todo!(),
-        };
+        let connector_req =
+            authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
