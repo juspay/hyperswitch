@@ -76,7 +76,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "no_three_ds", "manual", globalState);
-            if(should_continue) should_continue = utils.hould_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("payment_methods-call-test", () => {
