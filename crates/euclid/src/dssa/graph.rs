@@ -793,7 +793,9 @@ mod test {
             )
             .expect("Failed to make edge");
         let _node_1 = graph.make_value_node(
-            cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(enums::CaptureMethod::Automatic)),
+            cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(
+                enums::CaptureMethod::Automatic,
+            )),
             None,
             None::<()>,
         );
@@ -817,7 +819,10 @@ mod test {
             )
             .expect("Failed to make edge");
         let build_graph = graph.build();
-        println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>CG is \n {:?} \n", build_graph.get_viz_digraph_string());
+        println!(
+            ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>CG is \n {:?} \n",
+            build_graph.get_viz_digraph_string()
+        );
 
         let memo = &mut cgraph::Memoization::new();
         let result = build_graph.key_value_analysis(
