@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.21.1
+
+### Features
+
+- **Cypress:** Add response handler for Connector Testing ([#4624](https://github.com/juspay/hyperswitch/pull/4624)) ([`2e79ee0`](https://github.com/juspay/hyperswitch/commit/2e79ee0615292182111586fda7655dd9a796ef4f))
+- **constraint_graph:** Add visualization functionality to the constraint graph ([#4701](https://github.com/juspay/hyperswitch/pull/4701)) ([`0f53f74`](https://github.com/juspay/hyperswitch/commit/0f53f74d26e829602519998c41a460dc9a4809af))
+
+### Refactors
+
+- **core:** Add support to enable pm_data and pm_id in payments response ([#4711](https://github.com/juspay/hyperswitch/pull/4711)) ([`2cd360e`](https://github.com/juspay/hyperswitch/commit/2cd360e6a9d6bbe4b91f7b501b6013db1f31d898))
+- **router:** Added a new type minor unit to amount ([#4629](https://github.com/juspay/hyperswitch/pull/4629)) ([`443b7e6`](https://github.com/juspay/hyperswitch/commit/443b7e6ea2cf63f35a28a1cd24860399d96b15ba))
+
+**Full Changelog:** [`2024.05.21.0...2024.05.21.1`](https://github.com/juspay/hyperswitch/compare/2024.05.21.0...2024.05.21.1)
+
+- - -
+
 ## 2024.05.21.0
 
 ### Features
