@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -12,13 +13,13 @@ pub struct Capture {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::CaptureStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub connector: String,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
-    pub tax_amount: Option<i64>,
+    pub tax_amount: Option<MinorUnit>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -37,13 +38,13 @@ pub struct CaptureNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::CaptureStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub connector: String,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
-    pub tax_amount: Option<i64>,
+    pub tax_amount: Option<MinorUnit>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]

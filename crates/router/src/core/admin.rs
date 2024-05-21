@@ -1427,6 +1427,36 @@ pub async fn kv_for_merchant(
     ))
 }
 
+pub async fn toggle_kv_for_all_merchants(
+    state: AppState,
+    enable: bool,
+) -> RouterResponse<api_models::admin::ToggleAllKVResponse> {
+    let db = state.store.as_ref();
+    let storage_scheme = if enable {
+        MerchantStorageScheme::RedisKv
+    } else {
+        MerchantStorageScheme::PostgresOnly
+    };
+
+    let total_update = db
+        .update_all_merchant_account(storage::MerchantAccountUpdate::StorageSchemeUpdate {
+            storage_scheme,
+        })
+        .await
+        .map_err(|error| {
+            error
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to switch merchant_storage_scheme for all merchants")
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ToggleAllKVResponse {
+            total_updated: total_update,
+            kv_enabled: enable,
+        },
+    ))
+}
+
 pub async fn check_merchant_account_kv_status(
     state: AppState,
     merchant_id: String,
