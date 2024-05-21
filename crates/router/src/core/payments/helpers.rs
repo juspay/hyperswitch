@@ -3934,7 +3934,7 @@ pub fn get_applepay_metadata(
         })
 }
 
-pub async fn apple_pay_retryable_connector<F>(
+pub async fn get_apple_pay_retryable_connectors<F>(
     state: AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
@@ -3945,12 +3945,21 @@ pub async fn apple_pay_retryable_connector<F>(
 where
     F: Send + Clone,
 {
+    let profile_id = &payment_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profiel_id",
+        })?;
+
     let merchant_connector_account = get_merchant_connector_account(
         &state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
-        &payment_data.payment_intent.profile_id.clone().unwrap(),
+        profile_id, // need to fix this
         &decided_connector_data.connector_name.to_string(),
         #[cfg(feature = "connector_choice_mca_id")]
         merchant_connector_id,
