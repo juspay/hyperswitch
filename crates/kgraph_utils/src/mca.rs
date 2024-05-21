@@ -377,7 +377,7 @@ fn compile_config_graph(
     connector: &api_enums::RoutableConnectors,
 ) -> Result<cgraph::NodeId, KgraphError> {
     let mut agg_node_id: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
-    let mut in_agg_pmt: Vec<dir::DirValue> = Vec::new();
+    let mut pmt_enabled: Vec<dir::DirValue> = Vec::new();
     if let Some(pmt) = config
         .connector_configs
         .get(connector)
@@ -388,7 +388,7 @@ fn compile_config_graph(
             match key {
                 PaymentMethodFilterKey::PaymentMethodType(pm) => {
                     let dir_val_pm = pm.into_dir_value().map(Into::into)?;
-                    in_agg_pmt.push(dir_val_pm);
+                    pmt_enabled.push(dir_val_pm);
                     let pmt_id = builder.make_value_node(
                         pm.into_dir_value().map(Into::into)?,
                         Some("PaymentMethodType"),
@@ -411,7 +411,7 @@ fn compile_config_graph(
                 }
                 PaymentMethodFilterKey::CardNetwork(cn) => {
                     let dir_val_cn = cn.clone().into_dir_value()?;
-                    in_agg_pmt.push(dir_val_cn);
+                    pmt_enabled.push(dir_val_cn);
                     let cn_id = builder.make_value_node(
                         cn.clone().into_dir_value().map(Into::into)?,
                         Some("CardNetwork"),
@@ -435,7 +435,7 @@ fn compile_config_graph(
             }
         }
     }
-    let global_vector_pmt: Vec<cgraph::NodeId> = global_vec_pmt(in_agg_pmt, builder);
+    let global_vector_pmt: Vec<cgraph::NodeId> = global_vec_pmt(pmt_enabled, builder);
     let any_agg_pmt: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = global_vector_pmt
         .into_iter()
         .map(|node| (node, cgraph::Relation::Positive, cgraph::Strength::Normal))

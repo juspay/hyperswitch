@@ -1,8 +1,6 @@
 use std::sync::{Arc, Weak};
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::Deserialize;
-use serde_json::json;
 
 use crate::{
     builder,
