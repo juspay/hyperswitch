@@ -39,9 +39,7 @@ pub enum IncomingWebhookEvent {
     MandateRevoked,
     EndpointVerification,
     ExternalAuthenticationARes,
-    #[cfg(feature = "frm")]
     FrmApproved,
-    #[cfg(feature = "frm")]
     FrmRejected,
 }
 
@@ -54,7 +52,6 @@ pub enum WebhookFlow {
     BankTransfer,
     Mandate,
     ExternalAuthentication,
-    #[cfg(feature = "frm")]
     FraudCheck,
 }
 

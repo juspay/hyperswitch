@@ -125,7 +125,7 @@ impl ConnectorCommon for Riskified {
         Ok(ErrorResponse {
             status_code: res.status_code,
             attempt_status: None,
-            code: crate::consts::NO_ERROR_CODE.to_string(),
+            code: consts::NO_ERROR_CODE.to_string(),
             message: response.error.message.clone(),
             reason: None,
             connector_transaction_id: None,
@@ -285,14 +285,10 @@ impl
                 let req_obj = riskified::TransactionFailedRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
-            Some(true) => {
+            _ => {
                 let req_obj = riskified::TransactionSuccessRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
-            None => Err(errors::ConnectorError::FlowNotSupported {
-                flow: "Transaction".to_owned(),
-                connector: req.connector.to_owned(),
-            })?,
         }
     }
 
