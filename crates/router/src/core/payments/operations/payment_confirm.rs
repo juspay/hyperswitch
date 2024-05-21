@@ -1,6 +1,10 @@
 use std::marker::PhantomData;
 
-use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
+use api_models::{
+    admin::ExtendedCardInfoConfig,
+    enums::FrmSuggestion,
+    payments::{AdditionalCardInfo, AdditionalPaymentData, ExtendedCardInfo},
+};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use error_stack::{report, ResultExt};
@@ -17,6 +21,7 @@ use crate::{
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        payment_methods::cards,
         payments::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
@@ -1035,6 +1040,26 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
+        let key = key_store.key.get_inner().peek();
+
+        let card_detail_from_locker = payment_data
+            .payment_method_info
+            .as_ref()
+            .async_map(|pm| async move {
+                cards::get_card_details_without_locker_fallback(pm, key, state).await
+            })
+            .await
+            .transpose()?;
+
+        let additional_data: Option<AdditionalCardInfo> = card_detail_from_locker.map(From::from);
+
+        let encode_additional_pm_to_value = additional_data
+            .map(|additional_data| AdditionalPaymentData::Card(Box::new(additional_data)))
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;
@@ -1079,12 +1104,20 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .or(payment_data.payment_attempt.client_version.clone());
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
-        let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
+        let m_payment_method_id =
+            payment_data
+                .payment_attempt
+                .payment_method_id
+                .clone()
+                .or(payment_data
+                    .payment_method_info
+                    .as_ref()
+                    .map(|payment_method| payment_method.payment_method_id.clone()));
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
         let m_capture_method = capture_method;
         let m_payment_token = payment_token.clone();
-        let m_additional_pm_data = additional_pm_data.clone();
+        let m_additional_pm_data = additional_pm_data.clone().or(encode_additional_pm_to_value);
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
