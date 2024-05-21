@@ -2941,7 +2941,6 @@ pub async fn filter_payment_methods(
                     let context = euclid::dssa::graph::AnalysisContext::from_dir_values(
                         context_values.clone(),
                     );
-                    println!(">>>>>>>>>>>>>>>>>>> The context is  {:?}", context_values);
 
                     let result = graph.key_value_analysis(
                         pm_dir_value.clone(),
@@ -2950,7 +2949,6 @@ pub async fn filter_payment_methods(
                         &mut cgraph::CycleCheck::new(),
                         None,
                     );
-                    println!(">>>>>>>>>>>>>>>>>>> The result is  {:?}", result);
                     if filter_pm_based_on_allowed_types
                         && filter_incorrect_client_secret
                         && result.is_ok()
