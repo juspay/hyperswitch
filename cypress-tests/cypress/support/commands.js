@@ -156,12 +156,10 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
-    if(response.status === "200"){
-      
-    }
-    expect(response.body).to.have.property("client_secret");
-    const clientSecret = response.body.client_secret;
-    if(response.status === "200"){
+    
+    if(response.status === 200){
+      expect(response.body).to.have.property("client_secret");
+      const clientSecret = response.body.client_secret;
       globalState.set("clientSecret", clientSecret);
       globalState.set("paymentID", response.body.payment_id);
       cy.log(clientSecret);
@@ -171,6 +169,12 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
       expect(request.amount).to.equal(response.body.amount);
       expect(null).to.equal(response.body.amount_received);
       expect(request.amount).to.equal(response.body.amount_capturable);
+    }
+    else {
+      expect(response.body).to.have.property("error");
+      for(const key in res_data.body.error) {
+        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+      }
     }
   });
 });
@@ -218,32 +222,34 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
 
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
-    globalState.set("paymentID", paymentIntentID);
-    if (response.body.capture_method === "automatic") {
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-          .to.have.property("redirect_to_url");
-        globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
-      } else if (response.body.authentication_type === "no_three_ds") {
-        for(const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+    if(response.status === 200){
+      globalState.set("paymentID", paymentIntentID);
+      if (response.body.capture_method === "automatic") {
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+            .to.have.property("redirect_to_url");
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
+        } else if (response.body.authentication_type === "no_three_ds") {
+          for(const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          // Handle other authentication types as needed
+          throw new Error(`Unsupported authentication type: ${authentication_type}`);
         }
-      } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
-      }
-    } else if (response.body.capture_method === "manual") {
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-          .to.have.property("redirect_to_url")
-        globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
-      }
-      else if (response.body.authentication_type === "no_three_ds") {
-        for(const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
-        }      } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+      } else if (response.body.capture_method === "manual") {
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+            .to.have.property("redirect_to_url")
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
+        }
+        else if (response.body.authentication_type === "no_three_ds") {
+          for(const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }      } else {
+          // Handle other authentication types as needed
+          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        }
       }
     }
     else {
@@ -252,6 +258,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
         expect(res_data.body.error[key]).to.equal(response.body.error[key]);
       }
     }
+    
   });
 });
 
@@ -279,7 +286,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
 
-    if(response.status === "200"){
+    if(response.status === 200){
       if (response.body.capture_method === "automatic") {
         expect(response.body).to.have.property("status");
         globalState.set("paymentAmount", createConfirmPaymentBody.amount);
@@ -348,7 +355,7 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, 
       expect(res_data.status).to.equal(response.status);
       expect(response.headers["content-type"]).to.include("application/json");
       globalState.set("paymentID", paymentIntentID);
-      if(response.status === "200"){
+      if(response.status === 200){
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body).to.have.property("next_action")
@@ -491,7 +498,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, req_data, res_data, refund_
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     
-    if(response.body.status !== undefined) {
+    if(response.status === 200) {
       globalState.set("refundId", response.body.refund_id);
       for(const key in res_data.body) {
         expect(res_data.body[key]).to.equal(response.body[key]);
@@ -554,31 +561,33 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
     globalState.set("mandateId", response.body.mandate_id);
     globalState.set("paymentID", response.body.payment_id);
 
-    if (response.body.capture_method === "automatic") {
-      expect(response.body).to.have.property("mandate_id");
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-          .to.have.property("redirect_to_url");
-        const nextActionUrl = response.body.next_action.redirect_to_url;
-        globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
-        cy.log(response.body);
-        cy.log(nextActionUrl);
-      } else if (response.body.authentication_type === "no_three_ds") {
+    if(response.status === 200) {
+      if (response.body.capture_method === "automatic") {
+        expect(response.body).to.have.property("mandate_id");
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+            .to.have.property("redirect_to_url");
+          const nextActionUrl = response.body.next_action.redirect_to_url;
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
+          cy.log(response.body);
+          cy.log(nextActionUrl);
+        } else if (response.body.authentication_type === "no_three_ds") {
+          for(const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }
+        } 
         for(const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
         }
-      } 
-      for(const key in res_data.body) {
-        expect(res_data.body[key]).to.equal(response.body[key]);
       }
-    }
-    else if (response.body.capture_method === "manual") {
-      expect(response.body).to.have.property("mandate_id");
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-      }
-      for(const key in res_data.body) {
-        expect(res_data.body[key]).to.equal(response.body[key]);
+      else if (response.body.capture_method === "manual") {
+        expect(response.body).to.have.property("mandate_id");
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+        }
+        for(const key in res_data.body) {
+          expect(res_data.body[key]).to.equal(response.body[key]);
+        }
       }
     }
     else{
@@ -587,7 +596,6 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
         expect(res_data.body.error[key]).to.equal(response.body.error[key]);
       }
     }
-
   });
 });
 

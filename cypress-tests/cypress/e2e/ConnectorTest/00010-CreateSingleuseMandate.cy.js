@@ -3,6 +3,7 @@ import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import State from "../../utils/State";
 import getConnectorDetails from "../ConnectorUtils/utils";
+import * as utils from "../ConnectorUtils/utils";
 
 let globalState;
 
@@ -37,7 +38,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let res_data = data["Response"];
             console.log("det -> " + data.card);
             cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 7000, true, "automatic", "new_mandate", globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -61,7 +62,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let res_data = data["Response"];
             console.log("det -> " + data.card);
             cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 6500, true, "manual", "new_mandate", globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("cit-capture-call-test", () => {
@@ -70,7 +71,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let res_data = data["Response"];
             console.log("det -> " + data.card);
             cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -83,7 +84,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let res_data = data["Response"];
             console.log("det -> " + data.card);
             cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("list-mandate-call-test", () => {
@@ -107,7 +108,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let res_data = data["Response"];
             console.log("det -> " + data.card);
             cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 6500, true, "manual", "new_mandate", globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("cit-capture-call-test", () => {
@@ -116,7 +117,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let res_data = data["Response"];
             console.log("det -> " + data.card);
             cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -128,12 +129,3 @@ describe("Card - SingleUse Mandates flow test", () => {
         });
     });
 });
-
-function should_continue_further(res_data) {
-    if(res_data.body.error !== undefined || res_data.body.error_code !== undefined || res_data.body.error_message !== undefined){
-        return false;
-    }
-    else {
-        return true;
-    }
-}

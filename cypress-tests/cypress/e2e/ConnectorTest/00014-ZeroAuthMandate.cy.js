@@ -2,6 +2,7 @@ import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import State from "../../utils/State";
 import getConnectorDetails from "../ConnectorUtils/utils";
+import * as utils from "../ConnectorUtils/utils";
 
 let globalState;
 
@@ -34,7 +35,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 0, true, "automatic", "setup_mandate", globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -55,7 +56,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             let req_data = data["Request"];
             let res_data = data["Response"];
             cy.citForMandatesCallTest(citConfirmBody, req_data, res_data, 0, true, "automatic", "setup_mandate", globalState);
-            if(should_continue) should_continue = should_continue_further(res_data);
+            if(should_continue) should_continue = utils.should_continue_further(res_data);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -67,12 +68,3 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
 });
-
-function should_continue_further(res_data) {
-    if(res_data.body.error !== undefined || res_data.body.error_code !== undefined || res_data.body.error_message !== undefined){
-        return false;
-    }
-    else {
-        return true;
-    }
-  }

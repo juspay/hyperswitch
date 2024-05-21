@@ -3,6 +3,7 @@ import createPaymentBody from "../../fixtures/create-payment-body.json";
 import refundBody from "../../fixtures/refund-flow-body.json";
 import State from "../../utils/State";
 import getConnectorDetails from "../ConnectorUtils/utils";
+import * as utils from "../ConnectorUtils/utils";
 
 let globalState;
 
@@ -33,7 +34,7 @@ describe("Card - Sync Refund flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "no_three_ds", "automatic", globalState);
-        if(should_continue) should_continue = should_continue_further(res_data);
+        if(should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("payment_methods-call-test", () => {
@@ -47,7 +48,7 @@ describe("Card - Sync Refund flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
-        if(should_continue) should_continue = should_continue_further(res_data);
+        if(should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -59,7 +60,7 @@ describe("Card - Sync Refund flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(refundBody, req_data, res_data, 6500, globalState);
-        if(should_continue) should_continue = should_continue_further(res_data);
+        if(should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("sync-refund-call-test", () => {
@@ -67,16 +68,7 @@ describe("Card - Sync Refund flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.syncRefundCallTest(req_data, res_data, globalState);
-        if(should_continue) should_continue = should_continue_further(res_data);
+        if(should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
 });
-
-function should_continue_further(res_data) {
-    if(res_data.body.error !== undefined || res_data.body.error_code !== undefined || res_data.body.error_message !== undefined){
-        return false;
-    }
-    else {
-        return true;
-    }
-}

@@ -4,6 +4,7 @@ import confirmBody from "../../fixtures/confirm-body.json";
 import getConnectorDetails from "../ConnectorUtils/utils";
 import State from "../../utils/State";
 import captureBody from "../../fixtures/capture-flow-body.json";
+import * as utils from "../ConnectorUtils/utils";
 
 let globalState;
 
@@ -36,7 +37,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("payment_methods-call-test", () => {
@@ -48,7 +49,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("Handle redirection", () => {
@@ -65,7 +66,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -88,7 +89,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.createConfirmPaymentTest(createConfirmPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("Handle redirection", () => {
@@ -106,7 +107,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -132,7 +133,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.createPaymentIntentTest(createPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("payment_methods-call-test", () => {
@@ -144,7 +145,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("Handle redirection", () => {
@@ -161,7 +162,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -183,7 +184,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.createConfirmPaymentTest(createConfirmPaymentBody, req_data, res_data, "three_ds", "manual", globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("Handle redirection", () => {
@@ -200,7 +201,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
                 let req_data = data["Request"];
                 let res_data = data["Response"];
                 cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
-                if(should_continue) should_continue = should_continue_further(res_data);
+                if(should_continue) should_continue = utils.should_continue_further(res_data);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -212,12 +213,3 @@ describe("Card - ThreeDS Manual payment flow test", () => {
 
     });
 });
-
-function should_continue_further(res_data) {
-    if(res_data.body.error !== undefined || res_data.body.error_code !== undefined || res_data.body.error_message !== undefined){
-        return false;
-    }
-    else {
-        return true;
-    }
-  }
