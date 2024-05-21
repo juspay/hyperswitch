@@ -51,7 +51,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject
 }
 
 fn get_brand_id_for_mifinity(
-    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+    connector_metadata: &Option<pii::SecretSerdeValue>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let mifinity_metadata = MifinityConnectorMetadataObject::try_from(connector_metadata)?;
     let brand_id =
