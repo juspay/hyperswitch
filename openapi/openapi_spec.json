@@ -11637,7 +11637,8 @@
         "type": "string",
         "enum": [
           "confirm",
-          "sync"
+          "sync",
+          "complete_authorize"
         ]
       },
       "NextActionData": {
@@ -16654,7 +16655,8 @@
         "type": "object",
         "required": [
           "connector",
-          "session_token"
+          "session_token",
+          "sdk_next_action"
         ],
         "properties": {
           "connector": {
@@ -16664,6 +16666,9 @@
           "session_token": {
             "type": "string",
             "description": "The session token for PayPal"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
