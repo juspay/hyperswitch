@@ -3961,10 +3961,7 @@ where
         key_store,
         profile_id, // need to fix this
         &decided_connector_data.connector_name.to_string(),
-        #[cfg(feature = "connector_choice_mca_id")]
         merchant_connector_id,
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        None,
     )
     .await?
     .get_metadata();
