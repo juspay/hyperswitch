@@ -64,7 +64,7 @@ pub async fn retrieve_payment_method(
             Ok((pm_opt.to_owned(), payment_token))
         }
         pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)) => {
-            let payment_token = helpers::store_payment_method_data_in_vault(
+            let _payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
                 payment_intent,
@@ -74,7 +74,7 @@ pub async fn retrieve_payment_method(
             )
             .await?;
 
-            Ok((pm_opt.to_owned(), payment_token))
+            Ok((pm_opt.to_owned(), None))
         }
         pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(

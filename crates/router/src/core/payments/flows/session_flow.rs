@@ -122,36 +122,6 @@ fn is_dynamic_fields_required(
         .unwrap_or(false)
 }
 
-fn get_applepay_metadata(
-    connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
-) -> RouterResult<payment_types::ApplepaySessionTokenMetadata> {
-    connector_metadata
-        .clone()
-        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
-            "ApplepayCombinedSessionTokenData",
-        )
-        .map(|combined_metadata| {
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                combined_metadata.apple_pay_combined,
-            )
-        })
-        .or_else(|_| {
-            connector_metadata
-                .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                    "ApplepaySessionTokenData",
-                )
-                .map(|old_metadata| {
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
-                        old_metadata.apple_pay,
-                    )
-                })
-        })
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_metadata".to_string(),
-            expected_format: "applepay_metadata_format".to_string(),
-        })
-}
-
 fn build_apple_pay_session_request(
     state: &routes::AppState,
     request: payment_types::ApplepaySessionRequest,
@@ -196,7 +166,8 @@ async fn create_applepay_session_token(
         )
     } else {
         // Get the apple pay metadata
-        let apple_pay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
+        let apple_pay_metadata =
+            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?;
 
         // Get payment request data , apple pay session request and merchant keys
         let (

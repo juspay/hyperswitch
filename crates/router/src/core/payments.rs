@@ -3159,6 +3159,24 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
+            if payment_data.payment_attempt.payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+            {
+                let retryable_connector_data = helpers::apple_pay_retryable_connector(
+                    state,
+                    merchant_account,
+                    payment_data,
+                    key_store,
+                    connector_data.clone(),
+                    choice.merchant_connector_id.clone().as_ref(),
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    return Ok(ConnectorCallType::Retryable(connector_data_list));
+                }
+            }
+
             routing_data.routed_through = Some(choice.connector.to_string());
             #[cfg(feature = "connector_choice_mca_id")]
             {
