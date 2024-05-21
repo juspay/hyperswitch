@@ -13,6 +13,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     ctx: &'a C,
     node: &'a Node<V>,
@@ -24,6 +25,7 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     domains: Option<&'a [DomainId]>,
 }
 
+#[derive(Debug)]
 pub struct ConstraintGraph<'a, V: ValueNode> {
     pub domain: DenseMap<DomainId, DomainInfo<'a>>,
     pub domain_identifier_map: FxHashMap<DomainIdentifier<'a>, DomainId>,
@@ -139,6 +141,7 @@ where
                 ctx,
                 domains,
             };
+
             match &node.node_type {
                 NodeType::AllAggregator => self.validate_all_aggregator(check_node_context),
 
@@ -206,6 +209,7 @@ where
         } else {
             vald.memo
                 .insert((vald.node_id, vald.relation, vald.strength), Ok(()));
+
             Ok(())
         }
     }
