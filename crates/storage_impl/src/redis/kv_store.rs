@@ -249,7 +249,9 @@ impl<'a> std::fmt::Display for Op<'a> {
         match self {
             Op::Insert => f.write_str("insert"),
             Op::Find => f.write_str("find"),
-            Op::Update(p_key, _, updated_by) => f.write_str(&format!("update_{} for updated_by_{:?}", p_key, updated_by)),
+            Op::Update(p_key, _, updated_by) => {
+                f.write_str(&format!("update_{} for updated_by_{:?}", p_key, updated_by))
+            }
         }
     }
 }
