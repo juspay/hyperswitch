@@ -5,7 +5,7 @@ use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
     pii,
-    types::{Percentage, Surcharge},
+    types::{MinorUnit, Percentage, Surcharge},
 };
 use serde::de;
 use utoipa::{schema, ToSchema};
@@ -87,24 +87,6 @@ pub struct PaymentMethodUpdate {
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetailUpdate>,
-
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<CardNetwork>,example = "Visa")]
-    pub card_network: Option<api_enums::CardNetwork>,
-
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
-    pub bank_transfer: Option<payouts::Bank>,
-
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Wallet>)]
-    pub wallet: Option<payouts::Wallet>,
-
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
@@ -379,7 +361,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_isin: item.card_isin,
             card_extended_bin: item
                 .card_number
-                .map(|card_number| card_number.get_card_extended_bin()),
+                .map(|card_number| card_number.get_extended_card_bin()),
             card_exp_month: item.expiry_month,
             card_exp_year: item.expiry_year,
             card_holder_name: item.card_holder_name,
@@ -510,7 +492,7 @@ pub struct SurchargeDetailsResponse {
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum SurchargeResponse {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(SurchargePercentage),
 }
@@ -537,7 +519,7 @@ impl From<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>> for SurchargePercen
     }
 }
 /// Required fields info used while listing the payment_method_data
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema, Hash)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 pub struct RequiredFieldInfo {
     /// Required field for a payment_method through a payment_method_type
     pub required_field: String,
@@ -656,7 +638,7 @@ pub struct PaymentMethodListRequest {
 
     /// Filter by amount
     #[schema(example = 60)]
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]

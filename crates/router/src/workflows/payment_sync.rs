@@ -10,7 +10,6 @@ use crate::{
     consts,
     core::{
         errors::StorageErrorExt,
-        payment_methods::Oss,
         payments::{self as payment_flows, operations},
     },
     db::StorageInterface,
@@ -60,14 +59,8 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .await?;
 
         // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, customer, _, _) =
-            Box::pin(payment_flows::payments_operation_core::<
-                api::PSync,
-                _,
-                _,
-                _,
-                Oss,
-            >(
+        let (mut payment_data, _, customer, _, _) = Box::pin(
+            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
                 state,
                 state.get_req_state(),
                 merchant_account.clone(),
@@ -78,8 +71,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 services::AuthFlow::Client,
                 None,
                 api::HeaderPayload::default(),
-            ))
-            .await?;
+            ),
+        )
+        .await?;
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -133,7 +127,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             error_reason: Some(Some(
                                 consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
                             )),
-                            amount_capturable: Some(0),
+                            amount_capturable: Some(common_utils::types::MinorUnit::new(0)),
                             updated_by: merchant_account.storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,

@@ -121,7 +121,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
-            | Flow::GetExtendedCardInfo => Self::Payments,
+            | Flow::GetExtendedCardInfo
+            | Flow::PaymentsCompleteAuthorize => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -136,7 +137,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsRetrieve
             | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
-            | Flow::RefundsList => Self::Refunds,
+            | Flow::RefundsList
+            | Flow::RefundsFilters => Self::Refunds,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive

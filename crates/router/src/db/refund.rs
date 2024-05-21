@@ -275,7 +275,9 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    };
 
     use super::RefundInterface;
     use crate::{
@@ -305,6 +307,9 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme =
+                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
+                    .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -341,6 +346,9 @@ mod storage {
             new: storage_types::RefundNew,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let storage_scheme =
+                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Insert)
+                    .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -485,6 +493,9 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme =
+                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
+                    .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -526,6 +537,19 @@ mod storage {
             refund: storage_types::RefundUpdate,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let merchant_id = this.merchant_id.clone();
+            let payment_id = this.payment_id.clone();
+            let key = PartitionKey::MerchantIdPaymentId {
+                merchant_id: &merchant_id,
+                payment_id: &payment_id,
+            };
+            let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
+            let storage_scheme = decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Update(key.clone(), &field, Some(&this.updated_by)),
+            )
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -534,14 +558,7 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let merchant_id = this.merchant_id.clone();
-                    let payment_id = this.payment_id.clone();
-                    let key = PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &merchant_id,
-                        payment_id: &payment_id,
-                    };
                     let key_str = key.to_string();
-                    let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
                     let redis_value = updated_refund
@@ -588,6 +605,9 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme =
+                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
+                    .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -637,6 +657,9 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme =
+                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
+                    .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -685,6 +708,9 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme =
+                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
+                    .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -930,6 +956,7 @@ impl RefundInterface for MockDb {
         offset: i64,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
+        let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
 
@@ -938,6 +965,14 @@ impl RefundInterface for MockDb {
             connectors.iter().for_each(|connector| {
                 unique_connectors.insert(connector);
             });
+        }
+
+        if let Some(merchant_connector_ids) = &refund_details.merchant_connector_id {
+            merchant_connector_ids
+                .iter()
+                .for_each(|unique_merchant_connector_id| {
+                    unique_merchant_connector_ids.insert(unique_merchant_connector_id);
+                });
         }
 
         if let Some(currencies) = &refund_details.currency {
@@ -983,7 +1018,23 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
+                refund_details
+                    .amount_filter
+                    .as_ref()
+                    .map_or(true, |amount| {
+                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
+                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                    })
+            })
+            .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_merchant_connector_ids.is_empty()
+                    || refund
+                        .merchant_connector_id
+                        .as_ref()
+                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
@@ -1054,6 +1105,7 @@ impl RefundInterface for MockDb {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
+        let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
 
@@ -1062,6 +1114,14 @@ impl RefundInterface for MockDb {
             connectors.iter().for_each(|connector| {
                 unique_connectors.insert(connector);
             });
+        }
+
+        if let Some(merchant_connector_ids) = &refund_details.merchant_connector_id {
+            merchant_connector_ids
+                .iter()
+                .for_each(|unique_merchant_connector_id| {
+                    unique_merchant_connector_ids.insert(unique_merchant_connector_id);
+                });
         }
 
         if let Some(currencies) = &refund_details.currency {
@@ -1107,7 +1167,23 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
+                refund_details
+                    .amount_filter
+                    .as_ref()
+                    .map_or(true, |amount| {
+                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
+                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                    })
+            })
+            .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_merchant_connector_ids.is_empty()
+                    || refund
+                        .merchant_connector_id
+                        .as_ref()
+                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)

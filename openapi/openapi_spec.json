@@ -853,6 +853,57 @@
         ]
       }
     },
+    "/{payment_id}/complete_authorize": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Complete Authorize",
+        "description": "Payments - Complete Authorize\n\n",
+        "operationId": "Complete Authorize a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCompleteAuthorizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payments Complete Authorize Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -2612,6 +2663,47 @@
           }
         ]
       },
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Delete",
+        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
+        "operationId": "Delete a Payment method",
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payment_methods/{method_id}/update": {
       "post": {
         "tags": [
           "Payment Methods"
@@ -2658,45 +2750,9 @@
         "security": [
           {
             "api_key": []
-          }
-        ]
-      },
-      "delete": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Delete",
-        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
-        "operationId": "Delete a Payment method",
-        "parameters": [
-          {
-            "name": "method_id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment Method deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
-                }
-              }
-            }
           },
-          "404": {
-            "description": "Payment Method does not exist in records"
-          }
-        },
-        "security": [
           {
-            "api_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -4910,6 +4966,23 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmountFilter": {
+        "type": "object",
+        "properties": {
+          "start_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The start amount to filter list of transactions which are greater than or equal to the start amount",
+            "nullable": true
+          },
+          "end_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The end amount to filter list of transactions which are less than or equal to the end amount",
+            "nullable": true
+          }
+        }
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -4945,6 +5018,20 @@
             "format": "date-time"
           }
         ]
+      },
+      "ApplePayAddressParameters": {
+        "type": "string",
+        "enum": [
+          "postalAddress",
+          "phone",
+          "email"
+        ]
+      },
+      "ApplePayBillingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayPaymentRequest": {
         "type": "object",
@@ -4982,6 +5069,22 @@
           "merchant_identifier": {
             "type": "string",
             "nullable": true
+          },
+          "required_billing_contact_fields": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayBillingContactFields"
+              }
+            ],
+            "nullable": true
+          },
+          "required_shipping_contact_fields": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayShippingContactFields"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5002,6 +5105,12 @@
             "nullable": true
           }
         ]
+      },
+      "ApplePayShippingContactFields": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ApplePayAddressParameters"
+        }
       },
       "ApplePayThirdPartySdkData": {
         "type": "object"
@@ -5163,7 +5272,8 @@
         "type": "string",
         "enum": [
           "threedsecureio",
-          "netcetera"
+          "netcetera",
+          "gpayments"
         ]
       },
       "AuthenticationStatus": {
@@ -5829,17 +5939,19 @@
             "properties": {
               "interac": {
                 "type": "object",
-                "required": [
-                  "country",
-                  "email"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "email": {
                     "type": "string",
-                    "example": "john.doe@example.com"
+                    "example": "john.doe@example.com",
+                    "nullable": true
                   }
                 }
               }
@@ -6709,6 +6821,11 @@
             "type": "boolean",
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
             "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -6865,7 +6982,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6540
           },
           "currency": {
             "allOf": [
@@ -9071,6 +9189,64 @@
           {
             "type": "string",
             "enum": [
+              "user_shipping_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_line2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_shipping_address_state"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_shipping_address_country"
+            ],
+            "properties": {
+              "user_shipping_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_blik_code"
             ]
           },
@@ -9180,8 +9356,7 @@
         "type": "object",
         "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
         "required": [
-          "payment_method",
-          "payment_method_types"
+          "payment_method"
         ],
         "properties": {
           "payment_method": {
@@ -9192,7 +9367,16 @@
             "items": {
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
-            "description": "payment method types(credit, debit) that can be used in the payment"
+            "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "nullable": true
+          },
+          "flow": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmPreferredFlowTypes"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -9309,6 +9493,9 @@
         "type": "object",
         "required": [
           "merchant_info",
+          "shipping_address_required",
+          "email_required",
+          "shipping_address_parameters",
           "allowed_payment_methods",
           "transaction_info",
           "delayed_session_token",
@@ -9318,6 +9505,17 @@
         "properties": {
           "merchant_info": {
             "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "shipping_address_required": {
+            "type": "boolean",
+            "description": "Is shipping address required"
+          },
+          "email_required": {
+            "type": "boolean",
+            "description": "Is email required"
+          },
+          "shipping_address_parameters": {
+            "$ref": "#/components/schemas/GpayShippingAddressParameters"
           },
           "allowed_payment_methods": {
             "type": "array",
@@ -9419,6 +9617,19 @@
               "type": "string"
             },
             "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
+          },
+          "billing_address_required": {
+            "type": "boolean",
+            "description": "Is billing address required",
+            "nullable": true
+          },
+          "billing_address_parameters": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GpayBillingAddressParameters"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9439,6 +9650,29 @@
           },
           "tokenization_specification": {
             "$ref": "#/components/schemas/GpayTokenizationSpecification"
+          }
+        }
+      },
+      "GpayBillingAddressFormat": {
+        "type": "string",
+        "enum": [
+          "FULL",
+          "MIN"
+        ]
+      },
+      "GpayBillingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required",
+          "format"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is billing phone number required"
+          },
+          "format": {
+            "$ref": "#/components/schemas/GpayBillingAddressFormat"
           }
         }
       },
@@ -9468,6 +9702,18 @@
             "$ref": "#/components/schemas/GooglePaySessionResponse"
           }
         ]
+      },
+      "GpayShippingAddressParameters": {
+        "type": "object",
+        "required": [
+          "phone_number_required"
+        ],
+        "properties": {
+          "phone_number_required": {
+            "type": "boolean",
+            "description": "Is shipping phone number required"
+          }
+        }
       },
       "GpayTokenParameters": {
         "type": "object",
@@ -9879,7 +10125,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Amount the authorization has been made for"
+            "description": "Amount the authorization has been made for",
+            "example": 6540
           },
           "status": {
             "$ref": "#/components/schemas/AuthorizationStatus"
@@ -9895,9 +10142,7 @@
             "nullable": true
           },
           "previously_authorized_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Previously authorized amount for the payment"
+            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -11350,6 +11595,11 @@
           }
         }
       },
+      "MinorUnit": {
+        "type": "integer",
+        "format": "int64",
+        "description": "This Unit struct represents MinorUnit in which core amount works"
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
@@ -12170,7 +12420,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6540
           },
           "currency": {
             "allOf": [
@@ -13196,35 +13447,6 @@
             ],
             "nullable": true
           },
-          "card_network": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardNetwork"
-              }
-            ],
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
-            "nullable": true
-          },
-          "wallet": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Wallet"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
           "client_secret": {
             "type": "string",
             "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
@@ -13320,6 +13542,9 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
+        "required": [
+          "amount_to_capture"
+        ],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -13330,7 +13555,7 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured/ debited from the user's payment method.",
-            "nullable": true
+            "example": 6540
           },
           "refund_uncaptured_amount": {
             "type": "boolean",
@@ -13354,6 +13579,26 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PaymentsCompleteAuthorizeRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
           }
         }
       },
@@ -13467,36 +13712,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "email": {
-            "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
-            "example": "johntest@test.com",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "name": {
-            "type": "string",
-            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
             "nullable": true,
             "maxLength": 255
           },
@@ -13720,6 +13937,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -13846,36 +14064,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "email": {
-            "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
-            "example": "johntest@test.com",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "name": {
-            "type": "string",
-            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
             "nullable": true,
             "maxLength": 255
           },
@@ -14120,6 +14310,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -14337,14 +14528,15 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
           },
           "email": {
             "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -14352,6 +14544,7 @@
           "name": {
             "type": "string",
             "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -14359,6 +14552,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -14366,6 +14560,7 @@
           "phone_country_code": {
             "type": "string",
             "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "+1",
             "nullable": true,
             "maxLength": 255
@@ -14622,6 +14817,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -14648,6 +14844,8 @@
           "status",
           "amount",
           "net_amount",
+          "amount_capturable",
+          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -14680,29 +14878,26 @@
             "type": "integer",
             "format": "int64",
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 100
+            "example": 6540
           },
           "net_amount": {
             "type": "integer",
             "format": "int64",
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
-            "example": 110
+            "example": 6540
           },
           "amount_capturable": {
             "type": "integer",
             "format": "int64",
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
-            "nullable": true,
             "minimum": 100
           },
           "amount_received": {
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 100
+            "example": 6540
           },
           "connector": {
             "type": "string",
@@ -14728,7 +14923,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.\nThis field will be deprecated soon. Please refer to `customer.id`",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
@@ -14867,21 +15063,24 @@
           },
           "email": {
             "type": "string",
-            "description": "description: The customer's email address",
+            "description": "description: The customer's email address\nThis field will be deprecated soon. Please refer to `customer.email` object",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
           },
           "name": {
             "type": "string",
-            "description": "description: The customer's name",
+            "description": "description: The customer's name\nThis field will be deprecated soon. Please refer to `customer.name` object",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
           },
           "phone": {
             "type": "string",
-            "description": "The customer's phone number",
+            "description": "The customer's phone number\nThis field will be deprecated soon. Please refer to `customer.phone` object",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -15159,6 +15358,11 @@
             "description": "Date time at which payment was updated",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
+          },
+          "frm_metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
+            "nullable": true
           }
         }
       },
@@ -15406,36 +15610,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "email": {
-            "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
-            "example": "johntest@test.com",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "name": {
-            "type": "string",
-            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
             "nullable": true,
             "maxLength": 255
           },
@@ -15654,6 +15830,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -16784,12 +16961,28 @@
                 "description": "The starting point within a list of objects",
                 "nullable": true
               },
+              "amount_filter": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AmountFilter"
+                  }
+                ],
+                "nullable": true
+              },
               "connector": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "description": "The list of connectors to filter refunds list",
+                "nullable": true
+              },
+              "merchant_connector_id": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The list of merchant connector ids to filter the refunds list for selected label",
                 "nullable": true
               },
               "currency": {
@@ -17101,11 +17294,15 @@
         "properties": {
           "surcharge_amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "example": 6540
           },
           "tax_amount": {
-            "type": "integer",
-            "format": "int64",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           }
         }
@@ -17220,7 +17417,8 @@
           },
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "example": 6540
           },
           "created_at": {
             "type": "string",
@@ -18071,9 +18269,7 @@
                 ]
               },
               "value": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Fixed Surcharge value"
+                "$ref": "#/components/schemas/MinorUnit"
               }
             }
           },

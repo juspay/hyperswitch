@@ -137,6 +137,7 @@ impl AuthenticationConnectorData {
                 Ok(Box::new(&connector::Threedsecureio))
             }
             enums::AuthenticationConnectors::Netcetera => Ok(Box::new(&connector::Netcetera)),
+            enums::AuthenticationConnectors::Gpayments => Ok(Box::new(&connector::Gpayments)),
         }
     }
 }
