@@ -9,7 +9,7 @@ use crate::fp_utils::when;
 
 /// This functions checks for the input string to contain valid characters
 /// Returns Some(char) if there are any invalid characters, else None
-fn get_invlaid_input_charcter(input_string: Cow<'static, str>) -> Option<char> {
+fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> {
     input_string
         .trim()
         .chars()
@@ -38,8 +38,7 @@ impl<'de> Deserialize<'de> for AlphaNumericId {
 impl AlphaNumericId {
     /// Creates a new alphanumeric id from string
     pub fn new(input_string: Cow<'static, str>) -> Result<Self, AlphaNumericIdError> {
-        let invalid_character = get_invlaid_input_charcter(input_string.clone());
-        println!("hola {invalid_character:?}");
+        let invalid_character = get_invalid_input_character(input_string.clone());
 
         if let Some(invalid_character) = invalid_character {
             Err(AlphaNumericIdError(
@@ -72,7 +71,7 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deref
     }
 }
 
-/// Error genereted from violation of constraints for MerchantReferenceId
+/// Error generated from violation of constraints for MerchantReferenceId
 #[derive(Debug, Deserialize, Serialize, Error, PartialEq, Eq)]
 pub enum MerchantReferenceIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
     #[error("the maximum allowed length for this field is {MAX_LENGTH}")]
@@ -218,14 +217,13 @@ mod merchant_reference_id_tests {
         >(INVALID_REF_ID_JSON);
 
         let expected_error_message =
-            r#"value `cus abcdefghijklmnopqrstuv` contains invalid character ` `"#;
+            r#"value `cus abcdefghijklmnopqrstuv` contains invalid character ` `"#.to_string();
 
         let error_message = parsed_merchant_reference_id
             .err()
-            .map(|error| error.to_string())
-            .unwrap();
+            .map(|error| error.to_string());
 
-        assert_eq!(error_message, expected_error_message);
+        assert_eq!(error_message, Some(expected_error_message));
     }
 
     #[test]
