@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.21.0
+
+### Features
+
+- **core:** Add a new endpoint for Complete Authorize flow ([#4686](https://github.com/juspay/hyperswitch/pull/4686)) ([`226c337`](https://github.com/juspay/hyperswitch/commit/226c337399a2e4c1fa50c4f3d0d4b237b5543426))
+
+### Bug Fixes
+
+- **router:** Handle connector authentication technical failures and skip confirm in authorize flow only when authentication_type is not challenge ([#4667](https://github.com/juspay/hyperswitch/pull/4667)) ([`842728e`](https://github.com/juspay/hyperswitch/commit/842728ef93241643d12170695ddf56cee4da45bd))
+
+### Refactors
+
+- **cache:** Remove `deref` impl on `Cache` type ([#4671](https://github.com/juspay/hyperswitch/pull/4671)) ([`36409bd`](https://github.com/juspay/hyperswitch/commit/36409bdc9185d4241971a30c55e1e331568abd2f))
+
+### Documentation
+
+- Update Docker Compose setup guide to checkout `latest` tag ([#4695](https://github.com/juspay/hyperswitch/pull/4695)) ([`40f6776`](https://github.com/juspay/hyperswitch/commit/40f6776c46abc4b9c89fb2aa195f4ce64b312cf6))
+
+### Miscellaneous Tasks
+
+- **docker-compose:** Specify `pull_policy` for hyperswitch services ([#4688](https://github.com/juspay/hyperswitch/pull/4688)) ([`909e75c`](https://github.com/juspay/hyperswitch/commit/909e75c71a6e3418b5d15396569d986eff852c06))
+
+**Full Changelog:** [`2024.05.20.2...2024.05.21.0`](https://github.com/juspay/hyperswitch/compare/2024.05.20.2...2024.05.21.0)
+
+- - -
+
 ## 2024.05.20.2
 
 ### Features
