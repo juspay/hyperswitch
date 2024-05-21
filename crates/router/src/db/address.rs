@@ -275,7 +275,9 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    };
 
     use super::AddressInterface;
     use crate::{
@@ -332,6 +334,9 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme =
+                decide_storage_scheme::<_, storage_types::Address>(self, storage_scheme, Op::Find)
+                    .await;
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -394,6 +399,18 @@ mod storage {
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
+            let merchant_id = address.merchant_id.clone();
+            let key = PartitionKey::MerchantIdPaymentId {
+                merchant_id: &merchant_id,
+                payment_id: &payment_id,
+            };
+            let field = format!("add_{}", address.address_id);
+            let storage_scheme = decide_storage_scheme::<_, storage_types::Address>(
+                self,
+                storage_scheme,
+                Op::Update(key.clone(), &field, Some(address.updated_by.as_str())),
+            )
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     address
@@ -409,12 +426,6 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let merchant_id = address.merchant_id.clone();
-                    let key = PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &merchant_id,
-                        payment_id: &payment_id,
-                    };
-                    let field = format!("add_{}", address.address_id);
                     let updated_address = AddressUpdateInternal::from(address_update.clone())
                         .create_address(address.clone());
                     let redis_value = serde_json::to_string(&updated_address)
@@ -466,6 +477,12 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
             let merchant_id = address_new.merchant_id.clone();
+            let storage_scheme = decide_storage_scheme::<_, storage_types::Address>(
+                self,
+                storage_scheme,
+                Op::Insert,
+            )
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;

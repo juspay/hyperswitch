@@ -866,6 +866,7 @@ impl MerchantAccount {
                     .route(web::post().to(merchant_account_toggle_kv))
                     .route(web::get().to(merchant_account_kv_status)),
             )
+            .service(web::resource("/kv").route(web::post().to(merchant_account_toggle_all_kv)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))

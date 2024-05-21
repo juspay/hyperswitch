@@ -163,14 +163,10 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
         let payment_data = match bank_redirect_data {
-            domain::BankRedirectData::Eps { country, .. } => {
+            domain::BankRedirectData::Eps { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Eps,
-                    bank_account_country: Some(country.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "eps.country",
-                        },
-                    )?),
+                    bank_account_country: Some(item.router_data.get_billing_country()?),
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -183,15 +179,10 @@ impl
             domain::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
-                country,
                 ..
             } => Self::BankRedirect(Box::new(BankRedirectionPMData {
                 payment_brand: PaymentBrand::Giropay,
-                bank_account_country: Some(country.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "giropay.country",
-                    },
-                )?),
+                bank_account_country: Some(item.router_data.get_billing_country()?),
                 bank_account_bank_name: None,
                 bank_account_bic: bank_account_bic.clone(),
                 bank_account_iban: bank_account_iban.clone(),
@@ -200,35 +191,27 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
-            domain::BankRedirectData::Ideal {
-                bank_name, country, ..
-            } => Self::BankRedirect(Box::new(BankRedirectionPMData {
-                payment_brand: PaymentBrand::Ideal,
-                bank_account_country: Some(country.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "ideal.country",
-                    },
-                )?),
-                bank_account_bank_name: Some(bank_name.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "ideal.bank_name",
-                    },
-                )?),
-                bank_account_bic: None,
-                bank_account_iban: None,
-                billing_country: None,
-                merchant_customer_id: None,
-                merchant_transaction_id: None,
-                customer_email: None,
-            })),
-            domain::BankRedirectData::Sofort { country, .. } => {
+            domain::BankRedirectData::Ideal { bank_name, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
-                    payment_brand: PaymentBrand::Sofortueberweisung,
-                    bank_account_country: Some(country.to_owned().ok_or(
+                    payment_brand: PaymentBrand::Ideal,
+                    bank_account_country: Some(item.router_data.get_billing_country()?),
+                    bank_account_bank_name: Some(bank_name.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "sofort.country",
+                            field_name: "ideal.bank_name",
                         },
                     )?),
+                    bank_account_bic: None,
+                    bank_account_iban: None,
+                    billing_country: None,
+                    merchant_customer_id: None,
+                    merchant_transaction_id: None,
+                    customer_email: None,
+                }))
+            }
+            domain::BankRedirectData::Sofort { .. } => {
+                Self::BankRedirect(Box::new(BankRedirectionPMData {
+                    payment_brand: PaymentBrand::Sofortueberweisung,
+                    bank_account_country: Some(item.router_data.get_billing_country()?),
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -238,40 +221,40 @@ impl
                     customer_email: None,
                 }))
             }
-            domain::BankRedirectData::Przelewy24 {
-                billing_details, ..
-            } => Self::BankRedirect(Box::new(BankRedirectionPMData {
-                payment_brand: PaymentBrand::Przelewy,
-                bank_account_country: None,
-                bank_account_bank_name: None,
-                bank_account_bic: None,
-                bank_account_iban: None,
-                billing_country: None,
-                merchant_customer_id: None,
-                merchant_transaction_id: None,
-                customer_email: billing_details.email.to_owned(),
-            })),
-            domain::BankRedirectData::Interac { email, country } => {
+            domain::BankRedirectData::Przelewy24 { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
-                    payment_brand: PaymentBrand::InteracOnline,
-                    bank_account_country: Some(country.to_owned()),
+                    payment_brand: PaymentBrand::Przelewy,
+                    bank_account_country: None,
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
                     billing_country: None,
                     merchant_customer_id: None,
                     merchant_transaction_id: None,
-                    customer_email: Some(email.to_owned()),
+                    customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Trustly { country } => {
+            domain::BankRedirectData::Interac {} => {
+                Self::BankRedirect(Box::new(BankRedirectionPMData {
+                    payment_brand: PaymentBrand::InteracOnline,
+                    bank_account_country: Some(item.router_data.get_billing_country()?),
+                    bank_account_bank_name: None,
+                    bank_account_bic: None,
+                    bank_account_iban: None,
+                    billing_country: None,
+                    merchant_customer_id: None,
+                    merchant_transaction_id: None,
+                    customer_email: Some(item.router_data.get_billing_email()?),
+                }))
+            }
+            domain::BankRedirectData::Trustly {} => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Trustly,
                     bank_account_country: None,
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
-                    billing_country: Some(country.to_owned()),
+                    billing_country: Some(item.router_data.get_billing_country()?),
                     merchant_customer_id: Some(Secret::new(item.router_data.get_customer_id()?)),
                     merchant_transaction_id: Some(Secret::new(
                         item.router_data.connector_request_reference_id.clone(),
