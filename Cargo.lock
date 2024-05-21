@@ -2619,6 +2619,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "dot-generator"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0aaac7ada45f71873ebce336491d1c1bc4a7c8042c7cea978168ad59e805b871"
+dependencies = [
+ "dot-structures",
+]
+
+[[package]]
+name = "dot-structures"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "675e35c02a51bb4d4618cb4885b3839ce6d1787c97b664474d9208d074742e20"
+
+[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3254,6 +3269,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphviz-rust"
+version = "0.6.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27dafd1ac303e0dfb347a3861d9ac440859bab26ec2f534bbceb262ea492a1e0"
+dependencies = [
+ "dot-generator",
+ "dot-structures",
+ "into-attr",
+ "into-attr-derive",
+ "pest",
+ "pest_derive",
+ "rand",
+ "tempfile",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3624,6 +3655,7 @@ name = "hyperswitch_constraint_graph"
 version = "0.1.0"
 dependencies = [
  "erased-serde 0.3.31",
+ "graphviz-rust",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -3772,6 +3804,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "into-attr"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18b48c537e49a709e678caec3753a7dba6854661a1eaa27675024283b3f8b376"
+dependencies = [
+ "dot-structures",
+]
+
+[[package]]
+name = "into-attr-derive"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecac7c1ae6cd2c6a3a64d1061a8bdc7f52ff62c26a831a2301e54c1b5d70d5b1"
+dependencies = [
+ "dot-generator",
+ "dot-structures",
+ "into-attr",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
