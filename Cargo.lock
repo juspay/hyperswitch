@@ -1977,6 +1977,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.37.0",
+ "utoipa",
  "uuid",
 ]
 
@@ -4511,6 +4512,7 @@ name = "openapi"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "common_utils",
  "serde_json",
  "utoipa",
 ]
