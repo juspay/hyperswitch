@@ -252,7 +252,8 @@ pub struct AuthorizedotnetZeroMandateRequest {
 #[serde(rename_all = "camelCase")]
 struct Profile {
     merchant_customer_id: String,
-    description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
     email: pii::Email,
     payment_profiles: PaymentProfiles,
 }
@@ -293,10 +294,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                                 .customer_id
                                 .clone()
                                 .ok_or_else(missing_field_err("customer_id"))?,
-                            description: item
-                                .description
-                                .clone()
-                                .ok_or_else(missing_field_err("description"))?,
+                            description: item.description.clone(),
                             email: utils::PaymentsSetupMandateRequestData::get_email(
                                 &item.request,
                             )?,
