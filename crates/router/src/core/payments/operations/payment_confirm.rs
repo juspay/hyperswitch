@@ -1044,7 +1044,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let card_detail_from_locker = payment_data
             .payment_method_info
-            .clone()
+            .as_ref()
             .async_map(|pm| async move {
                 cards::get_card_details_without_locker_fallback(&pm, key, state).await
             })
@@ -1111,8 +1111,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 .clone()
                 .or(payment_data
                     .payment_method_info
-                    .clone()
-                    .map(|payment_method| payment_method.payment_method_id));
+                    .as_ref()
+                    .map(|payment_method| payment_method.payment_method_id.clone()));
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
         let m_capture_method = capture_method;
