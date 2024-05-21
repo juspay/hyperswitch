@@ -1,8 +1,9 @@
+use std::str::FromStr;
+
 #[cfg(feature = "frm")]
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use std::str::FromStr;
 
 #[cfg(feature = "frm")]
 use super::{BoxedConnector, ConnectorData, SessionConnectorData};

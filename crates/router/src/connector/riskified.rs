@@ -2,8 +2,20 @@ pub mod transformers;
 use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
-use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
+use base64::Engine;
+#[cfg(feature = "frm")]
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+#[cfg(feature = "frm")]
+use error_stack::ResultExt;
+#[cfg(feature = "frm")]
+use masking::{ExposeInterface, PeekInterface};
+#[cfg(feature = "frm")]
+use ring::hmac;
+#[cfg(feature = "frm")]
+use transformers as riskified;
 
+#[cfg(feature = "frm")]
+use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -24,18 +36,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-#[cfg(feature = "frm")]
-use base64::Engine;
-#[cfg(feature = "frm")]
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-#[cfg(feature = "frm")]
-use error_stack::ResultExt;
-#[cfg(feature = "frm")]
-use masking::{ExposeInterface, PeekInterface};
-#[cfg(feature = "frm")]
-use ring::hmac;
-#[cfg(feature = "frm")]
-use transformers as riskified;
 
 #[derive(Debug, Clone)]
 pub struct Riskified;
