@@ -23,7 +23,7 @@ use fred::{
     },
 };
 use futures::StreamExt;
-use router_env::{instrument, logger, tracing};
+use tracing::instrument;
 
 use crate::{
     errors,
@@ -379,7 +379,7 @@ impl super::RedisConnectionPool {
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
-                        logger::error!(?err);
+                        tracing::error!(?err);
                         None
                     }
                 }
