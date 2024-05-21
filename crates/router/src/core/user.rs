@@ -1631,7 +1631,7 @@ pub async fn begin_totp(
         }));
     }
 
-    let totp = utils::user::two_fa::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = utils::user::two_factor_auth::generate_default_totp(user_from_db.get_email(), None)?;
     let recovery_codes = domain::RecoveryCodes::generate_new();
 
     let key_store = user_from_db.get_or_create_key_store(&state).await?;
@@ -1693,7 +1693,7 @@ pub async fn verify_totp(
             .await?
             .ok_or(UserErrors::InternalServerError)?;
 
-        let totp = utils::user::two_fa::generate_default_totp(
+        let totp = utils::user::two_factor_auth::generate_default_totp(
             user_from_db.get_email(),
             Some(user_totp_secret),
         )?;
@@ -1739,7 +1739,7 @@ pub async fn generate_recovery_codes(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
 ) -> UserResponse<user_api::RecoveryCodes> {
-    if !utils::user::two_fa::check_totp_in_redis(&state, &user_token.user_id).await? {
+    if !utils::user::two_factor_auth::check_totp_in_redis(&state, &user_token.user_id).await? {
         return Err(UserErrors::TotpRequired.into());
     }
 

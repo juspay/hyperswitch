@@ -19,7 +19,7 @@ pub mod dashboard_metadata;
 pub mod password;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
-pub mod two_fa;
+pub mod two_factor_auth;
 
 impl UserFromToken {
     pub async fn get_merchant_account_from_db(
