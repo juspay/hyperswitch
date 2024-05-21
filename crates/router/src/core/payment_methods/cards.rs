@@ -1899,9 +1899,8 @@ pub async fn list_payment_methods(
             logger::error!("Failed to construct constraint graph for list payment methods {e:?}");
         }
     }
+
     let graph = builder.build();
-    let graph_viz = graph.get_viz_digraph_string();
-    println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>The graph is\n {:?} \n", graph_viz);
 
     for mca in &filtered_mcas {
         let payment_methods = match &mca.payment_methods_enabled {
@@ -2899,12 +2898,17 @@ pub async fn filter_payment_methods(
                             }
                         });
 
-                        payment_attempt.map(|attempt|
-                             attempt.mandate_data.is_none() && attempt.mandate_details.is_none()
-                        ).and_then(|res| res.then(|| {
+                    payment_attempt
+                        .map(|attempt| {
+                            attempt.mandate_data.is_none() && attempt.mandate_details.is_none()
+                        })
+                        .and_then(|res| {
+                            res.then(|| {
                                 context_values.push(DirValue::PaymentType(
-                                    euclid::enums::PaymentType::NonMandate))
-                        }));
+                                    euclid::enums::PaymentType::NonMandate,
+                                ))
+                            })
+                        });
 
                     payment_attempt
                         .and_then(|inner| inner.capture_method)
@@ -2933,7 +2937,7 @@ pub async fn filter_payment_methods(
                     let context = euclid::dssa::graph::AnalysisContext::from_dir_values(
                         context_values.clone(),
                     );
-                    println!(">>>>>>>>>>>>>>>>>>> The context is  {:?}",context_values);
+                    println!(">>>>>>>>>>>>>>>>>>> The context is  {:?}", context_values);
 
                     let result = graph.key_value_analysis(
                         pm_dir_value.clone(),
@@ -2942,7 +2946,7 @@ pub async fn filter_payment_methods(
                         &mut cgraph::CycleCheck::new(),
                         None,
                     );
-                    println!(">>>>>>>>>>>>>>>>>>> The result is  {:?}",result);
+                    println!(">>>>>>>>>>>>>>>>>>> The result is  {:?}", result);
                     if filter_pm_based_on_allowed_types
                         && filter_incorrect_client_secret
                         && result.is_ok()
