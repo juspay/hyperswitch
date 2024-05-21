@@ -4,7 +4,7 @@ use api_models::payments::{
     OnlineMandate as ApiOnlineMandate,
 };
 use common_enums::Currency;
-use common_utils::{date_time, errors::ParsingError, pii};
+use common_utils::{date_time, errors::ParsingError, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
@@ -24,7 +24,7 @@ pub enum MandateDataType {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Currency,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
