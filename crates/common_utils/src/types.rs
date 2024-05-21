@@ -227,6 +227,74 @@ where
     }
 }
 
+/// Amount convertor trait for connector
+pub trait AmountConvertor: Send {
+    /// Output type for the connector
+    type Output;
+    /// helps in conversion of connector required amount type
+    fn convert(
+        &self,
+        i: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, TryFromIntError>;
+
+    /// helps in converting back connector required amount type to core minor unit
+    fn convert_back(
+        &self,
+        i: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError>;
+}
+
+/// Connector required amount type 
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitForConnector;
+
+impl AmountConvertor for StringMajorUnitForConnector {
+    type Output = StringMajorUnit;
+    fn convert(
+            &self,
+            i: MinorUnit,
+            currency: enums::Currency,
+        ) -> Result<Self::Output, TryFromIntError> {
+        i.to_major_unit_as_string(currency)
+    }
+
+    fn convert_back(
+        &self,
+        i: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError> {
+        i.to_minor_unit_as_i64(currency)
+    }
+}
+
+/// Connector required amount type 
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnitForConnector;
+
+impl AmountConvertor for FloatMajorUnitForConnector {
+    type Output = FloatMajorUnit;
+    fn convert(
+        &self,
+        i: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, TryFromIntError> {
+        i.to_major_unit_asf64(currency)
+    }
+    fn convert_back(
+        &self,
+        i: FloatMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, ParseFloatError> {
+        i.to_minor_unit_as_i64(currency)
+    }
+}
+
+
+
+
+
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
     Default,
@@ -261,9 +329,10 @@ impl MinorUnit {
     pub fn to_major_unit_as_string(
         &self,
         currency: enums::Currency,
-    ) -> Result<String, TryFromIntError> {
+    ) -> Result<StringMajorUnit, TryFromIntError> {
         let amount_f64 = self.to_major_unit_asf64(currency)?;
-        Ok(format!("{:.2}", amount_f64.0))
+        let amount_string = format!("{:.2}", amount_f64.0);
+        Ok(StringMajorUnit::new(amount_string))
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
@@ -368,39 +437,11 @@ impl Sub for MinorUnit {
     }
 }
 
-/// This struct represents Money unit on which conversion will be done
-#[derive(
-    Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq, Hash, ToSchema,
-)]
-pub struct Money {
-    amount: MinorUnit,
-    currency: enums::Currency,
-}
 
-// connector amount unit
+/// Connector specific types to send
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct FloatMajorUnit(f64);
-
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
-pub struct FloatMajorUnitForConnector;
-
-impl AmountConvertor for FloatMajorUnitForConnector {
-    type Output = FloatMajorUnit;
-    fn convert(
-        &self,
-        i: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, TryFromIntError> {
-        i.to_major_unit_asf64(currency)
-    }
-    fn convert_back(
-        &self,
-        i: FloatMajorUnit,
-        currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError> {
-        i.to_minor_unit_as_i64(currency)
-    }
-}
 
 impl FloatMajorUnit {
     /// forms a new major unit from amount
@@ -408,6 +449,7 @@ impl FloatMajorUnit {
         Self(value)
     }
 
+    /// converts to minor unit as i64 from FloatMajorUnit
     pub fn to_minor_unit_as_i64(
         &self,
         currency: enums::Currency,
@@ -423,6 +465,9 @@ impl FloatMajorUnit {
         Ok(MinorUnit::new(amount as i64))
     }
 }
+
+
+/// Connector specific types to send
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
 pub struct StringMajorUnit(String);
 
@@ -432,6 +477,7 @@ impl StringMajorUnit {
         Self(value)
     }
 
+    /// Converts to minor unit as i64 from StringMajorUnit
     pub fn to_minor_unit_as_i64(
         &self,
         currency: enums::Currency,
@@ -445,56 +491,5 @@ impl StringMajorUnit {
             amount_f64 * 100.00
         };
         Ok(MinorUnit::new(amount as i64))
-    }
-}
-
-pub trait AmountConvertor: Send {
-    type Output;
-    fn convert(
-        &self,
-        i: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, TryFromIntError>;
-
-    fn convert_back(
-        &self,
-        i: Self::Output,
-        currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError>;
-}
-
-impl AmountConvertor for FloatMajorUnit {
-    type Output = FloatMajorUnit;
-    fn convert(
-        &self,
-        i: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, TryFromIntError> {
-        i.to_major_unit_asf64(currency)
-    }
-    fn convert_back(
-        &self,
-        i: FloatMajorUnit,
-        currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError> {
-        i.to_minor_unit_as_i64(currency)
-    }
-}
-
-impl AmountConvertor for StringMajorUnit {
-    type Output = StringMajorUnit;
-    fn convert(
-        &self,
-        i: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, TryFromIntError> {
-        i.to_major_unit_as_string_with_zero_decimal_check(currency)
-    }
-    fn convert_back(
-        &self,
-        i: StringMajorUnit,
-        currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError> {
-        i.to_minor_unit_as_i64(currency)
     }
 }

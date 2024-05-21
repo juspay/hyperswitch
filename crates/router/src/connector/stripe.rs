@@ -1,13 +1,12 @@
 pub mod transformers;
 
-use std::{collections::HashMap, fmt::Debug, ops::Deref};
+use std::{collections::HashMap, ops::Deref};
 
 use common_utils::{
     request::RequestContent,
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use diesel_models::enums;
-use dyn_clone::DynClone;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
