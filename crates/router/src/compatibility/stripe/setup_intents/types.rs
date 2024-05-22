@@ -381,6 +381,7 @@ pub enum StripeNextAction {
         image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
+        qr_code_data: Option<String>,
     },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
@@ -416,10 +417,12 @@ pub(crate) fn into_stripe_next_action(
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            qr_code_data,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            qr_code_data,
         },
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }

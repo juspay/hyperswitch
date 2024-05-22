@@ -1640,7 +1640,10 @@ impl GetPaymentMethodType for CryptoData {
 
 impl GetPaymentMethodType for UpiData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
-        api_enums::PaymentMethodType::UpiCollect
+        match self {
+            UpiData::Upi(_) => api_enums::PaymentMethodType::UpiCollect,
+            UpiData::UpiQr(_) => api_enums::PaymentMethodType::UpiIntent,
+        }
     }
 }
 impl GetPaymentMethodType for VoucherData {
@@ -2093,12 +2096,21 @@ pub struct CryptoData {
     pub pay_currency: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct UpiData {
-    #[schema(value_type = Option<String>, example = "successtest@iata")]
+pub enum UpiData {
+    Upi(Upi),
+    UpiQr(UpiQr),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Upi {
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct UpiQr {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -2930,6 +2942,7 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         /// The url for Qr code given by the connector
         qr_code_url: Option<Url>,
+        qr_code_data: Option<String>,
     },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
@@ -2997,6 +3010,11 @@ pub enum QrCodeInformation {
     },
     QrCodeImageUrl {
         qr_code_url: Url,
+        display_to_timestamp: Option<i64>,
+    },
+    QrCodeData {
+        qr_code_url: Url,
+        qr_code_data: String,
         display_to_timestamp: Option<i64>,
     },
 }

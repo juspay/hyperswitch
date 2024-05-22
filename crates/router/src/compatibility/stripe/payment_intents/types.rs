@@ -73,7 +73,7 @@ pub enum StripeWallet {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeUpi {
-    pub vpa_id: masking::Secret<String, UpiVpaMaskingStrategy>,
+    pub vpa_id: Option<masking::Secret<String, UpiVpaMaskingStrategy>>,
 }
 
 #[derive(Debug, Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -141,8 +141,11 @@ impl From<StripeWallet> for payments::WalletData {
 
 impl From<StripeUpi> for payments::UpiData {
     fn from(upi: StripeUpi) -> Self {
-        Self {
-            vpa_id: Some(upi.vpa_id),
+        match upi.vpa_id {
+            Some(vpa_id) => Self::Upi(payments::Upi {
+                vpa_id: Some(vpa_id),
+            }),
+            None => Self::UpiQr(payments::UpiQr {}),
         }
     }
 }
@@ -812,6 +815,7 @@ pub enum StripeNextAction {
         image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
+        qr_code_data: Option<String>,
     },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
@@ -847,10 +851,12 @@ pub(crate) fn into_stripe_next_action(
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            qr_code_data,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            qr_code_data,
         },
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }

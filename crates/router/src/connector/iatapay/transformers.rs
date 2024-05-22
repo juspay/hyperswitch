@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use api_models::enums::PaymentMethod;
-use common_utils::errors::CustomResult;
+use common_enums::PaymentMethodType;
+use common_utils::{errors::CustomResult, ext_traits::Encode};
+use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
@@ -78,10 +80,36 @@ pub struct RedirectUrls {
     failure_url: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IatapayCompleteAuthorizeResponse {
+    iata_payment_id: String,
+    status: IatapayPaymentStatus,
+    authorization_timeout_date_time: Option<String>,
+    qr_info_data: Option<QrInfoData>,
+    failure_details: Option<String>,
+    failure_code: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QrInfoData {
+    qr: String,
+    qr_link: url::Url,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayerInfo {
     token_id: Secret<String>,
+}
+
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PreferredCheckoutMethod {
+    Vpa,
+    Qr,
 }
 
 #[derive(Debug, Serialize)]
@@ -95,7 +123,14 @@ pub struct IatapayPaymentsRequest {
     locale: String,
     redirect_urls: RedirectUrls,
     notification_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     payer_info: Option<PayerInfo>,
+    preferred_checkout_method: Option<PreferredCheckoutMethod>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IatapayQrMetadata {
+    pub complete_authorize_url: String,
 }
 
 impl
@@ -136,24 +171,31 @@ impl
             | PaymentMethod::GiftCard => item.router_data.get_billing_country()?.to_string(),
         };
         let return_url = item.router_data.get_return_url()?;
-        let payer_info = match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
-                token_id: id.switch_strategy(),
-            }),
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => None,
-        };
+        let (payer_info, preferred_checkout_method) =
+            match item.router_data.request.payment_method_data.clone() {
+                domain::PaymentMethodData::Upi(upi_type) => match upi_type {
+                    domain::UpiData::Upi(upi_data) => (
+                        upi_data.vpa_id.map(|id| PayerInfo {
+                            token_id: id.switch_strategy(),
+                        }),
+                        Some(PreferredCheckoutMethod::Vpa),
+                    ),
+                    domain::UpiData::UpiQr(_) => (None, Some(PreferredCheckoutMethod::Qr)),
+                },
+                domain::PaymentMethodData::Card(_)
+                | domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => (None, None),
+            };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
                 .merchant_id,
@@ -164,7 +206,8 @@ impl
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
-            notification_url: item.router_data.request.get_webhook_url()?,
+            notification_url: "https://77f1-65-1-52-128.ngrok-free.app".to_owned(),
+            preferred_checkout_method,
         };
         Ok(payload)
     }
@@ -258,6 +301,7 @@ pub struct IatapayPaymentsResponse {
 fn get_iatpay_response(
     response: IatapayPaymentsResponse,
     status_code: u16,
+    payment_method_type: Option<PaymentMethodType>,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -291,46 +335,182 @@ fn get_iatpay_response(
     };
     let connector_response_reference_id = response.merchant_payment_id.or(response.iata_payment_id);
 
-    let payment_response_data = response.checkout_methods.map_or(
-        types::PaymentsResponseData::TransactionResponse {
-            resource_id: id.clone(),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: connector_response_reference_id.clone(),
-            incremental_authorization_allowed: None,
-        },
-        |checkout_methods| types::PaymentsResponseData::TransactionResponse {
-            resource_id: id,
-            redirection_data: Some(services::RedirectForm::Form {
-                endpoint: checkout_methods.redirect.redirect_url,
-                method: services::Method::Get,
-                form_fields,
-            }),
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: connector_response_reference_id.clone(),
-            incremental_authorization_allowed: None,
-        },
-    );
+    let payment_response_data = match response.checkout_methods {
+        Some(checkout_methods) => {
+                let (connector_metadata, redirection_data) = match payment_method_type {
+                    Some(PaymentMethodType::UpiIntent) => {
+                        let qr_code_info = IatapayQrMetadata {
+                            complete_authorize_url: checkout_methods.redirect.redirect_url,
+                        };
+                        (
+                            Some(qr_code_info.encode_to_value())
+                                .transpose()
+                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                            None,
+                        )
+                    }
+                    Some(PaymentMethodType::UpiCollect) => (
+                        None,
+                        Some(services::RedirectForm::Form {
+                            endpoint: checkout_methods.redirect.redirect_url,
+                            method: services::Method::Get,
+                            form_fields,
+                        }),
+                    ),
+                    _ => (None, None),
+                };
+    
+                types::PaymentsResponseData::TransactionResponse {
+                    resource_id: id,
+                    redirection_data,
+                    mandate_reference: None,
+                    connector_metadata,
+                    network_txn_id: None,
+                    connector_response_reference_id: connector_response_reference_id.clone(),
+                    incremental_authorization_allowed: None,
+                }
+            },
+            None => types::PaymentsResponseData::TransactionResponse {
+                resource_id: id.clone(),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: connector_response_reference_id.clone(),
+                incremental_authorization_allowed: None,
+            }
+
+        };
+
     Ok((status, error, payment_response_data))
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            IatapayPaymentsResponse,
+            PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            IatapayPaymentsResponse,
+            PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
+        let payment_method_type = item.data.request.payment_method_type;
         let (status, error, payment_response_data) =
-            get_iatpay_response(item.response, item.http_code)?;
+            get_iatpay_response(item.response, item.http_code, payment_method_type)?;
         Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            IatapayPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            IatapayPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payment_method_type = item.data.request.payment_method_type;
+
+        let (status, error, payment_response_data) =
+            get_iatpay_response(item.response, item.http_code, payment_method_type)?;
+        Ok(Self {
+            status,
+            response: error.map_or_else(|| Ok(payment_response_data), Err),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            IatapayCompleteAuthorizeResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            IatapayCompleteAuthorizeResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+
+        let status = enums::AttemptStatus::from(item.response.status);
+        let response = if connector_util::is_payment_failure(status) {
+            Err(types::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_details
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_details,
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.iata_payment_id.clone()),
+            })
+        } else {
+            let qr_code_info = item.response.qr_info_data.map(|qr_data| {
+                api_models::payments::QrCodeInformation::QrCodeData {
+                    qr_code_url: qr_data.qr_link,
+                    qr_code_data: qr_data.qr,
+                    display_to_timestamp: None,
+                }
+            });
+            let connector_metadata = Some(qr_code_info.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.iata_payment_id,
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -361,7 +541,7 @@ impl<F> TryFrom<&IatapayRouterData<&types::RefundsRouterData<F>>> for IatapayRef
             merchant_refund_id: Some(item.router_data.request.refund_id.clone()),
             currency: item.router_data.request.currency.to_string(),
             bank_transfer_description: item.router_data.request.reason.clone(),
-            notification_url: item.router_data.request.get_webhook_url()?,
+            notification_url: "https://77f1-65-1-52-128.ngrok-free.app".to_owned(),
         })
     }
 }

@@ -160,7 +160,6 @@ default_imp_for_complete_authorize!(
     connector::Gocardless,
     connector::Gpayments,
     connector::Helcim,
-    connector::Iatapay,
     connector::Klarna,
     connector::Mifinity,
     connector::Multisafepay,
