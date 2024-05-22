@@ -386,7 +386,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments_complete_authorize))
+                        .route(web::get().to(payments_complete_authorize_redirect))
+                        .route(web::post().to(payments_complete_authorize_redirect)),
+                )
+                .service(
+                    web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments_complete_authorize)),
                 )
                 .service(
@@ -866,6 +870,7 @@ impl MerchantAccount {
                     .route(web::post().to(merchant_account_toggle_kv))
                     .route(web::get().to(merchant_account_kv_status)),
             )
+            .service(web::resource("/kv").route(web::post().to(merchant_account_toggle_all_kv)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))

@@ -1,16 +1,24 @@
 //! Types that can be used in other crates
-use std::{fmt::Display, str::FromStr};
+use std::{
+    fmt::Display,
+    ops::{Add, Sub},
+    primitive::i64,
+    str::FromStr,
+};
 
 use diesel::{
     backend::Backend,
+    deserialize,
     deserialize::FromSql,
     serialize::{Output, ToSql},
+    sql_types,
     sql_types::Jsonb,
-    AsExpression, FromSqlRow,
+    AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer};
+use utoipa::ToSchema;
 
 use crate::{
     consts,
@@ -52,13 +60,17 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
 
     /// apply the percentage to amount and ceil the result
     #[allow(clippy::as_conversions)]
-    pub fn apply_and_ceil_result(&self, amount: i64) -> CustomResult<i64, PercentageError> {
+    pub fn apply_and_ceil_result(
+        &self,
+        amount: MinorUnit,
+    ) -> CustomResult<MinorUnit, PercentageError> {
         let max_amount = i64::MAX / 10000;
+        let amount = amount.0;
         if amount > max_amount {
             // value gets rounded off after i64::MAX/10000
             Err(report!(PercentageError::UnableToApplyPercentage {
                 percentage: self.percentage,
-                amount,
+                amount: MinorUnit::new(amount),
             }))
             .attach_printable(format!(
                 "Cannot calculate percentage for amount greater than {}",
@@ -67,9 +79,10 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         } else {
             let percentage_f64 = f64::from(self.percentage);
             let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
-            Ok(result)
+            Ok(MinorUnit::new(result))
         }
     }
+
     fn is_valid_string_value(value: &str) -> CustomResult<bool, PercentageError> {
         let float_value = Self::is_valid_float_string(value)?;
         Ok(Self::is_valid_range(float_value) && Self::is_valid_precision_length(value))
@@ -151,7 +164,7 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
 }
@@ -193,7 +206,7 @@ impl<DB: Backend> FromSql<Jsonb, DB> for SemanticVersion
 where
     serde_json::Value: FromSql<Jsonb, DB>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
         Ok(serde_json::from_value(value)?)
     }
@@ -210,5 +223,89 @@ where
         // please refer to the diesel migration blog:
         // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
         <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+/// This Unit struct represents MinorUnit in which core amount works
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::BigInt)]
+pub struct MinorUnit(i64);
+
+impl MinorUnit {
+    /// gets amount as i64 value
+    pub fn get_amount_as_i64(&self) -> i64 {
+        // will be removed in future
+        self.0
+    }
+
+    /// forms a new minor unit from amount
+    pub fn new(value: i64) -> Self {
+        Self(value)
+    }
+}
+
+impl Display for MinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<DB> FromSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: FromSql<sql_types::BigInt, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = i64::from_sql(value)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: ToSql<sql_types::BigInt, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    Self: FromSql<sql_types::BigInt, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl Add for MinorUnit {
+    type Output = Self;
+    fn add(self, a2: Self) -> Self {
+        Self(self.0 + a2.0)
+    }
+}
+
+impl Sub for MinorUnit {
+    type Output = Self;
+    fn sub(self, a2: Self) -> Self {
+        Self(self.0 - a2.0)
     }
 }

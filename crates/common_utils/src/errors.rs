@@ -1,5 +1,7 @@
 //! Errors and error specific types for universal use
 
+use crate::types::MinorUnit;
+
 /// Custom Result
 /// A custom datatype that wraps the error variant <E> into a report, allowing
 /// error_stack::Report<E> specific extendability
@@ -89,7 +91,7 @@ pub enum PercentageError {
         /// percentage value
         percentage: f32,
         /// amount value
-        amount: i64,
+        amount: MinorUnit,
     },
 }
 

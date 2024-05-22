@@ -7,6 +7,7 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
+use masking::PeekInterface;
 use router_env::{env, instrument, tracing, types, Flow};
 
 use super::app::ReqState;
@@ -749,7 +750,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     .await
 }
 #[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
-pub async fn payments_complete_authorize(
+pub async fn payments_complete_authorize_redirect(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
@@ -792,6 +793,70 @@ pub async fn payments_complete_authorize(
     )
     .await
 }
+
+/// Payments - Complete Authorize
+#[instrument(skip_all, fields(flow =? Flow::PaymentsCompleteAuthorize, payment_id))]
+pub async fn payments_complete_authorize(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCompleteAuthorizeRequest>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCompleteAuthorize;
+    let mut payload = json_payload.into_inner();
+
+    let payment_id = path.into_inner();
+    payload.payment_id.clone_from(&payment_id);
+
+    tracing::Span::current().record("payment_id", &payment_id);
+
+    let payment_confirm_req = payment_types::PaymentsRequest {
+        payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
+            payment_id.clone(),
+        )),
+        shipping: payload.shipping.clone(),
+        client_secret: Some(payload.client_secret.peek().clone()),
+        ..Default::default()
+    };
+
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payment_confirm_req) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, _req, req_state| {
+            payments::payments_core::<
+                api_types::CompleteAuthorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+            >(
+                state.clone(),
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                payments::operations::payment_complete_authorize::CompleteAuthorize,
+                payment_confirm_req.clone(),
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+                None,
+                HeaderPayload::default(),
+            )
+        },
+        &*auth_type,
+        locking_action,
+    ))
+    .await
+}
+
 /// Payments - Cancel
 ///
 /// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
@@ -1461,6 +1526,22 @@ impl GetLockingInput for payments::PaymentsRedirectResponseData {
                 }
             }
             _ => api_locking::LockAction::NotApplicable,
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsCompleteAuthorizeRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
         }
     }
 }
