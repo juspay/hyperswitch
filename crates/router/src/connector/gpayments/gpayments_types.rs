@@ -32,9 +32,6 @@ pub struct TDS2ApiError {
     pub error_description: String,
     pub error_detail: Option<String>,
     pub error_message_type: Option<String>,
-    /// Always returns 'Erro' to indicate that this message is an error.
-    ///
-    /// Example: "Erro"
     pub message_type: String,
     pub message_version: Option<String>,
     #[serde(rename = "sdkTransID")]
