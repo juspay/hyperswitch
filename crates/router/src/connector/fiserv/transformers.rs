@@ -392,7 +392,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
     ) -> Result<Self, Self::Error> {
         let gateway_resp = match item.response.sync_responses.first() {
             Some(gateway_response) => gateway_response,
-            _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+            None => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
 
         Ok(Self {
