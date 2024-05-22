@@ -40,7 +40,7 @@ pub fn is_correct_password(
     .change_context(UserErrors::InternalServerError)
 }
 
-pub fn get_correct_recovery_code_index(
+pub fn get_index_for_correct_recovery_code(
     candidate: Secret<String>,
     recovery_codes: Vec<Secret<String>>,
 ) -> CustomResult<Option<usize>, UserErrors> {

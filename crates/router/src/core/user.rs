@@ -1791,7 +1791,7 @@ pub async fn verify_recovery_code(
         .ok_or(UserErrors::InternalServerError)?;
 
     let matching_index =
-        password::get_correct_recovery_code_index(req.recovery_code, recovery_codes.clone())?;
+        password::get_index_for_correct_recovery_code(req.recovery_code, recovery_codes.clone())?;
 
     if matching_index.is_none() {
         return Err(UserErrors::InvalidRecoveryCode.into());
