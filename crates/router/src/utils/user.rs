@@ -1,14 +1,11 @@
 use std::collections::HashMap;
 
 use api_models::user as user_api;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::ExposeInterface;
-use totp_rs::{Algorithm, TOTP};
 
 use crate::{
-    consts,
     core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
     services::{
@@ -22,6 +19,7 @@ pub mod dashboard_metadata;
 pub mod password;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod two_factor_auth;
 
 impl UserFromToken {
     pub async fn get_merchant_account_from_db(
@@ -192,26 +190,4 @@ pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> maskin
         user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
         user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
     }
-}
-
-pub fn generate_default_totp(
-    email: pii::Email,
-    secret: Option<masking::Secret<String>>,
-) -> UserResult<TOTP> {
-    let secret = secret
-        .map(|sec| totp_rs::Secret::Encoded(sec.expose()))
-        .unwrap_or_else(totp_rs::Secret::generate_secret)
-        .to_bytes()
-        .change_context(UserErrors::InternalServerError)?;
-
-    TOTP::new(
-        Algorithm::SHA1,
-        consts::user::TOTP_DIGITS,
-        consts::user::TOTP_TOLERANCE,
-        consts::user::TOTP_VALIDITY_DURATION_IN_SECONDS,
-        secret,
-        Some(consts::user::TOTP_ISSUER_NAME.to_string()),
-        email.expose().expose(),
-    )
-    .change_context(UserErrors::InternalServerError)
 }
