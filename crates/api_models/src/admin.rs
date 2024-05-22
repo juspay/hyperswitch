@@ -829,6 +829,22 @@ pub struct ToggleKVRequest {
     pub kv_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVRequest {
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVResponse {
+    ///Total number of updated merchants
+    #[schema(example = 20)]
+    pub total_updated: usize,
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MerchantConnectorDetailsWrap {
     /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string "null".
