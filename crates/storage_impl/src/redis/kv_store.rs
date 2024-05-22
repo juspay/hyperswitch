@@ -249,7 +249,9 @@ impl<'a> std::fmt::Display for Op<'a> {
         match self {
             Op::Insert => f.write_str("insert"),
             Op::Find => f.write_str("find"),
-            Op::Update(p_key, _, _) => f.write_str(&format!("update_{}", p_key)),
+            Op::Update(p_key, _, updated_by) => {
+                f.write_str(&format!("update_{} for updated_by_{:?}", p_key, updated_by))
+            }
         }
     }
 }
@@ -273,7 +275,8 @@ where
         let updated_scheme = match operation {
             Op::Insert => MerchantStorageScheme::PostgresOnly,
             Op::Find => MerchantStorageScheme::RedisKv,
-            Op::Update(partition_key, field, Some("redis_kv")) => {
+            Op::Update(_, _, Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
+            Op::Update(partition_key, field, Some(_updated_by)) => {
                 match kv_wrapper::<D, _, _>(store, KvOperation::<D>::HGet(field), partition_key)
                     .await
                 {
@@ -286,11 +289,6 @@ where
             }
 
             Op::Update(_, _, None) => MerchantStorageScheme::PostgresOnly,
-            Op::Update(_, _, Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
-            _ => {
-                logger::debug!("soft_kill_mode - using default storage scheme");
-                storage_scheme
-            }
         };
 
         let type_name = std::any::type_name::<D>();
