@@ -15,7 +15,6 @@ use router_env::env;
 use router_env::logger;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
-use utils::user::two_factor_auth::{check_access_code_in_redis, check_totp_in_redis};
 
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
@@ -25,7 +24,7 @@ use crate::{
     routes::{app::ReqState, AppState},
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
-    utils,
+    utils::{self, user::two_factor_auth as tfa_utils},
 };
 
 pub mod dashboard_metadata;
@@ -1741,7 +1740,7 @@ pub async fn generate_recovery_codes(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
 ) -> UserResponse<user_api::RecoveryCodes> {
-    if !check_totp_in_redis(&state, &user_token.user_id).await? {
+    if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await? {
         return Err(UserErrors::TotpRequired.into());
     }
 
@@ -1781,11 +1780,11 @@ pub async fn terminate_2fa(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if skip_2fa.is_none() {
-        if !(check_totp_in_redis(&state, &user_token.user_id).await?
-            || check_access_code_in_redis(&state, &user_token.user_id).await?)
+    if !(skip_2fa.unwrap_or(false)) {
+        if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
+            && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
         {
-            return Err(UserErrors::TotpRequired.into());
+            return Err(UserErrors::TwoFARequired.into());
         }
 
         state
