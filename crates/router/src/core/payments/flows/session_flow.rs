@@ -184,6 +184,8 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
+                    logger::info!("Apple pay simplified flow");
+
                     let merchant_identifier = state
                         .conf
                         .applepay_merchant_configs
@@ -225,6 +227,8 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
+                    logger::info!("Apple pay manual flow");
+
                     let apple_pay_session_request =
                         get_session_request_for_manual_apple_pay(session_token_data.clone());
 
@@ -240,6 +244,8 @@ async fn create_applepay_session_token(
                 }
             },
             payment_types::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
+                logger::info!("Apple pay manual flow");
+
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
                 );

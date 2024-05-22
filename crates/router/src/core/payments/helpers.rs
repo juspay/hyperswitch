@@ -3889,7 +3889,7 @@ pub fn validate_customer_access(
 }
 
 pub fn is_apple_pay_simplified_flow(
-    connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let apple_pay_metadata = get_applepay_metadata(connector_metadata)?;
 
@@ -3905,7 +3905,7 @@ pub fn is_apple_pay_simplified_flow(
 }
 
 pub fn get_applepay_metadata(
-    connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {
     connector_metadata
         .clone()
@@ -4157,6 +4157,8 @@ impl ApplePayData {
         &self,
         symmetric_key: &[u8],
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        logger::info!("Decrypt apple pay token");
+
         let data = BASE64_ENGINE
             .decode(self.data.peek().as_bytes())
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
