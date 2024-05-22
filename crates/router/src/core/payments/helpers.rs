@@ -3888,6 +3888,122 @@ pub fn validate_customer_access(
     Ok(())
 }
 
+pub fn is_apple_pay_simplified_flow(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> CustomResult<bool, errors::ApiErrorResponse> {
+    let apple_pay_metadata = get_applepay_metadata(connector_metadata)?;
+
+    Ok(match apple_pay_metadata {
+        api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+            apple_pay_combined_metadata,
+        ) => match apple_pay_combined_metadata {
+            api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => true,
+            api_models::payments::ApplePayCombinedMetadata::Manual { .. } => false,
+        },
+        api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => false,
+    })
+}
+
+pub fn get_applepay_metadata(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {
+    connector_metadata
+        .clone()
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .map(|combined_metadata| {
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                combined_metadata.apple_pay_combined,
+            )
+        })
+        .or_else(|_| {
+            connector_metadata
+                .parse_value::<api_models::payments::ApplepaySessionTokenData>(
+                    "ApplepaySessionTokenData",
+                )
+                .map(|old_metadata| {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
+                        old_metadata.apple_pay,
+                    )
+                })
+        })
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_metadata".to_string(),
+            expected_format: "applepay_metadata_format".to_string(),
+        })
+}
+
+pub async fn get_apple_pay_retryable_connectors<F>(
+    state: AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+    key_store: &domain::MerchantKeyStore,
+    decided_connector_data: api::ConnectorData,
+    merchant_connector_id: Option<&String>,
+) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
+where
+    F: Send + Clone,
+{
+    let profile_id = &payment_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })?;
+
+    let merchant_connector_account = get_merchant_connector_account(
+        &state,
+        merchant_account.merchant_id.as_str(),
+        payment_data.creds_identifier.to_owned(),
+        key_store,
+        profile_id, // need to fix this
+        &decided_connector_data.connector_name.to_string(),
+        merchant_connector_id,
+    )
+    .await?
+    .get_metadata();
+
+    let connector_data_list = if is_apple_pay_simplified_flow(merchant_connector_account)? {
+        let merchant_connector_account_list = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                merchant_account.merchant_id.as_str(),
+                true,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+        let mut connector_data_list = vec![decided_connector_data.clone()];
+
+        for merchant_connector_account in merchant_connector_account_list {
+            if is_apple_pay_simplified_flow(merchant_connector_account.metadata)? {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &merchant_connector_account.connector_name.to_string(),
+                    api::GetToken::Connector,
+                    Some(merchant_connector_account.merchant_connector_id),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name received")?;
+
+                if !connector_data_list.iter().any(|connector_details| {
+                    connector_details.merchant_connector_id == connector_data.merchant_connector_id
+                }) {
+                    connector_data_list.push(connector_data)
+                }
+            }
+        }
+        Some(connector_data_list)
+    } else {
+        None
+    };
+    Ok(connector_data_list)
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ApplePayData {
     version: masking::Secret<String>,
@@ -4040,6 +4156,8 @@ impl ApplePayData {
         &self,
         symmetric_key: &[u8],
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        logger::info!("Decrypt apple pay token");
+
         let data = BASE64_ENGINE
             .decode(self.data.peek().as_bytes())
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
