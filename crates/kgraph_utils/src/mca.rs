@@ -133,6 +133,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Oxxo => Ok(dirval!(VoucherType = Oxxo)),
         api_enums::PaymentMethodType::CardRedirect => Ok(dirval!(CardRedirectType = CardRedirect)),
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+        api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
     }
 }
 
