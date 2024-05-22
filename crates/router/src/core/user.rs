@@ -1631,7 +1631,7 @@ pub async fn begin_totp(
         }));
     }
 
-    let totp = utils::user::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = utils::user::two_factor_auth::generate_default_totp(user_from_db.get_email(), None)?;
     let recovery_codes = domain::RecoveryCodes::generate_new();
 
     let key_store = user_from_db.get_or_create_key_store(&state).await?;
@@ -1693,8 +1693,10 @@ pub async fn verify_totp(
             .await?
             .ok_or(UserErrors::InternalServerError)?;
 
-        let totp =
-            utils::user::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
+        let totp = utils::user::two_factor_auth::generate_default_totp(
+            user_from_db.get_email(),
+            Some(user_totp_secret),
+        )?;
 
         if totp
             .generate_current()
@@ -1731,4 +1733,36 @@ pub async fn verify_totp(
         },
         token,
     )
+}
+
+pub async fn generate_recovery_codes(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+) -> UserResponse<user_api::RecoveryCodes> {
+    if !utils::user::two_factor_auth::check_totp_in_redis(&state, &user_token.user_id).await? {
+        return Err(UserErrors::TotpRequired.into());
+    }
+
+    let recovery_codes = domain::RecoveryCodes::generate_new();
+
+    state
+        .store
+        .update_user_by_user_id(
+            &user_token.user_id,
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: None,
+                totp_secret: None,
+                totp_recovery_codes: Some(
+                    recovery_codes
+                        .get_hashed()
+                        .change_context(UserErrors::InternalServerError)?,
+                ),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(user_api::RecoveryCodes {
+        recovery_codes: recovery_codes.into_inner(),
+    }))
 }
