@@ -24,7 +24,10 @@ use crate::{
     routes::{app::ReqState, AppState},
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
-    utils,
+    utils::{
+        self,
+        user::{password, two_factor_auth::insert_access_code_in_redis},
+    },
 };
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
@@ -1765,4 +1768,56 @@ pub async fn generate_recovery_codes(
     Ok(ApplicationResponse::Json(user_api::RecoveryCodes {
         recovery_codes: recovery_codes.into_inner(),
     }))
+}
+
+pub async fn verify_access_code(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::VerifyAccessCodeRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_totp_status() != TotpStatus::Set {
+        return Err(UserErrors::TotpNotSetup.into());
+    }
+
+    let access_codes = user_from_db
+        .get_recovery_codes()
+        .ok_or(UserErrors::InternalServerError)?;
+
+    let matching_index =
+        password::get_correct_access_code_index(req.access_code, access_codes.clone())?;
+
+    if matching_index.is_none() {
+        return Err(UserErrors::InvalidCredentials.into());
+    }
+
+    let mut updated_recovery_codes = access_codes;
+    if let Some(index) = matching_index {
+        updated_recovery_codes.remove(index);
+    }
+
+    state
+        .store
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: None,
+                totp_secret: None,
+                totp_recovery_codes: Some(updated_recovery_codes),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let _ = insert_access_code_in_redis(&state, user_from_db.get_user_id())
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    Ok(ApplicationResponse::StatusOk)
 }

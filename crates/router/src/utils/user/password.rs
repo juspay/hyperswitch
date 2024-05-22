@@ -40,6 +40,18 @@ pub fn is_correct_password(
     .change_context(UserErrors::InternalServerError)
 }
 
+pub fn get_correct_access_code_index(
+    candidate: Secret<String>,
+    access_codes: Vec<Secret<String>>,
+) -> CustomResult<Option<usize>, UserErrors> {
+    Ok(access_codes
+        .into_iter()
+        .map(|access_code| is_correct_password(candidate.clone(), access_code))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .position(|x| x))
+}
+
 pub fn get_temp_password() -> Secret<String> {
     let uuid_pass = uuid::Uuid::new_v4().to_string();
     let mut rng = rand::thread_rng();

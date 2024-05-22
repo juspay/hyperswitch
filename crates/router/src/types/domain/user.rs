@@ -930,6 +930,10 @@ impl UserFromStorage {
         self.0.totp_status
     }
 
+    pub fn get_recovery_codes(&self) -> Option<Vec<Secret<String>>> {
+        self.0.totp_recovery_codes.clone()
+    }
+
     pub async fn decrypt_and_get_totp_secret(
         &self,
         state: &AppState,
