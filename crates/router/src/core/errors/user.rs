@@ -72,6 +72,8 @@ pub enum UserErrors {
     InvalidTotp,
     #[error("TotpRequired")]
     TotpRequired,
+    #[error("InvalidRecoveryCode")]
+    InvalidRecoveryCode,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -184,6 +186,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::TotpRequired => {
                 AER::BadRequest(ApiError::new(sub_code, 38, self.get_error_message(), None))
             }
+            Self::InvalidRecoveryCode => {
+                AER::BadRequest(ApiError::new(sub_code, 39, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -223,6 +228,7 @@ impl UserErrors {
             Self::TotpNotSetup => "TOTP not setup",
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
+            Self::InvalidRecoveryCode => "Invalid Recovery Code"
         }
     }
 }

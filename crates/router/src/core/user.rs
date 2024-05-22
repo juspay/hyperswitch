@@ -1794,7 +1794,7 @@ pub async fn verify_recovery_code(
         password::get_correct_recovery_code_index(req.recovery_code, recovery_codes.clone())?;
 
     if matching_index.is_none() {
-        return Err(UserErrors::InvalidCredentials.into());
+        return Err(UserErrors::InvalidRecoveryCode.into());
     }
 
     let mut updated_recovery_codes = recovery_codes;
