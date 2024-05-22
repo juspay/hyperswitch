@@ -3990,10 +3990,9 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid connector name received")?;
 
-                if !connector_data_list
-                    .iter()
-                    .any(|cd| cd.connector_name == connector_data.connector_name)
-                {
+                if !connector_data_list.iter().any(|connector_details| {
+                    connector_details.merchant_connector_id == connector_data.merchant_connector_id
+                }) {
                     connector_data_list.push(connector_data)
                 }
             }
