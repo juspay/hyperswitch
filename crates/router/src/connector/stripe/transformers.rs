@@ -162,22 +162,10 @@ pub struct PaymentIntentRequest {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum IntentCharges {
-    Direct(DirectCharges),
-    Destination(DestinationCharges),
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct DirectCharges {
+pub struct IntentCharges {
     pub application_fee_amount: i64,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct DestinationCharges {
-    pub application_fee_amount: i64,
-    #[serde(rename = "transfer_data[destination]")]
-    pub destination_account_id: String,
+    #[serde(rename = "transfer_data[destination]", skip_serializing_if = "Option::is_none")]
+    pub destination_account_id: Option<String>,
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -1851,17 +1839,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             Some(charges) => {
                 let charges = match &charges.charge_type {
                     api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
-                        api_enums::StripeChargeType::Direct => {
-                            Some(IntentCharges::Direct(DirectCharges {
-                                application_fee_amount: charges.fees,
-                            }))
-                        }
-                        api_enums::StripeChargeType::Destination => {
-                            Some(IntentCharges::Destination(DestinationCharges {
-                                application_fee_amount: charges.fees,
-                                destination_account_id: charges.transfer_account_id.clone(),
-                            }))
-                        }
+                        api_enums::StripeChargeType::Direct => Some(IntentCharges {
+                            application_fee_amount: charges.fees,
+                            destination_account_id: None,
+                        }),
+                        api_enums::StripeChargeType::Destination => Some(IntentCharges {
+                            application_fee_amount: charges.fees,
+                            destination_account_id: Some(charges.transfer_account_id.clone()),
+                        }),
                     },
                 };
                 (charges, None)
