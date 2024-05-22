@@ -3681,9 +3681,11 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "serde_with",
  "thiserror",
  "time",
  "url",
+ "utoipa",
 ]
 
 [[package]]
