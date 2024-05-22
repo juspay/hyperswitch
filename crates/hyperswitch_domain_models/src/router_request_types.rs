@@ -1,4 +1,5 @@
 pub mod authentication;
+pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
 use common_utils::{consts, errors, pii};
 use diesel_models::enums as storage_enums;

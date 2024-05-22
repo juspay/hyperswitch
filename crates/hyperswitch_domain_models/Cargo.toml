@@ -23,6 +23,8 @@ cards = {version = "0.1.0", path = "../cards"}
 router_derive = {version = "0.1.0", path = "../router_derive"}
 mime = "0.3.17"
 url = { version = "2.5.0", features = ["serde"] }
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
+serde_with = "3.7.0"
 
 # Third party deps
 async-trait = "0.1.79"
