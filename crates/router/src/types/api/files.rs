@@ -52,7 +52,7 @@ pub struct CreateFileRequest {
     pub file: Vec<u8>,
     pub file_name: Option<String>,
     pub file_size: i32,
-    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
+    #[serde(serialize_with = "common_utils::custom_serde::display_serialize")]
     pub file_type: mime::Mime,
     pub purpose: FilePurpose,
     pub dispute_id: Option<String>,

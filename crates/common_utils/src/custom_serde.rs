@@ -266,6 +266,15 @@ pub mod iso8601custom {
     }
 }
 
+/// serde Serialize using display triat implementation
+pub fn display_serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+where
+    T: std::fmt::Display,
+    S: serde::ser::Serializer,
+{
+    serializer.serialize_str(&format!("{}", value))
+}
+
 #[cfg(test)]
 mod tests {
     use serde::{Deserialize, Serialize};
