@@ -164,7 +164,10 @@ pub struct PaymentIntentRequest {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct IntentCharges {
     pub application_fee_amount: i64,
-    #[serde(rename = "transfer_data[destination]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "transfer_data[destination]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub destination_account_id: Option<String>,
 }
 
