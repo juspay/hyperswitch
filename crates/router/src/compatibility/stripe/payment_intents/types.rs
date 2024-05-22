@@ -890,9 +890,9 @@ fn get_pmd_based_on_payment_method_type(
     payment_method_type: Option<api_enums::PaymentMethodType>,
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
-        Some(api_enums::PaymentMethodType::UpiIntent) => {
-            Some(payments::PaymentMethodData::Upi(payments::UpiData::UpiQr(payments::UpiQr {})))
-        },
+        Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
+            payments::UpiData::UpiQr(payments::UpiQr {}),
+        )),
         _ => None,
     }
 }
