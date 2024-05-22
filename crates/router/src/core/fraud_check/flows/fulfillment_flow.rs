@@ -72,10 +72,12 @@ pub async fn construct_fulfillment_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        amount_captured: payment_intent.amount_captured,
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         payment_method_status: None,
         request: FraudCheckFulfillmentData {
-            amount: payment_attempt.amount,
+            amount: payment_attempt.amount.get_amount_as_i64(),
             order_details: payment_intent.order_details.clone(),
             fulfillment_req: fulfillment_request,
         },

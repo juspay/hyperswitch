@@ -140,6 +140,7 @@ pub async fn create_payment_method(
                 last_modified: current_time,
                 last_used_at: current_time,
                 payment_method_billing_address,
+                updated_by: None,
             },
             storage_scheme,
         )
@@ -427,7 +428,7 @@ pub async fn add_payment_method_data(
                         pm_resp.payment_method_id.clone_from(&pm_id);
                         pm_resp.client_secret = Some(client_secret.clone());
 
-                        let card_isin = card.card_number.clone().get_card_isin();
+                        let card_isin = card.card_number.get_card_isin();
 
                         let card_info = db
                             .get_card_info(card_isin.as_str())
@@ -439,7 +440,7 @@ pub async fn add_payment_method_data(
                             issuer_country: card_info
                                 .as_ref()
                                 .and_then(|ci| ci.card_issuing_country.clone()),
-                            last4_digits: Some(card.card_number.clone().get_last4()),
+                            last4_digits: Some(card.card_number.get_last4()),
                             expiry_month: Some(card.card_exp_month),
                             expiry_year: Some(card.card_exp_year),
                             nick_name: card.nick_name,
@@ -644,7 +645,7 @@ pub async fn add_payment_method(
 
                     let updated_card = Some(api::CardDetailFromLocker {
                         scheme: None,
-                        last4_digits: Some(card.card_number.clone().get_last4()),
+                        last4_digits: Some(card.card_number.get_last4()),
                         issuer_country: None,
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
@@ -894,7 +895,7 @@ pub async fn update_customer_payment_method(
             // Construct new updated card object. Consider a field if passed in request or else populate it with the existing value from existing_card_data
             let updated_card = Some(api::CardDetailFromLocker {
                 scheme: existing_card_data.scheme,
-                last4_digits: Some(card_data_from_locker.card_number.clone().get_last4()),
+                last4_digits: Some(card_data_from_locker.card_number.get_last4()),
                 issuer_country: existing_card_data.issuer_country,
                 card_number: existing_card_data.card_number,
                 expiry_month: card_update
@@ -2794,7 +2795,11 @@ pub async fn filter_payment_methods(
                         &payment_method_type_info,
                         req.installment_payment_enabled,
                     )
-                    && filter_amount_based(&payment_method_type_info, req.amount)
+                    && filter_amount_based(
+                        &payment_method_type_info,
+                        req.amount
+                            .map(|minor_amount| minor_amount.get_amount_as_i64()),
+                    )
                 {
                     let mut payment_method_object = payment_method_type_info;
 
@@ -3288,10 +3293,10 @@ fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
-    let amount = payment_intent.amount;
+    let amount = payment_intent.amount.get_amount_as_i64();
     (pm.maximum_amount.map_or(true, |amt| amount <= amt.into())
         && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
-        || payment_intent.amount == 0
+        || payment_intent.amount.get_amount_as_i64() == 0
 }
 
 async fn filter_payment_mandate_based(

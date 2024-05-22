@@ -218,6 +218,14 @@ impl
 
 impl
     ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Gpayments
+{
+}
+impl
+    ConnectorIntegration<
         api::PostAuthentication,
         types::authentication::ConnectorPostAuthenticationRequestData,
         types::authentication::AuthenticationResponseData,

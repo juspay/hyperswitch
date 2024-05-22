@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{self, pii, types::MinorUnit};
 use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
@@ -15,9 +15,9 @@ pub struct PaymentIntent {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -60,4 +60,5 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }

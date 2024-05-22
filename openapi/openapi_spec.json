@@ -853,6 +853,57 @@
         ]
       }
     },
+    "/{payment_id}/complete_authorize": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Complete Authorize",
+        "description": "Payments - Complete Authorize\n\n",
+        "operationId": "Complete Authorize a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCompleteAuthorizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payments Complete Authorize Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -6931,7 +6982,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6540
           },
           "currency": {
             "allOf": [
@@ -9305,8 +9357,7 @@
         "type": "object",
         "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
         "required": [
-          "payment_method",
-          "payment_method_types"
+          "payment_method"
         ],
         "properties": {
           "payment_method": {
@@ -9317,7 +9368,16 @@
             "items": {
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
-            "description": "payment method types(credit, debit) that can be used in the payment"
+            "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "nullable": true
+          },
+          "flow": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmPreferredFlowTypes"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -10066,7 +10126,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Amount the authorization has been made for"
+            "description": "Amount the authorization has been made for",
+            "example": 6540
           },
           "status": {
             "$ref": "#/components/schemas/AuthorizationStatus"
@@ -10082,9 +10143,7 @@
             "nullable": true
           },
           "previously_authorized_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Previously authorized amount for the payment"
+            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -11537,6 +11596,11 @@
           }
         }
       },
+      "MinorUnit": {
+        "type": "integer",
+        "format": "int64",
+        "description": "This Unit struct represents MinorUnit in which core amount works"
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
@@ -12357,7 +12421,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+            "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6540
           },
           "currency": {
             "allOf": [
@@ -13478,6 +13543,9 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
+        "required": [
+          "amount_to_capture"
+        ],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -13488,7 +13556,7 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured/ debited from the user's payment method.",
-            "nullable": true
+            "example": 6540
           },
           "refund_uncaptured_amount": {
             "type": "boolean",
@@ -13512,6 +13580,26 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PaymentsCompleteAuthorizeRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
           }
         }
       },
@@ -13850,6 +13938,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -14222,6 +14311,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -14728,6 +14818,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -14754,6 +14845,8 @@
           "status",
           "amount",
           "net_amount",
+          "amount_capturable",
+          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -14786,29 +14879,26 @@
             "type": "integer",
             "format": "int64",
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 100
+            "example": 6540
           },
           "net_amount": {
             "type": "integer",
             "format": "int64",
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
-            "example": 110
+            "example": 6540
           },
           "amount_capturable": {
             "type": "integer",
             "format": "int64",
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
-            "nullable": true,
             "minimum": 100
           },
           "amount_received": {
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 100
+            "example": 6540
           },
           "connector": {
             "type": "string",
@@ -15268,6 +15358,11 @@
             "format": "date-time",
             "description": "Date time at which payment was updated",
             "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "frm_metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
             "nullable": true
           }
         }
@@ -15736,6 +15831,7 @@
             "minimum": 0
           },
           "frm_metadata": {
+            "type": "object",
             "description": "additional data related to some frm connectors",
             "nullable": true
           },
@@ -17199,11 +17295,15 @@
         "properties": {
           "surcharge_amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "example": 6540
           },
           "tax_amount": {
-            "type": "integer",
-            "format": "int64",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           }
         }
@@ -17318,7 +17418,8 @@
           },
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "example": 6540
           },
           "created_at": {
             "type": "string",
@@ -18169,9 +18270,7 @@
                 ]
               },
               "value": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Fixed Surcharge value"
+                "$ref": "#/components/schemas/MinorUnit"
               }
             }
           },
