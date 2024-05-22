@@ -406,6 +406,8 @@ pub enum Flow {
     TotpBegin,
     /// Verify TOTP
     TotpVerify,
+    /// Generate or Regenerate recovery codes
+    GenerateRecoveryCodes,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
