@@ -11794,6 +11794,24 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "next_action_data",
+              "type"
+            ],
+            "properties": {
+              "next_action_data": {
+                "$ref": "#/components/schemas/NextActionCall"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_sdk_client"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
