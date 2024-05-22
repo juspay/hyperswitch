@@ -27,6 +27,7 @@
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import jsQR from "jsqr";
+import { handleRedirection } from "./redirectionHandler";
 
 function logRequestId(xRequestId) {
   if (xRequestId) {
@@ -264,6 +265,77 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
 });
 
 Cypress.Commands.add(
+  "confirmBankRedirectCallTest",
+  (confirmBody, req_data, res_data, confirm, globalState) => {
+    const paymentIntentId = globalState.get("paymentID");
+    confirmBody.payment_method = req_data.payment_method;
+    confirmBody.payment_method_type = req_data.payment_method_type;
+    confirmBody.payment_method_data.bank_redirect = req_data.bank_redirect;
+    confirmBody.confirm = confirm;
+    confirmBody.client_secret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentId}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(res_data.status).to.equal(response.status);
+      expect(response.headers["content-type"]).to.include("application/json");
+      globalState.set("paymentID", paymentIntentId);
+
+      switch (response.body.authentication_type) {
+        case "three_ds":
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
+          } else {
+            throw new Error(
+              `Unsupported capture method; ${response.body.capture_method}`
+            );
+          }
+          break;
+        case "no_three_ds":
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
+          } else {
+            throw new Error(
+              `Unsupported capture method; ${response.body.capture_method}`
+            );
+          }
+          break;
+        default:
+          throw new Error(
+            `Unsupported authentication type: ${response.body.authentication_type}`
+          );
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
@@ -433,11 +505,11 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
 });
 
 // This is consequent saved card payment confirm call test(Using payment token)
-Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, res_data,globalState) => {
+Cypress.Commands.add("saveCardConfirmCallTest", (saveCardConfirmBody, req_data, res_data,globalState) => {
   const paymentIntentID = globalState.get("paymentID");
-  SaveCardConfirmBody.card_cvc = req_data.card.card_cvc;
-  SaveCardConfirmBody.payment_token = globalState.get("paymentToken");
-  SaveCardConfirmBody.client_secret = globalState.get("clientSecret");
+  saveCardConfirmBody.card_cvc = req_data.card.card_cvc;
+  saveCardConfirmBody.payment_token = globalState.get("paymentToken");
+  saveCardConfirmBody.client_secret = globalState.get("clientSecret");
   console.log("conf conn ->" + globalState.get("connectorId"));
   cy.request({
     method: "POST",
@@ -447,7 +519,7 @@ Cypress.Commands.add("saveCardConfirmCallTest", (SaveCardConfirmBody, req_data, 
       "api-key": globalState.get("publishableKey"),
     },
     failOnStatusCode: false,
-    body: SaveCardConfirmBody,
+    body: saveCardConfirmBody,
   })
     .then((response) => {
       logRequestId(response.headers['x-request-id']);
@@ -841,72 +913,28 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
   let connectorId = globalState.get("connectorId");
   let expected_url = new URL(expected_redirection);
   let redirection_url = new URL(globalState.get("nextActionUrl"));
-  cy.visit(redirection_url.href);
-  if (globalState.get("connectorId") == "adyen") {
-    cy.get('iframe')
-      .its('0.contentDocument.body')
-      .within((body) => {
-        cy.get('input[type="password"]').click();
-        cy.get('input[type="password"]').type("password");
-        cy.get('#buttonSubmit').click();
-      })
-  }
-  else if (globalState.get("connectorId") === "cybersource" || globalState.get("connectorId") === "bankofamerica") {
-    cy.get('iframe')
-      .its('0.contentDocument.body')
-      .within((body) => {
-        cy.get('input[type="text"]').click().type("1234");
-        cy.get('input[value="SUBMIT"]').click();
-      })
-  }
-  else if (globalState.get("connectorId") === "nmi" || globalState.get("connectorId") === "noon") {
-    cy.get('iframe', { timeout: 150000 })
-      .its('0.contentDocument.body')
-      .within((body) => {
-        cy.get('iframe', { timeout: 20000 })
-          .its('0.contentDocument.body')
-          .within((body) => {
-            cy.get('form[name="cardholderInput"]', { timeout: 20000 }).should('exist').then(form => {
-              cy.get('input[name="challengeDataEntry"]').click().type("1234");
-              cy.get('input[value="SUBMIT"]').click();
-            })
-          })
-      })
-  }
-  else if (globalState.get("connectorId") === "stripe") {
-    cy.get('iframe')
-      .its('0.contentDocument.body')
-      .within((body) => {
-        cy.get('iframe')
-          .its('0.contentDocument.body')
-          .within((body) => {
-            cy.get('#test-source-authorize-3ds').click();
-          })
-      })
-  }
-  else if (globalState.get("connectorId") === "trustpay") {
-    cy.get('form[name="challengeForm"]', { timeout: 10000 }).should('exist').then(form => {
-      cy.get('#outcomeSelect').select('Approve').should('have.value', 'Y')
-      cy.get('button[type="submit"]').click();
-    })
-  }
-
-  else {
-    // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
-    cy.wait(10000);
-  }
-
-  // Handling redirection
-  if (redirection_url.host.endsWith(expected_url.host)) {
-    // No CORS workaround needed
-    cy.window().its('location.origin').should('eq', expected_url.origin);
-  } else {
-    // Workaround for CORS to allow cross-origin iframe
-    cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin } }, ({ expected_url }) => {
-      cy.window().its('location.origin').should('eq', expected_url);
-    })
-  }
+  handleRedirection(
+    "three_ds",
+    { redirection_url, expected_url },
+    connectorId,
+    null
+  );
 });
+
+Cypress.Commands.add(
+  "handleBankRedirectRedirection",
+  (globalState, payment_method_type, expected_redirection) => {
+    let connectorId = globalState.get("connectorId");
+    let expected_url = new URL(expected_redirection);
+    let redirection_url = new URL(globalState.get("nextActionUrl"));
+    handleRedirection(
+      "bank_redirect",
+      { redirection_url, expected_url },
+      connectorId,
+      payment_method_type
+    );
+  }
+);
 
 Cypress.Commands.add(
   "handleBankTransferRedirection",

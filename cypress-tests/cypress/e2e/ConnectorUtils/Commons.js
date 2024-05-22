@@ -1,17 +1,19 @@
+// This file is the default. To override, add to connector.js
+
 const successfulNo3DSCardDetails = {
-  card_number: "4200000000000000",
-  card_exp_month: "10",
+  card_number: "4111111111111111",
+  card_exp_month: "08",
   card_exp_year: "25",
   card_holder_name: "joseph Doe",
-  card_cvc: "123",
+  card_cvc: "999",
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4200000000000067",
-  card_exp_month: "03",
-  card_exp_year: "2030",
-  card_holder_name: "John Doe",
-  card_cvc: "737",
+  card_number: "4111111111111111",
+  card_exp_month: "10",
+  card_exp_year: "25",
+  card_holder_name: "morino",
+  card_cvc: "999",
 };
 
 export const connectorDetails = {
@@ -30,6 +32,20 @@ export const connectorDetails = {
         },
       },
     },
+    "3DSManualCapture": {
+      Request: {
+        card: successfulThreeDSTestCardDetails,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
     "3DSAutoCapture": {
       Request: {
         card: successfulThreeDSTestCardDetails,
@@ -40,26 +56,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
-    "3DSManualCapture": {
+    No3DSManualCapture: {
       Request: {
-        card: successfulThreeDSTestCardDetails,
+        card: successfulNo3DSCardDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "manual is not supported by trustpay",
-          },
+          status: "processing",
         },
       },
     },
@@ -73,26 +84,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
-        },
-      },
-    },
-    No3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-            reason: "manual is not supported by trustpay",
-          },
+          status: "processing",
         },
       },
     },
@@ -103,45 +95,36 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be captured because it has a payment.status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, processing",
-            code: "IR_14",
-          },
+          status: "processing",
+          amount: 6500,
+          amount_capturable: 6500,
         },
       },
     },
     PartialCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        paymentSuccessfulStatus: "succeeded",
-        paymentSyncStatus: "succeeded",
-        refundStatus: "succeeded",
-        refundSyncStatus: "succeeded",
-        customer_acceptance: null,
-      },
+      Request: {},
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be captured because it has a payment.status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, processing",
-            code: "IR_14",
-          },
+          status: "processing",
+          amount: 6500,
+          amount_capturable: 6500,
         },
       },
     },
     Void: {
       Request: {},
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "cancelled",
+          error: {
+            code: "IR_16",
+            message:
+              "You cannot cancel this payment because it has status processing",
+            type: "invalid_request",
+          },
         },
       },
     },
@@ -152,9 +135,14 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
@@ -165,10 +153,14 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          error_code: "1",
-          error_message: "transaction declined (invalid amount)",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
@@ -179,9 +171,14 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
@@ -201,8 +198,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
@@ -223,30 +221,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
-          },
-        },
-      },
-    },
-    MandateSingleUseNo3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          single_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
@@ -267,8 +244,32 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        card: successfulNo3DSCardDetails,
+        currency: "USD",
+        mandate_type: {
+          single_use: {
+            amount: 8000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
@@ -289,8 +290,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
@@ -311,8 +313,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
@@ -329,9 +332,14 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
@@ -351,8 +359,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
@@ -373,8 +382,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Trustpay is not implemented",
-            code: "IR_00",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
@@ -396,7 +406,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
@@ -415,26 +430,67 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "HE_03",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
           },
         },
       },
     },
   },
+  bank_transfer_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "BRL",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    Pix: {
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix",
+        bank_transfer: {
+          pix: {},
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
+        },
+      },
+    },
+  },
+
   bank_redirect_pm: {
     PaymentIntent: {
       Request: {
         currency: "EUR",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_payment_method",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
@@ -450,9 +506,14 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
@@ -471,9 +532,14 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
@@ -489,9 +555,14 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
@@ -506,9 +577,14 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
@@ -524,9 +600,14 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "HE_04",
+          },
         },
       },
     },
