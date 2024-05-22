@@ -77,7 +77,6 @@ fn get_dir_value_payment_method(
 
         api_enums::PaymentMethodType::ClassicReward => Ok(dirval!(RewardType = ClassicReward)),
         api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
-        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
         api_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),
         api_enums::PaymentMethodType::GoPay => Ok(dirval!(WalletType = GoPay)),
         api_enums::PaymentMethodType::KakaoPay => Ok(dirval!(WalletType = KakaoPay)),
@@ -133,6 +132,8 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Oxxo => Ok(dirval!(VoucherType = Oxxo)),
         api_enums::PaymentMethodType::CardRedirect => Ok(dirval!(CardRedirectType = CardRedirect)),
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+        api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
+        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
     }
 }
 

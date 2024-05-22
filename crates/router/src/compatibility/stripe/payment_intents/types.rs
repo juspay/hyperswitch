@@ -74,7 +74,7 @@ pub enum StripeWallet {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeUpi {
-    pub vpa_id: Option<masking::Secret<String, UpiVpaMaskingStrategy>>,
+    pub vpa_id: masking::Secret<String, UpiVpaMaskingStrategy>,
 }
 
 #[derive(Debug, Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -143,7 +143,7 @@ impl From<StripeWallet> for payments::WalletData {
 impl From<StripeUpi> for payments::UpiData {
     fn from(upi_data: StripeUpi) -> Self {
         Self::Upi(payments::Upi {
-            vpa_id: upi_data.vpa_id,
+            vpa_id: Some(upi_data.vpa_id),
         })
     }
 }
