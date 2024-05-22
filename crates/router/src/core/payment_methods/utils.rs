@@ -343,7 +343,11 @@ fn construct_supported_connectors_for_update_mandate_node(
                                 .ok()
                                 .map(|connector| {
                                     dir::DirValue::Connector(Box::new(
-                                        api_models::routing::ast::ConnectorChoice { connector },
+                                        api_models::routing::ast::ConnectorChoice {
+                                            connector,
+                                            #[cfg(not(feature = "connector_choice_mca_id"))]
+                                            sub_label: None,
+                                        },
                                     ))
                                 })
                         }),
