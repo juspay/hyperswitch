@@ -214,7 +214,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VerifyEmailRequest
             | Flow::UpdateUserAccountDetails
             | Flow::TotpBegin
-            | Flow::TotpVerify => Self::User,
+            | Flow::TotpVerify
+            | Flow::GenerateRecoveryCodes => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole
