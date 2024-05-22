@@ -29,7 +29,7 @@ use common_utils::{
 use diesel_models::{business_profile::BusinessProfile, encryption::Encryption, payment_method};
 use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
-use euclid::{dssa::graph::*, frontend::dir::DirValue};
+use euclid::{dssa::graph::*, frontend::dir};
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
@@ -2778,7 +2778,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
-    graph: &ConstraintGraph<'_, DirValue>,
+    graph: &ConstraintGraph<'_, dir::DirValue>,
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
@@ -2825,7 +2825,7 @@ pub async fn filter_payment_methods(
                 {
                     let payment_method_object = payment_method_type_info.clone();
 
-                    let pm_dir_value: DirValue =
+                    let pm_dir_value: dir::DirValue =
                         (payment_method_type_info.payment_method_type, payment_method)
                             .into_dir_value()
                             .map(Into::into)
@@ -2841,26 +2841,26 @@ pub async fn filter_payment_methods(
                             format!("unable to parse connector name {connector:?}")
                         })?;
 
-                    let mut context_values: Vec<DirValue> = Vec::new();
+                    let mut context_values: Vec<dir::DirValue> = Vec::new();
                     context_values.push(pm_dir_value.clone());
 
                     payment_intent.map(|intent| {
                         intent.currency.map(|currency| {
-                            context_values.push(DirValue::PaymentCurrency(currency))
+                            context_values.push(dir::DirValue::PaymentCurrency(currency))
                         })
                     });
                     address.map(|address| {
                         address.country.map(|country| {
-                            context_values.push(DirValue::BillingCountry(
+                            context_values.push(dir::DirValue::BillingCountry(
                                 common_enums::Country::from_alpha2(country),
                             ))
                         })
                     });
 
                     if let Some(card_networks) = req.card_networks.clone() {
-                        let mut card_networks_from_req: Vec<DirValue> = card_networks
+                        let mut card_networks_from_req: Vec<dir::DirValue> = card_networks
                             .into_iter()
-                            .map(|card_network| DirValue::CardNetwork(card_network))
+                            .map(dir::DirValue::CardNetwork)
                             .collect();
                         context_values.append(&mut card_networks_from_req);
                     };
@@ -2873,13 +2873,13 @@ pub async fn filter_payment_methods(
                     payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .map(|_| {
-                            context_values.push(DirValue::PaymentType(
+                            context_values.push(dir::DirValue::PaymentType(
                                 euclid::enums::PaymentType::NewMandate,
                             ));
                             if let Ok(connector) = api_enums::RoutableConnectors::from_str(
                                 connector_variant.to_string().as_str(),
                             ) {
-                                context_values.push(DirValue::Connector(Box::new(
+                                context_values.push(dir::DirValue::Connector(Box::new(
                                     api_models::routing::ast::ConnectorChoice { connector },
                                 )));
                             };
@@ -2889,13 +2889,13 @@ pub async fn filter_payment_methods(
                         .and_then(|attempt| attempt.mandate_data.as_ref())
                         .map(|mandate_detail| {
                             if mandate_detail.update_mandate_id.is_some() {
-                                context_values.push(DirValue::PaymentType(
+                                context_values.push(dir::DirValue::PaymentType(
                                     euclid::enums::PaymentType::UpdateMandate,
                                 ));
                                 if let Ok(connector) = api_enums::RoutableConnectors::from_str(
                                     connector_variant.to_string().as_str(),
                                 ) {
-                                    context_values.push(DirValue::Connector(Box::new(
+                                    context_values.push(dir::DirValue::Connector(Box::new(
                                         api_models::routing::ast::ConnectorChoice { connector },
                                     )));
                                 };
@@ -2908,7 +2908,7 @@ pub async fn filter_payment_methods(
                         })
                         .and_then(|res| {
                             res.then(|| {
-                                context_values.push(DirValue::PaymentType(
+                                context_values.push(dir::DirValue::PaymentType(
                                     euclid::enums::PaymentType::NonMandate,
                                 ))
                             })
@@ -2918,7 +2918,7 @@ pub async fn filter_payment_methods(
                         .and_then(|inner| inner.capture_method)
                         .and_then(|capture_method| {
                             (capture_method == common_enums::CaptureMethod::Manual).then(|| {
-                                context_values.push(DirValue::CaptureMethod(
+                                context_values.push(dir::DirValue::CaptureMethod(
                                     common_enums::CaptureMethod::Manual,
                                 ));
                             })
@@ -2938,9 +2938,7 @@ pub async fn filter_payment_methods(
                         })
                         .unwrap_or(true);
 
-                    let context = euclid::dssa::graph::AnalysisContext::from_dir_values(
-                        context_values.clone(),
-                    );
+                    let context = AnalysisContext::from_dir_values(context_values.clone());
 
                     let result = graph.key_value_analysis(
                         pm_dir_value.clone(),
