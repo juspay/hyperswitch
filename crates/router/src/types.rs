@@ -25,6 +25,8 @@ use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+#[cfg(feature = "payouts")]
+pub use hyperswitch_domain_models::router_request_types::PayoutsData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
@@ -34,7 +36,7 @@ pub use hyperswitch_domain_models::{
     },
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, BrowserInformation,
-        DefendDisputeRequestData, PayoutsData, RefundsData, ResponseId, RetrieveFileRequestData,
+        DefendDisputeRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
 };
