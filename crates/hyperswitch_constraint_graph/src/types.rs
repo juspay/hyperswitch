@@ -1,11 +1,21 @@
 use std::{
     any::Any,
-    fmt, hash,
-    ops::{Deref, DerefMut},
+    fmt, hash, iter,
+    ops::{self, Deref, DerefMut},
     sync::Arc,
 };
 
 use rustc_hash::{FxHashMap, FxHashSet};
+
+macro_rules! default_get_size_impl {
+    ($the_type:ty) => {
+        impl GetSize for $the_type {
+            fn get_size(&self) -> Size {
+                Size(std::mem::size_of::<Self>())
+            }
+        }
+    };
+}
 
 use crate::{dense_map::impl_entity, error::AnalysisTrace};
 
@@ -27,6 +37,7 @@ pub trait NodeViz {
 pub struct NodeId(usize);
 
 impl_entity!(NodeId);
+default_get_size_impl!(NodeId);
 
 #[derive(Debug)]
 pub struct Node<V: ValueNode> {
@@ -45,12 +56,38 @@ impl<V: ValueNode> Node<V> {
     }
 }
 
+impl<V> GetSize for Node<V>
+where
+    V: ValueNode + GetSize,
+{
+    fn get_size(&self) -> Size {
+        self.node_type.get_size() + self.preds.get_size() + self.succs.get_size()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum NodeType<V: ValueNode> {
     AllAggregator,
     AnyAggregator,
     InAggregator(FxHashSet<V>),
     Value(NodeValue<V>),
+}
+
+impl<V> GetSize for NodeType<V>
+where
+    V: ValueNode + GetSize,
+{
+    fn get_size(&self) -> Size {
+        match self {
+            Self::AllAggregator | Self::AnyAggregator | Self::Value(_) => {
+                Size(std::mem::size_of::<Self>())
+            }
+
+            Self::InAggregator(set) => {
+                Size(std::mem::size_of::<Self>()) + set.iter().map(|v| v.get_size()).sum()
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
@@ -66,10 +103,20 @@ impl<V: ValueNode> From<V> for NodeValue<V> {
     }
 }
 
+impl<V> GetSize for NodeValue<V>
+where
+    V: ValueNode,
+{
+    fn get_size(&self) -> Size {
+        Size(std::mem::size_of::<Self>())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EdgeId(usize);
 
 impl_entity!(EdgeId);
+default_get_size_impl!(EdgeId);
 
 #[derive(
     Debug, Clone, Copy, serde::Serialize, PartialEq, Eq, Hash, strum::Display, PartialOrd, Ord,
@@ -86,6 +133,8 @@ impl Strength {
     }
 }
 
+default_get_size_impl!(Strength);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Relation {
@@ -98,6 +147,8 @@ impl From<Relation> for bool {
         matches!(value, Relation::Positive)
     }
 }
+
+default_get_size_impl!(Relation);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, serde::Serialize)]
 pub enum RelationResolution {
@@ -134,10 +185,21 @@ pub struct Edge {
     pub domain: Option<DomainId>,
 }
 
+impl GetSize for Edge {
+    fn get_size(&self) -> Size {
+        self.strength.get_size()
+            + self.relation.get_size()
+            + self.pred.get_size()
+            + self.succ.get_size()
+            + self.domain.get_size()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DomainId(usize);
 
 impl_entity!(DomainId);
+default_get_size_impl!(DomainId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DomainIdentifier<'a>(&'a str);
@@ -166,10 +228,22 @@ impl<'a> Deref for DomainIdentifier<'a> {
     }
 }
 
+impl<'a> GetSize for DomainIdentifier<'a> {
+    fn get_size(&self) -> Size {
+        Size(std::mem::size_of::<Self>())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DomainInfo<'a> {
     pub domain_identifier: DomainIdentifier<'a>,
     pub domain_description: String,
+}
+
+impl<'a> GetSize for DomainInfo<'a> {
+    fn get_size(&self) -> Size {
+        self.domain_identifier.get_size() + self.domain_description.get_size()
+    }
 }
 
 pub trait CheckingContext {
@@ -252,3 +326,84 @@ pub trait Metadata: erased_serde::Serialize + Any + Send + Sync + fmt::Debug {}
 erased_serde::serialize_trait_object!(Metadata);
 
 impl<M> Metadata for M where M: erased_serde::Serialize + Any + Send + Sync + fmt::Debug {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Size(usize);
+
+impl ops::Add for Size {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Size {
+    pub fn in_bytes(self) -> usize {
+        self.0
+    }
+
+    pub fn in_kilobytes(self) -> usize {
+        self.0 / 1000
+    }
+}
+
+impl iter::Sum for Size {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self(0), |a, b| a + b)
+    }
+}
+
+impl<'a> iter::Sum<&'a Self> for Size {
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.fold(Self(0), |a, b| a + *b)
+    }
+}
+
+pub trait GetSize {
+    fn get_size(&self) -> Size;
+}
+
+impl<V> GetSize for Vec<V>
+where
+    V: GetSize,
+{
+    fn get_size(&self) -> Size {
+        Size(std::mem::size_of::<Self>()) + self.iter().map(|v| v.get_size()).sum()
+    }
+}
+
+impl<T> GetSize for Option<T>
+where
+    T: GetSize,
+{
+    fn get_size(&self) -> Size {
+        match self {
+            Some(v) => v.get_size(),
+            None => Size(std::mem::size_of::<Self>()),
+        }
+    }
+}
+
+impl<K, V, S> GetSize for std::collections::HashMap<K, V, S>
+where
+    K: GetSize,
+    V: GetSize,
+{
+    fn get_size(&self) -> Size {
+        Size(std::mem::size_of::<Self>())
+            + self.iter().map(|(k, v)| k.get_size() + v.get_size()).sum()
+    }
+}
+
+impl GetSize for String {
+    fn get_size(&self) -> Size {
+        Size(std::mem::size_of::<Self>()) + Size(self.len())
+    }
+}
+
+impl<'a> GetSize for &'a str {
+    fn get_size(&self) -> Size {
+        Size(std::mem::size_of::<Self>())
+    }
+}
