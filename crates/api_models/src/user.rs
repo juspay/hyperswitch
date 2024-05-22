@@ -257,3 +257,8 @@ pub struct TotpSecret {
 pub struct VerifyTotpRequest {
     pub totp: Option<Secret<String>>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RecoveryCodes {
+    pub recovery_codes: Vec<Secret<String>>,
+}
