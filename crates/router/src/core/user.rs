@@ -1780,25 +1780,27 @@ pub async fn terminate_2fa(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if !(skip_2fa.unwrap_or(false)) {
+    if !skip_2fa.unwrap_or(false) {
         if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
             && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
         {
             return Err(UserErrors::TwoFARequired.into());
         }
 
-        state
-            .store
-            .update_user_by_user_id(
-                user_from_db.get_user_id(),
-                storage_user::UserUpdate::TotpUpdate {
-                    totp_status: Some(TotpStatus::Set),
-                    totp_secret: None,
-                    totp_recovery_codes: None,
-                },
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?;
+        if user_from_db.get_totp_status() != TotpStatus::Set {
+            state
+                .store
+                .update_user_by_user_id(
+                    user_from_db.get_user_id(),
+                    storage_user::UserUpdate::TotpUpdate {
+                        totp_status: Some(TotpStatus::Set),
+                        totp_secret: None,
+                        totp_recovery_codes: None,
+                    },
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+        }
     }
 
     let current_flow = domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::TOTP.into())?;

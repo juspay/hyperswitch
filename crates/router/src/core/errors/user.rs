@@ -187,7 +187,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new(sub_code, 38, self.get_error_message(), None))
             }
             Self::TwoFARequired => {
-                AER::BadRequest(ApiError::new(sub_code, 38, self.get_error_message(), None))
+                AER::BadRequest(ApiError::new(sub_code, 39, self.get_error_message(), None))
             }
         }
     }
