@@ -1,8 +1,9 @@
 mod transformers;
 
 use std::{
-    collections::hash_map,
+    collections::{hash_map, HashMap},
     hash::{Hash, Hasher},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -24,6 +25,7 @@ use euclid::{
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
+    types::CountryCurrencyFilter,
 };
 use masking::PeekInterface;
 use rand::{
@@ -43,8 +45,9 @@ use crate::{
     },
     logger,
     types::{
-        api, api::routing as routing_types, domain, storage as oss_storage,
-        transformers::ForeignInto,
+        api::{self, routing as routing_types},
+        domain, storage as oss_storage,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
     AppState,
@@ -104,7 +107,6 @@ impl Default for MerchantAccountRoutingAlgorithm {
 pub fn make_dsl_input_for_payouts(
     payout_data: &payouts::PayoutData,
 ) -> RoutingResult<dsl_inputs::BackendInput> {
-    use crate::types::transformers::ForeignFrom;
     let mandate = dsl_inputs::MandateData {
         mandate_acceptance_type: None,
         mandate_type: None,
@@ -645,8 +647,32 @@ pub async fn refresh_kgraph_cache(
         .map(admin_api::MerchantConnectorResponse::try_from)
         .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
+    let connector_configs = state
+        .conf
+        .pm_filters
+        .0
+        .clone()
+        .into_iter()
+        .filter(|(key, _)| key != "default")
+        .map(|(key, value)| {
+            let key = api_enums::RoutableConnectors::from_str(&key)
+                .map_err(|_| errors::RoutingError::InvalidConnectorName(key))?;
 
-    let kgraph = mca_graph::make_mca_graph(api_mcas)
+            Ok((key, value.foreign_into()))
+        })
+        .collect::<Result<HashMap<_, _>, errors::RoutingError>>()?;
+    let default_configs = state
+        .conf
+        .pm_filters
+        .0
+        .get("default")
+        .cloned()
+        .map(ForeignFrom::foreign_from);
+    let config_pm_filters = CountryCurrencyFilter {
+        connector_configs,
+        default_configs,
+    };
+    let kgraph = mca_graph::make_mca_graph(api_mcas, &config_pm_filters)
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
         .attach_printable("when construction kgraph")?;
 

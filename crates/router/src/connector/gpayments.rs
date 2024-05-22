@@ -204,6 +204,7 @@ impl api::IncomingWebhook for Gpayments {
 impl api::ExternalAuthentication for Gpayments {}
 impl api::ConnectorAuthentication for Gpayments {}
 impl api::ConnectorPreAuthentication for Gpayments {}
+impl api::ConnectorPreAuthenticationVersionCall for Gpayments {}
 impl api::ConnectorPostAuthentication for Gpayments {}
 impl
     ConnectorIntegration<
@@ -216,6 +217,14 @@ impl
 impl
     ConnectorIntegration<
         api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Gpayments
+{
+}
+impl
+    ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
         types::authentication::PreAuthNRequestData,
         types::authentication::AuthenticationResponseData,
     > for Gpayments

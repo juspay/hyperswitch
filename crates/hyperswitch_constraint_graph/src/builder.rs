@@ -28,7 +28,7 @@ impl From<DomainId> for DomainIdOrIdentifier<'_> {
         Self::DomainId(value)
     }
 }
-
+#[derive(Debug)]
 pub struct ConstraintGraphBuilder<'a, V: ValueNode> {
     domain: DenseMap<DomainId, DomainInfo<'a>>,
     nodes: DenseMap<NodeId, Node<V>>,
