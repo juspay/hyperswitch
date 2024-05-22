@@ -3951,7 +3951,7 @@ where
         .clone()
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profiel_id",
+            field_name: "profile_id",
         })?;
 
     let merchant_connector_account = get_merchant_connector_account(
