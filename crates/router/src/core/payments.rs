@@ -3159,6 +3159,18 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
+            routing_data.routed_through = Some(choice.connector.to_string());
+            #[cfg(feature = "connector_choice_mca_id")]
+            {
+                routing_data
+                    .merchant_connector_id
+                    .clone_from(&choice.merchant_connector_id);
+            }
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            {
+                routing_data.business_sub_label = choice.sub_label.clone();
+            }
+
             if payment_data.payment_attempt.payment_method_type
                 == Some(storage_enums::PaymentMethodType::ApplePay)
             {
@@ -3180,17 +3192,7 @@ where
                 }
             }
 
-            routing_data.routed_through = Some(choice.connector.to_string());
-            #[cfg(feature = "connector_choice_mca_id")]
-            {
-                routing_data
-                    .merchant_connector_id
-                    .clone_from(&choice.merchant_connector_id);
-            }
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            {
-                routing_data.business_sub_label = choice.sub_label.clone();
-            }
+            
             return Ok(ConnectorCallType::PreDetermined(connector_data));
         }
     }
