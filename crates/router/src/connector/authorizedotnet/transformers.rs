@@ -385,14 +385,18 @@ impl<F, T>
                 ..item.data
             }),
             ResultCode::Error => {
-                let mut error_code = String::new();
-                let mut error_reason = String::new();
-                for val in item.response.messages.message.iter() {
-                    error_code.push_str(&val.code);
-                    error_code.push_str("; ");
-                    error_reason.push_str(&val.text);
-                    error_reason.push(' ');
-                }
+                let error_code = match item.response.messages.message.first() {
+                    Some(first_error_message) => first_error_message.code.clone(),
+                    None => crate::consts::NO_ERROR_CODE.to_string(),
+                };
+                let error_reason = item
+                    .response
+                    .messages
+                    .message
+                    .iter()
+                    .map(|error: &ResponseMessage| error.text.clone())
+                    .collect::<Vec<String>>()
+                    .join(" ");
                 let response = Err(types::ErrorResponse {
                     code: error_code,
                     message: item.response.messages.result_code.to_string(),
