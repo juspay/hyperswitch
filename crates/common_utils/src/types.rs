@@ -248,7 +248,7 @@ impl<DB: Backend> FromSql<Jsonb, DB> for ChargeRefunds
 where
     serde_json::Value: FromSql<Jsonb, DB>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
         Ok(serde_json::from_value(value)?)
     }
