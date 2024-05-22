@@ -228,7 +228,7 @@ impl UserErrors {
             Self::TotpNotSetup => "TOTP not setup",
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
-            Self::InvalidRecoveryCode => "Invalid Recovery Code"
+            Self::InvalidRecoveryCode => "Invalid Recovery Code",
         }
     }
 }

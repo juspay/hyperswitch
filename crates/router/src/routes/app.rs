@@ -1212,7 +1212,9 @@ impl User {
             )
             .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
             .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
-            .service(web::resource("/recovery_codes/verify").route(web::post().to(recovery_code_verify)))
+            .service(
+                web::resource("/recovery_codes/verify").route(web::post().to(recovery_code_verify)),
+            )
             .service(
                 web::resource("/recovery_codes/generate")
                     .route(web::get().to(generate_recovery_codes)),
