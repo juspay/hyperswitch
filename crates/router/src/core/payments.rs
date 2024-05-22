@@ -3192,7 +3192,6 @@ where
                 }
             }
 
-            
             return Ok(ConnectorCallType::PreDetermined(connector_data));
         }
     }
