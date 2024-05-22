@@ -120,7 +120,7 @@ impl Paypal {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.debug_id,
         })
     }
 }
@@ -292,7 +292,7 @@ impl ConnectorCommon for Paypal {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.debug_id,
         })
     }
 }
