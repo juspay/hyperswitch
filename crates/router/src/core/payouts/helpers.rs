@@ -669,7 +669,6 @@ pub async fn decide_payout_connector(
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
@@ -728,7 +727,6 @@ pub async fn decide_payout_connector(
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,

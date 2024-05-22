@@ -10,6 +10,7 @@ use common_utils::{
     ext_traits::{StringExt, ValueExt},
     fp_utils::when,
     pii,
+    types::MinorUnit,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -311,7 +312,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
 impl ForeignFrom<storage_enums::MandateAmountData> for payments::MandateAmountData {
     fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
         Self {
-            amount: from.amount,
+            amount: MinorUnit::new(from.amount),
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,
@@ -378,7 +379,7 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
 impl ForeignFrom<payments::MandateAmountData> for storage_enums::MandateAmountData {
     fn foreign_from(from: payments::MandateAmountData) -> Self {
         Self {
-            amount: from.amount,
+            amount: from.amount.get_amount_as_i64(),
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,

@@ -6,6 +6,7 @@ use common_utils::{
     date_time,
     ext_traits::StringExt,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
@@ -312,6 +313,8 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 expected_format: "127.0.0.1".to_string(),
             })?;
 
+        let amount = item.amount.map(|amount| MinorUnit::new(amount).into());
+
         let payment_method_data = item.payment_method_data.as_ref().map(|pmd| {
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
@@ -326,7 +329,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
-            amount: item.amount.map(|amount| amount.into()),
+            amount,
             currency: item
                 .currency
                 .as_ref()
@@ -336,7 +339,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                     field_name: "currency",
                 })?,
             capture_method: item.capture_method,
-            amount_to_capture: item.amount_capturable,
+            amount_to_capture: item.amount_capturable.map(MinorUnit::new),
             confirm: item.confirm,
             customer_id: item.customer,
             email: item.receipt_email,
@@ -511,9 +514,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             object: "payment_intent",
             id: resp.payment_id,
             status: StripePaymentStatus::from(resp.status),
-            amount: resp.amount,
-            amount_capturable: resp.amount_capturable,
-            amount_received: resp.amount_received,
+            amount: resp.amount.get_amount_as_i64(),
+            amount_capturable: resp.amount_capturable.map(|amt| amt.get_amount_as_i64()),
+            amount_received: resp.amount_received.map(|amt| amt.get_amount_as_i64()),
             connector: resp.connector,
             client_secret: resp.client_secret,
             created: resp.created.map(|t| t.assume_utc().unix_timestamp()),
@@ -732,7 +735,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                 Some(item) => match item {
                     StripeMandateType::SingleUse => Some(payments::MandateType::SingleUse(
                         payments::MandateAmountData {
-                            amount: mandate.amount.unwrap_or_default(),
+                            amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
                             currency,
                             start_date: mandate.start_date,
                             end_date: mandate.end_date,
@@ -741,7 +744,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                     )),
                     StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(Some(
                         payments::MandateAmountData {
-                            amount: mandate.amount.unwrap_or_default(),
+                            amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
                             currency,
                             start_date: mandate.start_date,
                             end_date: mandate.end_date,
@@ -751,7 +754,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                 },
                 None => Some(payments::MandateType::MultiUse(Some(
                     payments::MandateAmountData {
-                        amount: mandate.amount.unwrap_or_default(),
+                        amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
                         currency,
                         start_date: mandate.start_date,
                         end_date: mandate.end_date,

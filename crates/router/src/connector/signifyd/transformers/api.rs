@@ -13,7 +13,7 @@ use crate::{
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
+        self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
     },
 };
@@ -399,7 +399,9 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 field_name: "frm_metadata",
             })?
             .parse_value("Signifyd Frm Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "frm_metadata",
+            })?;
         let ship_address = item.get_shipping_address()?;
         let street_addr = ship_address.get_line1()?;
         let city_addr = ship_address.get_city()?;
@@ -703,5 +705,29 @@ impl TryFrom<&frm_types::FrmRecordReturnRouterData> for SignifydPaymentsRecordRe
             refund,
             order_id: item.attempt_id.clone(),
         })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct SignifydWebhookBody {
+    pub order_id: String,
+    pub review_disposition: ReviewDisposition,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ReviewDisposition {
+    Fraudulent,
+    Good,
+}
+
+impl From<ReviewDisposition> for api::IncomingWebhookEvent {
+    fn from(value: ReviewDisposition) -> Self {
+        match value {
+            ReviewDisposition::Fraudulent => Self::FrmRejected,
+            ReviewDisposition::Good => Self::FrmApproved,
+        }
     }
 }

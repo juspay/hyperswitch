@@ -8,6 +8,7 @@ use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
+    types::MinorUnit,
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
@@ -599,7 +600,9 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .flatten();
 
-    let original_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
+    let original_payment_authorized_amount = original_payment_intent
+        .clone()
+        .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
 
@@ -716,7 +719,7 @@ pub fn validate_merchant_id(
 #[instrument(skip_all)]
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
-    op_amount_to_capture: Option<i64>,
+    op_amount_to_capture: Option<MinorUnit>,
     surcharge_details: Option<RequestSurchargeDetails>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match (op_amount, op_amount_to_capture) {
@@ -727,10 +730,10 @@ pub fn validate_request_amount_and_amount_to_capture(
                 api::Amount::Value(amount_inner) => {
                     // If both amount and amount to capture is present
                     // then amount to be capture should be less than or equal to request amount
-                    let total_capturable_amount = amount_inner.get()
+                    let total_capturable_amount = MinorUnit::new(amount_inner.get())
                         + surcharge_details
                             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-                            .unwrap_or(0);
+                            .unwrap_or_default();
                     utils::when(!amount_to_capture.le(&total_capturable_amount), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
@@ -765,23 +768,25 @@ pub fn validate_amount_to_capture_and_capture_method(
     if capture_method == api_enums::CaptureMethod::Automatic {
         let original_amount = request
             .amount
-            .map(|amount| amount.into())
+            .map(MinorUnit::from)
             .or(payment_attempt.map(|payment_attempt| payment_attempt.amount));
         let surcharge_amount = request
             .surcharge_details
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .or_else(|| {
                 payment_attempt.map(|payment_attempt| {
-                    payment_attempt.surcharge_amount.unwrap_or(0)
-                        + payment_attempt.tax_amount.unwrap_or(0)
+                    payment_attempt.surcharge_amount.unwrap_or_default()
+                        + payment_attempt.tax_amount.unwrap_or_default()
                 })
             })
-            .unwrap_or(0);
+            .unwrap_or_default();
         let total_capturable_amount =
             original_amount.map(|original_amount| original_amount + surcharge_amount);
+
         let amount_to_capture = request
             .amount_to_capture
             .or(payment_attempt.and_then(|pa| pa.amount_to_capture));
+
         if let Some((total_capturable_amount, amount_to_capture)) =
             total_capturable_amount.zip(amount_to_capture)
         {
@@ -1097,7 +1102,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 }
 
 pub fn verify_mandate_details(
-    request_amount: i64,
+    request_amount: MinorUnit,
     request_currency: api_enums::Currency,
     mandate: storage::Mandate,
 ) -> RouterResult<()> {
@@ -1105,7 +1110,7 @@ pub fn verify_mandate_details(
         storage_enums::MandateType::SingleUse => utils::when(
             mandate
                 .mandate_amount
-                .map(|mandate_amount| request_amount > mandate_amount)
+                .map(|mandate_amount| request_amount.get_amount_as_i64() > mandate_amount)
                 .unwrap_or(true),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
@@ -1117,7 +1122,8 @@ pub fn verify_mandate_details(
             mandate
                 .mandate_amount
                 .map(|mandate_amount| {
-                    (mandate.amount_captured.unwrap_or(0) + request_amount) > mandate_amount
+                    (mandate.amount_captured.unwrap_or(0) + request_amount.get_amount_as_i64())
+                        > mandate_amount
                 })
                 .unwrap_or(false),
             || {
@@ -2699,7 +2705,7 @@ pub fn generate_mandate(
                 match data.mandate_type.get_required_value("mandate_type")? {
                     hyperswitch_domain_models::mandates::MandateDataType::SingleUse(data) => {
                         new_mandate
-                            .set_mandate_amount(Some(data.amount))
+                            .set_mandate_amount(Some(data.amount.get_amount_as_i64()))
                             .set_mandate_currency(Some(data.currency))
                             .set_mandate_type(storage_enums::MandateType::SingleUse)
                             .to_owned()
@@ -2708,7 +2714,7 @@ pub fn generate_mandate(
                     hyperswitch_domain_models::mandates::MandateDataType::MultiUse(op_data) => {
                         match op_data {
                             Some(data) => new_mandate
-                                .set_mandate_amount(Some(data.amount))
+                                .set_mandate_amount(Some(data.amount.get_amount_as_i64()))
                                 .set_mandate_currency(Some(data.currency))
                                 .set_start_date(data.start_date)
                                 .set_end_date(data.end_date),
@@ -2921,7 +2927,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -2980,7 +2986,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -3038,7 +3044,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,

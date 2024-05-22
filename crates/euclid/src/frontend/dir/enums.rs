@@ -3,8 +3,8 @@ use strum::VariantNames;
 use crate::enums::collect_variants;
 pub use crate::enums::{
     AuthenticationType, CaptureMethod, CardNetwork, Country, Country as BusinessCountry,
-    Country as BillingCountry, Currency as PaymentCurrency, MandateAcceptanceType, MandateType,
-    PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
+    Country as BillingCountry, CountryAlpha2, Currency as PaymentCurrency, MandateAcceptanceType,
+    MandateType, PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
 };
 #[cfg(feature = "payouts")]
 pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
