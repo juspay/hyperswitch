@@ -120,7 +120,7 @@ pub async fn initiate_payment_link_flow(
         payment_intent.client_secret.clone(),
     )?;
     let amount = currency
-        .to_currency_base_unit(payment_intent.amount)
+        .to_currency_base_unit(payment_intent.amount.get_amount_as_i64())
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
     let order_details = validate_order_details(payment_intent.order_details.clone(), currency)?;
 
@@ -564,7 +564,7 @@ pub async fn get_payment_link_status(
             })?;
 
     let amount = currency
-        .to_currency_base_unit(payment_attempt.net_amount)
+        .to_currency_base_unit(payment_attempt.net_amount.get_amount_as_i64())
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
 
     // converting first letter of merchant name to upperCase
