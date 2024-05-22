@@ -275,7 +275,9 @@ pub enum CustomerType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ValidationMode {
+    // testMode performs a Luhn mod-10 check on the card number, without further validation at connector.
     TestMode,
+    // liveMode submits a zero-dollar or one-cent transaction (depending on card type and processor support) to confirm that the card number belongs to an active credit or debit account.
     LiveMode,
 }
 
@@ -286,6 +288,10 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             domain::PaymentMethodData::Card(ccard) => {
                 let merchant_authentication =
                     AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+                let validation_mode = match item.test_mode {
+                    Some(true) | None => ValidationMode::TestMode,
+                    Some(false) => ValidationMode::LiveMode,
+                };
                 Ok(Self {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
@@ -307,7 +313,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                                 }),
                             },
                         },
-                        validation_mode: ValidationMode::TestMode,
+                        validation_mode,
                     },
                 })
             }
