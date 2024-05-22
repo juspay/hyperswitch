@@ -197,7 +197,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     self.decide_authentication_type();
                     logger::debug!(auth_type=?self.auth_type);
 
-
                     Ok((
                         connector_integration
                             .build_request(self, &state.conf.connectors)

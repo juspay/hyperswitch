@@ -24,7 +24,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -289,11 +288,6 @@ impl
     }
 }
 
-
-impl api::PaymentsCompleteAuthorize for Iatapay {}
-
-
-#[async_trait::async_trait]
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Iatapay
 {
@@ -353,7 +347,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .build(),
         ))
     }
-   
+
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
@@ -627,91 +621,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl
-    ConnectorIntegration<
-        api::CompleteAuthorize,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    > for Iatapay
-{
-    fn get_headers(
-        &self,
-        _req: &types::PaymentsCompleteAuthorizeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::RefreshTokenType::get_content_type(self)
-                    .to_string()
-                    .into(),
-            )
-        ])
-    }
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .complete_authorize_url
-            .clone()
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(connector_payment_id)
-    }
-    fn build_request(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsCompleteAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCompleteAuthorizeRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: iatapay::IatapayCompleteAuthorizeResponse = res
-            .response
-            .parse_struct("IatapayCompleteAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

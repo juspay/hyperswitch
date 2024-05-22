@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use api_models::enums::PaymentMethod;
-use common_enums::PaymentMethodType;
 use common_utils::{errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};
@@ -80,30 +79,12 @@ pub struct RedirectUrls {
     failure_url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IatapayCompleteAuthorizeResponse {
-    iata_payment_id: String,
-    status: IatapayPaymentStatus,
-    authorization_timeout_date_time: Option<String>,
-    qr_info_data: Option<QrInfoData>,
-    failure_details: Option<String>,
-    failure_code: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QrInfoData {
-    qr: String,
-    qr_link: url::Url,
-}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayerInfo {
     token_id: Secret<String>,
 }
-
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -126,11 +107,6 @@ pub struct IatapayPaymentsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     payer_info: Option<PayerInfo>,
     preferred_checkout_method: Option<PreferredCheckoutMethod>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct IatapayQrMetadata {
-    pub complete_authorize_url: String,
 }
 
 impl
@@ -301,7 +277,6 @@ pub struct IatapayPaymentsResponse {
 fn get_iatpay_response(
     response: IatapayPaymentsResponse,
     status_code: u16,
-    payment_method_type: Option<PaymentMethodType>,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -337,10 +312,14 @@ fn get_iatpay_response(
 
     let payment_response_data = match response.checkout_methods {
         Some(checkout_methods) => {
-                let (connector_metadata, redirection_data) = match payment_method_type {
-                    Some(PaymentMethodType::UpiIntent) => {
-                        let qr_code_info = IatapayQrMetadata {
-                            complete_authorize_url: checkout_methods.redirect.redirect_url,
+            let (connector_metadata, redirection_data) =
+                match checkout_methods.redirect.redirect_url.ends_with("qr") {
+                    true => {
+                        let qr_code_info = api_models::payments::QrCodeInformation::QrCodeDataUrl {
+                            qr_code_data_url: url::Url::parse(
+                                &checkout_methods.redirect.redirect_url,
+                            )
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         };
                         (
                             Some(qr_code_info.encode_to_value())
@@ -349,7 +328,7 @@ fn get_iatpay_response(
                             None,
                         )
                     }
-                    Some(PaymentMethodType::UpiCollect) => (
+                    false => (
                         None,
                         Some(services::RedirectForm::Form {
                             endpoint: checkout_methods.redirect.redirect_url,
@@ -359,158 +338,44 @@ fn get_iatpay_response(
                     ),
                     _ => (None, None),
                 };
-    
-                types::PaymentsResponseData::TransactionResponse {
-                    resource_id: id,
-                    redirection_data,
-                    mandate_reference: None,
-                    connector_metadata,
-                    network_txn_id: None,
-                    connector_response_reference_id: connector_response_reference_id.clone(),
-                    incremental_authorization_allowed: None,
-                }
-            },
-            None => types::PaymentsResponseData::TransactionResponse {
-                resource_id: id.clone(),
-                redirection_data: None,
+
+            types::PaymentsResponseData::TransactionResponse {
+                resource_id: id,
+                redirection_data,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: connector_response_reference_id.clone(),
                 incremental_authorization_allowed: None,
             }
-
-        };
+        }
+        None => types::PaymentsResponseData::TransactionResponse {
+            resource_id: id.clone(),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: connector_response_reference_id.clone(),
+            incremental_authorization_allowed: None,
+        },
+    };
 
     Ok((status, error, payment_response_data))
 }
 
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            IatapayPaymentsResponse,
-            PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, PaymentsAuthorizeData, types::PaymentsResponseData>
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            IatapayPaymentsResponse,
-            PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let payment_method_type = item.data.request.payment_method_type;
         let (status, error, payment_response_data) =
-            get_iatpay_response(item.response, item.http_code, payment_method_type)?;
+            get_iatpay_response(item.response, item.http_code)?;
         Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
-            ..item.data
-        })
-    }
-}
-
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            IatapayPaymentsResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
-{
-    type Error = Error;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            IatapayPaymentsResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let payment_method_type = item.data.request.payment_method_type;
-
-        let (status, error, payment_response_data) =
-            get_iatpay_response(item.response, item.http_code, payment_method_type)?;
-        Ok(Self {
-            status,
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
-            ..item.data
-        })
-    }
-}
-
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            IatapayCompleteAuthorizeResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
-{
-    type Error = Error;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            IatapayCompleteAuthorizeResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-
-        let status = enums::AttemptStatus::from(item.response.status);
-        let response = if connector_util::is_payment_failure(status) {
-            Err(types::ErrorResponse {
-                code: item
-                    .response
-                    .failure_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .failure_details
-                    .clone()
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                reason: item.response.failure_details,
-                status_code: item.http_code,
-                attempt_status: Some(status),
-                connector_transaction_id: Some(item.response.iata_payment_id.clone()),
-            })
-        } else {
-            let qr_code_info = item.response.qr_info_data.map(|qr_data| {
-                api_models::payments::QrCodeInformation::QrCodeData {
-                    qr_code_url: qr_data.qr_link,
-                    qr_code_data: qr_data.qr,
-                    display_to_timestamp: None,
-                }
-            });
-            let connector_metadata = Some(qr_code_info.encode_to_value())
-                .transpose()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-            Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.iata_payment_id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-            })
-        };
-
-        Ok(Self {
-            status,
-            response,
             ..item.data
         })
     }

@@ -2942,7 +2942,7 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         /// The url for Qr code given by the connector
         qr_code_url: Option<Url>,
-        qr_code_data: Option<String>,
+        qr_code_data_url: Option<Url>,
     },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
@@ -3012,10 +3012,8 @@ pub enum QrCodeInformation {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
     },
-    QrCodeData {
-        qr_code_url: Url,
-        qr_code_data: String,
-        display_to_timestamp: Option<i64>,
+    QrCodeDataUrl {
+        qr_code_data_url: Url,
     },
 }
 
