@@ -55,7 +55,7 @@ fn expiry_to_i64(expiry: u64) -> UserResult<i64> {
     i64::try_from(expiry).change_context(UserErrors::InternalServerError)
 }
 
-pub async fn insert_access_code_in_redis(state: &AppState, user_id: &str) -> UserResult<()> {
+pub async fn insert_recovery_code_in_redis(state: &AppState, user_id: &str) -> UserResult<()> {
     let redis_conn = get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     let expiry = expiry_to_i64(state.conf.user.two_factor_auth_expiry_in_secs)

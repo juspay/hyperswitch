@@ -26,7 +26,7 @@ use crate::{
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
-        user::{password, two_factor_auth::insert_access_code_in_redis},
+        user::{password, two_factor_auth::insert_recovery_code_in_redis},
     },
 };
 pub mod dashboard_metadata;
@@ -1770,7 +1770,7 @@ pub async fn generate_recovery_codes(
     }))
 }
 
-pub async fn verify_access_code(
+pub async fn verify_recovery_code(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyAccessCodeRequest,
@@ -1786,18 +1786,18 @@ pub async fn verify_access_code(
         return Err(UserErrors::TotpNotSetup.into());
     }
 
-    let access_codes = user_from_db
+    let recovery_codes = user_from_db
         .get_recovery_codes()
         .ok_or(UserErrors::InternalServerError)?;
 
     let matching_index =
-        password::get_correct_access_code_index(req.access_code, access_codes.clone())?;
+        password::get_correct_recovery_code_index(req.recovery_code, recovery_codes.clone())?;
 
     if matching_index.is_none() {
         return Err(UserErrors::InvalidCredentials.into());
     }
 
-    let mut updated_recovery_codes = access_codes;
+    let mut updated_recovery_codes = recovery_codes;
     if let Some(index) = matching_index {
         updated_recovery_codes.remove(index);
     }
@@ -1815,7 +1815,7 @@ pub async fn verify_access_code(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let _ = insert_access_code_in_redis(&state, user_from_db.get_user_id())
+    let _ = insert_recovery_code_in_redis(&state, user_from_db.get_user_id())
         .await
         .map_err(|e| logger::error!(?e));
 

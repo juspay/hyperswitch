@@ -666,7 +666,7 @@ pub async fn totp_verify(
     .await
 }
 
-pub async fn access_code_verify(
+pub async fn recovery_code_verify(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<user_api::VerifyAccessCodeRequest>,
@@ -677,7 +677,7 @@ pub async fn access_code_verify(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, user, req_body, _| user_core::verify_access_code(state, user, req_body),
+        |state, user, req_body, _| user_core::verify_recovery_code(state, user, req_body),
         &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))

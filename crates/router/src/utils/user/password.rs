@@ -40,13 +40,13 @@ pub fn is_correct_password(
     .change_context(UserErrors::InternalServerError)
 }
 
-pub fn get_correct_access_code_index(
+pub fn get_correct_recovery_code_index(
     candidate: Secret<String>,
-    access_codes: Vec<Secret<String>>,
+    recovery_codes: Vec<Secret<String>>,
 ) -> CustomResult<Option<usize>, UserErrors> {
-    Ok(access_codes
+    Ok(recovery_codes
         .into_iter()
-        .map(|access_code| is_correct_password(candidate.clone(), access_code))
+        .map(|recovery_code| is_correct_password(candidate.clone(), recovery_code))
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .position(|x| x))
