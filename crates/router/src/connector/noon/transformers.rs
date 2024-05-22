@@ -378,7 +378,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     ))
                     | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
                         mandate,
-                    ))) => conn_utils::to_currency_base_unit(mandate.amount, mandate.currency),
+                    ))) => conn_utils::to_currency_base_unit(
+                        mandate.amount.get_amount_as_i64(),
+                        mandate.currency,
+                    ),
                     Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:

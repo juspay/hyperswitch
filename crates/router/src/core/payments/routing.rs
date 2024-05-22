@@ -1,8 +1,9 @@
 mod transformers;
 
 use std::{
-    collections::hash_map,
+    collections::{hash_map, HashMap},
     hash::{Hash, Hasher},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -23,6 +24,7 @@ use euclid::{
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
+    types::CountryCurrencyFilter,
 };
 use masking::PeekInterface;
 use rand::{
@@ -43,8 +45,9 @@ use crate::{
     },
     logger,
     types::{
-        api, api::routing as routing_types, domain, storage as oss_storage,
-        transformers::ForeignInto,
+        api::{self, routing as routing_types},
+        domain, storage as oss_storage,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
     AppState,
@@ -99,7 +102,6 @@ impl Default for MerchantAccountRoutingAlgorithm {
 pub fn make_dsl_input_for_payouts(
     payout_data: &payouts::PayoutData,
 ) -> RoutingResult<dsl_inputs::BackendInput> {
-    use crate::types::transformers::ForeignFrom;
     let mandate = dsl_inputs::MandateData {
         mandate_acceptance_type: None,
         mandate_type: None,
@@ -208,7 +210,7 @@ where
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_data.payment_intent.amount,
+        amount: payment_data.payment_intent.amount.get_amount_as_i64(),
         card_bin: payment_data
             .payment_method_data
             .as_ref()
@@ -520,7 +522,7 @@ pub fn perform_volume_split(
     Ok(splits.into_iter().map(|sp| sp.connector).collect())
 }
 
-pub async fn get_merchant_kgraph<'a>(
+pub async fn get_merchant_cgraph<'a>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -535,10 +537,10 @@ pub async fn get_merchant_kgraph<'a>(
             .get_required_value("profile_id")
             .change_context(errors::RoutingError::ProfileIdMissing)?;
         match transaction_type {
-            api_enums::TransactionType::Payment => format!("kgraph_{}_{}", merchant_id, profile_id),
+            api_enums::TransactionType::Payment => format!("cgraph_{}_{}", merchant_id, profile_id),
             #[cfg(feature = "payouts")]
             api_enums::TransactionType::Payout => {
-                format!("kgraph_po_{}_{}", merchant_id, profile_id)
+                format!("cgraph_po_{}_{}", merchant_id, profile_id)
             }
         }
     };
@@ -550,13 +552,13 @@ pub async fn get_merchant_kgraph<'a>(
         api_enums::TransactionType::Payout => format!("kgraph_po_{}", merchant_id),
     };
 
-    let cached_kgraph = CGRAPH_CACHE
+    let cached_cgraph = CGRAPH_CACHE
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(
             key.as_str(),
         )
         .await;
 
-    let kgraph = if let Some(graph) = cached_kgraph {
+    let cgraph = if let Some(graph) = cached_cgraph {
         graph
     } else {
         refresh_cgraph_cache(
@@ -570,7 +572,7 @@ pub async fn get_merchant_kgraph<'a>(
         .await?
     };
 
-    Ok(kgraph)
+    Ok(cgraph)
 }
 
 pub async fn refresh_cgraph_cache<'a>(
@@ -617,20 +619,44 @@ pub async fn refresh_cgraph_cache<'a>(
         .map(admin_api::MerchantConnectorResponse::try_from)
         .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
+    let connector_configs = state
+        .conf
+        .pm_filters
+        .0
+        .clone()
+        .into_iter()
+        .filter(|(key, _)| key != "default")
+        .map(|(key, value)| {
+            let key = api_enums::RoutableConnectors::from_str(&key)
+                .map_err(|_| errors::RoutingError::InvalidConnectorName(key))?;
 
-    let kgraph = Arc::new(
-        mca_graph::make_mca_graph(api_mcas)
+            Ok((key, value.foreign_into()))
+        })
+        .collect::<Result<HashMap<_, _>, errors::RoutingError>>()?;
+    let default_configs = state
+        .conf
+        .pm_filters
+        .0
+        .get("default")
+        .cloned()
+        .map(ForeignFrom::foreign_from);
+    let config_pm_filters = CountryCurrencyFilter {
+        connector_configs,
+        default_configs,
+    };
+    let cgraph = Arc::new(
+        mca_graph::make_mca_graph(api_mcas, &config_pm_filters)
             .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
-            .attach_printable("when construction kgraph")?,
+            .attach_printable("when construction cgraph")?,
     );
 
-    CGRAPH_CACHE.push(key, Arc::clone(&kgraph)).await;
+    CGRAPH_CACHE.push(key, Arc::clone(&cgraph)).await;
 
-    Ok(kgraph)
+    Ok(cgraph)
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_kgraph_filtering(
+async fn perform_cgraph_filtering(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
@@ -644,7 +670,7 @@ async fn perform_kgraph_filtering(
             .into_context()
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
-    let cached_kgraph = get_merchant_kgraph(
+    let cached_cgraph = get_merchant_cgraph(
         state,
         key_store,
         #[cfg(feature = "business_profile_routing")]
@@ -660,7 +686,7 @@ async fn perform_kgraph_filtering(
         let dir_val = euclid_choice
             .into_dir_value()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
-        let kgraph_eligible = cached_kgraph
+        let cgraph_eligible = cached_cgraph
             .check_value_validity(
                 dir_val,
                 &context,
@@ -673,7 +699,7 @@ async fn perform_kgraph_filtering(
         let filter_eligible =
             eligible_connectors.map_or(true, |list| list.contains(&routable_connector));
 
-        if kgraph_eligible && filter_eligible {
+        if cgraph_eligible && filter_eligible {
             final_selection.push(choice);
         }
     }
@@ -695,7 +721,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
 
-    perform_kgraph_filtering(
+    perform_cgraph_filtering(
         state,
         key_store,
         chosen,
@@ -741,7 +767,7 @@ pub async fn perform_fallback_routing<F: Clone>(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
 
-    perform_kgraph_filtering(
+    perform_cgraph_filtering(
         state,
         key_store,
         fallback_config,
@@ -854,7 +880,7 @@ pub async fn perform_session_flow_routing(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount,
+        amount: session_input.payment_intent.amount.get_amount_as_i64(),
         currency: session_input
             .payment_intent
             .currency
@@ -1008,7 +1034,7 @@ async fn perform_session_routing_for_pm_type(
         }
     };
 
-    let mut final_selection = perform_kgraph_filtering(
+    let mut final_selection = perform_cgraph_filtering(
         &session_pm_input.state.clone(),
         session_pm_input.key_store,
         chosen_connectors,
@@ -1038,7 +1064,7 @@ async fn perform_session_routing_for_pm_type(
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
-        final_selection = perform_kgraph_filtering(
+        final_selection = perform_cgraph_filtering(
             &session_pm_input.state.clone(),
             session_pm_input.key_store,
             fallback,
@@ -1090,7 +1116,7 @@ pub fn make_dsl_input_for_surcharge(
         payment_type: None,
     };
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_attempt.amount,
+        amount: payment_attempt.amount.get_amount_as_i64(),
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency

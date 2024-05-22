@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
@@ -266,16 +266,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     ..
                 }) => {
                     if status == AuthorizationStatus::Success {
-                        (Some(
-                        storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-                            amount: incremental_authorization_details.total_amount,
-                            amount_capturable: incremental_authorization_details.total_amount,
-                        },
-                    ), Some(
-                        storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-                            amount: incremental_authorization_details.total_amount,
-                        },
-                    ))
+                        (
+                        Some(
+                            storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                                amount: incremental_authorization_details.total_amount,
+                                amount_capturable: incremental_authorization_details.total_amount,
+                            },
+                        ),
+                        Some(
+                            storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
+                                amount: incremental_authorization_details.total_amount,
+                            },
+                        ),
+                    )
                     } else {
                         (None, None)
                     }
@@ -793,7 +796,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_reason: Some(err.reason),
                             amount_capturable: router_data
                                 .request
-                                .get_amount_capturable(&payment_data, status),
+                                .get_amount_capturable(&payment_data, status)
+                                .map(MinorUnit::new),
                             updated_by: storage_scheme.to_string(),
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
@@ -915,7 +919,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         payment_data.payment_attempt.connector.clone(),
                         payment_data.payment_attempt.merchant_id.clone(),
                     );
-
                     let (capture_updates, payment_attempt_update) = match payment_data
                         .multiple_capture_data
                     {
@@ -940,7 +943,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 authentication_type: None,
                                 amount_capturable: router_data
                                     .request
-                                    .get_amount_capturable(&payment_data, updated_attempt_status),
+                                    .get_amount_capturable(&payment_data, updated_attempt_status)
+                                    .map(MinorUnit::new),
                                 payment_method_id,
                                 mandate_id: payment_data.payment_attempt.mandate_id.clone(),
                                 connector_metadata,
@@ -1098,7 +1102,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let amount_captured = get_total_amount_captured(
         &router_data.request,
-        router_data.amount_captured,
+        router_data.amount_captured.map(MinorUnit::new),
         router_data.status,
         &payment_data,
     );
@@ -1167,7 +1171,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 tokenization::update_connector_mandate_details_in_payment_method(
                     payment_method.clone(),
                     payment_method.payment_method_type,
-                    Some(payment_data.payment_attempt.amount),
+                    Some(payment_data.payment_attempt.amount.get_amount_as_i64()),
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
@@ -1353,10 +1357,10 @@ fn get_capture_update_for_unmapped_capture_responses(
 
 fn get_total_amount_captured<F: Clone, T: types::Capturable>(
     request: &T,
-    amount_captured: Option<i64>,
+    amount_captured: Option<MinorUnit>,
     router_data_status: enums::AttemptStatus,
     payment_data: &PaymentData<F>,
-) -> Option<i64> {
+) -> Option<MinorUnit> {
     match &payment_data.multiple_capture_data {
         Some(multiple_capture_data) => {
             //multiple capture
@@ -1364,7 +1368,9 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         }
         None => {
             //Non multiple capture
-            let amount = request.get_captured_amount(payment_data);
+            let amount = request
+                .get_captured_amount(payment_data)
+                .map(MinorUnit::new);
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {
                     amount

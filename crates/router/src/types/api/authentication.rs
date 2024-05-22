@@ -11,6 +11,9 @@ use crate::core::errors;
 pub struct PreAuthentication;
 
 #[derive(Debug, Clone)]
+pub struct PreAuthenticationVersionCall;
+
+#[derive(Debug, Clone)]
 pub struct Authentication;
 
 #[derive(Debug, Clone)]
@@ -94,6 +97,15 @@ pub trait ConnectorPreAuthentication:
 {
 }
 
+pub trait ConnectorPreAuthenticationVersionCall:
+    services::ConnectorIntegration<
+    PreAuthenticationVersionCall,
+    types::authentication::PreAuthNRequestData,
+    types::authentication::AuthenticationResponseData,
+>
+{
+}
+
 pub trait ConnectorPostAuthentication:
     services::ConnectorIntegration<
     PostAuthentication,
@@ -107,6 +119,7 @@ pub trait ExternalAuthentication:
     super::ConnectorCommon
     + ConnectorAuthentication
     + ConnectorPreAuthentication
+    + ConnectorPreAuthenticationVersionCall
     + ConnectorPostAuthentication
 {
 }

@@ -428,7 +428,7 @@ impl MerchantConnectorAccountInterface for Store {
                         format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("kgraph_{}_{_profile_id}", _merchant_id).into(),
+                        format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
                     ),
                 ],
                 update_call,
@@ -485,7 +485,7 @@ impl MerchantConnectorAccountInterface for Store {
                         format!("{}_{}", mca.merchant_id, _profile_id).into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("kgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                        format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
                     ),
                 ],
                 delete_call,
