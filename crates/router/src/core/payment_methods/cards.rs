@@ -3707,7 +3707,7 @@ pub async fn get_mca_status(
 
     if let Some(connector_mandate_details) = connector_mandate_details {
         for mca_id in connector_mandate_details.keys().cloned() {
-            if mca_ids.contains(&mca_id) == false {
+            if !mca_ids.contains(&mca_id) {
                 return Ok(true);
             }
         }
