@@ -22,8 +22,8 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
-pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
+pub use common_utils::{request::RequestContent, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 pub use hyperswitch_domain_models::{
@@ -568,7 +568,7 @@ impl Capturable for PaymentsAuthorizeData {
         let final_amount = self
             .surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount);
+            .map(|surcharge_details| surcharge_details.final_amount.get_amount_as_i64());
         final_amount.or(Some(self.amount))
     }
 
@@ -601,7 +601,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -678,7 +678,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -693,7 +693,10 @@ impl Capturable for PaymentsCancelData {
         F: Clone,
     {
         // return previously captured amount
-        payment_data.payment_intent.amount_captured
+        payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64())
     }
     fn get_amount_capturable<F>(
         &self,
@@ -743,6 +746,7 @@ impl Capturable for PaymentsSyncData {
             .payment_attempt
             .amount_to_capture
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+            .map(|amt| amt.get_amount_as_i64())
     }
     fn get_amount_capturable<F>(
         &self,
@@ -777,19 +781,19 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: storage_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
-        amount: Option<i64>,
+        amount: Option<MinorUnit>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
-        amount: Option<i64>,
+        amount: Option<MinorUnit>,
     },
 }
 
 impl CaptureSyncResponse {
-    pub fn get_amount_captured(&self) -> Option<i64> {
+    pub fn get_amount_captured(&self) -> Option<MinorUnit> {
         match self {
             Self::Success { amount, .. } | Self::Error { amount, .. } => *amount,
         }

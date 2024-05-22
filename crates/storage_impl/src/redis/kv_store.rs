@@ -1,6 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use diesel_models::enums::MerchantStorageScheme;
 use error_stack::report;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
@@ -20,6 +21,7 @@ pub trait KvStorePartition {
 }
 
 #[allow(unused)]
+#[derive(Clone)]
 pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
         merchant_id: &'a str,
@@ -234,4 +236,68 @@ where
             metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);
             err
         })
+}
+
+pub enum Op<'a> {
+    Insert,
+    Update(PartitionKey<'a>, &'a str, Option<&'a str>),
+    Find,
+}
+
+impl<'a> std::fmt::Display for Op<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Op::Insert => f.write_str("insert"),
+            Op::Find => f.write_str("find"),
+            Op::Update(p_key, _, _) => f.write_str(&format!("update_{}", p_key)),
+        }
+    }
+}
+
+pub async fn decide_storage_scheme<'a, T, D>(
+    store: &KVRouterStore<T>,
+    storage_scheme: MerchantStorageScheme,
+    operation: Op<'a>,
+) -> MerchantStorageScheme
+where
+    D: de::DeserializeOwned
+        + serde::Serialize
+        + Debug
+        + KvStorePartition
+        + UniqueConstraints
+        + Sync,
+    T: crate::database::store::DatabaseStore,
+{
+    if store.soft_kill_mode {
+        let ops = operation.to_string();
+        let updated_scheme = match operation {
+            Op::Insert => MerchantStorageScheme::PostgresOnly,
+            Op::Find => MerchantStorageScheme::RedisKv,
+            Op::Update(partition_key, field, Some("redis_kv")) => {
+                match kv_wrapper::<D, _, _>(store, KvOperation::<D>::HGet(field), partition_key)
+                    .await
+                {
+                    Ok(_) => {
+                        metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(&metrics::CONTEXT, 1, &[]);
+                        MerchantStorageScheme::RedisKv
+                    }
+                    Err(_) => MerchantStorageScheme::PostgresOnly,
+                }
+            }
+
+            Op::Update(_, _, None) => MerchantStorageScheme::PostgresOnly,
+            Op::Update(_, _, Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
+            _ => {
+                logger::debug!("soft_kill_mode - using default storage scheme");
+                storage_scheme
+            }
+        };
+
+        let type_name = std::any::type_name::<D>();
+        logger::info!(soft_kill_mode = "decide_storage_scheme", decided_scheme = %updated_scheme, configured_scheme = %storage_scheme,entity = %type_name, operation = %ops);
+
+        updated_scheme
+    } else {
+        storage_scheme
+    }
 }

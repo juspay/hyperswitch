@@ -10,6 +10,7 @@ use common_utils::{
     crypto,
     ext_traits::{ConfigExt, Encode},
     pii::{self, Email},
+    types::MinorUnit,
 };
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -246,8 +247,8 @@ pub struct PaymentsRequest {
     pub currency: Option<api_enums::Currency>,
 
     /// The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.
-    #[schema(example = 6540)]
-    pub amount_to_capture: Option<i64>,
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub amount_to_capture: Option<MinorUnit>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
@@ -299,27 +300,32 @@ pub struct PaymentsRequest {
     /// Passing this object creates a new customer or attaches an existing customer to the payment
     pub customer: Option<CustomerDetails>,
 
-    /// The identifier for the customer object. This field will be deprecated soon, use the customer object instead
+    /// The identifier for the customer object.
     #[schema(value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_types::CustomerId>,
 
-    /// The customer's email address This field will be deprecated soon, use the customer object instead
-    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    /// The customer's email address.
+    /// This field will be deprecated soon, use the customer object instead
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub email: Option<Email>,
 
     /// The customer's name.
     /// This field will be deprecated soon, use the customer object instead.
-    #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon, use the customer object instead
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer phone number
     /// This field will be deprecated soon, use the customer object instead
-    #[schema(max_length = 255, example = "+1")]
+    #[schema(max_length = 255, example = "+1", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub phone_country_code: Option<String>,
 
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
@@ -482,7 +488,8 @@ pub struct PaymentsRequest {
     pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
-    pub frm_metadata: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
@@ -493,21 +500,22 @@ pub struct PaymentsRequest {
 }
 
 impl PaymentsRequest {
-    pub fn get_total_capturable_amount(&self) -> Option<i64> {
+    pub fn get_total_capturable_amount(&self) -> Option<MinorUnit> {
         let surcharge_amount = self
             .surcharge_details
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-            .unwrap_or(0);
+            .unwrap_or_default();
         self.amount
-            .map(|amount| i64::from(amount) + surcharge_amount)
+            .map(|amount| MinorUnit::from(amount) + surcharge_amount)
     }
 }
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
 pub struct RequestSurchargeDetails {
-    pub surcharge_amount: i64,
-    pub tax_amount: Option<i64>,
+    #[schema(value_type = i64, example = 6540)]
+    pub surcharge_amount: MinorUnit,
+    pub tax_amount: Option<MinorUnit>,
 }
 
 /// Browser information to be used for 3DS 2.0
@@ -550,16 +558,19 @@ pub struct BrowserInformation {
 
 impl RequestSurchargeDetails {
     pub fn is_surcharge_zero(&self) -> bool {
-        self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
+        self.surcharge_amount == MinorUnit::new(0)
+            && self.tax_amount.unwrap_or_default() == MinorUnit::new(0)
     }
-    pub fn get_total_surcharge_amount(&self) -> i64 {
-        self.surcharge_amount + self.tax_amount.unwrap_or(0)
+    pub fn get_total_surcharge_amount(&self) -> MinorUnit {
+        self.surcharge_amount + self.tax_amount.unwrap_or_default()
     }
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
 }
 
@@ -582,7 +593,8 @@ pub struct PaymentAttemptResponse {
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    pub amount: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<enums::Currency>,
@@ -636,7 +648,8 @@ pub struct CaptureResponse {
     #[schema(value_type = CaptureStatus, example = "charged")]
     pub status: enums::CaptureStatus,
     /// The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    pub amount: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
     /// The currency of the amount of the capture
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<enums::Currency>,
@@ -719,21 +732,23 @@ pub enum Amount {
     Zero,
 }
 
-impl From<Amount> for i64 {
+impl From<Amount> for MinorUnit {
     fn from(amount: Amount) -> Self {
         match amount {
-            Amount::Value(val) => val.get(),
-            Amount::Zero => 0,
+            Amount::Value(val) => Self::new(val.get()),
+            Amount::Zero => Self::new(0),
         }
     }
 }
 
-impl From<i64> for Amount {
-    fn from(val: i64) -> Self {
-        NonZeroI64::new(val).map_or(Self::Zero, Amount::Value)
+impl From<MinorUnit> for Amount {
+    fn from(minor_unit: MinorUnit) -> Self {
+        match minor_unit.get_amount_as_i64() {
+            0 => Self::Zero,
+            val => NonZeroI64::new(val).map_or(Self::Zero, Self::Value),
+        }
     }
 }
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRedirectRequest {
@@ -821,15 +836,15 @@ pub struct MandateData {
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SingleUseMandate {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: api_enums::Currency,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize)]
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
-    #[schema(example = 6540)]
-    pub amount: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
     /// The currency for the transaction
     #[schema(value_type = Currency, example = "USD")]
     pub currency: api_enums::Currency,
@@ -2893,7 +2908,8 @@ pub struct PaymentsCaptureRequest {
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
     /// The Amount to be captured/ debited from the user's payment method.
-    pub amount_to_capture: Option<i64>,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount_to_capture: Option<MinorUnit>,
     /// Decider to refund the uncaptured amount
     pub refund_uncaptured_amount: Option<bool>,
     /// Provides information about a card payment that customers see on their statements.
@@ -3146,21 +3162,21 @@ pub struct PaymentsResponse {
     pub status: api_enums::IntentStatus,
 
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    #[schema(example = 100)]
-    pub amount: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
 
     /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
     /// If no surcharge_details, net_amount = amount
-    #[schema(example = 110)]
-    pub net_amount: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub net_amount: MinorUnit,
 
     /// The maximum amount that could be captured from the payment
-    #[schema(minimum = 100, example = 6540)]
-    pub amount_capturable: Option<i64>,
+    #[schema(value_type = i64, minimum = 100, example = 6540)]
+    pub amount_capturable: Option<MinorUnit>,
 
     /// The amount which is already captured from the payment
-    #[schema(minimum = 100, example = 6540)]
-    pub amount_received: Option<i64>,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount_received: Option<MinorUnit>,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
@@ -3180,7 +3196,12 @@ pub struct PaymentsResponse {
     pub currency: String,
 
     /// The identifier for the customer object. If not provided the customer ID will be autogenerated.
-    #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    /// This field will be deprecated soon. Please refer to `customer.id`
+    #[schema(
+        max_length = 255,
+        example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+        deprecated
+    )]
     pub customer_id: Option<String>,
 
     /// Details of customer attached to this payment
@@ -3264,15 +3285,18 @@ pub struct PaymentsResponse {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 
     /// description: The customer's email address
-    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    /// This field will be deprecated soon. Please refer to `customer.email` object
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
     pub email: crypto::OptionalEncryptableEmail,
 
     /// description: The customer's name
-    #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
+    /// This field will be deprecated soon. Please refer to `customer.name` object
+    #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
     pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
-    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
+    /// This field will be deprecated soon. Please refer to `customer.phone` object
+    #[schema(value_type = Option<String>, max_length = 255, example = "3141592653", deprecated)]
     pub phone: crypto::OptionalEncryptablePhone,
 
     /// The URL to redirect after the completion of the operation
@@ -3420,6 +3444,10 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated: Option<PrimitiveDateTime>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
+    #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -3514,7 +3542,8 @@ pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization
     pub authorization_id: String,
     /// Amount the authorization has been made for
-    pub amount: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
     #[schema(value_type= AuthorizationStatus)]
     /// The status of the authorization
     pub status: common_enums::AuthorizationStatus,
@@ -3523,7 +3552,7 @@ pub struct IncrementalAuthorizationResponse {
     /// Error message sent by the connector for authorization
     pub error_message: Option<String>,
     /// Previously authorized amount for the payment
-    pub previously_authorized_amount: i64,
+    pub previously_authorized_amount: MinorUnit,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -3760,7 +3789,7 @@ pub struct PgRedirectResponse {
     pub status: api_enums::IntentStatus,
     pub gateway_id: String,
     pub customer_id: Option<String>,
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
@@ -3896,6 +3925,7 @@ pub struct GpayAllowedMethodsParameters {
     /// Is billing address required
     pub billing_address_required: Option<bool>,
     /// Billing address parameters
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address_parameters: Option<GpayBillingAddressParameters>,
 }
 
@@ -4271,7 +4301,9 @@ pub struct ApplePayPaymentRequest {
     pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
     /// The required billing contact fields for connector
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub required_billing_contact_fields: Option<ApplePayBillingContactFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// The required shipping contacht fields for connector
     pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
 }
@@ -4345,6 +4377,18 @@ pub struct PaymentRetrieveBodyWithCredentials {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCompleteAuthorizeRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    pub payment_id: String,
+    /// The shipping address for the payment
+    pub shipping: Option<Address>,
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
     #[serde(skip)]
@@ -4363,7 +4407,7 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub payment_id: String,
     /// The total amount including previously authorized amount and additional amount
     #[schema(value_type = i64, example = 6540)]
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// Reason for incremental authorization
     pub reason: Option<String>,
 }
@@ -4566,6 +4610,7 @@ pub mod amount {
     use super::Amount;
     struct AmountVisitor;
     struct OptionalAmountVisitor;
+    use crate::payments::MinorUnit;
 
     // This is defined to provide guarded deserialization of amount
     // which itself handles zero and non-zero values internally
@@ -4598,7 +4643,7 @@ pub mod amount {
                     "invalid value `{v}`, expected a positive integer"
                 )));
             }
-            Ok(Amount::from(v))
+            Ok(Amount::from(MinorUnit::new(v)))
         }
     }
 
@@ -4670,7 +4715,8 @@ pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
-    pub amount: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

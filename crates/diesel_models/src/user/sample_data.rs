@@ -73,6 +73,8 @@ pub struct PaymentAttemptBatchNew {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -133,6 +135,8 @@ impl PaymentAttemptBatchNew {
             mandate_data: self.mandate_data,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
         }
     }
 }

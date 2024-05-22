@@ -17,6 +17,11 @@ pub trait ValueNode: fmt::Debug + Clone + hash::Hash + serde::Serialize + Partia
     fn get_key(&self) -> Self::Key;
 }
 
+#[cfg(feature = "viz")]
+pub trait NodeViz {
+    fn viz(&self) -> String;
+}
+
 #[derive(Debug, Clone, Copy, serde::Serialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct NodeId(usize);

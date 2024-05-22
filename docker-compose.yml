@@ -48,6 +48,7 @@ services:
   ### Application services
   hyperswitch-server:
     image: juspaydotin/hyperswitch-router:standalone
+    pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
       - "8080:8080"
@@ -67,6 +68,7 @@ services:
 
   hyperswitch-producer:
     image: juspaydotin/hyperswitch-producer:standalone
+    pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
       - router_net
@@ -84,6 +86,7 @@ services:
 
   hyperswitch-consumer:
     image: juspaydotin/hyperswitch-consumer:standalone
+    pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
       - router_net
@@ -107,6 +110,7 @@ services:
 
   hyperswitch-drainer:
     image: juspaydotin/hyperswitch-drainer:standalone
+    pull_policy: always
     command: /local/bin/drainer -f /local/config/docker_compose.toml
     deploy:
       replicas: ${DRAINER_INSTANCE_COUNT:-1}
@@ -148,6 +152,7 @@ services:
   ### Control Center
   hyperswitch-control-center:
     image: juspaydotin/hyperswitch-control-center:latest
+    pull_policy: always
     ports:
       - "9000:9000"
     environment:
@@ -333,7 +338,7 @@ services:
       JMX_PORT: 9997
       KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
     profiles:
-      - analytics
+      - olap
     volumes:
       - ./monitoring/kafka-script.sh:/tmp/update_run.sh
     command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
@@ -348,7 +353,7 @@ services:
     depends_on:
       - kafka0
     profiles:
-      - analytics
+      - olap
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
@@ -364,7 +369,7 @@ services:
     volumes:
       - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
     profiles:
-      - analytics
+      - olap
     ulimits:
       nofile:
         soft: 262144
@@ -376,6 +381,8 @@ services:
       - ./docker/fluentd/conf:/fluentd/etc
     networks:
       - router_net
+    profiles:
+      - olap
 
   opensearch:
     image: public.ecr.aws/opensearchproject/opensearch:1.3.14
@@ -389,6 +396,8 @@ services:
       - "9200:9200"
     networks:
       - router_net
+    profiles:
+      - olap
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:1.3.14
@@ -400,3 +409,5 @@ services:
       OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
     networks:
       - router_net
+    profiles:
+      - olap

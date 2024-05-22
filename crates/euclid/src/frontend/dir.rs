@@ -289,7 +289,6 @@ pub enum DirKeyKind {
     #[serde(rename = "billing_country")]
     BillingCountry,
     #[serde(skip_deserializing, rename = "connector")]
-    #[strum(disabled)]
     Connector,
     #[strum(
         serialize = "business_label",

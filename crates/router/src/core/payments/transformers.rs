@@ -4,7 +4,7 @@ use api_models::payments::{FrmMessage, GetAddressFromPaymentMethodData, RequestS
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::{Maskable, Secret};
@@ -19,6 +19,7 @@ use crate::{
         payments::{self, helpers},
         utils as core_utils,
     },
+    headers::X_PAYMENT_CONFIRM_SOURCE,
     routes::{metrics, AppState},
     services::{self, RedirectForm},
     types::{
@@ -151,7 +152,10 @@ where
         connector_meta_data: merchant_connector_account.get_metadata(),
         request: T::try_from(additional_data)?,
         response,
-        amount_captured: payment_data.payment_intent.amount_captured,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -372,7 +376,7 @@ where
         .as_ref()
         .get_required_value("currency")?;
     let amount = currency
-        .to_currency_base_unit(payment_attempt.amount)
+        .to_currency_base_unit(payment_attempt.amount.get_amount_as_i64())
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
         })?;
@@ -488,7 +492,7 @@ where
         .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
-            "payment_confirm_source".to_string(),
+            X_PAYMENT_CONFIRM_SOURCE.to_string(),
             Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
@@ -781,6 +785,7 @@ where
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))
+                .set_frm_metadata(payment_intent.frm_metadata)
                 .to_owned(),
             headers,
         ))
@@ -1170,7 +1175,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount,
+            amount: amount.get_amount_as_i64(),
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1246,25 +1251,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
+        let total_amount = payment_data
+            .incremental_authorization_details
+            .clone()
+            .map(|details| details.total_amount)
+            .ok_or(
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing incremental_authorization_details in payment_data"),
+            )?;
+        let additional_amount = payment_data
+            .incremental_authorization_details
+            .clone()
+            .map(|details| details.additional_amount)
+            .ok_or(
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing incremental_authorization_details in payment_data"),
+            )?;
         Ok(Self {
-            total_amount: payment_data
-                .incremental_authorization_details
-                .clone()
-                .map(|details| details.total_amount)
-                .ok_or(
-                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                        "missing incremental_authorization_details in payment_data",
-                    ),
-                )?,
-            additional_amount: payment_data
-                .incremental_authorization_details
-                .clone()
-                .map(|details| details.additional_amount)
-                .ok_or(
-                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                        "missing incremental_authorization_details in payment_data",
-                    ),
-                )?,
+            total_amount: total_amount.get_amount_as_i64(),
+            additional_amount: additional_amount.get_amount_as_i64(),
             reason: payment_data
                 .incremental_authorization_details
                 .and_then(|details| details.reason),
@@ -1313,7 +1318,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
-        let amount_to_capture: i64 = payment_data
+        let amount_to_capture = payment_data
             .payment_attempt
             .amount_to_capture
             .map_or(payment_data.amount.into(), |capture_amount| capture_amount);
@@ -1326,15 +1331,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
-
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount_to_capture,
+            amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            payment_amount: payment_data.amount.into(),
+            payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
             connector_meta: payment_data.payment_attempt.connector_metadata,
             multiple_capture_data: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => Some(MultipleCaptureRequestData {
@@ -1372,8 +1377,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector
@@ -1392,8 +1398,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
         })
     }
@@ -1404,8 +1411,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
         })
     }
@@ -1441,7 +1449,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
-            amount,
+            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
             currency: payment_data.currency,
             country: payment_data.address.get_payment_method_billing().and_then(
                 |billing_address| {
@@ -1489,11 +1497,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .as_ref()
                     .map(|customer| customer.clone().into_inner())
             });
-
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
             payment_method_data: From::from(
                 payment_data
                     .payment_method_data
@@ -1605,7 +1613,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount,
+            amount: amount.get_amount_as_i64(), // need to change once we move to connector module
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1682,7 +1690,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             payment_method_data: payment_method_data.map(From::from),
             email: payment_data.email,
             currency: Some(payment_data.currency),
-            amount: Some(amount),
+            amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,
