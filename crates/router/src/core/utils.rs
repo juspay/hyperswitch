@@ -22,16 +22,13 @@ use crate::core::payments;
 use crate::{
     configs::Settings,
     consts,
-    core::{
-        errors::{self, RouterResult, StorageErrorExt},
-        payments::types::PaymentCharges,
-    },
+    core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
     routes::AppState,
     types::{
         self, domain,
         storage::{self, enums},
-        ChargeRefunds, PollConfig,
+        PollConfig,
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
@@ -225,6 +222,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
+    charges: Option<types::ChargeRefunds>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let profile_id = get_profile_id_from_business_details(
         payment_intent.business_country,
@@ -300,50 +298,6 @@ pub async fn construct_refund_router_data<'a, F>(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "browser_info",
         })?;
-
-    let charges = match (
-        payment_intent.charges.as_ref(),
-        payment_attempt.charge_id.as_ref(),
-    ) {
-        (Some(charges), Some(charge_id)) => {
-            let payment_charges: PaymentCharges = charges
-                .peek()
-                .clone()
-                .parse_value("PaymentCharges")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse charges in to PaymentCharges")?;
-
-            let refund_request = refund.charges.clone().get_required_value("charges")?;
-
-            let options = match payment_charges.charge_type {
-                api_models::enums::PaymentChargeType::Stripe(
-                    api_models::enums::StripeChargeType::Direct,
-                ) => types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
-                    revert_platform_fee: refund_request
-                        .revert_platform_fee
-                        .get_required_value("revert_platform_fee")?,
-                }),
-                api_models::enums::PaymentChargeType::Stripe(
-                    api_models::enums::StripeChargeType::Destination,
-                ) => types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
-                    revert_platform_fee: refund_request
-                        .revert_platform_fee
-                        .get_required_value("revert_platform_fee")?,
-                    revert_transfer: refund_request
-                        .revert_transfer
-                        .get_required_value("revert_transfer")?,
-                }),
-            };
-
-            Some(ChargeRefunds {
-                charge_id: charge_id.to_string(),
-                charge_type: payment_charges.charge_type,
-                transfer_account_id: payment_charges.transfer_account_id,
-                options,
-            })
-        }
-        _ => None,
-    };
 
     let router_data = types::RouterData {
         flow: PhantomData,
