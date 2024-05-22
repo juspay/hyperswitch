@@ -318,7 +318,11 @@ fn construct_supported_connectors_for_update_mandate_node(
                                 .ok()
                                 .map(|connector| {
                                     dir::DirValue::Connector(Box::new(
-                                        api_models::routing::ast::ConnectorChoice { connector },
+                                        api_models::routing::ast::ConnectorChoice {
+                                            connector,
+                                            #[cfg(not(feature = "connector_choice_mca_id"))]
+                                            sub_label: None,
+                                        },
                                     ))
                                 })
                         }),
@@ -392,7 +396,11 @@ fn construct_supported_connectors_for_update_mandate_node(
                             .ok()
                             .map(|connector| {
                                 dir::DirValue::Connector(Box::new(
-                                    api_models::routing::ast::ConnectorChoice { connector },
+                                    api_models::routing::ast::ConnectorChoice {
+                                        connector,
+                                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                                        sub_label: None,
+                                    },
                                 ))
                             })
                     }),
@@ -462,7 +470,11 @@ fn construct_supported_connectors_for_mandate_node(
         .filter_map(|connector| {
             match api_enums::RoutableConnectors::from_str(connector.to_string().as_str()) {
                 Ok(connector) => Some(dir::DirValue::Connector(Box::new(
-                    api_models::routing::ast::ConnectorChoice { connector },
+                    api_models::routing::ast::ConnectorChoice {
+                        connector,
+                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                        sub_label: None,
+                    },
                 ))),
                 Err(_) => None,
             }

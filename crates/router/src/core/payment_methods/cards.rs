@@ -2880,7 +2880,11 @@ pub async fn filter_payment_methods(
                                 connector_variant.to_string().as_str(),
                             ) {
                                 context_values.push(dir::DirValue::Connector(Box::new(
-                                    api_models::routing::ast::ConnectorChoice { connector },
+                                    api_models::routing::ast::ConnectorChoice {
+                                        connector,
+                                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                                        sub_label: None,
+                                    },
                                 )));
                             };
                         });
@@ -2896,7 +2900,11 @@ pub async fn filter_payment_methods(
                                     connector_variant.to_string().as_str(),
                                 ) {
                                     context_values.push(dir::DirValue::Connector(Box::new(
-                                        api_models::routing::ast::ConnectorChoice { connector },
+                                        api_models::routing::ast::ConnectorChoice {
+                                            connector,
+                                            #[cfg(not(feature = "connector_choice_mca_id"))]
+                                            sub_label: None,
+                                        },
                                     )));
                                 };
                             }
