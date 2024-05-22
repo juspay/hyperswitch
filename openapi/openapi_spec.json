@@ -11545,6 +11545,21 @@
           }
         }
       },
+      "MifinityData": {
+        "type": "object",
+        "required": [
+          "destination_account_number",
+          "dob"
+        ],
+        "properties": {
+          "destination_account_number": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "dob": {
+            "$ref": "#/components/schemas/Secret"
+          }
+        }
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
