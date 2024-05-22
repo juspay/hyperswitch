@@ -14,7 +14,7 @@ payouts = ["api_models/payouts"]
 
 [dependencies]
 # First party deps
-api_models = { version = "0.1.0", path = "../api_models" }
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
