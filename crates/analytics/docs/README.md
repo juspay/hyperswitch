@@ -1,21 +1,68 @@
-#### Starting the containers
+# Running Kafka & Clickhouse with Analytics and Events Source Configuration
 
-In our use case we rely on kafka for ingesting events.
-hence we can use docker compose to start all the components
+This document provides instructions on how to run Kafka and Clickhouse using Docker Compose, and how to configure the analytics and events source.
 
+## Architecture
+     +------------------------+
+     |       Hyperswitch      |
+     +------------------------+
+                |
+                |
+                v
+     +------------------------+
+     |         Kafka          |
+     |  (Event Stream Broker) |
+     +------------------------+
+                |
+                |
+                v
+     +------------------------+
+     |  ClickHouse            |
+     |  +------------------+  |
+     |  | Kafka Engine     |  |
+     |  |    Table         |  |
+     |  +------------------+  |
+     |            |           |
+     |            v           |
+     |  +------------------+  |
+     |  | Materialized     |  |
+     |  |    View (MV)     |  |
+     |  +------------------+  |
+     |            |           |
+     |            v           |
+     |  +------------------+  |
+     |  | Storage Table    |  |
+     |  +------------------+  |
+     +------------------------+
+
+
+## Starting the Containers
+
+Docker Compose can be used to start all the components.
+
+Run the following command:
+
+```bash
+docker compose --profile olap up -d
 ```
-docker compose up -d clickhouse-server kafka-ui
-```
+This will spawn up the following services
+1. kafka
+2. clickhouse
+3. opensearch
 
-> kafka-ui is a visual tool for inspecting kafka on localhost:8090
+## Setting up Kafka
 
-#### Setting up Clickhouse
+Kafka-UI is a visual tool for inspecting Kafka and it can be accessed at `localhost:8090` to view topics, partitions, consumers & generated events.
 
-Once clickhouse is up & running you need to create the required tables for it
+## Setting up Clickhouse
 
-you can either visit the url (http://localhost:8123/play) in which the clickhouse-server is running to get a playground
-Alternatively you can bash into the clickhouse container & execute commands manually
-```
+Once Clickhouse is up and running, you can interact with it via web.
+
+You can either visit the URL (`http://localhost:8123/play`) where the Clickhouse server is running to get a playground, or you can bash into the Clickhouse container and execute commands manually.
+
+Run the following commands:
+
+```bash
 # On your local terminal
 docker compose exec clickhouse-server bash
 
@@ -24,22 +71,34 @@ clickhouse-client --user default
 
 # Inside the clickhouse-client shell
 SHOW TABLES;
-CREATE TABLE ......
 ```
 
-The table creation scripts are provided [here](./scripts)
+## Configuring Analytics and Events Source
 
-#### Running/Debugging your application
-Once setup you can run your application either via docker compose or normally via cargo run
+To use Clickhouse and Kafka, you need to enable the `analytics.source` and update the `events.source` in the configuration file.
 
-Remember to enable the kafka_events via development.toml/docker_compose.toml files
+You can do this in either the `config/development.toml` or `config/docker_compose.toml` file.
 
-Inspect the [kafka-ui](http://localhost:8090) to check the messages being inserted in queue
+Here's an example of how to do this:
 
-If the messages/topic are available then you can run select queries on your clickhouse table to ensure data is being populated...
+```toml
+[analytics]
+source = "clickhouse"
 
-If the data is not being populated in clickhouse, you can check the error logs in clickhouse server via
+[events]
+source = "kafka"
 ```
-# Inside the clickhouse-server container shell
-tail -f /var/log/clickhouse-server/clickhouse-server.err.log
+
+After making this change, save the file and restart your application for the changes to take effect.
+
+## Enabling Data Features in Dashboard
+
+To check the data features in the dashboard, you need to enable them in the `config/dashboard.toml` configuration file.
+
+Here's an example of how to do this:
+
+```toml
+[default.features]
+audit_trail=true
+system_metrics=true
 ```
