@@ -42,7 +42,7 @@
           "city": "San Fransico",
           "state": "California",
           "zip": "94122",
-          "country": "DE"
+          "country": "NL"
         }
       },
       "browser_info": {
@@ -65,7 +65,7 @@
           "city": "San Fransico",
           "state": "California",
           "zip": "94122",
-          "country": "US",
+          "country": "NL",
           "first_name": "John",
           "last_name": "Doe"
         }
