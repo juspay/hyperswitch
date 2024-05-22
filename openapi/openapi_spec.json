@@ -11596,11 +11596,6 @@
           }
         }
       },
-      "MinorUnit": {
-        "type": "integer",
-        "format": "int64",
-        "description": "This Unit struct represents MinorUnit in which core amount works"
-      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -11609,12 +11604,18 @@
         ],
         "properties": {
           "destination_account_number": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string"
           },
           "dob": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "format": "date"
           }
         }
+      },
+      "MinorUnit": {
+        "type": "integer",
+        "format": "int64",
+        "description": "This Unit struct represents MinorUnit in which core amount works"
       },
       "MobilePayRedirection": {
         "type": "object"
