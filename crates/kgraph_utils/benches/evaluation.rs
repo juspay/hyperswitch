@@ -1,6 +1,6 @@
 #![allow(unused, clippy::expect_used)]
 
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
@@ -13,7 +13,7 @@ use euclid::{
     types::{NumValue, NumValueRefinement},
 };
 use hyperswitch_constraint_graph::{CycleCheck, Memoization};
-use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
+use kgraph_utils::{error::KgraphError, transformers::IntoDirValue, types::CountryCurrencyFilter};
 
 fn build_test_data<'a>(
     total_enabled: usize,
@@ -71,8 +71,12 @@ fn build_test_data<'a>(
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
     };
-
-    kgraph_utils::mca::make_mca_graph(vec![stripe_account]).expect("Failed graph construction")
+    let config = CountryCurrencyFilter {
+        connector_configs: HashMap::new(),
+        default_configs: None,
+    };
+    kgraph_utils::mca::make_mca_graph(vec![stripe_account], &config)
+        .expect("Failed graph construction")
 }
 
 fn evaluation(c: &mut Criterion) {
