@@ -254,7 +254,7 @@ struct Profile {
     merchant_customer_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-    email: pii::Email,
+    email: Option<pii::Email>,
     payment_profiles: PaymentProfiles,
 }
 
@@ -301,15 +301,13 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                                 .clone()
                                 .ok_or_else(missing_field_err("customer_id"))?,
                             description: item.description.clone(),
-                            email: utils::PaymentsSetupMandateRequestData::get_email(
-                                &item.request,
-                            )?,
+                            email: item.request.email.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
                                 payment: PaymentDetails::CreditCard(CreditCardDetails {
                                     card_number: (*ccard.card_number).clone(),
                                     expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                                    card_code: None,
+                                    card_code: Some(ccard.card_cvc.clone()),
                                 }),
                             },
                         },
