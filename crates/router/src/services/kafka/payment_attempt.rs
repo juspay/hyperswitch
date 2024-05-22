@@ -1,4 +1,5 @@
 // use diesel_models::enums::MandateDetails;
+use common_utils::types::MinorUnit;
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::{
     mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,
@@ -11,14 +12,14 @@ pub struct KafkaPaymentAttempt<'a> {
     pub merchant_id: &'a String,
     pub attempt_id: &'a String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<&'a String>,
     pub error_message: Option<&'a String>,
-    pub offer_amount: Option<i64>,
-    pub surcharge_amount: Option<i64>,
-    pub tax_amount: Option<i64>,
+    pub offer_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<&'a String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<&'a String>,
@@ -34,7 +35,7 @@ pub struct KafkaPaymentAttempt<'a> {
     #[serde(default, with = "time::serde::timestamp::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub cancellation_reason: Option<&'a String>,
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: Option<MinorUnit>,
     pub mandate_id: Option<&'a String>,
     pub browser_info: Option<String>,
     pub error_code: Option<&'a String>,
@@ -45,9 +46,9 @@ pub struct KafkaPaymentAttempt<'a> {
     pub payment_method_data: Option<String>,
     pub error_reason: Option<&'a String>,
     pub multiple_capture_count: Option<i16>,
-    pub amount_capturable: i64,
+    pub amount_capturable: MinorUnit,
     pub merchant_connector_id: Option<&'a String>,
-    pub net_amount: i64,
+    pub net_amount: MinorUnit,
     pub unified_code: Option<&'a String>,
     pub unified_message: Option<&'a String>,
     pub mandate_data: Option<&'a MandateDetails>,
