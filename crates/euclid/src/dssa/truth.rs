@@ -18,5 +18,8 @@ pub static ANALYSIS_GRAPH: Lazy<hyperswitch_constraint_graph::ConstraintGraph<'_
 
             key type = DirKey;
             value type = DirValue;
+
+            rule under PaymentMethods:
+                PaymentMethod = Card -> CardType = Credit;
         }
     });
