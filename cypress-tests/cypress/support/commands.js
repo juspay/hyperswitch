@@ -26,6 +26,7 @@
 
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
+import jsQR from "jsqr";
 
 function logRequestId(xRequestId) {
   if (xRequestId) {
@@ -261,6 +262,105 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
     
   });
 });
+
+Cypress.Commands.add(
+  "confirmBankTransferCallTest",
+  (confirmBody, req_data, res_data, confirm, globalState) => {
+    const paymentIntentID = globalState.get("paymentID");
+    confirmBody.currency = req_data.currency;
+    confirmBody.payment_method = req_data.payment_method;
+    confirmBody.payment_method_type = req_data.payment_method_type;
+    confirmBody.payment_method_data.bank_transfer = req_data.bank_transfer;
+    confirmBody.confirm = confirm;
+    confirmBody.client_secret = globalState.get("clientSecret");
+
+    console.log(confirmBody);
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      console.log(response);
+
+      expect(res_data.status).to.equal(response.status);
+      expect(response.headers["content-type"]).to.include("application/json");
+      globalState.set("paymentID", paymentIntentID);
+
+      switch (response.body.authentication_type) {
+        case "three_ds":
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            switch (response.body.payment_method_type) {
+              case "pix":
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("qr_code_url");
+                globalState.set(
+                  "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                  response.body.next_action.qr_code_url
+                );
+                break;
+              default:
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+                break;
+            }
+          } else {
+            throw new Error(`Unsupported capture method: ${capture_method}`);
+          }
+          break;
+        case "no_three_ds":
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            switch (response.body.payment_method_type) {
+              case "pix":
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("qr_code_url");
+                globalState.set(
+                  "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                  response.body.next_action.qr_code_url
+                );
+                break;
+              default:
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+                break;
+            }
+          } else {
+            throw new Error(
+              `Unsupported capture method: ${response.body.capture_method}`
+            );
+          }
+          break;
+        default:
+          throw new Error(
+            `Unsupported authentication type: ${response.body.authentication_type}`
+          );
+      }
+    });
+  }
+);
 
 Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_data, res_data, authentication_type, capture_method, globalState) => {
   createConfirmPaymentBody.payment_method_data.card = req_data.card;
@@ -698,6 +798,45 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
   });
 });
 
+Cypress.Commands.add("fetchAndParseQRCode", (url) => {
+  cy.request({
+    url: url,
+    encoding: "binary",
+  }).then((response) => {
+    expect(response.headers["content-type"]).to.include("image/png");
+    const base64Image = Cypress.Buffer.from(response.body, "binary").toString(
+      "base64"
+    );
+    const image = new Image();
+    image.src = `data:image/png;base64,${base64Image}`;
+
+    // Create a canvas to draw the image onto
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    return new Cypress.Promise((resolve, reject) => {
+      image.onload = () => {
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0, image.width, image.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const qrCodeData = jsQR(
+          imageData.data,
+          imageData.width,
+          imageData.height
+        );
+
+        if (qrCodeData) {
+          resolve(qrCodeData.data);
+        } else {
+          reject(new Error("Failed to decode QR code"));
+        }
+      };
+    });
+  });
+});
+
 Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) => {
   let connectorId = globalState.get("connectorId");
   let expected_url = new URL(expected_redirection);
@@ -752,7 +891,6 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
     })
   }
 
-
   else {
     // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
     cy.wait(10000);
@@ -768,8 +906,37 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
       cy.window().its('location.origin').should('eq', expected_url);
     })
   }
-
 });
+
+Cypress.Commands.add(
+  "handleBankTransferRedirection",
+  (globalState, payment_method_type, expected_redirection) => {
+    let connectorId = globalState.get("connectorId");
+    switch (connectorId) {
+      case "adyen":
+        switch (payment_method_type) {
+          case "pix":
+            let redirection_url = new URL(globalState.get("nextActionUrl"));
+            cy.request(redirection_url.href).then((response) => {
+              expect(response.status).to.eq(200);
+              cy.fetchAndParseQRCode(redirection_url.href).then(
+                (qrCodeData) => {
+                  cy.log(qrCodeData);
+                  expect(qrCodeData).to.eq("TestQRCodeEMVToken");
+                }
+              );
+            });
+            break;
+          default:
+            throw new Error(`Payment method type ${payment_method_type} unsupported`);
+            // expected_redirection can be used here to handle other payment methods
+        }
+        break;
+      default:
+        throw new Error(`Bank transfer payment method is not supported by connector ${connectorId}`)
+    }
+  }
+);
 
 Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
   console.log("customerID ->" + globalState.get("customerId"));

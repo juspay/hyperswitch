@@ -52,6 +52,18 @@
           "installment_payment_enabled": true
         }
       ]
+    },
+    {
+      "payment_method": "bank_transfer",
+      "payment_method_types": [
+        {
+          "payment_method_type": "pix",
+          "minimum_amount": 0,
+          "maximum_amount": 68607706,
+          "recurring_enabled": false,
+          "installment_payment_enabled": true
+        }
+      ]
     }
   ],
   "metadata": {
