@@ -1215,7 +1215,8 @@ impl User {
             .service(
                 web::resource("/recovery_codes/generate")
                     .route(web::get().to(generate_recovery_codes)),
-            );
+            )
+            .service(web::resource("/2fa/terminate").route(web::get().to(terminate_2fa)));
 
         #[cfg(feature = "email")]
         {

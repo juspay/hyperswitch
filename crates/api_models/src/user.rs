@@ -225,6 +225,11 @@ pub struct TokenOnlyQueryParam {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct Skip2faQueryParam {
+    pub skip_2fa: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TokenResponse {
     pub token: Secret<String>,
     pub token_type: TokenPurpose,

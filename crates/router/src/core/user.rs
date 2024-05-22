@@ -15,6 +15,7 @@ use router_env::env;
 use router_env::logger;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
+use utils::user::two_factor_auth::{check_access_code_in_redis, check_totp_in_redis};
 
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
@@ -26,6 +27,7 @@ use crate::{
     types::{domain, transformers::ForeignInto},
     utils,
 };
+
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
@@ -1739,7 +1741,7 @@ pub async fn generate_recovery_codes(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
 ) -> UserResponse<user_api::RecoveryCodes> {
-    if !utils::user::two_factor_auth::check_totp_in_redis(&state, &user_token.user_id).await? {
+    if !check_totp_in_redis(&state, &user_token.user_id).await? {
         return Err(UserErrors::TotpRequired.into());
     }
 
@@ -1765,4 +1767,50 @@ pub async fn generate_recovery_codes(
     Ok(ApplicationResponse::Json(user_api::RecoveryCodes {
         recovery_codes: recovery_codes.into_inner(),
     }))
+}
+
+pub async fn terminate_2fa(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    skip_2fa: Option<bool>,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if skip_2fa.is_none() {
+        if !(check_totp_in_redis(&state, &user_token.user_id).await?
+            || check_access_code_in_redis(&state, &user_token.user_id).await?)
+        {
+            return Err(UserErrors::TotpRequired.into());
+        }
+
+        state
+            .store
+            .update_user_by_user_id(
+                user_from_db.get_user_id(),
+                storage_user::UserUpdate::TotpUpdate {
+                    totp_status: Some(TotpStatus::Set),
+                    totp_secret: None,
+                    totp_recovery_codes: None,
+                },
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+    }
+
+    let current_flow = domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::TOTP.into())?;
+    let next_flow = current_flow.next(user_from_db, &state).await?;
+    let token = next_flow.get_token(&state).await?;
+
+    auth::cookies::set_cookie_response(
+        user_api::TokenResponse {
+            token: token.clone(),
+            token_type: next_flow.get_flow().into(),
+        },
+        token,
+    )
 }

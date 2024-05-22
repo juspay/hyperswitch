@@ -679,3 +679,23 @@ pub async fn generate_recovery_codes(state: web::Data<AppState>, req: HttpReques
     ))
     .await
 }
+
+pub async fn terminate_2fa(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::Skip2faQueryParam>,
+) -> HttpResponse {
+    let flow = Flow::Terminate2fa;
+    let skip_2fa = query.into_inner().skip_2fa;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::terminate_2fa(state, user, skip_2fa),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
