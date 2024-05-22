@@ -3688,26 +3688,26 @@ pub async fn get_mca_status(
     merchant_id: &str,
     connector_mandate_details: Option<storage::PaymentsMandateReference>,
 ) -> errors::RouterResult<bool> {
-    let mcas = state
-        .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            merchant_id,
-            true,
-            key_store,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_id.to_string(),
-        })?;
-    let mut mca_ids = HashSet::new();
-
-    for mca in mcas {
-        mca_ids.insert(mca.merchant_connector_id);
-    }
-
     if let Some(connector_mandate_details) = connector_mandate_details {
-        for mca_id in connector_mandate_details.keys().cloned() {
-            if !mca_ids.contains(&mca_id) {
+        let mcas = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                merchant_id,
+                true,
+                key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_id.to_string(),
+            })?;
+        let mut mca_ids = HashSet::new();
+
+        for mca in mcas {
+            mca_ids.insert(mca.merchant_connector_id);
+        }
+
+        for mca_id in connector_mandate_details.keys() {
+            if !mca_ids.contains(mca_id) {
                 return Ok(true);
             }
         }
