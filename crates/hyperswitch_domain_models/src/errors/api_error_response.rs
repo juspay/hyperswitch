@@ -612,17 +612,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
 
 impl actix_web::ResponseError for ApiErrorResponse {
     fn status_code(&self) -> StatusCode {
-        common_utils::errors::ErrorSwitch::<api_models::errors::types::ApiErrorResponse>::switch(
-            self,
-        )
-        .status_code()
+        ErrorSwitch::<api_models::errors::types::ApiErrorResponse>::switch(self).status_code()
     }
 
     fn error_response(&self) -> actix_web::HttpResponse {
-        common_utils::errors::ErrorSwitch::<api_models::errors::types::ApiErrorResponse>::switch(
-            self,
-        )
-        .error_response()
+        ErrorSwitch::<api_models::errors::types::ApiErrorResponse>::switch(self).error_response()
     }
 }
 
