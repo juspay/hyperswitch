@@ -108,8 +108,4 @@ impl KafkaMessage for OutgoingWebhookEvent {
     fn key(&self) -> String {
         self.event_id.clone()
     }
-
-    fn creation_timestamp(&self) -> Option<i64> {
-        Some(self.created_at_timestamp)
-    }
 }

@@ -99,10 +99,6 @@ impl KafkaMessage for ApiEvent {
     fn key(&self) -> String {
         self.request_id.clone()
     }
-
-    fn creation_timestamp(&self) -> Option<i64> {
-        Some(self.created_at_timestamp)
-    }
 }
 
 impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {

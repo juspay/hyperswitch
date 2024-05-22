@@ -45,7 +45,7 @@ where
 
     fn event_type(&self) -> EventType;
 
-    fn creation_timestamp(&self) -> Option<i64> {
+    fn creation_timestamp(&self) -> Option<i128> {
         None
     }
 }
@@ -84,7 +84,7 @@ impl<'a, T: KafkaMessage> KafkaMessage for KafkaEvent<'a, T> {
         self.event.event_type()
     }
 
-    fn creation_timestamp(&self) -> Option<i64> {
+    fn creation_timestamp(&self) -> Option<i128> {
         self.event.creation_timestamp()
     }
 }
@@ -258,7 +258,7 @@ impl KafkaProducer {
                     .payload(&event.value()?)
                     .timestamp(event.creation_timestamp().unwrap_or_else(|| {
                         OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000
-                    })),
+                    }) as i64),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
             .change_context(KafkaError::GenericError)

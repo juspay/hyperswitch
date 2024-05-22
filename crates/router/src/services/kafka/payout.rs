@@ -80,10 +80,6 @@ impl<'a> super::KafkaMessage for KafkaPayout<'a> {
         format!("{}_{}", self.merchant_id, self.payout_attempt_id)
     }
 
-    fn creation_timestamp(&self) -> Option<i64> {
-        Some(self.last_modified_at.unix_timestamp_nanos() / 1_000_000)
-    }
-
     fn event_type(&self) -> crate::events::EventType {
         crate::events::EventType::Payout
     }
