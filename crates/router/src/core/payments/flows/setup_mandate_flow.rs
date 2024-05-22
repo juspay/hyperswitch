@@ -140,6 +140,27 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             _ => Ok((None, true)),
         }
     }
+    fn validate_request_for_flow(
+        &self,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        if self
+            .request
+            .customer_acceptance
+            .as_ref()
+            .or(self
+                .request
+                .setup_mandate_details
+                .as_ref()
+                .and_then(|mandate_data| mandate_data.customer_acceptance.as_ref()))
+            .is_none()
+        {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "`customer_acceptance` is mandatory for zero dollar payments".to_string(),
+            })?
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {

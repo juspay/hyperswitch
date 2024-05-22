@@ -1526,7 +1526,7 @@ where
             payment_method_token,
         ));
     };
-
+    let validate_flow = router_data.validate_request_for_flow(&merchant_account)?;
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
         &connector,

@@ -44,16 +44,7 @@ use crate::{
 };
 
 pub type BoxedOperation<'a, F, T, Ctx> = Box<dyn Operation<F, T, Ctx> + Send + Sync + 'a>;
-pub type BoxedFlow<'a, T, Ctx> = Box<dyn Flow<T, Ctx> + Send + Sync + 'a>;
 
-pub trait Flow<T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::Debug {
-    fn to_validate_request_flow(
-        &self,
-    ) -> RouterResult<&(dyn ValidateRequestFlow<T, Ctx> + Send + Sync)> {
-        Err(report!(errors::ApiErrorResponse::InternalServerError))
-            .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
-    }
-}
 pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::Debug {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T, Ctx> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
@@ -99,15 +90,6 @@ pub trait ValidateRequest<F, R, Ctx: PaymentMethodRetrieve> {
         request: &R,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'b, F, R, Ctx>, ValidateResult<'a>)>;
-}
-pub trait ValidateRequestFlow<R, Ctx: PaymentMethodRetrieve> {
-    fn validate_request_for_flow<'a>(
-        &'a self,
-        _request: &R,
-        _merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
 }
 
 pub struct GetTrackerResponse<'a, F: Clone, R, Ctx> {

@@ -40,6 +40,13 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
+    fn validate_request_for_flow<'a>(
+        &self,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
     async fn decide_flows<'a>(
         self,
         state: &AppState,
