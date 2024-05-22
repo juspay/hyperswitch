@@ -64,9 +64,8 @@ pub struct SubError {
 // Auth Struct
 pub struct PayoneAuthType {
     pub(super) api_key: Secret<String>,
-    #[allow(dead_code)]
-    pub(super) merchant_account: Secret<String>,
-    pub(super) api_secret: Secret<String>,
+    pub merchant_account: Secret<String>,
+    pub api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PayoneAuthType {
