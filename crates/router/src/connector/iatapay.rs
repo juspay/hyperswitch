@@ -354,7 +354,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let con_resp = std::str::from_utf8(&res.response).unwrap();
         let response: IatapayPaymentsResponse = res
             .response
             .parse_struct("Iatapay PaymentsAuthorizeResponse")

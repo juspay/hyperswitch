@@ -181,7 +181,7 @@ impl
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
-            notification_url: "https://77f1-65-1-52-128.ngrok-free.app".to_owned(),
+            notification_url: item.router_data.request.get_webhook_url()?,
             preferred_checkout_method,
         };
         Ok(payload)
@@ -335,7 +335,6 @@ fn get_iatpay_response(
                             form_fields,
                         }),
                     ),
-                    _ => (None, None),
                 };
 
             types::PaymentsResponseData::TransactionResponse {
@@ -405,7 +404,7 @@ impl<F> TryFrom<&IatapayRouterData<&types::RefundsRouterData<F>>> for IatapayRef
             merchant_refund_id: Some(item.router_data.request.refund_id.clone()),
             currency: item.router_data.request.currency.to_string(),
             bank_transfer_description: item.router_data.request.reason.clone(),
-            notification_url: "https://77f1-65-1-52-128.ngrok-free.app".to_owned(),
+            notification_url: item.router_data.request.get_webhook_url()?,
         })
     }
 }
