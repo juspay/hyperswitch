@@ -1632,7 +1632,7 @@ pub async fn begin_totp(
         }));
     }
 
-    let totp = utils::user::two_factor_auth::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
     let recovery_codes = domain::RecoveryCodes::generate_new();
 
     let key_store = user_from_db.get_or_create_key_store(&state).await?;
@@ -1694,10 +1694,8 @@ pub async fn verify_totp(
             .await?
             .ok_or(UserErrors::InternalServerError)?;
 
-        let totp = utils::user::two_factor_auth::generate_default_totp(
-            user_from_db.get_email(),
-            Some(user_totp_secret),
-        )?;
+        let totp =
+            tfa_utils::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
 
         if totp
             .generate_current()
