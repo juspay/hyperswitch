@@ -1792,7 +1792,7 @@ pub async fn verify_recovery_code(
     )?
     .ok_or(UserErrors::InvalidRecoveryCode)?;
 
-    insert_recovery_code_in_redis(&state, user_from_db.get_user_id()).await?;
+    tfa_utils::insert_recovery_code_in_redis(&state, user_from_db.get_user_id()).await?;
     let _ = recovery_codes.remove(matching_index);
 
     state
