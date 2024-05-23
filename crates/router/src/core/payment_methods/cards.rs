@@ -46,7 +46,11 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{transformers as payment_methods, utils::make_pm_graph, vault},
+        payment_methods::{
+            transformers as payment_methods,
+            utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
+            vault,
+        },
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -1877,51 +1881,139 @@ pub async fn list_payment_methods(
     .await?;
 
     // filter out connectors based on the business country
-    let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas.clone(), profile_id);
+    let filtered_mcas =
+        helpers::filter_mca_based_on_business_profile(all_mcas.clone(), profile_id.clone());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
-    let mut builder = cgraph::ConstraintGraphBuilder::new();
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
-    for mca in &filtered_mcas {
-        let payment_methods = match &mca.payment_methods_enabled {
-            Some(pm) => pm.clone(),
-            None => continue,
-        };
-        if let Err(e) = make_pm_graph(
-            &mut builder,
-            payment_methods,
-            mca.connector_name.clone(),
-            pm_config_mapping,
-            &state.conf.mandates.supported_payment_methods,
-            &state.conf.mandates.update_mandate_supported,
-        ) {
-            logger::error!("Failed to construct constraint graph for list payment methods {e:?}");
+    // Key creation for storing PM_FILTER_CGRAPH
+    #[cfg(feature = "business_profile_routing")]
+    if let Ok(profile_id) = profile_id.clone().get_required_value("profile_id") {
+        let key = format!(
+            "pm_filters_cgraph_{}_{}",
+            &merchant_account.merchant_id, profile_id
+        );
+
+        #[cfg(not(feature = "business_profile_routing"))]
+        let key = format!("pm_filters_cgraph_{}_{}", merchant_id, profile_id);
+        if let Ok(graph) = get_merchant_pm_filter_graph(&key).await {
+            // Derivation of PM_FILTER_CGRAPH from MokaCache successful
+            for mca in &filtered_mcas {
+                let payment_methods = match &mca.payment_methods_enabled.clone() {
+                    Some(pm) => pm.clone(),
+                    None => continue,
+                };
+                filter_payment_methods(
+                    &graph,
+                    payment_methods,
+                    &mut req,
+                    &mut response,
+                    payment_intent.as_ref(),
+                    payment_attempt.as_ref(),
+                    billing_address.as_ref(),
+                    mca.connector_name.clone(),
+                    pm_config_mapping,
+                    &state.conf.mandates.supported_payment_methods,
+                    &state.conf.mandates.update_mandate_supported,
+                    &state.conf.saved_payment_methods,
+                )
+                .await?;
+            }
+        } else {
+            // No PM_FILTER_CGRAPH Cache present in MokaCache
+            let mut builder = cgraph::ConstraintGraphBuilder::<'static, _>::new();
+            for mca in &filtered_mcas {
+                let payment_methods = match &mca.payment_methods_enabled {
+                    Some(pm) => pm.clone(),
+                    None => continue,
+                };
+                if let Err(e) = make_pm_graph(
+                    &mut builder,
+                    payment_methods,
+                    mca.connector_name.clone(),
+                    pm_config_mapping,
+                    &state.conf.mandates.supported_payment_methods,
+                    &state.conf.mandates.update_mandate_supported,
+                ) {
+                    logger::error!(
+                        "Failed to construct constraint graph for list payment methods {e:?}"
+                    );
+                }
+            }
+
+            let graph = builder.build();
+
+            for mca in &filtered_mcas {
+                let payment_methods = match &mca.payment_methods_enabled {
+                    Some(pm) => pm.clone(),
+                    None => continue,
+                };
+                filter_payment_methods(
+                    &graph,
+                    payment_methods,
+                    &mut req,
+                    &mut response,
+                    payment_intent.as_ref(),
+                    payment_attempt.as_ref(),
+                    billing_address.as_ref(),
+                    mca.connector_name.clone(),
+                    pm_config_mapping,
+                    &state.conf.mandates.supported_payment_methods,
+                    &state.conf.mandates.update_mandate_supported,
+                    &state.conf.saved_payment_methods,
+                )
+                .await?;
+            }
+            if let Err(err) = refresh_pm_filters_cache(&key, graph).await {
+                logger::error!("Error in refreshing PM Filters Cgraph ?{err}");
+            }
         }
-    }
+    } else {
+        // No Profile id found
+        let mut builder = cgraph::ConstraintGraphBuilder::<'static, _>::new();
+        for mca in &filtered_mcas {
+            let payment_methods = match &mca.payment_methods_enabled {
+                Some(pm) => pm.clone(),
+                None => continue,
+            };
+            if let Err(e) = make_pm_graph(
+                &mut builder,
+                payment_methods,
+                mca.connector_name.clone(),
+                pm_config_mapping,
+                &state.conf.mandates.supported_payment_methods,
+                &state.conf.mandates.update_mandate_supported,
+            ) {
+                logger::error!(
+                    "Failed to construct constraint graph for list payment methods {e:?}"
+                );
+            }
+        }
 
-    let graph = builder.build();
+        let graph = builder.build();
 
-    for mca in &filtered_mcas {
-        let payment_methods = match &mca.payment_methods_enabled {
-            Some(pm) => pm.clone(),
-            None => continue,
-        };
-        filter_payment_methods(
-            &graph,
-            payment_methods,
-            &mut req,
-            &mut response,
-            payment_intent.as_ref(),
-            payment_attempt.as_ref(),
-            billing_address.as_ref(),
-            mca.connector_name.clone(),
-            pm_config_mapping,
-            &state.conf.mandates.supported_payment_methods,
-            &state.conf.mandates.update_mandate_supported,
-            &state.conf.saved_payment_methods,
-        )
-        .await?;
+        for mca in &filtered_mcas {
+            let payment_methods = match &mca.payment_methods_enabled {
+                Some(pm) => pm.clone(),
+                None => continue,
+            };
+            filter_payment_methods(
+                &graph,
+                payment_methods,
+                &mut req,
+                &mut response,
+                payment_intent.as_ref(),
+                payment_attempt.as_ref(),
+                billing_address.as_ref(),
+                mca.connector_name.clone(),
+                pm_config_mapping,
+                &state.conf.mandates.supported_payment_methods,
+                &state.conf.mandates.update_mandate_supported,
+                &state.conf.saved_payment_methods,
+            )
+            .await?;
+        }
     }
 
     // Filter out wallet payment method from mca if customer has already saved it

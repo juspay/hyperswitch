@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
@@ -9,6 +9,7 @@ use common_enums::enums;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
+use storage_impl::redis::cache::PM_FILTERS_CGRAPH_CACHE;
 
 use crate::configs::settings;
 
@@ -34,6 +35,32 @@ pub fn make_pm_graph(
         };
     }
     Ok(())
+}
+
+pub async fn get_merchant_pm_filter_graph<'a>(
+    key: &str,
+) -> Result<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>>, KgraphError> {
+    let cached_pm_filter_cgraph = PM_FILTERS_CGRAPH_CACHE
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>>>(key)
+        .await;
+
+    if let Some(graph) = cached_pm_filter_cgraph {
+        Ok(graph)
+    } else {
+        Err(KgraphError::IndexingError)
+    }
+}
+
+pub async fn refresh_pm_filters_cache(
+    key: &str,
+    graph: cgraph::ConstraintGraph<'static, dir::DirValue>,
+) -> Result<Arc<hyperswitch_constraint_graph::ConstraintGraph<'static, dir::DirValue>>, KgraphError>
+{
+    let pm_filter_graph = Arc::new(graph);
+    PM_FILTERS_CGRAPH_CACHE
+        .push(key.to_string(), pm_filter_graph.clone())
+        .await;
+    Ok(pm_filter_graph)
 }
 
 fn compile_pm_graph(
