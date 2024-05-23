@@ -5,7 +5,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::XmlExt,
     pii::{self, Email},
-    types::FloatMajorUnit
+    types::FloatMajorUnit,
 };
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, RouterData
+        PaymentsCompleteAuthorizeRequestData, RouterData,
     },
     core::errors,
     services,
@@ -65,12 +65,7 @@ pub struct NmiRouterData<T> {
 impl<T> From<(FloatMajorUnit, T)> for NmiRouterData<T> {
     // type Error = Report<errors::ConnectorError>;
 
-    fn from(
-        (amount, router_data): (
-            FloatMajorUnit,
-            T,
-        ),
-    ) -> Self {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
         Self {
             // amount: utils::to_currency_base_unit_asf64(amount, currency)?,
             amount,

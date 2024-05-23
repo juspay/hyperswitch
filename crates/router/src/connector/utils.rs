@@ -12,7 +12,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     ext_traits::StringExt,
     pii::{self, Email, IpAddress},
-    types::{MinorUnit, AmountConvertor}
+    types::{AmountConvertor, MinorUnit},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -2618,12 +2618,22 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
     }
 }
 
-pub fn convert_amount<C>(amount_convertor: &dyn AmountConvertor<Output = C>, i: MinorUnit, currency: enums::Currency) -> Result<C, error_stack::Report<errors::ConnectorError>>
-{
-    amount_convertor.convert(i, currency).change_context(errors::ConnectorError::AmountConversionFailed)
+pub fn convert_amount<C>(
+    amount_convertor: &dyn AmountConvertor<Output = C>,
+    i: MinorUnit,
+    currency: enums::Currency,
+) -> Result<C, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert(i, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
-pub fn convert_back<C>(amount_convertor: &dyn AmountConvertor<Output = C>, i: C, currency: enums::Currency) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
-    amount_convertor.convert_back(i, currency)
-    .change_context(errors::ConnectorError::AmountConversionFailed)
+pub fn convert_back<C>(
+    amount_convertor: &dyn AmountConvertor<Output = C>,
+    i: C,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert_back(i, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
 }

@@ -1,7 +1,11 @@
 pub mod transformers;
 
-
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent, types::{FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, AmountConvertor}};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use regex::Regex;
@@ -338,11 +342,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(self.amount_converter, req.request.test_amount.unwrap_or(MinorUnit::new(req.request.amount)), req.request.currency)?;
-        let connector_router_data = nmi::NmiRouterData::from((
-            amount,
-            req,
-        ));
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request
+                .test_amount
+                .unwrap_or(MinorUnit::new(req.request.amount)),
+            req.request.currency,
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -425,11 +432,12 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(self.amount_converter, MinorUnit::new(req.request.amount), req.request.currency)?;
-        let connector_router_data = nmi::NmiRouterData::from((
-            amount,
-            req,
-        ));
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.amount),
+            req.request.currency,
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiCompleteRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -576,11 +584,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(self.amount_converter, MinorUnit::new(req.request.amount_to_capture), req.request.currency)?;
-        let connector_router_data = nmi::NmiRouterData::from((
-            amount,
-            req,
-        ));
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.amount_to_capture),
+            req.request.currency,
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -723,12 +732,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = connector_utils::convert_amount(self.amount_converter, MinorUnit::new(req.request.refund_amount), req.request.currency)?;
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.refund_amount),
+            req.request.currency,
+        )?;
 
-        let connector_router_data = nmi::NmiRouterData::from((
-            refund_amount,
-            req,
-        ));
+        let connector_router_data = nmi::NmiRouterData::from((refund_amount, req));
         let connector_req = nmi::NmiRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }

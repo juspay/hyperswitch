@@ -2,10 +2,7 @@ pub mod transformers;
 
 use std::{collections::HashMap, ops::Deref};
 
-use common_utils::{
-    request::RequestContent,
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
-};
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -38,19 +35,8 @@ use crate::{
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
-pub struct Stripe {
-    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
-}
-
-impl Stripe {
-    pub const fn new() -> &'static Self {
-        &Self {
-            amount_converter: &FloatMajorUnitForConnector,
-        }
-    }
-}
-
-
+#[derive(Debug, Clone)]
+pub struct Stripe;
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripe
 where
@@ -930,8 +916,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let _sahkal = connector_utils::convert_amount(self.amount_converter, MinorUnit::new(23), req.request.currency)?;
-        let _sahkal_back_convert = connector_utils::convert_back(self.amount_converter, FloatMajorUnit::new(1.00), req.request.currency)?;
         match &req.request.payment_method_data {
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())

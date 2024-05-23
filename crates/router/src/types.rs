@@ -326,7 +326,7 @@ pub struct PaymentsAuthorizeData {
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
     pub amount: i64,
-    pub test_amount : Option<MinorUnit>,
+    pub test_amount: Option<MinorUnit>,
     pub email: Option<Email>,
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,

@@ -1,6 +1,7 @@
 pub mod paypal;
 pub mod stripe;
 
+use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 
 use crate::{
@@ -11,8 +12,6 @@ use crate::{
     types::{self, api, domain, storage::enums as storage_enums},
     AppState,
 };
-
-use common_utils::types::MinorUnit;
 
 #[derive(Clone)]
 pub struct VerifyConnectorData {

@@ -18,6 +18,10 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal,
+};
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer};
 use utoipa::ToSchema;
@@ -244,7 +248,7 @@ pub trait AmountConvertor: Send {
         &self,
         i: Self::Output,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError>;
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
 }
 
 /// Connector required amount type
@@ -265,7 +269,7 @@ impl AmountConvertor for StringMajorUnitForConnector {
         &self,
         i: StringMajorUnit,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError> {
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         i.to_minor_unit_as_i64(currency)
     }
 }
@@ -287,7 +291,7 @@ impl AmountConvertor for FloatMajorUnitForConnector {
         &self,
         i: FloatMajorUnit,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError> {
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         i.to_minor_unit_as_i64(currency)
     }
 }
@@ -449,7 +453,7 @@ impl FloatMajorUnit {
     pub fn to_minor_unit_as_i64(
         &self,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError> {
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let amount_f64 = self.0;
         let amount = if currency.is_zero_decimal_currency() {
             amount_f64
@@ -458,7 +462,14 @@ impl FloatMajorUnit {
         } else {
             amount_f64 * 100.00
         };
-        Ok(MinorUnit::new(amount as i64))
+
+        let amount_decimal =
+            Decimal::from_f64(amount).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        let amount_decimal_scaled = amount_decimal.round();
+        let amount_i64 = amount_decimal_scaled
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
     }
 }
 
@@ -476,8 +487,11 @@ impl StringMajorUnit {
     pub fn to_minor_unit_as_i64(
         &self,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, ParseFloatError> {
-        let amount_f64 = self.0.parse::<f64>()?;
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_f64 = self
+            .0
+            .parse::<f64>()
+            .change_context(ParsingError::StringToFloatConversionFailure)?;
         let amount = if currency.is_zero_decimal_currency() {
             amount_f64
         } else if currency.is_three_decimal_currency() {
@@ -485,6 +499,13 @@ impl StringMajorUnit {
         } else {
             amount_f64 * 100.00
         };
-        Ok(MinorUnit::new(amount as i64))
+
+        let amount_decimal =
+            Decimal::from_f64(amount).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        let amount_decimal_scaled = amount_decimal.round();
+        let amount_i64 = amount_decimal_scaled
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
     }
 }
