@@ -159,7 +159,7 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
                     },
                     PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
                         Err(errors::ConnectorError::NotImplemented(
-                            get_unimplemented_payment_method_error_message("Payout"),
+                            get_unimplemented_payment_method_error_message("Payone"),
                         ))?
                     }
                 };
@@ -168,9 +168,11 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
                     card_payout_method_specific_input,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Payone"),
-            ))?,
+            storage_enums::PayoutType::Wallet | storage_enums::PayoutType::Bank => {
+                Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Payone"),
+                ))?
+            }
         }
     }
 }
