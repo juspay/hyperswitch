@@ -2618,22 +2618,22 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
     }
 }
 
-pub fn convert_amount<C>(
-    amount_convertor: &dyn AmountConvertor<Output = C>,
-    i: MinorUnit,
+pub fn convert_amount<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: MinorUnit,
     currency: enums::Currency,
-) -> Result<C, error_stack::Report<errors::ConnectorError>> {
+) -> Result<T, error_stack::Report<errors::ConnectorError>> {
     amount_convertor
-        .convert(i, currency)
+        .convert(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
-pub fn convert_back<C>(
-    amount_convertor: &dyn AmountConvertor<Output = C>,
-    i: C,
+pub fn convert_back<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
     currency: enums::Currency,
 ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
     amount_convertor
-        .convert_back(i, currency)
+        .convert_back(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }

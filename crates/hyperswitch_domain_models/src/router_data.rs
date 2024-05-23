@@ -8,7 +8,6 @@ use crate::payment_address::PaymentAddress;
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
-    // pub amount : Option<common_utils::types::Money>,
     pub customer_id: Option<String>,
     pub connector_customer: Option<String>,
     pub connector: String,
