@@ -3889,7 +3889,7 @@ pub fn validate_customer_access(
 }
 
 pub fn is_apple_pay_simplified_flow(
-    connector_metadata: domain::MerchantConnectorAccount,
+    connector_metadata: Option<pii::SecretSerdeValue>,
     connector_name: Option<String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
@@ -3979,8 +3979,6 @@ where
         merchant_connector_id,
     )
     .await?;
-
-    println!("aaa {:?}", merchant_connector_account);
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
