@@ -2268,7 +2268,7 @@ pub async fn list_payment_methods(
                                             .as_ref()
                                             .and_then(|r| get_val(key.to_owned(), r));
                                         if let Some(s) = temp {
-                                            val.value = Some(s)
+                                            val.value = Some(s.into())
                                         };
                                     }
                                 }
