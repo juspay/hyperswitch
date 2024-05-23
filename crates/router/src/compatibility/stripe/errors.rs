@@ -1,7 +1,7 @@
-#![allow(unused_variables)]
 use common_utils::errors::ErrorSwitch;
+use hyperswitch_domain_models::errors::api_error_response as errors;
 
-use crate::core::errors::{self, CustomersErrorResponse};
+use crate::core::errors::CustomersErrorResponse;
 
 #[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
@@ -481,11 +481,11 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::PaymentIntentPaymentAttemptFailed { data }
             }
             errors::ApiErrorResponse::DisputeFailed { data } => Self::DisputeFailed { data },
-            errors::ApiErrorResponse::InvalidCardData { data } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
-            errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
-            errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
-            errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
-            errors::ApiErrorResponse::PayoutFailed { data } => Self::PayoutFailed,
+            errors::ApiErrorResponse::InvalidCardData { data: _ } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
+            errors::ApiErrorResponse::CardExpired { data: _ } => Self::ExpiredCard,
+            errors::ApiErrorResponse::RefundNotPossible { connector: _ } => Self::RefundFailed,
+            errors::ApiErrorResponse::RefundFailed { data: _ } => Self::RefundFailed, // Nothing at stripe to map
+            errors::ApiErrorResponse::PayoutFailed { data: _ } => Self::PayoutFailed,
 
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
@@ -605,7 +605,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "poll".to_owned(),
                 id,
             },
-            errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
+            errors::ApiErrorResponse::DisputeStatusValidationFailed { reason: _ } => {
                 Self::InternalServerError
             }
             errors::ApiErrorResponse::FileValidationFailed { .. } => Self::FileValidationFailed,
