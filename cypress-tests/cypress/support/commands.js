@@ -843,7 +843,131 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.data).to.be.an('array').and.not.empty;
   
-    });
   });
+});
 
-  
+Cypress.Commands.add("createConfirmPayoutTest", (createConfirmPayoutBody, req_data, res_data, confirm, auto_fulfill, globalState) => {
+  for(const key in req_data) {
+    createConfirmPayoutBody[key] = req_data[key];
+  }
+  createConfirmPayoutBody.auto_fulfill = auto_fulfill;
+  createConfirmPayoutBody.confirm = confirm;
+  createConfirmPayoutBody.customer_id = globalState.get("customerId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payouts/create`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+    body: createConfirmPayoutBody,
+  }).then((response) => {
+    logRequestId(response.headers['x-request-id']);
+
+    expect(res_data.status).to.equal(response.status);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if(response.status === 200){
+      globalState.set("payoutAmount", createConfirmPayoutBody.amount);
+      globalState.set("payoutID", response.body.payout_id);
+      for(const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
+      }
+    }
+    else{
+      expect(response.body).to.have.property("error");
+      for(const key in res_data.body.error) {
+        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+      }
+    }
+  });
+});
+
+Cypress.Commands.add("fulfillPayoutCallTest", (payoutFulfillBody, req_data, res_data, globalState) => {
+  payoutFulfillBody.payout_id = globalState.get("payoutID");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}/fulfill`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+    body: payoutFulfillBody,
+  }).then((response) => {
+    logRequestId(response.headers['x-request-id']);
+
+    expect(res_data.status).to.equal(response.status);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if(response.status === 200){
+      for(const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
+      }
+    }
+    else{
+      expect(response.body).to.have.property("error");
+      for(const key in res_data.body.error) {
+        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+      }
+    }
+  });
+});
+
+Cypress.Commands.add("updatePayoutCallTest", (payoutConfirmBody, req_data, res_data, auto_fulfill, globalState) => {
+  payoutConfirmBody.confirm = true;
+  payoutConfirmBody.auto_fulfill = auto_fulfill;
+
+
+
+  cy.request({
+    method: "PUT",
+    url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+    body: payoutConfirmBody,
+  }).then((response) => {
+    logRequestId(response.headers['x-request-id']);
+
+    expect(res_data.status).to.equal(response.status);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if(response.status === 200){
+      for(const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
+      }
+    }
+    else{
+
+      expect(response.body).to.have.property("error");
+      for(const key in res_data.body.error) {
+        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+      }
+    }
+  });
+});
+
+Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
+  const payout_id = globalState.get("payoutID");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers['x-request-id']);
+
+    expect(response.headers["content-type"]).to.include("application/json");
+    expect(response.body.payout_id).to.equal(payout_id);
+    expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
+  });
+});
