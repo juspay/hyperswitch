@@ -3525,7 +3525,22 @@ pub async fn list_customer_payment_method(
         )
         .await
         .attach_printable("unable to decrypt payment method billing address details")?;
-
+        let connector_mandate_details = pm
+            .connector_mandate_details
+            .clone()
+            .map(|val| {
+                val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+        let mca_enabled = get_mca_status(
+            state,
+            &key_store,
+            &merchant_account.merchant_id,
+            connector_mandate_details,
+        )
+        .await?;
         // Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
@@ -3537,7 +3552,7 @@ pub async fn list_customer_payment_method(
             card: payment_method_retrieval_context.card_details,
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
-            recurring_enabled: false,
+            recurring_enabled: mca_enabled,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
@@ -3667,7 +3682,38 @@ pub async fn list_customer_payment_method(
 
     Ok(services::ApplicationResponse::Json(response))
 }
+pub async fn get_mca_status(
+    state: &routes::AppState,
+    key_store: &domain::MerchantKeyStore,
+    merchant_id: &str,
+    connector_mandate_details: Option<storage::PaymentsMandateReference>,
+) -> errors::RouterResult<bool> {
+    if let Some(connector_mandate_details) = connector_mandate_details {
+        let mcas = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                merchant_id,
+                true,
+                key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_id.to_string(),
+            })?;
+        let mut mca_ids = HashSet::new();
 
+        for mca in mcas {
+            mca_ids.insert(mca.merchant_connector_id);
+        }
+
+        for mca_id in connector_mandate_details.keys() {
+            if !mca_ids.contains(mca_id) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
 pub async fn decrypt_generic_data<T>(
     data: Option<Encryption>,
     key: &[u8],
