@@ -34,10 +34,11 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::{
+pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
     router_data::RouterData,
+    router_request_types::CustomerDetails,
 };
 use masking::{ExposeInterface, Secret};
 use redis_interface::errors::RedisError;
@@ -294,7 +295,7 @@ where
                         call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
-                        header_payload,
+                        header_payload.clone(),
                         #[cfg(feature = "frm")]
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
@@ -364,7 +365,7 @@ where
                         call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
-                        header_payload,
+                        header_payload.clone(),
                         #[cfg(feature = "frm")]
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
@@ -497,7 +498,7 @@ where
                     frm_info.and_then(|info| info.suggested_action),
                     #[cfg(not(feature = "frm"))]
                     None,
-                    header_payload,
+                    header_payload.clone(),
                 )
                 .await?;
         }
@@ -528,7 +529,7 @@ where
                 None,
                 &key_store,
                 None,
-                header_payload,
+                header_payload.clone(),
             )
             .await?;
     }
@@ -785,7 +786,7 @@ where
             call_connector_action,
             auth_flow,
             eligible_routable_connectors,
-            header_payload,
+            header_payload.clone(),
         )
         .await?;
 
@@ -1210,7 +1211,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             );
         let response = if is_pull_mechanism_enabled
             || authentication.authentication_type
-                == Some(common_enums::DecoupledAuthenticationType::Frictionless)
+                != Some(common_enums::DecoupledAuthenticationType::Challenge)
         {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
@@ -1579,7 +1580,7 @@ where
             updated_customer,
             key_store,
             frm_suggestion,
-            header_payload,
+            header_payload.clone(),
         )
         .await?;
 
@@ -2450,7 +2451,6 @@ where
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<storage::Authentication>,
-    pub frm_metadata: Option<serde_json::Value>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
 }
@@ -2487,15 +2487,6 @@ pub struct IncrementalAuthorizationDetails {
     pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct CustomerDetails {
-    pub customer_id: Option<String>,
-    pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
-    pub phone_country_code: Option<String>,
 }
 
 pub trait CustomerDetailsExt {
@@ -3171,6 +3162,28 @@ where
             {
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
+
+            if payment_data.payment_attempt.payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+            {
+                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
+                    state,
+                    merchant_account,
+                    payment_data,
+                    key_store,
+                    connector_data.clone(),
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    choice.merchant_connector_id.clone().as_ref(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    return Ok(ConnectorCallType::Retryable(connector_data_list));
+                }
+            }
+
             return Ok(ConnectorCallType::PreDetermined(connector_data));
         }
     }
@@ -3193,7 +3206,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3251,7 +3263,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3681,7 +3692,6 @@ where
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
-        merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
         &transaction_data,
         eligible_connectors,

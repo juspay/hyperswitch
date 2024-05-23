@@ -273,6 +273,15 @@ pub enum AuthenticationConnectors {
     Gpayments,
 }
 
+impl AuthenticationConnectors {
+    pub fn is_separate_version_call_required(&self) -> bool {
+        match self {
+            Self::Threedsecureio | Self::Netcetera => false,
+            Self::Gpayments => true,
+        }
+    }
+}
+
 #[cfg(feature = "payouts")]
 #[derive(
     Clone,
@@ -589,4 +598,9 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+#[cfg(feature = "frm")]
+pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
+    FrmConnectors::from_str(connector_name).ok()
 }

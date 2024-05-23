@@ -450,6 +450,7 @@ queue_strategy = "Fifo"
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
+soft_kill = false
 
 [frm]
 enabled = true

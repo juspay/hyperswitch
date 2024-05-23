@@ -158,9 +158,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             }
             errors::ConnectorError::NotImplemented(reason) => {
                 errors::ApiErrorResponse::NotImplemented {
-                    message: errors::api_error_response::NotImplementedMessage::Reason(
-                        reason.to_string(),
-                    ),
+                    message: errors::NotImplementedMessage::Reason(reason.to_string()),
                 }
                 .into()
             }
@@ -250,7 +248,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                        message: errors::NotImplementedMessage::Reason(
                             reason.to_string(),
                         ),
                     }
@@ -479,9 +477,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
-                            reason.to_string(),
-                        ),
+                        message: errors::NotImplementedMessage::Reason(reason.to_string()),
                     }
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,

@@ -109,12 +109,18 @@ pub fn construct_post_authentication_router_data(
     )
 }
 
-pub fn construct_pre_authentication_router_data(
+pub fn construct_pre_authentication_router_data<F: Clone>(
     authentication_connector: String,
     card_holder_account_number: cards::CardNumber,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     merchant_id: String,
-) -> RouterResult<types::authentication::PreAuthNRouterData> {
+) -> RouterResult<
+    types::RouterData<
+        F,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    >,
+> {
     let router_request = types::authentication::PreAuthNRequestData {
         card_holder_account_number,
     };

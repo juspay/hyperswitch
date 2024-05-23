@@ -19,6 +19,7 @@ use crate::{
         payments::{self, helpers},
         utils as core_utils,
     },
+    headers::X_PAYMENT_CONFIRM_SOURCE,
     routes::{metrics, AppState},
     services::{self, RedirectForm},
     types::{
@@ -491,7 +492,7 @@ where
         .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
-            "payment_confirm_source".to_string(),
+            X_PAYMENT_CONFIRM_SOURCE.to_string(),
             Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
@@ -602,6 +603,9 @@ where
                                                     three_ds_method_url: None,
                                             }),
                                             poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
+                                            message_version: authentication.message_version.as_ref()
+                                            .map(|version| version.to_string()),
+                                            directory_server_id: authentication.directory_server_id.clone(),
                                         },
                                     })
                                 }else{
@@ -784,6 +788,7 @@ where
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))
+                .set_frm_metadata(payment_intent.frm_metadata)
                 .to_owned(),
             headers,
         ))

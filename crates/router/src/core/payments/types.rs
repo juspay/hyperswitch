@@ -1,8 +1,7 @@
 use std::{collections::HashMap, num::TryFromIntError};
 
-use api_models::{payment_methods::SurchargeDetailsResponse, payments::RequestSurchargeDetails};
+use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
-    consts,
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
     types as common_types,
@@ -10,6 +9,7 @@ use common_utils::{
 use diesel_models::business_profile::BusinessProfile;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+pub use hyperswitch_domain_models::router_request_types::{AuthenticationData, SurchargeDetails};
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 
@@ -186,40 +186,6 @@ impl MultipleCaptureData {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct SurchargeDetails {
-    /// original_amount
-    pub original_amount: common_types::MinorUnit,
-    /// surcharge value
-    pub surcharge: common_types::Surcharge,
-    /// tax on surcharge value
-    pub tax_on_surcharge:
-        Option<common_types::Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>>,
-    /// surcharge amount for this payment
-    pub surcharge_amount: common_types::MinorUnit,
-    /// tax on surcharge amount for this payment
-    pub tax_on_surcharge_amount: common_types::MinorUnit,
-    /// sum of original amount,
-    pub final_amount: common_types::MinorUnit,
-}
-
-impl From<(&RequestSurchargeDetails, &PaymentAttempt)> for SurchargeDetails {
-    fn from(
-        (request_surcharge_details, payment_attempt): (&RequestSurchargeDetails, &PaymentAttempt),
-    ) -> Self {
-        let surcharge_amount = request_surcharge_details.surcharge_amount;
-        let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or_default();
-        Self {
-            original_amount: payment_attempt.amount,
-            surcharge: common_types::Surcharge::Fixed(request_surcharge_details.surcharge_amount), // need to check this
-            tax_on_surcharge: None,
-            surcharge_amount,
-            tax_on_surcharge_amount,
-            final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
-        }
-    }
-}
-
 impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
     type Error = TryFromIntError;
     fn foreign_try_from(
@@ -247,20 +213,6 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             display_total_surcharge_amount,
             display_final_amount,
         })
-    }
-}
-
-impl SurchargeDetails {
-    pub fn is_request_surcharge_matching(
-        &self,
-        request_surcharge_details: RequestSurchargeDetails,
-    ) -> bool {
-        request_surcharge_details.surcharge_amount == self.surcharge_amount
-            && request_surcharge_details.tax_amount.unwrap_or_default()
-                == self.tax_on_surcharge_amount
-    }
-    pub fn get_total_surcharge_amount(&self) -> common_types::MinorUnit {
-        self.surcharge_amount + self.tax_on_surcharge_amount
     }
 }
 
@@ -385,14 +337,6 @@ impl SurchargeMetadata {
             .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
             .await
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct AuthenticationData {
-    pub eci: Option<String>,
-    pub cavv: String,
-    pub threeds_server_transaction_id: String,
-    pub message_version: String,
 }
 
 impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
