@@ -6028,7 +6028,9 @@ dependencies = [
 name = "router_derive"
 version = "0.1.0"
 dependencies = [
+ "common_utils",
  "diesel",
+ "error-stack",
  "indexmap 2.2.6",
  "proc-macro2",
  "quote",
@@ -6036,6 +6038,7 @@ dependencies = [
  "serde_json",
  "strum 0.26.2",
  "syn 2.0.57",
+ "utoipa",
 ]
 
 [[package]]
