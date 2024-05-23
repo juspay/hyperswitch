@@ -3890,7 +3890,7 @@ pub fn validate_customer_access(
 
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
-    connector_name: Option<String>,
+    connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
         .map_err(|error| {
@@ -3982,7 +3982,9 @@ where
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
-        merchant_connector_account_type.get_connector_name(),
+        merchant_connector_account_type
+            .get_connector_name()
+            .as_ref(),
     )? {
         let merchant_connector_account_list = state
             .store
@@ -3999,7 +4001,7 @@ where
         for merchant_connector_account in merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata,
-                Some(merchant_connector_account.connector_name),
+                Some(&merchant_connector_account.connector_name),
             )? {
                 let connector_data = api::ConnectorData::get_connector_by_name(
                     &state.conf.connectors,
