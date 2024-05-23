@@ -20,7 +20,7 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
-mod kafka_store;
+pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -34,20 +34,23 @@ pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_key_store;
 pub mod user_role;
 
-use data_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
-#[cfg(feature = "payouts")]
-use data_models::payouts::{payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface};
-#[cfg(not(feature = "payouts"))]
-use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::{
+    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::payouts::{
+    payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
@@ -117,6 +120,7 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + role::RoleInterface
+    + user_key_store::UserKeyStoreInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
     + 'static
@@ -190,7 +194,7 @@ where
     let bytes = db.get_key(key).await?;
     bytes
         .parse_struct(type_name)
-        .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
+        .change_context(RedisError::JsonDeserializationFailed)
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);

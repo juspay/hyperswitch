@@ -1,5 +1,5 @@
 use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
-use common_utils::ext_traits::{OptionExt, ValueExt};
+use common_utils::ext_traits::ValueExt;
 use diesel_models::{enums::CollectLinkConfig, generic_link::PaymentMethodCollectLinkData};
 use error_stack::ResultExt;
 use masking::Secret;

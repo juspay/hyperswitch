@@ -182,6 +182,8 @@ pub enum Flow {
     PayoutsAccounts,
     /// Payments Redirect flow.
     PaymentsRedirect,
+    /// Payemnts Complete Authorize Flow
+    PaymentsCompleteAuthorize,
     /// Refunds create flow.
     RefundsCreate,
     /// Refunds retrieve flow.
@@ -192,6 +194,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    /// Refunds filters flow
+    RefundsFilters,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -212,8 +216,6 @@ pub enum Flow {
     RoutingRetrieveConfig,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
-    /// Update connector agnostic mandate config
-    CreateConnectorAgnosticMandateConfig,
     /// Routing retrieve default config
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
@@ -364,6 +366,8 @@ pub enum Flow {
     ForgotPassword,
     /// Reset password using link
     ResetPassword,
+    /// Force set or force change password
+    RotatePassword,
     /// Invite multiple users
     InviteMultipleUser,
     /// Reinvite user
@@ -388,6 +392,8 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Select merchant from invitations
+    MerchantSelect,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -396,6 +402,14 @@ pub enum Flow {
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// User email flow start
+    UserFromEmail,
+    /// Begin TOTP
+    TotpBegin,
+    /// Verify TOTP
+    TotpVerify,
+    /// Generate or Regenerate recovery codes
+    GenerateRecoveryCodes,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -406,6 +420,8 @@ pub enum Flow {
     RetrievePollStatus,
     /// Toggles the extended card info feature in profile level
     ToggleExtendedCardInfo,
+    /// Toggles the extended card info feature in profile level
+    ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
     GetExtendedCardInfo,
 }

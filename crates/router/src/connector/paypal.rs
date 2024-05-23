@@ -120,7 +120,7 @@ impl Paypal {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.debug_id,
         })
     }
 }
@@ -292,7 +292,7 @@ impl ConnectorCommon for Paypal {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.debug_id,
         })
     }
 }
@@ -960,8 +960,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         match req.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet
-            | diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            enums::PaymentMethod::Wallet | enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}v2/checkout/orders/{}",
                 self.base_url(connectors),
                 req.request
@@ -1633,9 +1632,9 @@ impl services::ConnectorRedirectResponse for Paypal {
         action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync
-            | services::PaymentAction::CompleteAuthorize
-            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+            PaymentAction::PSync
+            | PaymentAction::CompleteAuthorize
+            | PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

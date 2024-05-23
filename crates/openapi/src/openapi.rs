@@ -81,6 +81,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_incremental_authorization,
         routes::payment_link::payment_link_retrieve,
         routes::payments::payments_external_authentication,
+        routes::payments::payments_complete_authorize,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -183,6 +184,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::poll::retrieve_poll_status,
     ),
     components(schemas(
+        common_utils::types::MinorUnit,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,
@@ -194,6 +196,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDeleteResponse,
         api_models::admin::MerchantConnectorResponse,
         api_models::admin::AuthenticationConnectorDetails,
+        api_models::admin::ExtendedCardInfoConfig,
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerDeleteResponse,
         api_models::payment_methods::PaymentMethodCreate,
@@ -343,6 +346,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::SecretInfoToInitiateSdk,
         api_models::payments::ApplePayPaymentRequest,
+        api_models::payments::ApplePayBillingContactFields,
+        api_models::payments::ApplePayShippingContactFields,
+        api_models::payments::ApplePayAddressParameters,
         api_models::payments::AmountInfo,
         api_models::payments::ProductType,
         api_models::payments::GooglePayWalletData,
@@ -387,6 +393,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
         api_models::payments::GooglePaySessionResponse,
+        api_models::payments::GpayShippingAddressParameters,
+        api_models::payments::GpayBillingAddressParameters,
+        api_models::payments::GpayBillingAddressFormat,
         api_models::payments::SepaBankTransferInstructions,
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,
@@ -395,6 +404,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CaptureResponse,
         api_models::payments::PaymentsIncrementalAuthorizationRequest,
         api_models::payments::IncrementalAuthorizationResponse,
+        api_models::payments::PaymentsCompleteAuthorizeRequest,
         api_models::payments::PaymentsExternalAuthenticationRequest,
         api_models::payments::PaymentsExternalAuthenticationResponse,
         api_models::payments::SdkInformation,
@@ -407,6 +417,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ThreeDsMethodData,
         api_models::payments::PollConfigResponse,
         api_models::payments::ExternalAuthenticationDetailsResponse,
+        api_models::payments::ExtendedCardInfo,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
@@ -416,6 +427,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::TimeRange,
+        api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,
@@ -512,6 +524,8 @@ Never share your secret api keys. Keep them guarded and secure.
     )),
     modifiers(&SecurityAddon)
 )]
+// Bypass clippy lint for not being constructed
+#[allow(dead_code)]
 pub struct ApiDoc;
 
 struct SecurityAddon;

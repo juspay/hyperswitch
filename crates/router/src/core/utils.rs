@@ -8,13 +8,14 @@ use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
-use super::payments::{helpers, PaymentAddress};
+use super::payments::helpers;
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
@@ -28,7 +29,7 @@ use crate::{
     types::{
         self, domain,
         storage::{self, enums},
-        ErrorResponse, PollConfig,
+        PollConfig,
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
@@ -117,7 +118,7 @@ pub async fn construct_payout_router_data<'a, F>(
         }
     });
 
-    let address = PaymentAddress::new(None, billing_address, None);
+    let address = PaymentAddress::new(None, billing_address, None, None);
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let payouts = &payout_data.payouts;
@@ -314,7 +315,9 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        amount_captured: payment_intent.amount_captured,
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         payment_method_status: None,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
@@ -558,13 +561,15 @@ pub async fn construct_accept_dispute_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        amount_captured: payment_intent.amount_captured,
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         payment_method_status: None,
         request: types::AcceptDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -652,9 +657,11 @@ pub async fn construct_submit_evidence_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        amount_captured: payment_intent.amount_captured,
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         request: submit_evidence_request_data,
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -744,7 +751,9 @@ pub async fn construct_upload_file_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        amount_captured: payment_intent.amount_captured,
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         payment_method_status: None,
         request: types::UploadFileRequestData {
             file_key,
@@ -752,7 +761,7 @@ pub async fn construct_upload_file_router_data<'a>(
             file_type: create_file_request.file_type.clone(),
             file_size: create_file_request.file_size,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -840,7 +849,9 @@ pub async fn construct_defend_dispute_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        amount_captured: payment_intent.amount_captured,
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         payment_method_status: None,
         request: types::DefendDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
@@ -936,7 +947,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing provider file id")?,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -976,7 +987,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 pub fn get_connector_request_reference_id(
     conf: &Settings,
     merchant_id: &str,
-    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {
     let is_config_enabled_for_merchant =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
@@ -1168,7 +1179,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     try {{
                                         // if inside iframe, send post message to parent for redirection
                                         if (window.self !== window.parent) {{
-                                            window.top.postMessage({{openurl: return_url}}, '*')
+                                            window.top.postMessage({{openurl_if_required: return_url}}, '*')
                                         // if parent, redirect self to return_url
                                         }} else {{
                                             window.location.href = return_url
@@ -1176,7 +1187,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     }}
                                     catch(err) {{
                                         // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
-                                        window.top.postMessage({{openurl: return_url}}, '*')
+                                        window.top.postMessage({{openurl_if_required: return_url}}, '*')
                                         setTimeout(function() {{
                                             window.location.href = return_url
                                         }}, 10000);
@@ -1225,9 +1236,7 @@ pub fn get_incremental_authorization_allowed_value(
     incremental_authorization_allowed: Option<bool>,
     request_incremental_authorization: Option<RequestIncrementalAuthorization>,
 ) -> Option<bool> {
-    if request_incremental_authorization
-        == Some(common_enums::RequestIncrementalAuthorization::False)
-    {
+    if request_incremental_authorization == Some(RequestIncrementalAuthorization::False) {
         Some(false)
     } else {
         incremental_authorization_allowed

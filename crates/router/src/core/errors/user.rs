@@ -66,6 +66,12 @@ pub enum UserErrors {
     RoleNameParsingError,
     #[error("RoleNameAlreadyExists")]
     RoleNameAlreadyExists,
+    #[error("TotpNotSetup")]
+    TotpNotSetup,
+    #[error("InvalidTotp")]
+    InvalidTotp,
+    #[error("TotpRequired")]
+    TotpRequired,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -169,6 +175,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::RoleNameAlreadyExists => {
                 AER::BadRequest(ApiError::new(sub_code, 35, self.get_error_message(), None))
             }
+            Self::TotpNotSetup => {
+                AER::BadRequest(ApiError::new(sub_code, 36, self.get_error_message(), None))
+            }
+            Self::InvalidTotp => {
+                AER::BadRequest(ApiError::new(sub_code, 37, self.get_error_message(), None))
+            }
+            Self::TotpRequired => {
+                AER::BadRequest(ApiError::new(sub_code, 38, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -198,13 +213,16 @@ impl UserErrors {
             Self::IpAddressParsingFailed => "Something went wrong",
             Self::InvalidMetadataRequest => "Invalid Metadata Request",
             Self::MerchantIdParsingError => "Invalid Merchant Id",
-            Self::ChangePasswordError => "Old and new password cannot be the same",
+            Self::ChangePasswordError => "Old and new password cannot be same",
             Self::InvalidDeleteOperation => "Delete Operation Not Supported",
             Self::MaxInvitationsError => "Maximum invite count per request exceeded",
             Self::RoleNotFound => "Role Not Found",
             Self::InvalidRoleOperationWithMessage(error_message) => error_message,
             Self::RoleNameParsingError => "Invalid Role Name",
             Self::RoleNameAlreadyExists => "Role name already exists",
+            Self::TotpNotSetup => "TOTP not setup",
+            Self::InvalidTotp => "Invalid TOTP",
+            Self::TotpRequired => "TOTP required",
         }
     }
 }

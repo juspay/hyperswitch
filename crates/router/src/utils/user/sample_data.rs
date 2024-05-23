@@ -2,9 +2,9 @@ use api_models::{
     enums::Connector::{DummyConnector4, DummyConnector7},
     user::sample_data::SampleDataRequest,
 };
-use data_models::payments::payment_intent::PaymentIntentNew;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
 use time::OffsetDateTime;
 
@@ -174,7 +174,7 @@ pub async fn generate_sample_data(
                 true => common_enums::IntentStatus::Failed,
                 _ => common_enums::IntentStatus::Succeeded,
             },
-            amount: amount * 100,
+            amount: common_utils::types::MinorUnit::new(amount * 100),
             currency: Some(
                 *currency_vec
                     .get((num - 1) % currency_vec_len)
@@ -187,10 +187,12 @@ pub async fn generate_sample_data(
             client_secret: Some(client_secret),
             business_country: business_country_default,
             business_label: business_label_default.clone(),
-            active_attempt: data_models::RemoteStorageObject::ForeignID(attempt_id.clone()),
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                attempt_id.clone(),
+            ),
             attempt_count: 1,
             customer_id: Some("hs-dashboard-user".to_string()),
-            amount_captured: Some(amount * 100),
+            amount_captured: Some(common_utils::types::MinorUnit::new(amount * 100)),
             profile_id: Some(profile_id.clone()),
             return_url: Default::default(),
             metadata: Default::default(),
@@ -216,6 +218,7 @@ pub async fn generate_sample_data(
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: None,
+            frm_metadata: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

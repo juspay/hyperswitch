@@ -337,11 +337,11 @@ dependencies = [
  "aws-smithy-types 1.1.8",
  "bigdecimal",
  "common_utils",
- "data_models",
  "diesel_models",
  "error-stack",
  "external_services",
  "futures 0.3.30",
+ "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
  "once_cell",
@@ -1431,6 +1431,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "base32"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23ce669cd6c8588f79e15cf450314f9638f967fc5770ff1c7c1deb0925ea7cfa"
+
+[[package]]
 name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1559,7 +1565,7 @@ dependencies = [
  "arrayvec",
  "cc",
  "cfg-if 1.0.0",
- "constant_time_eq",
+ "constant_time_eq 0.3.0",
 ]
 
 [[package]]
@@ -1722,7 +1728,6 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "error-stack",
- "luhn",
  "masking",
  "router_env",
  "serde",
@@ -1928,6 +1933,7 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
+ "masking",
  "router_derive",
  "serde",
  "serde_json",
@@ -1972,6 +1978,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.37.0",
+ "utoipa",
  "uuid",
 ]
 
@@ -2043,6 +2050,12 @@ dependencies = [
  "once_cell",
  "tiny-keccak",
 ]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21a53c0a4d288377e7415b53dcfc3c04da5cdc2cc95c8d5ac178b58f0b861ad6"
 
 [[package]]
 name = "constant_time_eq"
@@ -2403,23 +2416,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e962a19be5cfc3f3bf6dd8f61eb50107f356ad6270fbb3ed41476571db78be5"
 
 [[package]]
-name = "data_models"
-version = "0.1.0"
-dependencies = [
- "api_models",
- "async-trait",
- "common_enums",
- "common_utils",
- "diesel_models",
- "error-stack",
- "masking",
- "serde",
- "serde_json",
- "thiserror",
- "time",
-]
-
-[[package]]
 name = "deadpool"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2604,12 +2600,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "digits_iterator"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af83450b771231745d43edf36dc9b7813ab83be5e8cbea344ccced1a09dfebcd"
-
-[[package]]
 name = "displaydoc"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2628,6 +2618,21 @@ checksum = "442039f5147480ba31067cb00ada1adae6892028e40e45fc5de7b7df6dcc1b5f"
 dependencies = [
  "const-random",
 ]
+
+[[package]]
+name = "dot-generator"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0aaac7ada45f71873ebce336491d1c1bc4a7c8042c7cea978168ad59e805b871"
+dependencies = [
+ "dot-structures",
+]
+
+[[package]]
+name = "dot-structures"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "675e35c02a51bb4d4618cb4885b3839ce6d1787c97b664474d9208d074742e20"
 
 [[package]]
 name = "dotenvy"
@@ -2696,6 +2701,15 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "erased-serde"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c138974f9d5e7fe373eb04df7cae98833802ae4b11c24ac7039a21d5af4b26c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "erased-serde"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b73807008a3c7f171cc40312f37d95ef0396e048b5848d775f54b1a4dd4a0d3"
@@ -2750,10 +2764,11 @@ version = "0.1.0"
 dependencies = [
  "common_enums",
  "criterion",
- "erased-serde",
+ "erased-serde 0.4.4",
  "euclid_macros",
  "frunk",
  "frunk_core",
+ "hyperswitch_constraint_graph",
  "nom",
  "once_cell",
  "rustc-hash",
@@ -2785,6 +2800,7 @@ dependencies = [
  "currency_conversion",
  "euclid",
  "getrandom",
+ "hyperswitch_constraint_graph",
  "kgraph_utils",
  "once_cell",
  "ron-parser",
@@ -3254,6 +3270,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphviz-rust"
+version = "0.6.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27dafd1ac303e0dfb347a3861d9ac440859bab26ec2f534bbceb262ea492a1e0"
+dependencies = [
+ "dot-generator",
+ "dot-structures",
+ "into-attr",
+ "into-attr-derive",
+ "pest",
+ "pest_derive",
+ "rand",
+ "tempfile",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3620,6 +3652,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperswitch_constraint_graph"
+version = "0.1.0"
+dependencies = [
+ "erased-serde 0.3.31",
+ "graphviz-rust",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "thiserror",
+]
+
+[[package]]
+name = "hyperswitch_domain_models"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "common_enums",
+ "common_utils",
+ "diesel_models",
+ "error-stack",
+ "http 0.2.12",
+ "masking",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+]
+
+[[package]]
 name = "hyperswitch_interfaces"
 version = "0.1.0"
 dependencies = [
@@ -3742,6 +3805,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "into-attr"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18b48c537e49a709e678caec3753a7dba6854661a1eaa27675024283b3f8b376"
+dependencies = [
+ "dot-structures",
+]
+
+[[package]]
+name = "into-attr-derive"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecac7c1ae6cd2c6a3a64d1061a8bdc7f52ff62c26a831a2301e54c1b5d70d5b1"
+dependencies = [
+ "dot-generator",
+ "dot-structures",
+ "into-attr",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -3911,9 +3996,11 @@ dependencies = [
  "common_enums",
  "criterion",
  "euclid",
+ "hyperswitch_constraint_graph",
  "masking",
  "serde",
  "serde_json",
+ "strum 0.26.2",
  "thiserror",
 ]
 
@@ -4053,21 +4140,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "luhn"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d10b831402a3b10e018c8bc7f0ec3344a67d0725919cbaf393accb9baf8700b"
-dependencies = [
- "digits_iterator",
-]
-
-[[package]]
 name = "masking"
 version = "0.1.0"
 dependencies = [
  "bytes 1.6.0",
  "diesel",
- "erased-serde",
+ "erased-serde 0.4.4",
  "serde",
  "serde_json",
  "subtle",
@@ -4490,6 +4568,7 @@ name = "openapi"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "common_utils",
  "serde_json",
  "utoipa",
 ]
@@ -5342,11 +5421,11 @@ dependencies = [
  "error-stack",
  "fred",
  "futures 0.3.30",
- "router_env",
  "serde",
  "thiserror",
  "tokio 1.37.0",
  "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -5593,14 +5672,13 @@ dependencies = [
  "config",
  "cookie 0.18.1",
  "currency_conversion",
- "data_models",
  "derive_deref",
  "diesel",
  "diesel_models",
  "digest",
  "dyn-clone",
  "encoding_rs",
- "erased-serde",
+ "erased-serde 0.4.4",
  "error-stack",
  "euclid",
  "events",
@@ -5609,6 +5687,8 @@ dependencies = [
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
+ "hyperswitch_constraint_graph",
+ "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
  "infer",
@@ -5658,6 +5738,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.37.0",
+ "totp-rs",
  "tracing-futures",
  "unicode-segmentation",
  "url",
@@ -6643,13 +6724,13 @@ dependencies = [
  "common_utils",
  "config",
  "crc32fast",
- "data_models",
  "diesel",
  "diesel_models",
  "dyn-clone",
  "error-stack",
  "futures 0.3.30",
  "http 0.2.12",
+ "hyperswitch_domain_models",
  "masking",
  "mime",
  "moka",
@@ -6700,6 +6781,15 @@ dependencies = [
 
 [[package]]
 name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+dependencies = [
+ "strum_macros 0.25.3",
+]
+
+[[package]]
+name = "strum"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d8cec3501a5194c432b2b7976db6b7d10ec95c253208b45f83f7136aa985e29"
@@ -6718,6 +6808,19 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.57",
 ]
 
 [[package]]
@@ -6993,9 +7096,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.35"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef89ece63debf11bc32d1ed8d078ac870cbeb44da02afb02a9ff135ae7ca0582"
+checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
 dependencies = [
  "deranged",
  "itoa",
@@ -7424,6 +7527,22 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-futures",
+]
+
+[[package]]
+name = "totp-rs"
+version = "5.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c4ae9724c5888c0417d2396037ed3b60665925624766416e3e342b6ba5dbd3f"
+dependencies = [
+ "base32",
+ "constant_time_eq 0.2.6",
+ "hmac",
+ "rand",
+ "sha1",
+ "sha2",
+ "url",
+ "urlencoding",
 ]
 
 [[package]]

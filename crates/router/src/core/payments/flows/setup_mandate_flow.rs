@@ -11,7 +11,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -55,6 +55,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
+        _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -177,7 +178,9 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.payment_method_data.clone()
     }
 
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
     fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {

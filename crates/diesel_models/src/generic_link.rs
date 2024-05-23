@@ -82,7 +82,7 @@ impl Default for GenericLinkNew {
             merchant_id: String::default(),
             created_at: Some(now),
             last_modified_at: Some(now),
-            expiry: now + Duration::seconds(consts::DEFAULT_SESSION_EXPIRY.into()),
+            expiry: now + Duration::seconds(consts::DEFAULT_SESSION_EXPIRY),
             link_data: serde_json::Value::default(),
             link_status: common_enums::GenericLinkStatus::default().to_string(),
             link_type: common_enums::GenericLinkType::default(),

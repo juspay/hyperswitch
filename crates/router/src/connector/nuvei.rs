@@ -12,7 +12,7 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 use transformers as nuvei;
 
-use super::utils::{self, RouterData};
+use super::utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData};
 use crate::{
     configs::settings,
     core::{
@@ -26,6 +26,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, InitPayment},
         storage::enums,
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::ByteSliceExt,
@@ -85,6 +86,15 @@ impl ConnectorValidation for Nuvei {
                 utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -161,7 +171,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/payment.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
     fn get_request_body(
@@ -248,7 +258,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/voidTransaction.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
 
@@ -334,7 +344,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/getPaymentStatus.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
 
@@ -417,7 +427,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/settleTransaction.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
 
@@ -509,7 +519,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/payment.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
 
@@ -527,7 +537,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
             types::AuthorizeSessionTokenData::from(&router_data),
         ));
@@ -555,7 +565,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                               + Sync
                               + 'static),
                     > = Box::new(&Self);
-                    let init_data = &types::PaymentsInitRouterData::from((
+                    let init_data = &types::PaymentsInitRouterData::foreign_from((
                         &router_data.to_owned(),
                         router_data.request.clone(),
                     ));
@@ -671,7 +681,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/getSessionToken.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
 
@@ -756,7 +766,7 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/initPayment.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
 
@@ -839,7 +849,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}ppp/api/v1/refundTransaction.do",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
 
@@ -954,7 +964,7 @@ impl api::IncomingWebhook for Nuvei {
             serde_urlencoded::from_str::<nuvei::NuveiWebhookTransactionId>(&request.query_params)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            types::api::PaymentIdType::ConnectorTransactionId(body.ppp_transaction_id),
+            api::PaymentIdType::ConnectorTransactionId(body.ppp_transaction_id),
         ))
     }
 

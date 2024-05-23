@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::{
+    consts,
     crypto::{Encryptable, OptionalEncryptableName},
     pii,
 };
@@ -464,7 +465,7 @@ pub struct MerchantConnectorCreate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -531,7 +532,7 @@ pub struct MerchantConnectorWebhookDetails {
     pub additional_secret: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorInfo {
     pub connector_label: String,
     pub merchant_connector_id: String,
@@ -617,7 +618,7 @@ pub struct MerchantConnectorResponse {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
@@ -710,7 +711,7 @@ pub struct MerchantConnectorUpdate {
     pub disabled: Option<bool>,
 
     /// Contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
@@ -737,8 +738,11 @@ pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
-    ///payment method types(credit, debit) that can be used in the payment
-    pub payment_method_types: Vec<FrmPaymentMethodType>,
+    ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
+    ///frm flow type to be used, can be pre/post
+    #[schema(value_type = Option<FrmPreferredFlowTypes>)]
+    pub flow: Option<api_enums::FrmPreferredFlowTypes>,
 }
 
 ///Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -751,7 +755,7 @@ pub struct FrmPaymentMethodType {
     ///card networks(like visa mastercard) types that can be used in the payment
     #[schema(value_type = CardNetwork)]
     pub card_networks: Option<Vec<common_enums::CardNetwork>>,
-    ///frm flow type to be used...can be pre/post
+    ///frm flow type to be used, can be pre/post
     #[schema(value_type = FrmPreferredFlowTypes)]
     pub flow: api_enums::FrmPreferredFlowTypes,
     ///action that the frm would take, in case fraud is detected
@@ -834,6 +838,22 @@ pub struct ToggleKVRequest {
     pub kv_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVRequest {
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVResponse {
+    ///Total number of updated merchants
+    #[schema(example = 20)]
+    pub total_updated: usize,
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MerchantConnectorDetailsWrap {
     /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string "null".
@@ -921,6 +941,12 @@ pub struct BusinessProfileCreate {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    /// Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -990,6 +1016,9 @@ pub struct BusinessProfileResponse {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    // Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1054,6 +1083,12 @@ pub struct BusinessProfileUpdate {
 
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
+
+    // Whether to use the billing details passed when creating the intent as payment method billing
+    pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1137,8 +1172,54 @@ pub struct ExtendedCardInfoChoice {
 
 impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConnectorAgnosticMitChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ConnectorAgnosticMitChoice {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExtendedCardInfoConfig {
+    /// Merchant public key
+    #[schema(value_type = String)]
     pub public_key: Secret<String>,
-    pub ttl_in_secs: u16,
+    /// TTL for extended card info
+    #[schema(default = 900, maximum = 7200, value_type = u16)]
+    #[serde(default)]
+    pub ttl_in_secs: TtlForExtendedCardInfo,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct TtlForExtendedCardInfo(u16);
+
+impl Default for TtlForExtendedCardInfo {
+    fn default() -> Self {
+        Self(consts::DEFAULT_TTL_FOR_EXTENDED_CARD_INFO)
+    }
+}
+
+impl<'de> Deserialize<'de> for TtlForExtendedCardInfo {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u16::deserialize(deserializer)?;
+
+        // Check if value exceeds the maximum allowed
+        if value > consts::MAX_TTL_FOR_EXTENDED_CARD_INFO {
+            Err(serde::de::Error::custom(
+                "ttl_in_secs must be less than or equal to 7200 (2hrs)",
+            ))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl std::ops::Deref for TtlForExtendedCardInfo {
+    type Target = u16;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }

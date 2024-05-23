@@ -123,4 +123,16 @@ impl MerchantAccount {
         )
         .await
     }
+
+    pub async fn update_all_merchant_accounts(
+        conn: &PgPooledConn,
+        merchant_account: MerchantAccountUpdateInternal,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id.ne_all(vec![""]),
+            merchant_account,
+        )
+        .await
+    }
 }
