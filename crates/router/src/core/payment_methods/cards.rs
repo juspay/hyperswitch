@@ -2903,14 +2903,6 @@ pub async fn filter_payment_methods(
                         })
                     });
 
-                    // if let Some(card_networks) = req.card_networks.clone() {
-                    //     let mut card_networks_from_req: Vec<dir::DirValue> = card_networks
-                    //         .into_iter()
-                    //         .map(dir::DirValue::CardNetwork)
-                    //         .collect();
-                    //     context_values.append(&mut card_networks_from_req);
-                    // };
-
                     let filter_pm_based_on_allowed_types = filter_pm_based_on_allowed_types(
                         allowed_payment_method_types.as_ref(),
                         &payment_method_object.payment_method_type,

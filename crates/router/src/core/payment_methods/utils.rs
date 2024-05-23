@@ -187,23 +187,6 @@ fn compile_pm_graph(
                     }
                 });
 
-            // // Card Network filter
-            // if pmt.payment_method_type == enums::PaymentMethodType::Credit
-            //     || pmt.payment_method_type == enums::PaymentMethodType::Debit
-            // {
-            //     if let Some(mca_card_networks) = pmt.card_networks {
-            //         if let Ok(Some(card_network_node)) =
-            //             construct_card_network_nodes(builder, mca_card_networks)
-            //         {
-            //             agg_nodes.push((
-            //                 card_network_node,
-            //                 cgraph::Relation::Positive,
-            //                 cgraph::Strength::Weak,
-            //             ))
-            //         }
-            //     }
-            // }
-
             // Country filter
             if let Some(pm_object_countries) = pmt.accepted_countries {
                 if let Ok(Some(country_node)) = compile_accepted_countries_for_mca(

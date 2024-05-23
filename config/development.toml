@@ -48,9 +48,6 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 max_feed_count = 200
 
-[pm_filters.cybersource]
-credit = { not_available_flows = { capture_method = "manual" },country = "AU, JP, IQ, US", currency = "INR"}
-debit = { country = "AU,IN, US", currency = "INR" }
 
 [server]
 # HTTP Request body limit. Defaults to 32kB
