@@ -120,12 +120,12 @@ pub struct CacheKey {
     pub prefix: String,
 }
 
-impl Into<String> for CacheKey {
-    fn into(self) -> String {
-        if self.prefix.is_empty() {
-            self.key
+impl From<CacheKey> for String {
+    fn from(val: CacheKey) -> Self {
+        if val.prefix.is_empty() {
+            val.key
         } else {
-            format!("{}:{}", self.prefix.clone(), self.key.clone())
+            format!("{}:{}", val.prefix.clone(), val.key.clone())
         }
     }
 }
