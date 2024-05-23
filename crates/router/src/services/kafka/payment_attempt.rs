@@ -52,6 +52,8 @@ pub struct KafkaPaymentAttempt<'a> {
     pub unified_code: Option<&'a String>,
     pub unified_message: Option<&'a String>,
     pub mandate_data: Option<&'a MandateDetails>,
+    pub client_source: Option<&'a String>,
+    pub client_version: Option<&'a String>,
 }
 
 impl<'a> KafkaPaymentAttempt<'a> {
@@ -96,6 +98,8 @@ impl<'a> KafkaPaymentAttempt<'a> {
             unified_code: attempt.unified_code.as_ref(),
             unified_message: attempt.unified_message.as_ref(),
             mandate_data: attempt.mandate_data.as_ref(),
+            client_source: attempt.client_source.as_ref(),
+            client_version: attempt.client_version.as_ref(),
         }
     }
 }
