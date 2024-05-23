@@ -5,6 +5,9 @@ package.edition = "2021"
 package.rust-version = "1.70"
 package.license = "Apache-2.0"
 
+[workspace.dependencies]
+tracing = { version = "0.1.40" }
+
 [profile.release]
 strip = true
 lto = true

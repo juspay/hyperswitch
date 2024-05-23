@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;
@@ -7,9 +8,9 @@ pub struct KafkaPaymentIntent<'a> {
     pub payment_id: &'a String,
     pub merchant_id: &'a String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<&'a String>,
     pub description: Option<&'a String>,
     pub return_url: Option<&'a String>,
@@ -63,10 +64,6 @@ impl<'a> KafkaPaymentIntent<'a> {
 impl<'a> super::KafkaMessage for KafkaPaymentIntent<'a> {
     fn key(&self) -> String {
         format!("{}_{}", self.merchant_id, self.payment_id)
-    }
-
-    fn creation_timestamp(&self) -> Option<i64> {
-        Some(self.modified_at.unix_timestamp())
     }
 
     fn event_type(&self) -> crate::events::EventType {

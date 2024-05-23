@@ -73,7 +73,9 @@ pub async fn refund_create_core(
     // Amount is not passed in request refer from payment intent.
     amount = req
         .amount
-        .or(payment_intent.amount_captured)
+        .or(payment_intent
+            .amount_captured
+            .map(|capture_amount| capture_amount.get_amount_as_i64()))
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("amount captured is none in a successful payment")?;
 
@@ -172,7 +174,7 @@ pub async fn trigger_refund_to_gateway(
         &routed_through,
         merchant_account,
         key_store,
-        (payment_attempt.amount, currency),
+        (payment_attempt.amount.get_amount_as_i64(), currency),
         payment_intent,
         payment_attempt,
         refund,
@@ -451,7 +453,7 @@ pub async fn sync_refund_with_gateway(
         &connector_id,
         merchant_account,
         key_store,
-        (payment_attempt.amount, currency),
+        (payment_attempt.amount.get_amount_as_i64(), currency),
         payment_intent,
         payment_attempt,
         refund,
@@ -636,8 +638,12 @@ pub async fn validate_and_create_refund(
         .amount_captured
         .unwrap_or(payment_attempt.amount);
 
-    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount)
-        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
+    validator::validate_refund_amount(
+        total_amount_captured.get_amount_as_i64(),
+        &all_refunds,
+        refund_amount,
+    )
+    .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,
@@ -660,7 +666,7 @@ pub async fn validate_and_create_refund(
         .set_connector_transaction_id(connecter_transaction_id.to_string())
         .set_connector(connector)
         .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
-        .set_total_amount(payment_attempt.amount)
+        .set_total_amount(payment_attempt.amount.get_amount_as_i64())
         .set_refund_amount(refund_amount)
         .set_currency(currency)
         .set_created_at(Some(common_utils::date_time::now()))

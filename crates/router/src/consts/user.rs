@@ -12,3 +12,5 @@ pub const TOTP_VALIDITY_DURATION_IN_SECONDS: u64 = 30;
 pub const TOTP_TOLERANCE: u8 = 1;
 pub const MAX_PASSWORD_LENGTH: usize = 70;
 pub const MIN_PASSWORD_LENGTH: usize = 8;
+
+pub const TOTP_PREFIX: &str = "TOTP_";

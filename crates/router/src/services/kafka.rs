@@ -30,7 +30,7 @@ use crate::types::storage::Dispute;
 
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
-use crate::db::kafka_store::TenantID;
+use common_utils::types::TenantID;
 
 pub trait KafkaMessage
 where
@@ -259,7 +259,7 @@ impl KafkaProducer {
                     .timestamp(
                         event
                             .creation_timestamp()
-                            .unwrap_or_else(|| OffsetDateTime::now_utc().unix_timestamp()),
+                            .unwrap_or_else(|| OffsetDateTime::now_utc().unix_timestamp() * 1_000),
                     ),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
@@ -476,7 +476,7 @@ impl MessagingInterface for KafkaProducer {
                     .key(&data.identifier())
                     .payload(&json_data)
                     .timestamp(
-                        (timestamp.assume_utc().unix_timestamp_nanos() / 1_000)
+                        (timestamp.assume_utc().unix_timestamp_nanos() / 1_000_000)
                             .to_i64()
                             .unwrap_or_else(|| {
                                 // kafka producer accepts milliseconds
