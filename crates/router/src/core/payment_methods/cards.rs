@@ -29,7 +29,10 @@ use common_utils::{
 use diesel_models::{business_profile::BusinessProfile, encryption::Encryption, payment_method};
 use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
-use euclid::{dssa::graph::*, frontend::dir};
+use euclid::{
+    dssa::graph::{AnalysisContext, CgraphExt},
+    frontend::dir,
+};
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
@@ -1887,83 +1890,51 @@ pub async fn list_payment_methods(
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
+
     // Key creation for storing PM_FILTER_CGRAPH
-    if let Ok(profile_id) = profile_id.clone().get_required_value("profile_id") {
-        let key = format!(
+    #[cfg(feature = "business_profile_routing")]
+    let key = {
+        let profile_id = profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Profile id not found".to_string(),
+            })?;
+        format!(
             "pm_filters_cgraph_{}_{}",
             &merchant_account.merchant_id, profile_id
-        );
+        )
+    };
 
-        if let Ok(graph) = get_merchant_pm_filter_graph(&key).await {
-            // Derivation of PM_FILTER_CGRAPH from MokaCache successful
-            for mca in &filtered_mcas {
-                let payment_methods = match &mca.payment_methods_enabled.clone() {
-                    Some(pm) => pm.clone(),
-                    None => continue,
-                };
-                filter_payment_methods(
-                    &graph,
-                    payment_methods,
-                    &mut req,
-                    &mut response,
-                    payment_intent.as_ref(),
-                    payment_attempt.as_ref(),
-                    billing_address.as_ref(),
-                    mca.connector_name.clone(),
-                    &state.conf.saved_payment_methods,
-                )
-                .await?;
-            }
-        } else {
-            // No PM_FILTER_CGRAPH Cache present in MokaCache
-            let mut builder = cgraph::ConstraintGraphBuilder::<'static, _>::new();
-            for mca in &filtered_mcas {
-                let payment_methods = match &mca.payment_methods_enabled {
-                    Some(pm) => pm.clone(),
-                    None => continue,
-                };
-                if let Err(e) = make_pm_graph(
-                    &mut builder,
-                    payment_methods,
-                    mca.connector_name.clone(),
-                    pm_config_mapping,
-                    &state.conf.mandates.supported_payment_methods,
-                    &state.conf.mandates.update_mandate_supported,
-                ) {
-                    logger::error!(
-                        "Failed to construct constraint graph for list payment methods {e:?}"
-                    );
-                }
-            }
+    #[cfg(not(feature = "business_profile_routing"))]
+    let key = { format!("pm_filters_cgraph_{}", &merchant_account.merchant_id) };
 
-            let graph = builder.build();
-
-            for mca in &filtered_mcas {
-                let payment_methods = match &mca.payment_methods_enabled {
-                    Some(pm) => pm.clone(),
-                    None => continue,
-                };
-                filter_payment_methods(
-                    &graph,
-                    payment_methods,
-                    &mut req,
-                    &mut response,
-                    payment_intent.as_ref(),
-                    payment_attempt.as_ref(),
-                    billing_address.as_ref(),
-                    mca.connector_name.clone(),
-                    &state.conf.saved_payment_methods,
-                )
-                .await?;
-            }
-            let _ = refresh_pm_filters_cache(&key, graph).await;
+    if let Some(graph) = get_merchant_pm_filter_graph(&key).await {
+        // Derivation of PM_FILTER_CGRAPH from MokaCache successful
+        for mca in &filtered_mcas {
+            let payment_methods = match &mca.payment_methods_enabled {
+                Some(pm) => pm,
+                None => continue,
+            };
+            filter_payment_methods(
+                &graph,
+                payment_methods,
+                &mut req,
+                &mut response,
+                payment_intent.as_ref(),
+                payment_attempt.as_ref(),
+                billing_address.as_ref(),
+                mca.connector_name.clone(),
+                &state.conf.saved_payment_methods,
+            )
+            .await?;
         }
     } else {
-        // No Profile id found
+        // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::<'static, _>::new();
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
-                Some(pm) => pm.clone(),
+                Some(pm) => pm,
                 None => continue,
             };
             if let Err(e) = make_pm_graph(
@@ -1980,11 +1951,12 @@ pub async fn list_payment_methods(
             }
         }
 
-        let graph = builder.build();
+        // Refreshing our CGraph cache
+        let graph = refresh_pm_filters_cache(&key, builder.build()).await;
 
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
-                Some(pm) => pm.clone(),
+                Some(pm) => pm,
                 None => continue,
             };
             filter_payment_methods(
@@ -2857,7 +2829,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
     graph: &ConstraintGraph<'_, dir::DirValue>,
-    payment_methods: Vec<serde_json::Value>,
+    payment_methods: &[serde_json::Value],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
@@ -2866,8 +2838,8 @@ pub async fn filter_payment_methods(
     connector: String,
     saved_payment_methods: &settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-    for payment_method in payment_methods.into_iter() {
-        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
+    for payment_method in payment_methods.iter() {
+        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method.clone());
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
 
@@ -2903,7 +2875,6 @@ pub async fn filter_payment_methods(
                     let pm_dir_value: dir::DirValue =
                         (payment_method_type_info.payment_method_type, payment_method)
                             .into_dir_value()
-                            .map(Into::into)
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("pm_value_node not created")?;
 
@@ -2932,37 +2903,38 @@ pub async fn filter_payment_methods(
                         })
                     });
 
-                    if let Some(card_networks) = req.card_networks.clone() {
-                        let mut card_networks_from_req: Vec<dir::DirValue> = card_networks
-                            .into_iter()
-                            .map(dir::DirValue::CardNetwork)
-                            .collect();
-                        context_values.append(&mut card_networks_from_req);
-                    };
+                    // if let Some(card_networks) = req.card_networks.clone() {
+                    //     let mut card_networks_from_req: Vec<dir::DirValue> = card_networks
+                    //         .into_iter()
+                    //         .map(dir::DirValue::CardNetwork)
+                    //         .collect();
+                    //     context_values.append(&mut card_networks_from_req);
+                    // };
 
                     let filter_pm_based_on_allowed_types = filter_pm_based_on_allowed_types(
                         allowed_payment_method_types.as_ref(),
                         &payment_method_object.payment_method_type,
                     );
 
-                    payment_attempt
+                    if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
-                        .map(|_| {
-                            context_values.push(dir::DirValue::PaymentType(
-                                euclid::enums::PaymentType::NewMandate,
-                            ));
-                            if let Ok(connector) = api_enums::RoutableConnectors::from_str(
-                                connector_variant.to_string().as_str(),
-                            ) {
-                                context_values.push(dir::DirValue::Connector(Box::new(
-                                    api_models::routing::ast::ConnectorChoice {
-                                        connector,
-                                        #[cfg(not(feature = "connector_choice_mca_id"))]
-                                        sub_label: None,
-                                    },
-                                )));
-                            };
-                        });
+                        .is_some()
+                    {
+                        context_values.push(dir::DirValue::PaymentType(
+                            euclid::enums::PaymentType::NewMandate,
+                        ));
+                        if let Ok(connector) = api_enums::RoutableConnectors::from_str(
+                            connector_variant.to_string().as_str(),
+                        ) {
+                            context_values.push(dir::DirValue::Connector(Box::new(
+                                api_models::routing::ast::ConnectorChoice {
+                                    connector,
+                                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                                    sub_label: None,
+                                },
+                            )));
+                        };
+                    };
 
                     payment_attempt
                         .and_then(|attempt| attempt.mandate_data.as_ref())
@@ -3007,7 +2979,13 @@ pub async fn filter_payment_methods(
                             })
                         });
 
-                    let filter_incorrect_client_secret = req
+                    let filter_pm_card_network_based = filter_pm_card_network_based(
+                        payment_method_object.card_networks.as_ref(),
+                        req.card_networks.as_ref(),
+                        &payment_method_object.payment_method_type,
+                    );
+
+                    let saved_payment_methods_filter = req
                         .client_secret
                         .as_ref()
                         .map(|cs| {
@@ -3031,8 +3009,9 @@ pub async fn filter_payment_methods(
                         None,
                     );
                     if filter_pm_based_on_allowed_types
-                        && filter_incorrect_client_secret
-                        && result.is_ok()
+                        && filter_pm_card_network_based
+                        && saved_payment_methods_filter
+                        && matches!(result, Ok(()))
                     {
                         let response_pm_type = ResponsePaymentMethodIntermediate::new(
                             payment_method_object,
@@ -3040,6 +3019,8 @@ pub async fn filter_payment_methods(
                             payment_method,
                         );
                         resp.push(response_pm_type);
+                    } else {
+                        logger::error!("Filtering Payment Methods Failed");
                     }
                 }
             }
@@ -3087,6 +3068,25 @@ fn filter_installment_based(
     installment_payment_enabled.map_or(true, |enabled| {
         payment_method.installment_payment_enabled == enabled
     })
+}
+
+fn filter_pm_card_network_based(
+    pm_card_networks: Option<&Vec<api_enums::CardNetwork>>,
+    request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
+    pm_type: &api_enums::PaymentMethodType,
+) -> bool {
+    match pm_type {
+        api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+            match (pm_card_networks, request_card_networks) {
+                (Some(pm_card_networks), Some(request_card_networks)) => request_card_networks
+                    .iter()
+                    .all(|card_network| pm_card_networks.contains(card_network)),
+                (None, Some(_)) => false,
+                _ => true,
+            }
+        }
+        _ => true,
+    }
 }
 
 pub async fn do_list_customer_pm_fetch_customer_if_not_passed(

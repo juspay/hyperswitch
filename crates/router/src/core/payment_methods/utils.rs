@@ -15,14 +15,14 @@ use crate::configs::settings;
 
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
-    payment_methods: Vec<serde_json::value::Value>,
+    payment_methods: &[serde_json::value::Value],
     connector: String,
     pm_config_mapping: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
     supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
 ) -> Result<(), KgraphError> {
-    for payment_method in payment_methods.into_iter() {
-        let pm_enabled = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
+    for payment_method in payment_methods.iter() {
+        let pm_enabled = serde_json::from_value::<PaymentMethodsEnabled>(payment_method.clone());
         if let Ok(payment_methods_enabled) = pm_enabled {
             compile_pm_graph(
                 builder,
@@ -39,28 +39,21 @@ pub fn make_pm_graph(
 
 pub async fn get_merchant_pm_filter_graph<'a>(
     key: &str,
-) -> Result<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>>, KgraphError> {
-    let cached_pm_filter_cgraph = PM_FILTERS_CGRAPH_CACHE
+) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>>> {
+    PM_FILTERS_CGRAPH_CACHE
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>>>(key)
-        .await;
-
-    if let Some(graph) = cached_pm_filter_cgraph {
-        Ok(graph)
-    } else {
-        Err(KgraphError::IndexingError)
-    }
+        .await
 }
 
 pub async fn refresh_pm_filters_cache(
     key: &str,
     graph: cgraph::ConstraintGraph<'static, dir::DirValue>,
-) -> Result<Arc<hyperswitch_constraint_graph::ConstraintGraph<'static, dir::DirValue>>, KgraphError>
-{
+) -> Arc<hyperswitch_constraint_graph::ConstraintGraph<'static, dir::DirValue>> {
     let pm_filter_graph = Arc::new(graph);
     PM_FILTERS_CGRAPH_CACHE
         .push(key.to_string(), pm_filter_graph.clone())
         .await;
-    Ok(pm_filter_graph)
+    pm_filter_graph
 }
 
 fn compile_pm_graph(
@@ -198,22 +191,22 @@ fn compile_pm_graph(
                     _ => None,
                 });
 
-            // Card Network filter
-            if pmt.payment_method_type == enums::PaymentMethodType::Credit
-                || pmt.payment_method_type == enums::PaymentMethodType::Debit
-            {
-                if let Some(mca_card_networks) = pmt.card_networks {
-                    if let Ok(Some(card_network_node)) =
-                        construct_card_network_nodes(builder, mca_card_networks)
-                    {
-                        agg_nodes.push((
-                            card_network_node,
-                            cgraph::Relation::Positive,
-                            cgraph::Strength::Weak,
-                        ))
-                    }
-                }
-            }
+            // // Card Network filter
+            // if pmt.payment_method_type == enums::PaymentMethodType::Credit
+            //     || pmt.payment_method_type == enums::PaymentMethodType::Debit
+            // {
+            //     if let Some(mca_card_networks) = pmt.card_networks {
+            //         if let Ok(Some(card_network_node)) =
+            //             construct_card_network_nodes(builder, mca_card_networks)
+            //         {
+            //             agg_nodes.push((
+            //                 card_network_node,
+            //                 cgraph::Relation::Positive,
+            //                 cgraph::Strength::Weak,
+            //             ))
+            //         }
+            //     }
+            // }
 
             // Country filter
             if let Some(pm_object_countries) = pmt.accepted_countries {
@@ -542,23 +535,23 @@ fn construct_supported_connectors_for_mandate_node(
     }
 }
 
-fn construct_card_network_nodes(
-    builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
-    mca_card_networks: Vec<api_enums::CardNetwork>,
-) -> Result<Option<cgraph::NodeId>, KgraphError> {
-    Ok(Some(
-        builder
-            .make_in_aggregator(
-                mca_card_networks
-                    .into_iter()
-                    .map(dir::DirValue::CardNetwork)
-                    .collect(),
-                None,
-                None::<()>,
-            )
-            .map_err(KgraphError::GraphConstructionError)?,
-    ))
-}
+// fn construct_card_network_nodes(
+//     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
+//     mca_card_networks: Vec<api_enums::CardNetwork>,
+// ) -> Result<Option<cgraph::NodeId>, KgraphError> {
+//     Ok(Some(
+//         builder
+//             .make_in_aggregator(
+//                 mca_card_networks
+//                     .into_iter()
+//                     .map(dir::DirValue::CardNetwork)
+//                     .collect(),
+//                 None,
+//                 None::<()>,
+//             )
+//             .map_err(KgraphError::GraphConstructionError)?,
+//     ))
+// }
 
 fn compile_accepted_countries_for_mca(
     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
@@ -569,6 +562,21 @@ fn compile_accepted_countries_for_mca(
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     match pm_obj_countries {
         admin::AcceptedCountries::EnableOnly(countries) => {
+            // Country from the MCA
+            let pm_object_country_value_node = builder
+                .make_in_aggregator(
+                    countries
+                        .into_iter()
+                        .map(|country| {
+                            dir::DirValue::BillingCountry(common_enums::Country::from_alpha2(
+                                country,
+                            ))
+                        })
+                        .collect(),
+                    None,
+                    None::<()>,
+                )
+                .map_err(KgraphError::GraphConstructionError)?;
             if let Some(config) = config
                 .0
                 .get(connector.as_str())
@@ -581,22 +589,6 @@ fn compile_accepted_countries_for_mca(
                             *payment_method_type,
                         ))
                 {
-                    // Country from the MCA
-                    let pm_object_country_value_node = builder
-                        .make_in_aggregator(
-                            countries
-                                .into_iter()
-                                .map(|country| {
-                                    dir::DirValue::BillingCountry(
-                                        common_enums::Country::from_alpha2(country),
-                                    )
-                                })
-                                .collect(),
-                            None,
-                            None::<()>,
-                        )
-                        .map_err(KgraphError::GraphConstructionError)?;
-
                     // country from config
                     if let Some(config_countries) = value.country.as_ref() {
                         let config_countries: Vec<common_enums::Country> =
@@ -643,6 +635,22 @@ fn compile_accepted_countries_for_mca(
                 .get(connector.as_str())
                 .or_else(|| config.0.get("default"))
             {
+                // Country from the MCA
+                let pm_object_country_value_node = builder
+                    .make_in_aggregator(
+                        countries
+                            .into_iter()
+                            .map(|country| {
+                                dir::DirValue::BillingCountry(common_enums::Country::from_alpha2(
+                                    country,
+                                ))
+                            })
+                            .collect(),
+                        None,
+                        None::<()>,
+                    )
+                    .map_err(KgraphError::GraphConstructionError)?;
+
                 if let Some(value) =
                     config
                         .0
@@ -650,22 +658,6 @@ fn compile_accepted_countries_for_mca(
                             *payment_method_type,
                         ))
                 {
-                    // Country from the MCA
-                    let pm_object_country_value_node = builder
-                        .make_in_aggregator(
-                            countries
-                                .into_iter()
-                                .map(|country| {
-                                    dir::DirValue::BillingCountry(
-                                        common_enums::Country::from_alpha2(country),
-                                    )
-                                })
-                                .collect(),
-                            None,
-                            None::<()>,
-                        )
-                        .map_err(KgraphError::GraphConstructionError)?;
-
                     // country from config
                     if let Some(config_countries) = value.country.as_ref() {
                         let config_countries: Vec<common_enums::Country> =
@@ -720,6 +712,18 @@ fn compile_accepted_currency_for_mca(
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     match pm_obj_currency {
         admin::AcceptedCurrencies::EnableOnly(currency) => {
+            // Currency from the MCA
+            let pm_object_currency_value_node = builder
+                .make_in_aggregator(
+                    currency
+                        .into_iter()
+                        .map(dir::DirValue::PaymentCurrency)
+                        .collect(),
+                    None,
+                    None::<()>,
+                )
+                .map_err(KgraphError::GraphConstructionError)?;
+
             if let Some(config) = config
                 .0
                 .get(connector.as_str())
@@ -732,18 +736,6 @@ fn compile_accepted_currency_for_mca(
                             *payment_method_type,
                         ))
                 {
-                    // Currency from the MCA
-                    let pm_object_currency_value_node = builder
-                        .make_in_aggregator(
-                            currency
-                                .into_iter()
-                                .map(dir::DirValue::PaymentCurrency)
-                                .collect(),
-                            None,
-                            None::<()>,
-                        )
-                        .map_err(KgraphError::GraphConstructionError)?;
-
                     // Currency from config
                     if let Some(config_currencies) = value.currency.as_ref() {
                         let config_currency: Vec<common_enums::Currency> =
@@ -786,6 +778,18 @@ fn compile_accepted_currency_for_mca(
             }
         }
         admin::AcceptedCurrencies::DisableOnly(currency) => {
+            // Currency from the MCA
+            let pm_object_currency_value_node = builder
+                .make_in_aggregator(
+                    currency
+                        .into_iter()
+                        .map(dir::DirValue::PaymentCurrency)
+                        .collect(),
+                    None,
+                    None::<()>,
+                )
+                .map_err(KgraphError::GraphConstructionError)?;
+
             if let Some(config) = config
                 .0
                 .get(connector.as_str())
@@ -798,18 +802,6 @@ fn compile_accepted_currency_for_mca(
                             *payment_method_type,
                         ))
                 {
-                    // Currency from the MCA
-                    let pm_object_currency_value_node = builder
-                        .make_in_aggregator(
-                            currency
-                                .into_iter()
-                                .map(dir::DirValue::PaymentCurrency)
-                                .collect(),
-                            None,
-                            None::<()>,
-                        )
-                        .map_err(KgraphError::GraphConstructionError)?;
-
                     // Currency from config
                     if let Some(config_currencies) = value.currency.as_ref() {
                         let config_currency: Vec<common_enums::Currency> =
