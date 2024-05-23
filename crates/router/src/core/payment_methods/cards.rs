@@ -1910,9 +1910,6 @@ pub async fn list_payment_methods(
                     payment_attempt.as_ref(),
                     billing_address.as_ref(),
                     mca.connector_name.clone(),
-                    pm_config_mapping,
-                    &state.conf.mandates.supported_payment_methods,
-                    &state.conf.mandates.update_mandate_supported,
                     &state.conf.saved_payment_methods,
                 )
                 .await?;
@@ -1955,9 +1952,6 @@ pub async fn list_payment_methods(
                     payment_attempt.as_ref(),
                     billing_address.as_ref(),
                     mca.connector_name.clone(),
-                    pm_config_mapping,
-                    &state.conf.mandates.supported_payment_methods,
-                    &state.conf.mandates.update_mandate_supported,
                     &state.conf.saved_payment_methods,
                 )
                 .await?;
@@ -2002,9 +1996,6 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                pm_config_mapping,
-                &state.conf.mandates.supported_payment_methods,
-                &state.conf.mandates.update_mandate_supported,
                 &state.conf.saved_payment_methods,
             )
             .await?;
@@ -2873,9 +2864,6 @@ pub async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&domain::Address>,
     connector: String,
-    _config: &settings::ConnectorFilters,
-    _supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
-    _supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
     saved_payment_methods: &settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
