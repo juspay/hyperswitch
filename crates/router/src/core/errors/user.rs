@@ -234,7 +234,7 @@ impl UserErrors {
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
-            Self::TwoFactorAuthNotSetup => "Two factor auth not setup"
+            Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
         }
     }
 }
