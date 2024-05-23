@@ -6,6 +6,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
+use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{errors::api_error_response, mandates, payments, router_data};
@@ -74,7 +75,6 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub connector_transaction_id: String,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct MultipleCaptureRequestData {
     pub capture_sequence: i16,
@@ -411,12 +411,13 @@ pub struct RetrieveFileRequestData {
     pub provider_file_id: String,
 }
 
+#[serde_as]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct UploadFileRequestData {
     pub file_key: String,
     #[serde(skip)]
     pub file: Vec<u8>,
-    #[serde(serialize_with = "common_utils::custom_serde::display_serialize")]
+    #[serde_as(as = "serde_with::DisplayFromStr")]
     pub file_type: mime::Mime,
     pub file_size: i32,
 }
