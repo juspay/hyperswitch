@@ -19,7 +19,7 @@ describe("Bank Transfers", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Bank transfer - Pix by Adyen forward flow", () => {
+  context("Bank transfer - Pix forward flow", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {

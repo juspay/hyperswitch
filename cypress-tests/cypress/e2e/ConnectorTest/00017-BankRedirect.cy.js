@@ -60,7 +60,7 @@ describe("iDEAL Bank Redirect flow test", () => {
       cy.paymentMethodsCallTest(globalState);
     });
 
-    it("Confirm bank transfer", () => {
+    it("Confirm bank redirect", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["ideal"];
