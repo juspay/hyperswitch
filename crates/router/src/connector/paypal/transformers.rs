@@ -389,28 +389,33 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
         let paypal_auth: PaypalAuthType =
             PaypalAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payee = get_payee(&paypal_auth);
+
+        let amount = OrderRequestAmount::from(item);
+
+        let intent = if item.router_data.request.is_auto_capture()? {
+            PaypalPaymentIntent::Capture
+        } else {
+            PaypalPaymentIntent::Authorize
+        };
+
+        let connector_request_reference_id =
+            item.router_data.connector_request_reference_id.clone();
+
+        let shipping_address = ShippingAddress::try_from(item)?;
+        let item_details = vec![ItemDetails::from(item)];
+
+        let purchase_units = vec![PurchaseUnitRequest {
+            reference_id: Some(connector_req_reference_id.clone()),
+            custom_id: Some(connector_req_reference_id.clone()),
+            invoice_id: Some(connector_req_reference_id),
+            amount,
+            payee,
+            shipping: Some(shipping_address),
+            items: item_details,
+        }];
+
         match item.router_data.request.payment_method_data {
             domain::PaymentMethodData::Card(ref ccard) => {
-                let intent = if item.router_data.request.is_auto_capture()? {
-                    PaypalPaymentIntent::Capture
-                } else {
-                    PaypalPaymentIntent::Authorize
-                };
-                let amount = OrderRequestAmount::from(item);
-                let connector_request_reference_id =
-                    item.router_data.connector_request_reference_id.clone();
-                let shipping_address = ShippingAddress::try_from(item)?;
-                let item_details = vec![ItemDetails::from(item)];
-
-                let purchase_units = vec![PurchaseUnitRequest {
-                    reference_id: Some(connector_request_reference_id.clone()),
-                    custom_id: Some(connector_request_reference_id.clone()),
-                    invoice_id: Some(connector_request_reference_id),
-                    amount,
-                    payee,
-                    shipping: Some(shipping_address),
-                    items: item_details,
-                }];
                 let card = item.router_data.request.get_card()?;
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
@@ -442,28 +447,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 })
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                domain::WalletData::PaypalRedirect(_) | domain::WalletData::PaypalSdk(_) => {
-                    let intent = if item.router_data.request.is_auto_capture()? {
-                        PaypalPaymentIntent::Capture
-                    } else {
-                        PaypalPaymentIntent::Authorize
-                    };
-                    let amount = OrderRequestAmount::from(item);
-
-                    let connector_req_reference_id =
-                        item.router_data.connector_request_reference_id.clone();
-                    let shipping_address = ShippingAddress::try_from(item)?;
-                    let item_details = vec![ItemDetails::from(item)];
-
-                    let purchase_units = vec![PurchaseUnitRequest {
-                        reference_id: Some(connector_req_reference_id.clone()),
-                        custom_id: Some(connector_req_reference_id.clone()),
-                        invoice_id: Some(connector_req_reference_id),
-                        amount,
-                        payee,
-                        shipping: Some(shipping_address),
-                        items: item_details,
-                    }];
+                domain::WalletData::PaypalRedirect(_) => {
                     let payment_source =
                         Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
                             experience_context: ContextStruct {
@@ -478,6 +462,23 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                                 } else {
                                     ShippingPreference::GetFromFile
                                 },
+                                user_action: Some(UserAction::PayNow),
+                            },
+                        }));
+
+                    Ok(Self {
+                        intent,
+                        purchase_units,
+                        payment_source,
+                    })
+                }
+                domain::WalletData::PaypalSdk(_) => {
+                    let payment_source =
+                        Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
+                            experience_context: ContextStruct {
+                                return_url: None,
+                                cancel_url: None,
+                                shipping_preference: ShippingPreference::GetFromFile,
                                 user_action: Some(UserAction::PayNow),
                             },
                         }));
