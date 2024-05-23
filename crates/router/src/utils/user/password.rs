@@ -44,12 +44,13 @@ pub fn get_index_for_correct_recovery_code(
     candidate: Secret<String>,
     recovery_codes: Vec<Secret<String>>,
 ) -> CustomResult<Option<usize>, UserErrors> {
-    Ok(recovery_codes
-        .into_iter()
-        .map(|recovery_code| is_correct_password(candidate.clone(), recovery_code))
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .position(|x| x))
+    for (index, recovery_code) in recovery_codes.into_iter().enumerate() {
+        let is_match = is_correct_password(candidate.clone(), recovery_code)?;
+        if is_match {
+            return Ok(Some(index));
+        }
+    }
+    return Ok(None);
 }
 
 pub fn get_temp_password() -> Secret<String> {

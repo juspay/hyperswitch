@@ -24,10 +24,7 @@ use crate::{
     routes::{app::ReqState, AppState},
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
-    utils::{
-        self,
-        user::{password, two_factor_auth::insert_recovery_code_in_redis},
-    },
+    utils::{self, user::two_factor_auth::insert_recovery_code_in_redis},
 };
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
@@ -1773,7 +1770,7 @@ pub async fn generate_recovery_codes(
 pub async fn verify_recovery_code(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
-    req: user_api::VerifyAccessCodeRequest,
+    req: user_api::VerifyRecoveryCodeRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
@@ -1786,21 +1783,20 @@ pub async fn verify_recovery_code(
         return Err(UserErrors::TotpNotSetup.into());
     }
 
-    let recovery_codes = user_from_db
+    let mut recovery_codes = user_from_db
         .get_recovery_codes()
         .ok_or(UserErrors::InternalServerError)?;
 
-    let matching_index =
-        password::get_index_for_correct_recovery_code(req.recovery_code, recovery_codes.clone())?;
+    // let matching_index =
+    //     utils::user::password::get_index_for_correct_recovery_code(req.recovery_code, recovery_codes.clone())?;
 
-    if matching_index.is_none() {
-        return Err(UserErrors::InvalidRecoveryCode.into());
-    }
+    let matching_index = utils::user::password::get_index_for_correct_recovery_code(
+        req.recovery_code,
+        recovery_codes.clone(),
+    )?
+    .ok_or(UserErrors::InvalidRecoveryCode)?;
 
-    let mut updated_recovery_codes = recovery_codes;
-    if let Some(index) = matching_index {
-        updated_recovery_codes.remove(index);
-    }
+    let _ = recovery_codes.remove(matching_index);
 
     state
         .store
@@ -1809,7 +1805,7 @@ pub async fn verify_recovery_code(
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
                 totp_secret: None,
-                totp_recovery_codes: Some(updated_recovery_codes),
+                totp_recovery_codes: Some(recovery_codes),
             },
         )
         .await

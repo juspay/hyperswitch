@@ -666,12 +666,12 @@ pub async fn totp_verify(
     .await
 }
 
-pub async fn recovery_code_verify(
+pub async fn verify_recovery_code(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<user_api::VerifyAccessCodeRequest>,
+    json_payload: web::Json<user_api::VerifyRecoveryCodeRequest>,
 ) -> HttpResponse {
-    let flow = Flow::AccessCodeVerify;
+    let flow = Flow::RecoveryCodeVerify;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
