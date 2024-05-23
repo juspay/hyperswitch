@@ -175,20 +175,16 @@ fn compile_pm_graph(
                 .0
                 .get(connector.as_str())
                 .or_else(|| config.0.get("default"))
-                .and_then(|inner| match pmt.payment_method_type {
-                    api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
-                        if let Ok(Some(capture_method_filter)) =
-                            construct_capture_method_node(builder, inner, &pmt.payment_method_type)
-                        {
-                            agg_nodes.push((
-                                capture_method_filter,
-                                cgraph::Relation::Negative,
-                                cgraph::Strength::Strong,
-                            ))
-                        }
-                        Some(())
+                .map(|inner| {
+                    if let Ok(Some(capture_method_filter)) =
+                        construct_capture_method_node(builder, inner, &pmt.payment_method_type)
+                    {
+                        agg_nodes.push((
+                            capture_method_filter,
+                            cgraph::Relation::Negative,
+                            cgraph::Strength::Strong,
+                        ))
                     }
-                    _ => None,
                 });
 
             // // Card Network filter
