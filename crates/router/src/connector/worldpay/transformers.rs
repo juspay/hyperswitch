@@ -9,7 +9,9 @@ use crate::{
     connector::utils,
     consts,
     core::errors,
-    types::{self, domain, PaymentsAuthorizeData, PaymentsResponseData},
+    types::{
+        self, domain, transformers::ForeignTryFrom, PaymentsAuthorizeData, PaymentsResponseData,
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -245,7 +247,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
             },
             description: item.response.description,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::try_from(item.response.links)?,
+                resource_id: types::ResponseId::foreign_try_from(item.response.links)?,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

@@ -1,6 +1,7 @@
 pub use common_utils::errors::{ParsingError, ValidationError};
 #[cfg(feature = "email")]
 use external_services::email::EmailError;
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 pub use redis_interface::errors::RedisError;
 pub use storage_impl::errors::ApplicationError;
 use storage_impl::errors::StorageError;
@@ -85,6 +86,12 @@ pub trait PTError: Send + Sync + 'static {
 impl<T: PTError> From<T> for ProcessTrackerError {
     fn from(value: T) -> Self {
         value.to_pt_error()
+    }
+}
+
+impl PTError for ApiErrorResponse {
+    fn to_pt_error(&self) -> ProcessTrackerError {
+        ProcessTrackerError::EApiErrorResponse
     }
 }
 

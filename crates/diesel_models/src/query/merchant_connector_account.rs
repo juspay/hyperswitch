@@ -124,7 +124,9 @@ impl MerchantConnectorAccount {
         if get_disabled {
             generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
                 conn,
-                dsl::merchant_id.eq(merchant_id.to_owned()),
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::disabled.eq(true)),
                 None,
                 None,
                 Some(dsl::created_at.asc()),

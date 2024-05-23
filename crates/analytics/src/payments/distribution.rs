@@ -24,6 +24,8 @@ pub struct PaymentDistributionRow {
     pub authentication_type: Option<DBEnumWrapper<storage_enums::AuthenticationType>>,
     pub payment_method: Option<String>,
     pub payment_method_type: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     pub error_message: Option<String>,
