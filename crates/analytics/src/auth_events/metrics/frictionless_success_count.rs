@@ -13,10 +13,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct ChallengeSuccessCount;
+pub(super) struct FrictionlessSuccessCount;
 
 #[async_trait::async_trait]
-impl<T> super::AuthEventMetric<T> for ChallengeSuccessCount
+impl<T> super::AuthEventMetric<T> for FrictionlessSuccessCount
 where
     T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -54,11 +54,11 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("api_flow", AuthEventFlows::IncomingWebhookReceive)
+            .add_filter_clause("api_flow", AuthEventFlows::PaymentsExternalAuthentication)
             .switch()?;
 
         query_builder
-            .add_filter_clause("visitParamExtractRaw(request, 'transStatus')", "\"Y\"")
+            .add_filter_clause("visitParamExtractRaw(response, 'transStatus')", "\"Y\"")
             .switch()?;
 
         time_range
