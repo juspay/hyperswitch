@@ -10276,7 +10276,10 @@
         ],
         "properties": {
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "The maximum amount to be debited for the mandate transaction",
+            "example": 6540
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -14403,7 +14406,10 @@
         ],
         "properties": {
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "The total amount including previously authorized amount and additional amount",
+            "example": 6540
           },
           "reason": {
             "type": "string",
