@@ -1,15 +1,25 @@
 use error_stack::ResultExt;
 use masking::Secret;
+use base64::Engine;
 use serde::{Deserialize, Serialize};
-
+// use common_utils::date_time::DateTime;
+use common_utils::date_time;
 use super::gpayments_types;
 use crate::{
     connector::utils,
-    consts,
     core::errors,
-    types::{self, api},
+    types::{self, api}
 };
-
+use crate::consts::BASE64_ENGINE;
+use serde_json::to_string;
+use masking::ExposeInterface;
+use api_models::payments::DeviceChannel;
+use crate::connector::utils::get_card_details;
+use crate::connector::utils::CardData;
+use crate::connector::gpayments::gpayments_types::{BrowserInfoCollected,GpaymentsAuthenticationResponse,AuthStatus};
+use crate::types::api::MessageCategory;
+use crate::types::authentication::ChallengeParams;
+// use pm_auth::consts::NO_ERROR_MESSAGE;
 //TODO: Fill the struct with respective fields
 pub struct GpaymentsRouterData<T> {
     pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -156,6 +166,212 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNRouterData>>
     }
 }
 
+
+
+impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
+    for gpayments_types::GpaymentsAuthenticationRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &GpaymentsRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        // let metadata = GpaymentsMetaData::try_from(&request.pre_authentication_data.connector_metadat)?;
+        let browser_details = match request.browser_details.clone() {
+            Some(details) => Ok::<Option<types::BrowserInformation>, Self::Error>(Some(details)),
+            None => {
+                if request.device_channel == DeviceChannel::Browser {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "browser_info",
+                    })?
+                } else {
+                    Ok(None)
+                }
+            }
+        }?;
+        let card_details = get_card_details(request.payment_method_data.clone(), "gpayments")?;
+        // let browser_info_colleted = BrowserInfoCollected {
+        //     browser_javascript_enabled: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.java_script_enabled),
+        //     browser_accept_header: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.accept_header.clone()),
+        //     browser_ip: browser_details
+        //         .clone()
+        //         .and_then(|details| details.ip_address.map(|ip| Secret::new(ip.to_string()))),
+        //     browser_java_enabled: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.java_enabled),
+        //     browser_language: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.language.clone()),
+        //     browser_color_depth: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.color_depth.map(|a| a.to_string())),
+        //     browser_screen_height: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.screen_height.map(|a| a.to_string())),
+        //     browser_screen_width: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.screen_width.map(|a| a.to_string())),
+        //     browser_tz: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.time_zone.map(|a| a.to_string())),
+        //     browser_user_agent: browser_details
+        //         .as_ref()
+        //         .and_then(|details| details.user_agent.clone().map(|a| a.to_string())),
+        // };
+        let metadata = GpaymentsMetaData::try_from(&item.router_data.connector_meta_data)?;
+        // let merchant_id = request.pre_authentication_data.acquirer_merchant_id.clone().get_required_value("acquirer_details").change_context(errors::ConnectorError::MissingRequiredField {
+        //     field_name: "acquirer_details",
+        // })?;
+        Ok(Self {
+            acct_number: card_details.card_number.clone(),
+            authentication_ind: "01".into(),
+            // browser_info_collected:_browser_info_collected,
+            card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
+            merchant_id: metadata.merchant_id ,
+            message_category: match item.router_data.request.message_category.clone() {
+                MessageCategory::Payment => "01".into(),
+                MessageCategory::NonPayment => "02".into(),
+            },
+            notification_url: request
+            .return_url
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("missing return_url")?,
+            // three_ds_comp_ind:  request.threeds_method_comp_ind.ok_or(error_stack::Report::new(errors::ConnectorError::FailedToObtainIntegrationUrl)),
+            three_ds_comp_ind:  request.threeds_method_comp_ind.clone(),
+            purchase_amount: item.amount.to_string(),
+            purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
+            .to_string(),
+            three_ds_server_trans_id: request.pre_authentication_data.threeds_server_transaction_id.clone(),
+            browser_info_collected : BrowserInfoCollected {
+                browser_javascript_enabled: browser_details
+                    .as_ref()
+                    .and_then(|details| details.java_script_enabled),
+                browser_accept_header: browser_details
+                    .as_ref()
+                    .and_then(|details| details.accept_header.clone()),
+                browser_ip: browser_details
+                    .clone()
+                    .and_then(|details| details.ip_address.map(|ip| Secret::new(ip.to_string()))),
+                browser_java_enabled: browser_details
+                    .as_ref()
+                    .and_then(|details| details.java_enabled),
+                browser_language: browser_details
+                    .as_ref()
+                    .and_then(|details| details.language.clone()),
+                browser_color_depth: browser_details
+                    .as_ref()
+                    .and_then(|details| details.color_depth.map(|a| a.to_string())),
+                browser_screen_height: browser_details
+                    .as_ref()
+                    .and_then(|details| details.screen_height.map(|a| a.to_string())),
+                browser_screen_width: browser_details
+                    .as_ref()
+                    .and_then(|details| details.screen_width.map(|a| a.to_string())),
+                browser_tz: browser_details
+                    .as_ref()
+                    .and_then(|details| details.time_zone.map(|a| a.to_string())),
+                browser_user_agent: browser_details
+                    .as_ref()
+                    .and_then(|details| details.user_agent.clone().map(|a| a.to_string())),
+            },
+            // acct_number: router_data.request.card_holder_account_number.clone(),
+            // card_scheme: None,
+            // challenge_window_size: Some(gpayments_types::ChallengeWindowSize::FullScreen),
+            // event_callback_url: "https://webhook.site/55e3db24-7c4e-4432-9941-d806f68d210b"
+            //     .to_string(),
+            // merchant_id: metadata.merchant_id,
+            // skip_auto_browser_info_collect: Some(true),
+            // // should auto generate this id.
+            // three_ds_requestor_trans_id: uuid::Uuid::new_v4().hyphenated().to_string(),
+            
+        })
+    }
+}
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::Authentication,
+            GpaymentsAuthenticationResponse,
+            types::authentication::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        >,
+    > for types::authentication::ConnectorAuthenticationRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::Authentication,
+            GpaymentsAuthenticationResponse,
+            types::authentication::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = match item.response {
+            GpaymentsAuthenticationResponse::Success(response) => {
+                let creq = serde_json::json!({
+                    "threeDSServerTransID": response.three_ds_server_trans_id,
+                    "acsTransID": response.acs_trans_id,
+                    "messageVersion": response.message_version,
+                    "messageType": "CReq",
+                    "challengeWindowSize": "01",
+                });
+                let creq_str = to_string(&creq)
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("error while constructing creq_str")?;
+                let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
+                    .trim_end_matches('=')
+                    .to_owned();
+                Ok(
+                    types::authentication::AuthenticationResponseData::AuthNResponse {
+                        trans_status: response.trans_status.clone().into(),
+                        authn_flow_type: if response.trans_status == AuthStatus::C {
+                            types::authentication::AuthNFlowType::Challenge(Box::new(
+                                ChallengeParams {
+                                    acs_url: response.acs_url,
+                                    challenge_request: Some(creq_base64),
+                                    acs_reference_number: Some(
+                                        response.acs_reference_number.clone(),
+                                    ),
+                                    acs_trans_id: Some(response.acs_trans_id.clone()),
+                                    three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
+                                    acs_signed_content: None,
+                                },
+                            ))
+                        } else {
+                            types::authentication::AuthNFlowType::Frictionless
+                        },
+                        authentication_value: response.authentication_value,
+                    },
+                )
+            }
+            GpaymentsAuthenticationResponse::Error(resp) => {
+                
+                    Err(types::ErrorResponse {
+                        code: resp.code,
+                        message: resp
+                            .message
+                            .clone(),
+                        reason: resp.reason,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    })
+              
+            },
+        };
+        Ok(Self {
+            response,
+            ..item.data.clone()
+        })
+    }
+}
+
 impl
     TryFrom<
         types::ResponseRouterData<
@@ -184,11 +400,11 @@ impl
                     "threeDSServerTransID": threeds_method_response.three_ds_server_trans_id,
                     "threeDSMethodNotificationURL": "https://webhook.site/bd06863d-82c2-42ea-b35b-5ffd5ecece71"
                 });
-                serde_json::to_string(&three_ds_method_data_json)
+                to_string(&three_ds_method_data_json)
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing three_ds_method_data_str")
                     .map(|three_ds_method_data_string| {
-                        base64::Engine::encode(&consts::BASE64_ENGINE, three_ds_method_data_string)
+                        base64::Engine::encode(&BASE64_ENGINE, three_ds_method_data_string)
                     })
             })
             .transpose()?;
