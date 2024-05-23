@@ -3990,7 +3990,7 @@ where
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 merchant_account.merchant_id.as_str(),
-                true,
+                false,
                 key_store,
             )
             .await

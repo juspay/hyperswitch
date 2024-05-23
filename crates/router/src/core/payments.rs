@@ -3163,8 +3163,12 @@ where
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
 
+            let should_do_retry =
+                retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
+
             if payment_data.payment_attempt.payment_method_type
                 == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
             {
                 let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
                     state,
