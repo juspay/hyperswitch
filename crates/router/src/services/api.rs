@@ -1328,6 +1328,11 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
     }
 }
 
+impl EmbedError
+    for Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>
+{
+}
+
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type(mime::APPLICATION_JSON)

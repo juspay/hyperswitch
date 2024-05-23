@@ -57,4 +57,6 @@ pub struct FilterRow {
     pub authentication_type: Option<DBEnumWrapper<AuthenticationType>>,
     pub payment_method: Option<String>,
     pub payment_method_type: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
 }

@@ -216,7 +216,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::TotpBegin
             | Flow::TotpVerify
             | Flow::RecoveryCodeVerify
-            | Flow::RecoveryCodesGenerate => Self::User,
+            | Flow::RecoveryCodesGenerate
+            | Flow::TerminateTwoFactorAuth => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole

@@ -1211,7 +1211,10 @@ impl User {
                     .route(web::post().to(set_dashboard_metadata)),
             )
             .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
-            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)));
+            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
+            .service(
+                web::resource("/2fa/terminate").route(web::get().to(terminate_two_factor_auth)),
+            );
 
         route = route.service(
             web::scope("/recovery_code")
