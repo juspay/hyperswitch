@@ -154,9 +154,9 @@ services:
     ports:
       - "9000:9000"
     environment:
-      - configPath=/home/config/dashboard.toml
+      - configPath=/tmp/dashboard-config.toml
     volumes:
-      - ./config/dashboard.toml:/home/config/dashboard.toml
+      - ./config/dashboard.toml:/tmp/dashboard-config.toml
     depends_on:
       - hyperswitch-web
     labels:  
