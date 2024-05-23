@@ -3170,6 +3170,28 @@ where
             {
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
+
+            if payment_data.payment_attempt.payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+            {
+                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
+                    state,
+                    merchant_account,
+                    payment_data,
+                    key_store,
+                    connector_data.clone(),
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    choice.merchant_connector_id.clone().as_ref(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    return Ok(ConnectorCallType::Retryable(connector_data_list));
+                }
+            }
+
             return Ok(ConnectorCallType::PreDetermined(connector_data));
         }
     }
@@ -3192,7 +3214,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3250,7 +3271,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3680,7 +3700,6 @@ where
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
-        merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
         &transaction_data,
         eligible_connectors,

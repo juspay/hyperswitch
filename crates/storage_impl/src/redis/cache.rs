@@ -21,6 +21,12 @@ const CONFIG_CACHE_PREFIX: &str = "config";
 /// Prefix for accounts cache key
 const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
 
+/// Prefix for routing cache key
+const ROUTING_CACHE_PREFIX: &str = "routing";
+
+/// Prefix for kgraph cache key
+const CGRAPH_CACHE_PREFIX: &str = "cgraph";
+
 /// Prefix for all kinds of cache key
 const ALL_CACHE_PREFIX: &str = "all_cache_kind";
 
@@ -40,6 +46,14 @@ pub static CONFIG_CACHE: Lazy<Cache> = Lazy::new(|| Cache::new(CACHE_TTL, CACHE_
 pub static ACCOUNTS_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
+/// Routing Cache
+pub static ROUTING_CACHE: Lazy<Cache> =
+    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
+/// CGraph Cache
+pub static CGRAPH_CACHE: Lazy<Cache> =
+    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -48,6 +62,8 @@ pub trait Cacheable: Any + Send + Sync + DynClone {
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
+    Routing(Cow<'a, str>),
+    CGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
 
@@ -56,6 +72,8 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
         let value = match kind {
             CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
             CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
+            CacheKind::Routing(s) => format!("{ROUTING_CACHE_PREFIX},{s}"),
+            CacheKind::CGraph(s) => format!("{CGRAPH_CACHE_PREFIX},{s}"),
             CacheKind::All(s) => format!("{ALL_CACHE_PREFIX},{s}"),
         };
         Self::from_string(value)
@@ -73,6 +91,8 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
         match split.0 {
             ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
             CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
+            ROUTING_CACHE_PREFIX => Ok(Self::Routing(Cow::Owned(split.1.to_string()))),
+            CGRAPH_CACHE_PREFIX => Ok(Self::CGraph(Cow::Owned(split.1.to_string()))),
             ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
@@ -137,6 +157,11 @@ impl Cache {
     pub async fn get_val<T: Clone + Cacheable>(&self, key: CacheKey) -> Option<T> {
         let val = self.inner.get::<String>(&key.into()).await?;
         (*val).as_any().downcast_ref::<T>().cloned()
+    }
+
+    /// Check if a key exists in cache
+    pub async fn exists(&self, key: CacheKey) -> bool {
+        self.inner.contains_key::<String>(&key.into())
     }
 
     pub async fn remove(&self, key: CacheKey) {
@@ -290,10 +315,15 @@ mod cache_tests {
     #[tokio::test]
     async fn construct_and_get_cache() {
         let cache = Cache::new(1800, 1800, None);
-        cache.push(CacheKey {
-            key: "key".to_string(),
-            prefix: "prefix".to_string()
-        }, "val".to_string()).await;
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
         assert_eq!(
             cache
                 .get_val::<String>(CacheKey {
@@ -308,10 +338,15 @@ mod cache_tests {
     #[tokio::test]
     async fn eviction_on_size_test() {
         let cache = Cache::new(2, 2, Some(0));
-        cache.push(CacheKey {
-            key: "key".to_string(),
-            prefix: "prefix".to_string()
-        }, "val".to_string()).await;
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
         assert_eq!(
             cache
                 .get_val::<String>(CacheKey {
@@ -326,15 +361,22 @@ mod cache_tests {
     #[tokio::test]
     async fn invalidate_cache_for_key() {
         let cache = Cache::new(1800, 1800, None);
-        cache.push(CacheKey {
-            key: "key".to_string(),
-            prefix: "prefix".to_string()
-        }, "val".to_string()).await;
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
 
-        cache.remove(CacheKey {
-            key: "key".to_string(),
-            prefix: "prefix".to_string()
-        }).await;
+        cache
+            .remove(CacheKey {
+                key: "key".to_string(),
+                prefix: "prefix".to_string(),
+            })
+            .await;
 
         assert_eq!(
             cache
@@ -350,10 +392,15 @@ mod cache_tests {
     #[tokio::test]
     async fn eviction_on_time_test() {
         let cache = Cache::new(2, 2, None);
-        cache.push(CacheKey {
-            key: "key".to_string(),
-            prefix: "prefix".to_string()
-        }, "val".to_string()).await;
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         assert_eq!(
             cache

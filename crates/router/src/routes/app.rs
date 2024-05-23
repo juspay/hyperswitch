@@ -79,6 +79,7 @@ pub struct SessionState {
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
+    pub tenant: String,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
 }
@@ -114,6 +115,7 @@ impl SessionState {
                 .clone()
                 .base_url
                 .clone(),
+            tenant: tenant.to_string().clone(),
             #[cfg(feature = "email")]
             email_client: Arc::clone(&state.email_client),
             #[cfg(feature = "olap")]
@@ -1307,7 +1309,11 @@ impl User {
                     .route(web::post().to(set_dashboard_metadata)),
             )
             .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
-            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)));
+            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
+            .service(
+                web::resource("/recovery_codes/generate")
+                    .route(web::get().to(generate_recovery_codes)),
+            );
 
         #[cfg(feature = "email")]
         {

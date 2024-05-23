@@ -2,7 +2,9 @@ use error_stack::ResultExt;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::logger;
 
-use crate::redis::cache::{CacheKind, CacheKey, ACCOUNTS_CACHE, CONFIG_CACHE};
+use crate::redis::cache::{
+    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, ROUTING_CACHE,
+};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
@@ -77,6 +79,24 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                         .await;
                     key
                 }
+                CacheKind::CGraph(key) => {
+                    CGRAPH_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    key
+                }
+                CacheKind::Routing(key) => {
+                    ROUTING_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    key
+                }
                 CacheKind::All(key) => {
                     CONFIG_CACHE
                         .remove(CacheKey {
@@ -85,6 +105,18 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                         })
                         .await;
                     ACCOUNTS_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    CGRAPH_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    ROUTING_CACHE
                         .remove(CacheKey {
                             key: key.to_string(),
                             prefix: self.key_prefix.clone(),

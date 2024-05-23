@@ -65,11 +65,17 @@ async fn invalidate_existing_cache_success() {
     println!("invalidate Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
     assert!(cache::CONFIG_CACHE
-        .get_val::<String>(CacheKey { key: cache_key.clone(), prefix: String::default()})
+        .get_val::<String>(CacheKey {
+            key: cache_key.clone(),
+            prefix: String::default()
+        })
         .await
         .is_none());
     assert!(cache::ACCOUNTS_CACHE
-        .get_val::<String>(CacheKey { key: cache_key, prefix: String::default()})
+        .get_val::<String>(CacheKey {
+            key: cache_key,
+            prefix: String::default()
+        })
         .await
         .is_none());
 }

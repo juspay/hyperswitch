@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 use storage_impl::redis::{
-    cache::{Cache, CacheKind, Cacheable, CacheKey},
+    cache::{Cache, CacheKey, CacheKind, Cacheable},
     pub_sub::PubSubInterface,
 };
 

@@ -375,7 +375,7 @@ impl ApiKeyInterface for MockDb {
 #[cfg(test)]
 mod tests {
     use storage_impl::redis::{
-        cache::{CacheKind, CacheKey, ACCOUNTS_CACHE},
+        cache::{CacheKey, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };

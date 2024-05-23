@@ -1245,17 +1245,6 @@ pub async fn update_payment_connector(
         }
     }
 
-    // The purpose of this merchant account update is just to update the
-    // merchant account `modified_at` field for KGraph cache invalidation
-    db.update_specific_fields_in_merchant(
-        merchant_id,
-        storage::MerchantAccountUpdate::ModifiedAtUpdate,
-        &key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("error updating the merchant account when updating payment connector")?;
-
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
