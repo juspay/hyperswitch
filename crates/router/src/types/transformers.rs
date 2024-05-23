@@ -10,6 +10,7 @@ use common_utils::{
     ext_traits::{StringExt, ValueExt},
     fp_utils::when,
     pii,
+    types::MinorUnit,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -18,6 +19,7 @@ use masking::{ExposeInterface, PeekInterface};
 use super::domain;
 use crate::{
     core::errors,
+    headers::{X_CLIENT_SOURCE, X_CLIENT_VERSION, X_PAYMENT_CONFIRM_SOURCE},
     services::authentication::get_header_value_by_key,
     types::{
         api::{self as api_types, routing as routing_types},
@@ -310,7 +312,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
 impl ForeignFrom<storage_enums::MandateAmountData> for payments::MandateAmountData {
     fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
         Self {
-            amount: from.amount,
+            amount: MinorUnit::new(from.amount),
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,
@@ -377,7 +379,7 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
 impl ForeignFrom<payments::MandateAmountData> for storage_enums::MandateAmountData {
     fn foreign_from(from: payments::MandateAmountData) -> Self {
         Self {
-            amount: from.amount,
+            amount: from.amount.get_amount_as_i64(),
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,
@@ -1012,7 +1014,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
         let payment_confirm_source: Option<api_enums::PaymentSource> =
-            get_header_value_by_key("payment_confirm_source".into(), headers)?
+            get_header_value_by_key(X_PAYMENT_CONFIRM_SOURCE.into(), headers)?
                 .map(|source| {
                     source
                         .to_owned()
@@ -1039,8 +1041,17 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
         let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
+
+        let client_source =
+            get_header_value_by_key(X_CLIENT_SOURCE.into(), headers)?.map(|val| val.to_string());
+
+        let client_version =
+            get_header_value_by_key(X_CLIENT_VERSION.into(), headers)?.map(|val| val.to_string());
+
         Ok(Self {
             payment_confirm_source,
+            client_source,
+            client_version,
             x_hs_latency: Some(x_hs_latency),
         })
     }

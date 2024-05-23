@@ -2,6 +2,7 @@ use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     pii,
+    types::MinorUnit,
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -74,13 +75,14 @@ pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub connector_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
@@ -119,7 +121,7 @@ pub struct PaymentIntentNew {
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
-        amount_captured: Option<i64>,
+        amount_captured: Option<MinorUnit>,
         return_url: Option<String>,
         updated_by: String,
         fingerprint_id: Option<String>,
@@ -149,7 +151,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     Update {
-        amount: i64,
+        amount: MinorUnit,
         currency: storage_enums::Currency,
         setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
@@ -164,6 +166,7 @@ pub enum PaymentIntentUpdate {
         statement_descriptor_suffix: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
+        frm_metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
         fingerprint_id: Option<String>,
@@ -196,19 +199,22 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
-        amount: i64,
+        amount: MinorUnit,
     },
     AuthorizationCountUpdate {
         authorization_count: i32,
+    },
+    CompleteAuthorizeUpdate {
+        shipping_address_id: Option<String>,
     },
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -237,6 +243,7 @@ pub struct PaymentIntentUpdateInternal {
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -263,6 +270,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -285,6 +293,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -418,6 +427,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 authorization_count,
             } => Self {
                 authorization_count: Some(authorization_count),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => Self {
+                shipping_address_id,
                 ..Default::default()
             },
         }

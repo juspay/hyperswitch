@@ -140,6 +140,7 @@ pub async fn create_payment_method(
                 last_modified: current_time,
                 last_used_at: current_time,
                 payment_method_billing_address,
+                updated_by: None,
             },
             storage_scheme,
         )
@@ -427,7 +428,7 @@ pub async fn add_payment_method_data(
                         pm_resp.payment_method_id.clone_from(&pm_id);
                         pm_resp.client_secret = Some(client_secret.clone());
 
-                        let card_isin = card.card_number.clone().get_card_isin();
+                        let card_isin = card.card_number.get_card_isin();
 
                         let card_info = db
                             .get_card_info(card_isin.as_str())
@@ -439,7 +440,7 @@ pub async fn add_payment_method_data(
                             issuer_country: card_info
                                 .as_ref()
                                 .and_then(|ci| ci.card_issuing_country.clone()),
-                            last4_digits: Some(card.card_number.clone().get_last4()),
+                            last4_digits: Some(card.card_number.get_last4()),
                             expiry_month: Some(card.card_exp_month),
                             expiry_year: Some(card.card_exp_year),
                             nick_name: card.nick_name,
@@ -644,7 +645,7 @@ pub async fn add_payment_method(
 
                     let updated_card = Some(api::CardDetailFromLocker {
                         scheme: None,
-                        last4_digits: Some(card.card_number.clone().get_last4()),
+                        last4_digits: Some(card.card_number.get_last4()),
                         issuer_country: None,
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
@@ -775,6 +776,14 @@ pub async fn update_customer_payment_method(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+        if let Some(cs) = &req.client_secret {
+            let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
+
+            if is_client_secret_expired {
+                return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
+            };
+        };
+
         if pm.status == enums::PaymentMethodStatus::AwaitingData {
             return Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Payment method is awaiting data so it cannot be updated".into()
@@ -849,18 +858,15 @@ pub async fn update_customer_payment_method(
                 payment_method_issuer: pm.payment_method_issuer.clone(),
                 payment_method_issuer_code: pm.payment_method_issuer_code,
                 #[cfg(feature = "payouts")]
-                bank_transfer: req.bank_transfer,
+                bank_transfer: None,
                 card: Some(updated_card_details.clone()),
                 #[cfg(feature = "payouts")]
-                wallet: req.wallet,
-                metadata: req.metadata,
+                wallet: None,
+                metadata: None,
                 customer_id: Some(pm.customer_id.clone()),
                 client_secret: pm.client_secret.clone(),
                 payment_method_data: None,
-                card_network: req
-                    .card_network
-                    .as_ref()
-                    .map(|card_network| card_network.to_string()),
+                card_network: None,
             };
             new_pm.validate()?;
 
@@ -889,7 +895,7 @@ pub async fn update_customer_payment_method(
             // Construct new updated card object. Consider a field if passed in request or else populate it with the existing value from existing_card_data
             let updated_card = Some(api::CardDetailFromLocker {
                 scheme: existing_card_data.scheme,
-                last4_digits: Some(card_data_from_locker.card_number.clone().get_last4()),
+                last4_digits: Some(card_data_from_locker.card_number.get_last4()),
                 issuer_country: existing_card_data.issuer_country,
                 card_number: existing_card_data.card_number,
                 expiry_month: card_update
@@ -2192,6 +2198,7 @@ pub async fn list_payment_methods(
     let mut bank_transfer_consolidated_hm =
         HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
+    // All the required fields will be stored here and later filtered out based on business profile config
     let mut required_fields_hm = HashMap::<
         api_enums::PaymentMethod,
         HashMap<api_enums::PaymentMethodType, HashMap<String, RequiredFieldInfo>>,
@@ -2230,6 +2237,31 @@ pub async fn list_payment_methods(
                                     }
                                 }
 
+                                let should_send_shipping_details =
+                                    business_profile.clone().and_then(|business_profile| {
+                                        business_profile
+                                            .collect_shipping_details_from_wallet_connector
+                                    });
+
+                                // Remove shipping fields from required fields based on business profile configuration
+                                if should_send_shipping_details != Some(true) {
+                                    let shipping_variants =
+                                        api_enums::FieldType::get_shipping_variants();
+
+                                    let keys_to_be_removed = required_fields_hs
+                                        .iter()
+                                        .filter(|(_key, value)| {
+                                            shipping_variants.contains(&value.field_type)
+                                        })
+                                        .map(|(key, _value)| key.to_string())
+                                        .collect::<Vec<_>>();
+
+                                    keys_to_be_removed.iter().for_each(|key_to_be_removed| {
+                                        required_fields_hs.remove(key_to_be_removed);
+                                    });
+                                }
+
+                                // get the config, check the enums while adding
                                 {
                                     for (key, val) in &mut required_fields_hs {
                                         let temp = req_val
@@ -2763,7 +2795,11 @@ pub async fn filter_payment_methods(
                         &payment_method_type_info,
                         req.installment_payment_enabled,
                     )
-                    && filter_amount_based(&payment_method_type_info, req.amount)
+                    && filter_amount_based(
+                        &payment_method_type_info,
+                        req.amount
+                            .map(|minor_amount| minor_amount.get_amount_as_i64()),
+                    )
                 {
                     let mut payment_method_object = payment_method_type_info;
 
@@ -3257,10 +3293,10 @@ fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
-    let amount = payment_intent.amount;
+    let amount = payment_intent.amount.get_amount_as_i64();
     (pm.maximum_amount.map_or(true, |amt| amount <= amt.into())
         && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
-        || payment_intent.amount == 0
+        || payment_intent.amount.get_amount_as_i64() == 0
 }
 
 async fn filter_payment_mandate_based(
@@ -3489,7 +3525,22 @@ pub async fn list_customer_payment_method(
         )
         .await
         .attach_printable("unable to decrypt payment method billing address details")?;
-
+        let connector_mandate_details = pm
+            .connector_mandate_details
+            .clone()
+            .map(|val| {
+                val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+        let mca_enabled = get_mca_status(
+            state,
+            &key_store,
+            &merchant_account.merchant_id,
+            connector_mandate_details,
+        )
+        .await?;
         // Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
@@ -3501,7 +3552,7 @@ pub async fn list_customer_payment_method(
             card: payment_method_retrieval_context.card_details,
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
-            recurring_enabled: false,
+            recurring_enabled: mca_enabled,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
@@ -3631,7 +3682,38 @@ pub async fn list_customer_payment_method(
 
     Ok(services::ApplicationResponse::Json(response))
 }
+pub async fn get_mca_status(
+    state: &routes::AppState,
+    key_store: &domain::MerchantKeyStore,
+    merchant_id: &str,
+    connector_mandate_details: Option<storage::PaymentsMandateReference>,
+) -> errors::RouterResult<bool> {
+    if let Some(connector_mandate_details) = connector_mandate_details {
+        let mcas = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                merchant_id,
+                true,
+                key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_id.to_string(),
+            })?;
+        let mut mca_ids = HashSet::new();
 
+        for mca in mcas {
+            mca_ids.insert(mca.merchant_connector_id);
+        }
+
+        for mca_id in connector_mandate_details.keys() {
+            if !mca_ids.contains(mca_id) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
 pub async fn decrypt_generic_data<T>(
     data: Option<Encryption>,
     key: &[u8],

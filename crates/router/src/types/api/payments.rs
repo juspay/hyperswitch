@@ -6,12 +6,13 @@ pub use api_models::payments::{
     PaymentListFilters, PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2,
     PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
-    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
-    PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+    PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest,
+    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
+    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
+    RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest, VerifyResponse,
+    WalletData,
 };
 use error_stack::ResultExt;
 
@@ -245,7 +246,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
-            amount: Some(Amount::from(200)),
+            amount: Some(Amount::from(common_utils::types::MinorUnit::new(200))),
             payment_method_data: Some(PaymentMethodDataRequest {
                 payment_method_data: Some(PaymentMethodData::Card(card())),
                 billing: None,

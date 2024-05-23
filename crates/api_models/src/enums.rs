@@ -273,6 +273,15 @@ pub enum AuthenticationConnectors {
     Gpayments,
 }
 
+impl AuthenticationConnectors {
+    pub fn is_separate_version_call_required(&self) -> bool {
+        match self {
+            Self::Threedsecureio | Self::Netcetera => false,
+            Self::Gpayments => true,
+        }
+    }
+}
+
 #[cfg(feature = "payouts")]
 #[derive(
     Clone,
@@ -422,6 +431,13 @@ pub enum FieldType {
     UserAddressPincode,
     UserAddressState,
     UserAddressCountry { options: Vec<String> },
+    UserShippingName,
+    UserShippingAddressLine1,
+    UserShippingAddressLine2,
+    UserShippingAddressCity,
+    UserShippingAddressPincode,
+    UserShippingAddressState,
+    UserShippingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
     Text,
@@ -438,6 +454,18 @@ impl FieldType {
             Self::UserAddressPincode,
             Self::UserAddressState,
             Self::UserAddressCountry { options: vec![] },
+        ]
+    }
+
+    pub fn get_shipping_variants() -> Vec<Self> {
+        vec![
+            Self::UserShippingName,
+            Self::UserShippingAddressLine1,
+            Self::UserShippingAddressLine2,
+            Self::UserShippingAddressCity,
+            Self::UserShippingAddressPincode,
+            Self::UserShippingAddressState,
+            Self::UserShippingAddressCountry { options: vec![] },
         ]
     }
 }
@@ -477,6 +505,15 @@ impl PartialEq for FieldType {
             (Self::UserAddressPincode, Self::UserAddressPincode) => true,
             (Self::UserAddressState, Self::UserAddressState) => true,
             (Self::UserAddressCountry { .. }, Self::UserAddressCountry { .. }) => true,
+            (Self::UserShippingName, Self::UserShippingName) => true,
+            (Self::UserShippingAddressLine1, Self::UserShippingAddressLine1) => true,
+            (Self::UserShippingAddressLine2, Self::UserShippingAddressLine2) => true,
+            (Self::UserShippingAddressCity, Self::UserShippingAddressCity) => true,
+            (Self::UserShippingAddressPincode, Self::UserShippingAddressPincode) => true,
+            (Self::UserShippingAddressState, Self::UserShippingAddressState) => true,
+            (Self::UserShippingAddressCountry { .. }, Self::UserShippingAddressCountry { .. }) => {
+                true
+            }
             (Self::UserBlikCode, Self::UserBlikCode) => true,
             (Self::UserBank, Self::UserBank) => true,
             (Self::Text, Self::Text) => true,
@@ -561,4 +598,9 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+#[cfg(feature = "frm")]
+pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
+    FrmConnectors::from_str(connector_name).ok()
 }

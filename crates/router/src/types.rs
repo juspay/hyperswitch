@@ -23,14 +23,27 @@ pub use api_models::{enums::Connector, mandates};
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
-use common_utils::{pii, pii::Email};
-use error_stack::ResultExt;
+use common_utils::{pii, pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+#[cfg(feature = "payouts")]
+pub use hyperswitch_domain_models::router_request_types::PayoutsData;
+pub use hyperswitch_domain_models::{
+    payment_address::PaymentAddress,
+    router_data::{
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
+        ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
+        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+    },
+    router_request_types::{
+        AcceptDisputeRequestData, AccessTokenRequestData, BrowserInformation,
+        DefendDisputeRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+    },
+};
 use masking::Secret;
-use serde::Serialize;
 
 use self::storage::enums as storage_enums;
-pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
+pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::missing_field_err,
@@ -40,10 +53,13 @@ use crate::{
     consts,
     core::{
         errors::{self},
-        payments::{types, PaymentData, RecurringMandatePaymentData},
+        payments::{types, PaymentData},
     },
     services,
-    types::{transformers::ForeignFrom, types::AuthenticationData},
+    types::{
+        transformers::{ForeignFrom, ForeignTryFrom},
+        types::AuthenticationData,
+    },
 };
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -266,139 +282,6 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
-
-#[derive(Debug, Clone)]
-pub struct RouterData<Flow, Request, Response> {
-    pub flow: PhantomData<Flow>,
-    pub merchant_id: String,
-    pub customer_id: Option<String>,
-    pub connector_customer: Option<String>,
-    pub connector: String,
-    pub payment_id: String,
-    pub attempt_id: String,
-    pub status: storage_enums::AttemptStatus,
-    pub payment_method: storage_enums::PaymentMethod,
-    pub connector_auth_type: ConnectorAuthType,
-    pub description: Option<String>,
-    pub return_url: Option<String>,
-    pub address: PaymentAddress,
-    pub auth_type: storage_enums::AuthenticationType,
-    pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub amount_captured: Option<i64>,
-    pub access_token: Option<AccessToken>,
-    pub session_token: Option<String>,
-    pub reference_id: Option<String>,
-    pub payment_method_token: Option<PaymentMethodToken>,
-    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
-    pub preprocessing_id: Option<String>,
-    /// This is the balance amount for gift cards or voucher
-    pub payment_method_balance: Option<PaymentMethodBalance>,
-
-    ///for switching between two different versions of the same connector
-    pub connector_api_version: Option<String>,
-
-    /// Contains flow-specific data required to construct a request and send it to the connector.
-    pub request: Request,
-
-    /// Contains flow-specific data that the connector responds with.
-    pub response: Result<Response, ErrorResponse>,
-
-    /// Contains a reference ID that should be sent in the connector request
-    pub connector_request_reference_id: String,
-
-    #[cfg(feature = "payouts")]
-    /// Contains payout method data
-    pub payout_method_data: Option<api::PayoutMethodData>,
-
-    #[cfg(feature = "payouts")]
-    /// Contains payout's quote ID
-    pub quote_id: Option<String>,
-
-    pub test_mode: Option<bool>,
-    pub connector_http_status_code: Option<u16>,
-    pub external_latency: Option<u128>,
-    /// Contains apple pay flow type simplified or manual
-    pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
-
-    pub frm_metadata: Option<serde_json::Value>,
-
-    pub dispute_id: Option<String>,
-    pub refund_id: Option<String>,
-
-    /// This field is used to store various data regarding the response from connector
-    pub connector_response: Option<ConnectorResponseData>,
-    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum AdditionalPaymentMethodConnectorResponse {
-    Card {
-        /// Details regarding the authentication details of the connector, if this is a 3ds payment.
-        authentication_data: Option<serde_json::Value>,
-        /// Various payment checks that are done for a payment
-        payment_checks: Option<serde_json::Value>,
-    },
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ConnectorResponseData {
-    pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
-}
-
-impl ConnectorResponseData {
-    pub fn with_additional_payment_method_data(
-        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
-    ) -> Self {
-        Self {
-            additional_payment_method_data: Some(additional_payment_method_data),
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-pub enum PaymentMethodToken {
-    Token(String),
-    ApplePayDecrypt(Box<ApplePayPredecryptData>),
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayPredecryptData {
-    pub application_primary_account_number: Secret<String>,
-    pub application_expiration_date: String,
-    pub currency_code: String,
-    pub transaction_amount: i64,
-    pub device_manufacturer_identifier: Secret<String>,
-    pub payment_data_type: Secret<String>,
-    pub payment_data: ApplePayCryptogramData,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayCryptogramData {
-    pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PaymentMethodBalance {
-    pub amount: i64,
-    pub currency: storage_enums::Currency,
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Debug, Clone)]
-pub struct PayoutsData {
-    pub payout_id: String,
-    pub amount: i64,
-    pub connector_payout_id: Option<String>,
-    pub destination_currency: storage_enums::Currency,
-    pub source_currency: storage_enums::Currency,
-    pub payout_type: storage_enums::PayoutType,
-    pub entity_type: storage_enums::PayoutEntityType,
-    pub customer_details: Option<CustomerDetails>,
-    pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
-}
 
 #[cfg(feature = "payouts")]
 pub trait PayoutIndividualDetailsExt {
@@ -645,13 +528,6 @@ pub struct SetupMandateRequestData {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AccessTokenRequestData {
-    pub app_id: Secret<String>,
-    pub id: Option<Secret<String>>,
-    // Add more keys if required
-}
-
 pub trait Capturable {
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -679,7 +555,7 @@ impl Capturable for PaymentsAuthorizeData {
         let final_amount = self
             .surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount);
+            .map(|surcharge_details| surcharge_details.final_amount.get_amount_as_i64());
         final_amount.or(Some(self.amount))
     }
 
@@ -712,7 +588,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -789,7 +665,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -804,7 +680,10 @@ impl Capturable for PaymentsCancelData {
         F: Clone,
     {
         // return previously captured amount
-        payment_data.payment_intent.amount_captured
+        payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64())
     }
     fn get_amount_capturable<F>(
         &self,
@@ -854,6 +733,7 @@ impl Capturable for PaymentsSyncData {
             .payment_attempt
             .amount_to_capture
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+            .map(|amt| amt.get_amount_as_i64())
     }
     fn get_amount_capturable<F>(
         &self,
@@ -876,12 +756,6 @@ pub struct AddAccessTokenResult {
     pub connector_supports_access_token: bool,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-pub struct AccessToken {
-    pub token: Secret<String>,
-    pub expires: i64,
-}
-
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
@@ -894,19 +768,19 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: storage_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
-        amount: Option<i64>,
+        amount: Option<MinorUnit>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
-        amount: Option<i64>,
+        amount: Option<MinorUnit>,
     },
 }
 
 impl CaptureSyncResponse {
-    pub fn get_amount_captured(&self) -> Option<i64> {
+    pub fn get_amount_captured(&self) -> Option<MinorUnit> {
         match self {
             Self::Success { amount, .. } | Self::Error { amount, .. } => *amount,
         }
@@ -981,60 +855,6 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
-pub enum ResponseId {
-    ConnectorTransactionId(String),
-    EncodedData(String),
-    #[default]
-    NoResponseId,
-}
-
-impl ResponseId {
-    pub fn get_connector_transaction_id(
-        &self,
-    ) -> errors::CustomResult<String, errors::ValidationError> {
-        match self {
-            Self::ConnectorTransactionId(txn_id) => Ok(txn_id.to_string()),
-            _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "connector_transaction_id",
-            })
-            .attach_printable("Expected connector transaction ID not found"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RefundsData {
-    pub refund_id: String,
-    pub connector_transaction_id: String,
-
-    pub connector_refund_id: Option<String>,
-    pub currency: storage_enums::Currency,
-    /// Amount for the payment against which this refund is issued
-    pub payment_amount: i64,
-    pub reason: Option<String>,
-    pub webhook_url: Option<String>,
-    /// Amount to be refunded
-    pub refund_amount: i64,
-    /// Arbitrary metadata required for refund
-    pub connector_metadata: Option<serde_json::Value>,
-    pub browser_info: Option<BrowserInformation>,
-}
-
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct BrowserInformation {
-    pub color_depth: Option<u8>,
-    pub java_enabled: Option<bool>,
-    pub java_script_enabled: Option<bool>,
-    pub language: Option<String>,
-    pub screen_height: Option<u32>,
-    pub screen_width: Option<u32>,
-    pub time_zone: Option<i32>,
-    pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: Option<String>,
-    pub user_agent: Option<String>,
-}
-
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
@@ -1049,13 +869,6 @@ pub enum Redirection {
 }
 
 #[derive(Debug, Clone)]
-pub struct VerifyWebhookSourceRequestData {
-    pub webhook_headers: actix_web::http::header::HeaderMap,
-    pub webhook_body: Vec<u8>,
-    pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
-}
-
-#[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceResponseData {
     pub verify_webhook_status: VerifyWebhookStatus,
 }
@@ -1066,58 +879,10 @@ pub enum VerifyWebhookStatus {
     SourceNotVerified,
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct AcceptDisputeRequestData {
-    pub dispute_id: String,
-    pub connector_dispute_id: String,
-}
-
 #[derive(Default, Clone, Debug)]
 pub struct AcceptDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct SubmitEvidenceRequestData {
-    pub dispute_id: String,
-    pub connector_dispute_id: String,
-    pub access_activity_log: Option<String>,
-    pub billing_address: Option<String>,
-    pub cancellation_policy: Option<Vec<u8>>,
-    pub cancellation_policy_provider_file_id: Option<String>,
-    pub cancellation_policy_disclosure: Option<String>,
-    pub cancellation_rebuttal: Option<String>,
-    pub customer_communication: Option<Vec<u8>>,
-    pub customer_communication_provider_file_id: Option<String>,
-    pub customer_email_address: Option<String>,
-    pub customer_name: Option<String>,
-    pub customer_purchase_ip: Option<String>,
-    pub customer_signature: Option<Vec<u8>>,
-    pub customer_signature_provider_file_id: Option<String>,
-    pub product_description: Option<String>,
-    pub receipt: Option<Vec<u8>>,
-    pub receipt_provider_file_id: Option<String>,
-    pub refund_policy: Option<Vec<u8>>,
-    pub refund_policy_provider_file_id: Option<String>,
-    pub refund_policy_disclosure: Option<String>,
-    pub refund_refusal_explanation: Option<String>,
-    pub service_date: Option<String>,
-    pub service_documentation: Option<Vec<u8>>,
-    pub service_documentation_provider_file_id: Option<String>,
-    pub shipping_address: Option<String>,
-    pub shipping_carrier: Option<String>,
-    pub shipping_date: Option<String>,
-    pub shipping_documentation: Option<Vec<u8>>,
-    pub shipping_documentation_provider_file_id: Option<String>,
-    pub shipping_tracking_number: Option<String>,
-    pub invoice_showing_distinct_transactions: Option<Vec<u8>>,
-    pub invoice_showing_distinct_transactions_provider_file_id: Option<String>,
-    pub recurring_transaction_agreement: Option<Vec<u8>>,
-    pub recurring_transaction_agreement_provider_file_id: Option<String>,
-    pub uncategorized_file: Option<Vec<u8>>,
-    pub uncategorized_file_provider_file_id: Option<String>,
-    pub uncategorized_text: Option<String>,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -1127,37 +892,15 @@ pub struct SubmitEvidenceResponse {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct DefendDisputeRequestData {
-    pub dispute_id: String,
-    pub connector_dispute_id: String,
-}
-
-#[derive(Default, Debug, Clone)]
 pub struct DefendDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct UploadFileRequestData {
-    pub file_key: String,
-    #[serde(skip)]
-    pub file: Vec<u8>,
-    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
-    pub file_type: mime::Mime,
-    pub file_size: i32,
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct UploadFileResponse {
     pub provider_file_id: String,
 }
-
-#[derive(Clone, Debug)]
-pub struct RetrieveFileRequestData {
-    pub provider_file_id: String,
-}
-
 #[derive(Clone, Debug)]
 pub struct RetrieveFileResponse {
     pub file_data: Vec<u8>,
@@ -1421,42 +1164,8 @@ pub enum AdditionalMerchantData {
     OpenBankingRecipientData(MerchantRecipientData),
 }
 
-// Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "auth_type")]
-pub enum ConnectorAuthType {
-    TemporaryAuth,
-    HeaderKey {
-        api_key: Secret<String>,
-    },
-    BodyKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-    },
-    SignatureKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        api_secret: Secret<String>,
-    },
-    MultiAuthKey {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        api_secret: Secret<String>,
-        key2: Secret<String>,
-    },
-    CurrencyAuthKey {
-        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
-    },
-    CertificateAuth {
-        certificate: Secret<String>,
-        private_key: Secret<String>,
-    },
-    #[default]
-    NoKey,
-}
-
-impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
-    fn from(value: api_models::admin::ConnectorAuthType) -> Self {
+impl ForeignFrom<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn foreign_from(value: api_models::admin::ConnectorAuthType) -> Self {
         match value {
             api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
             api_models::admin::ConnectorAuthType::HeaderKey { api_key } => {
@@ -1553,38 +1262,9 @@ pub struct Response {
     pub status_code: u16,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct ErrorResponse {
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub status_code: u16,
-    pub attempt_status: Option<storage_enums::AttemptStatus>,
-    pub connector_transaction_id: Option<String>,
-}
-
-impl ErrorResponse {
-    pub fn get_not_implemented() -> Self {
-        Self {
-            code: errors::ApiErrorResponse::NotImplemented {
-                message: errors::api_error_response::NotImplementedMessage::Default,
-            }
-            .error_code(),
-            message: errors::ApiErrorResponse::NotImplemented {
-                message: errors::api_error_response::NotImplementedMessage::Default,
-            }
-            .error_message(),
-            reason: None,
-            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            attempt_status: None,
-            connector_transaction_id: None,
-        }
-    }
-}
-
-impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
+impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
-    fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn foreign_try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
         match connector_auth {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 app_id: api_key,
@@ -1607,28 +1287,6 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
                 field_name: "connector_account_details",
             }),
         }
-    }
-}
-
-impl From<errors::ApiErrorResponse> for ErrorResponse {
-    fn from(error: errors::ApiErrorResponse) -> Self {
-        Self {
-            code: error.error_code(),
-            message: error.error_message(),
-            reason: None,
-            status_code: match error {
-                errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
-                _ => 500,
-            },
-            attempt_status: None,
-            connector_transaction_id: None,
-        }
-    }
-}
-
-impl Default for ErrorResponse {
-    fn default() -> Self {
-        Self::from(errors::ApiErrorResponse::InternalServerError)
     }
 }
 
@@ -1711,10 +1369,10 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
     }
 }
 
-impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
+impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
     for RouterData<F2, T2, PaymentsResponseData>
 {
-    fn from(item: (&RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
+    fn foreign_from(item: (&RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
         let data = item.0;
         let request = item.1;
         Self {
@@ -1764,12 +1422,12 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
 
 #[cfg(feature = "payouts")]
 impl<F1, F2>
-    From<(
+    ForeignFrom<(
         &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
         PayoutsData,
     )> for RouterData<F2, PayoutsData, PayoutsResponseData>
 {
-    fn from(
+    fn foreign_from(
         item: (
             &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
             PayoutsData,

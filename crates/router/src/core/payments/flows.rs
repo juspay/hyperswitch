@@ -21,7 +21,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -46,6 +46,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -2567,6 +2568,7 @@ macro_rules! default_imp_for_connector_authentication {
         $( impl api::ExternalAuthentication for $path::$connector {}
             impl api::ConnectorAuthentication for $path::$connector {}
             impl api::ConnectorPreAuthentication for $path::$connector {}
+            impl api::ConnectorPreAuthenticationVersionCall for $path::$connector {}
             impl api::ConnectorPostAuthentication for $path::$connector {}
             impl
             services::ConnectorIntegration<
@@ -2578,6 +2580,13 @@ macro_rules! default_imp_for_connector_authentication {
         impl
             services::ConnectorIntegration<
             api::PreAuthentication,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PreAuthenticationVersionCall,
             types::authentication::PreAuthNRequestData,
             types::authentication::AuthenticationResponseData,
         > for $path::$connector
@@ -2598,6 +2607,8 @@ impl<const T: u8> api::ExternalAuthentication for connector::DummyConnector<T> {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorPreAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPreAuthenticationVersionCall for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorPostAuthentication for connector::DummyConnector<T> {}
@@ -2615,6 +2626,15 @@ impl<const T: u8>
 impl<const T: u8>
     services::ConnectorIntegration<
         api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
         types::authentication::PreAuthNRequestData,
         types::authentication::AuthenticationResponseData,
     > for connector::DummyConnector<T>

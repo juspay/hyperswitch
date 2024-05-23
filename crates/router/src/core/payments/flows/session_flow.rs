@@ -16,7 +16,7 @@ use crate::{
     types::{
         self,
         api::{self, enums},
-        domain,
+        domain, storage,
     },
     utils::OptionExt,
 };
@@ -59,6 +59,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -68,8 +69,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
                 connector.connector_name.to_string(),
             )],
         );
-        self.decide_flow(state, connector, Some(true), call_connector_action)
-            .await
+        self.decide_flow(
+            state,
+            connector,
+            Some(true),
+            call_connector_action,
+            business_profile,
+        )
+        .await
     }
 
     async fn add_access_token<'a>(
@@ -115,36 +122,6 @@ fn is_dynamic_fields_required(
         .unwrap_or(false)
 }
 
-fn get_applepay_metadata(
-    connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
-) -> RouterResult<payment_types::ApplepaySessionTokenMetadata> {
-    connector_metadata
-        .clone()
-        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
-            "ApplepayCombinedSessionTokenData",
-        )
-        .map(|combined_metadata| {
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                combined_metadata.apple_pay_combined,
-            )
-        })
-        .or_else(|_| {
-            connector_metadata
-                .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                    "ApplepaySessionTokenData",
-                )
-                .map(|old_metadata| {
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
-                        old_metadata.apple_pay,
-                    )
-                })
-        })
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_metadata".to_string(),
-            expected_format: "applepay_metadata_format".to_string(),
-        })
-}
-
 fn build_apple_pay_session_request(
     state: &routes::AppState,
     request: payment_types::ApplepaySessionRequest,
@@ -173,6 +150,7 @@ async fn create_applepay_session_token(
     state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
@@ -188,7 +166,8 @@ async fn create_applepay_session_token(
         )
     } else {
         // Get the apple pay metadata
-        let apple_pay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
+        let apple_pay_metadata =
+            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?;
 
         // Get payment request data , apple pay session request and merchant keys
         let (
@@ -205,6 +184,8 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
+                    logger::info!("Apple pay simplified flow");
+
                     let merchant_identifier = state
                         .conf
                         .applepay_merchant_configs
@@ -246,6 +227,8 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
+                    logger::info!("Apple pay manual flow");
+
                     let apple_pay_session_request =
                         get_session_request_for_manual_apple_pay(session_token_data.clone());
 
@@ -261,6 +244,8 @@ async fn create_applepay_session_token(
                 }
             },
             payment_types::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
+                logger::info!("Apple pay manual flow");
+
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
                 );
@@ -286,17 +271,36 @@ async fn create_applepay_session_token(
 
         let billing_variants = enums::FieldType::get_billing_variants();
 
-        let required_billing_contact_fields = if is_dynamic_fields_required(
+        let required_billing_contact_fields = is_dynamic_fields_required(
             &state.conf.required_fields,
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
             &connector.connector_name,
             billing_variants,
-        ) {
-            Some(vec!["postalAddress".to_string()])
-        } else {
-            None
-        };
+        )
+        .then_some(payment_types::ApplePayBillingContactFields(vec![
+            payment_types::ApplePayAddressParameters::PostalAddress,
+        ]));
+
+        let required_shipping_contact_fields =
+            if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
+                let shipping_variants = enums::FieldType::get_shipping_variants();
+
+                is_dynamic_fields_required(
+                    &state.conf.required_fields,
+                    enums::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::ApplePay,
+                    &connector.connector_name,
+                    shipping_variants,
+                )
+                .then_some(payment_types::ApplePayShippingContactFields(vec![
+                    payment_types::ApplePayAddressParameters::PostalAddress,
+                    payment_types::ApplePayAddressParameters::Phone,
+                    payment_types::ApplePayAddressParameters::Email,
+                ]))
+            } else {
+                None
+            };
 
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
@@ -306,6 +310,7 @@ async fn create_applepay_session_token(
             apple_pay_session_request.merchant_identifier.as_str(),
             merchant_business_country,
             required_billing_contact_fields,
+            required_shipping_contact_fields,
         )?;
 
         let applepay_session_request = build_apple_pay_session_request(
@@ -406,7 +411,8 @@ fn get_apple_pay_payment_request(
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
     merchant_business_country: Option<api_models::enums::CountryAlpha2>,
-    required_billing_contact_fields: Option<Vec<String>>,
+    required_billing_contact_fields: Option<payment_types::ApplePayBillingContactFields>,
+    required_shipping_contact_fields: Option<payment_types::ApplePayShippingContactFields>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
         country_code: merchant_business_country.or(session_data.country).ok_or(
@@ -420,6 +426,7 @@ fn get_apple_pay_payment_request(
         supported_networks: Some(payment_request_data.supported_networks),
         merchant_identifier: Some(merchant_identifier.to_string()),
         required_billing_contact_fields,
+        required_shipping_contact_fields,
     };
     Ok(applepay_payment_request)
 }
@@ -463,6 +470,7 @@ fn create_gpay_session_token(
     state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
@@ -546,6 +554,21 @@ fn create_gpay_session_token(
                 })?,
         };
 
+        let required_shipping_contact_fields =
+            if business_profile.collect_shipping_details_from_wallet_connector == Some(true) {
+                let shipping_variants = enums::FieldType::get_shipping_variants();
+
+                is_dynamic_fields_required(
+                    &state.conf.required_fields,
+                    enums::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::GooglePay,
+                    &connector.connector_name,
+                    shipping_variants,
+                )
+            } else {
+                false
+            };
+
         Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: payment_types::SessionToken::GooglePay(Box::new(
@@ -560,6 +583,12 @@ fn create_gpay_session_token(
                             },
                             delayed_session_token: false,
                             secrets: None,
+                            shipping_address_required: required_shipping_contact_fields,
+                            email_required: required_shipping_contact_fields,
+                            shipping_address_parameters:
+                                api_models::payments::GpayShippingAddressParameters {
+                                    phone_number_required: required_shipping_contact_fields,
+                                },
                         },
                     ),
                 )),
@@ -590,18 +619,37 @@ fn log_session_response_if_error(
         .map(|res| res.as_ref().map_err(|error| logger::error!(?error)));
 }
 
-impl types::PaymentsSessionRouterData {
-    pub async fn decide_flow<'a, 'b>(
+#[async_trait]
+pub trait RouterDataSession
+where
+    Self: Sized,
+{
+    async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        business_profile: &storage::business_profile::BusinessProfile,
+    ) -> RouterResult<Self>;
+}
+
+#[async_trait]
+impl RouterDataSession for types::PaymentsSessionRouterData {
+    async fn decide_flow<'a, 'b>(
+        &'b self,
+        state: &'a routes::AppState,
+        connector: &api::ConnectorData,
+        _confirm: Option<bool>,
+        call_connector_action: payments::CallConnectorAction,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         match connector.get_token {
-            api::GetToken::GpayMetadata => create_gpay_session_token(state, self, connector),
+            api::GetToken::GpayMetadata => {
+                create_gpay_session_token(state, self, connector, business_profile)
+            }
             api::GetToken::ApplePayMetadata => {
-                create_applepay_session_token(state, self, connector).await
+                create_applepay_session_token(state, self, connector, business_profile).await
             }
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedConnectorIntegration<

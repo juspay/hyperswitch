@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use masking::Secret;
-use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self,api, storage::enums}};
+use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self, domain, api, storage::enums}};
 
 //TODO: Fill the struct with respective fields
 pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
@@ -53,7 +53,7 @@ impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::Paymen
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self,Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let card = {{project-name | downcase | pascal_case}}Card {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
@@ -140,7 +140,7 @@ incremental_authorization_allowed: None,
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct {{project-name | downcase | pascal_case}}RefundRequest {
-    pub amount: i64
+    pub amount: MinorUnit
 }
 
 impl<F> TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::RefundsRouterData<F>>> for {{project-name | downcase | pascal_case}}RefundRequest {

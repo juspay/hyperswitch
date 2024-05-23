@@ -111,7 +111,7 @@ where
                     .to_owned()
                     .get_required_value("payment_token")?;
                 let token = match tokens {
-                    types::PaymentMethodToken::Token(connector_token) => connector_token,
+                    types::PaymentMethodToken::Token(connector_token) => connector_token.expose(),
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ApiErrorResponse::NotSupported {
                             message: "Apple Pay Decrypt token is not supported".to_string(),
@@ -470,7 +470,7 @@ where
 
                                 let updated_card = Some(CardDetailFromLocker {
                                     scheme: None,
-                                    last4_digits: Some(card.card_number.clone().get_last4()),
+                                    last4_digits: Some(card.card_number.get_last4()),
                                     issuer_country: None,
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),

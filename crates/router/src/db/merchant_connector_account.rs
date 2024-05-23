@@ -427,6 +427,9 @@ impl MerchantConnectorAccountInterface for Store {
                     cache::CacheKind::Accounts(
                         format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
                     ),
+                    cache::CacheKind::CGraph(
+                        format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
+                    ),
                 ],
                 update_call,
             )
@@ -475,9 +478,16 @@ impl MerchantConnectorAccountInterface for Store {
                 "profile_id".to_string(),
             ))?;
 
-            super::cache::publish_and_redact(
+            super::cache::publish_and_redact_multiple(
                 self,
-                cache::CacheKind::Accounts(format!("{}_{}", mca.merchant_id, _profile_id).into()),
+                [
+                    cache::CacheKind::Accounts(
+                        format!("{}_{}", mca.merchant_id, _profile_id).into(),
+                    ),
+                    cache::CacheKind::CGraph(
+                        format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                    ),
+                ],
                 delete_call,
             )
             .await

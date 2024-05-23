@@ -36,7 +36,7 @@ Check the Table Of Contents to jump to the relevant section.
 2. Clone the repository and switch to the project directory:
 
    ```shell
-   git clone https://github.com/juspay/hyperswitch
+   git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
    cd hyperswitch
    ```
 
@@ -51,13 +51,13 @@ Check the Table Of Contents to jump to the relevant section.
    docker compose up -d
    ```
 
-   This should run the hyperswitch payments router, the primary component within
-   hyperswitch.
+   This should run the hyperswitch app server, web client and control center.
    Wait for the `migration_runner` container to finish installing `diesel_cli`
-   and running migrations (approximately 2 minutes) before proceeding further.
+   and running migrations (approximately 2 minutes), and for the
+   `hyperswitch-web` container to finish compiling before proceeding further.
    You can also choose to
    [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
-   in addition to the payments router.
+   in addition to the app server, web client and control center.
 
 5. Verify that the server is up and running by hitting the health endpoint:
 

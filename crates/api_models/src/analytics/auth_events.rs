@@ -25,6 +25,7 @@ pub enum AuthEventMetrics {
     AuthenticationSuccessCount,
     ChallengeFlowCount,
     FrictionlessFlowCount,
+    FrictionlessSuccessCount,
     ChallengeAttemptCount,
     ChallengeSuccessCount,
 }
@@ -42,7 +43,8 @@ pub enum AuthEventMetrics {
     strum::AsRefStr,
 )]
 pub enum AuthEventFlows {
-    PostAuthentication,
+    IncomingWebhookReceive,
+    PaymentsExternalAuthentication,
 }
 
 pub mod metric_behaviour {
@@ -51,6 +53,7 @@ pub mod metric_behaviour {
     pub struct AuthenticationSuccessCount;
     pub struct ChallengeFlowCount;
     pub struct FrictionlessFlowCount;
+    pub struct FrictionlessSuccessCount;
     pub struct ChallengeAttemptCount;
     pub struct ChallengeSuccessCount;
 }
@@ -100,6 +103,7 @@ pub struct AuthEventMetricsBucketValue {
     pub challenge_attempt_count: Option<u64>,
     pub challenge_success_count: Option<u64>,
     pub frictionless_flow_count: Option<u64>,
+    pub frictionless_success_count: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]

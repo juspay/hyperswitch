@@ -2,7 +2,7 @@ use error_stack::ResultExt;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::logger;
 
-use crate::redis::cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE};
+use crate::redis::cache::{CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, ROUTING_CACHE};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
@@ -60,16 +60,26 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
             let key = match key {
                 CacheKind::Config(key) => {
-                    CONFIG_CACHE.invalidate(key.as_ref()).await;
+                    CONFIG_CACHE.remove(key.as_ref()).await;
                     key
                 }
                 CacheKind::Accounts(key) => {
-                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
+                    key
+                }
+                CacheKind::CGraph(key) => {
+                    CGRAPH_CACHE.remove(key.as_ref()).await;
+                    key
+                }
+                CacheKind::Routing(key) => {
+                    ROUTING_CACHE.remove(key.as_ref()).await;
                     key
                 }
                 CacheKind::All(key) => {
-                    CONFIG_CACHE.invalidate(key.as_ref()).await;
-                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    CONFIG_CACHE.remove(key.as_ref()).await;
+                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
+                    CGRAPH_CACHE.remove(key.as_ref()).await;
+                    ROUTING_CACHE.remove(key.as_ref()).await;
                     key
                 }
             };
