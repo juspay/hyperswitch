@@ -72,6 +72,10 @@ pub enum UserErrors {
     InvalidTotp,
     #[error("TotpRequired")]
     TotpRequired,
+    #[error("TwoFactorAuthRequired")]
+    TwoFactorAuthRequired,
+    #[error("TwoFactorAuthNotSetup")]
+    TwoFactorAuthNotSetup,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -184,6 +188,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::TotpRequired => {
                 AER::BadRequest(ApiError::new(sub_code, 38, self.get_error_message(), None))
             }
+            Self::TwoFactorAuthRequired => {
+                AER::BadRequest(ApiError::new(sub_code, 39, self.get_error_message(), None))
+            }
+            Self::TwoFactorAuthNotSetup => {
+                AER::BadRequest(ApiError::new(sub_code, 40, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -223,6 +233,8 @@ impl UserErrors {
             Self::TotpNotSetup => "TOTP not setup",
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
+            Self::TwoFactorAuthRequired => "Two factor auth required",
+            Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
         }
     }
 }

@@ -18,6 +18,7 @@ pub enum AuthenticationResponseData {
         three_ds_method_url: Option<String>,
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
+        directory_server_id: Option<String>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,

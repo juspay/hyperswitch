@@ -225,6 +225,11 @@ pub struct TokenOnlyQueryParam {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkipTwoFactorAuthQueryParam {
+    pub skip_two_factor_auth: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TokenResponse {
     pub token: Secret<String>,
     pub token_type: TokenPurpose,

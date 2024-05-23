@@ -34,9 +34,3 @@ impl ApiEventMetric for FraudCheckResponseData {
         Some(ApiEventsType::FraudCheck)
     }
 }
-
-impl ApiEventMetric for frm_core::types::FrmFulfillmentRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::FraudCheck)
-    }
-}
