@@ -3891,17 +3891,30 @@ pub fn validate_customer_access(
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
-    let apple_pay_metadata = get_applepay_metadata(connector_metadata)?;
+    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
+        .map_err(|err| {
+            logger::info!(
+                "Apple pay metadata parsing in is_apple_pay_simplified_flow {:?}",
+                err
+            )
+        })
+        .ok();
 
-    Ok(match apple_pay_metadata {
-        api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-            apple_pay_combined_metadata,
-        ) => match apple_pay_combined_metadata {
-            api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => true,
-            api_models::payments::ApplePayCombinedMetadata::Manual { .. } => false,
+    Ok(
+        if let Some(apple_pay_metadata) = option_apple_pay_metadata {
+            match apple_pay_metadata {
+                api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                    apple_pay_combined_metadata,
+                ) => match apple_pay_combined_metadata {
+                    api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => true,
+                    api_models::payments::ApplePayCombinedMetadata::Manual { .. } => false,
+                },
+                api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => false,
+            }
+        } else {
+            false
         },
-        api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => false,
-    })
+    )
 }
 
 pub fn get_applepay_metadata(
@@ -3965,6 +3978,8 @@ where
     )
     .await?
     .get_metadata();
+
+    println!("aaa {:?}", merchant_connector_account);
 
     let connector_data_list = if is_apple_pay_simplified_flow(merchant_connector_account)? {
         let merchant_connector_account_list = state
