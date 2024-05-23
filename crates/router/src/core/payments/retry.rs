@@ -150,7 +150,7 @@ where
                 }
                 api_models::gsm::GsmDecision::Requeue => {
                     Err(report!(errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                        message: errors::NotImplementedMessage::Reason(
                             "Requeue not implemented".to_string(),
                         ),
                     }))?

@@ -34,10 +34,11 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::{
+pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
     router_data::RouterData,
+    router_request_types::CustomerDetails,
 };
 use masking::{ExposeInterface, Secret};
 use redis_interface::errors::RedisError;
@@ -2486,15 +2487,6 @@ pub struct IncrementalAuthorizationDetails {
     pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct CustomerDetails {
-    pub customer_id: Option<String>,
-    pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
-    pub phone_country_code: Option<String>,
 }
 
 pub trait CustomerDetailsExt {
