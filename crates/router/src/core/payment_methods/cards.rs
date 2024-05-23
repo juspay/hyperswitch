@@ -1889,13 +1889,6 @@ pub async fn list_payment_methods(
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     // Key creation for storing PM_FILTER_CGRAPH
     if let Ok(profile_id) = profile_id.clone().get_required_value("profile_id") {
-        #[cfg(feature = "business_profile_routing")]
-        let key = format!(
-            "pm_filters_cgraph_{}_{}",
-            &merchant_account.merchant_id, profile_id
-        );
-
-        #[cfg(not(feature = "business_profile_routing"))]
         let key = format!(
             "pm_filters_cgraph_{}_{}",
             &merchant_account.merchant_id, profile_id
@@ -1969,9 +1962,7 @@ pub async fn list_payment_methods(
                 )
                 .await?;
             }
-            if let Err(err) = refresh_pm_filters_cache(&key, graph).await {
-                logger::error!("Error in refreshing PM Filters Cgraph ?{err}");
-            }
+            let _ = refresh_pm_filters_cache(&key, graph).await;
         }
     } else {
         // No Profile id found
