@@ -2963,6 +2963,10 @@ pub struct ThreeDsData {
     pub three_ds_method_details: ThreeDsMethodData,
     /// Poll config for a connector
     pub poll_config: PollConfigResponse,
+    /// Message Version
+    pub message_version: Option<String>,
+    /// Directory Server ID
+    pub directory_server_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
