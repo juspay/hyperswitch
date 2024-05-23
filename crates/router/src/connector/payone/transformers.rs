@@ -8,7 +8,10 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::connector::utils::{get_unimplemented_payment_method_error_message, CardIssuer};
+use crate::connector::{
+    utils,
+    utils::{get_unimplemented_payment_method_error_message, CardIssuer},
+};
 
 #[cfg(feature = "payouts")]
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -54,13 +57,21 @@ pub struct ErrorResponse {
     pub error_id: Option<i32>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SubError {
     pub code: String,
     pub message: String,
     pub http_status_code: u16,
 }
 
+impl From<SubError> for utils::ErrorCodeAndMessage {
+    fn from(error: SubError) -> Self {
+        Self {
+            error_code: error.code.to_string(),
+            error_message: error.code.to_string(),
+        }
+    }
+}
 // Auth Struct
 pub struct PayoneAuthType {
     pub(super) api_key: Secret<String>,

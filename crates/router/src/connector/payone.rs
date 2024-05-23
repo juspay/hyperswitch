@@ -18,6 +18,10 @@ use crate::services;
 use crate::utils::get_formatted_date_time;
 use crate::{
     configs::settings,
+    connector::{
+        utils as connector_utils,
+        utils::{ConnectorErrorType, ConnectorErrorTypeMapping},
+    },
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -167,32 +171,36 @@ impl ConnectorCommon for Payone {
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
+        let errors_list = response.errors.clone().unwrap_or_default();
+        let option_error_code_message =
+            connector_utils::get_error_code_error_message_based_on_priority(
+                Self.clone(),
+                errors_list
+                    .into_iter()
+                    .map(|errors| errors.into())
+                    .collect(),
+            );
         match response.errors {
-            Some(errors) => {
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code:errors
+            Some(errors) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: option_error_code_message
+                    .clone()
+                    .map(|error_code_message| error_code_message.error_code)
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: option_error_code_message
+                    .clone()
+                    .map(|error_code_message| error_code_message.error_code)
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                reason: Some(
+                    errors
                         .iter()
-                        .map(|error| format!("{} ", error.code))
+                        .map(|error| format!("{} : {}", error.code, error.message))
                         .collect::<Vec<String>>()
                         .join(", "),
-                    message: errors
-                        .iter()
-                        .map(|error| format!("{} ", error.code))
-                        .collect::<Vec<String>>()
-                        .join(", "),
-                    reason: Some(
-                        errors
-                            .iter()
-                            .map(|error| format!("{} : {}", error.code, error.message))
-                            .collect::<Vec<String>>()
-                            .join(", "),
-                    ),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                })
-            }
+                ),
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
             None => Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),
@@ -365,5 +373,49 @@ impl api::IncomingWebhook for Payone {
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+impl ConnectorErrorTypeMapping for Payone {
+    fn get_connector_error_type(
+        &self,
+        error_code: String,
+        _error_message: String,
+    ) -> ConnectorErrorType {
+        match error_code.as_str() {
+            "30001101" => ConnectorErrorType::BusinessError,
+            "30001100" => ConnectorErrorType::BusinessError,
+            "30001102" => ConnectorErrorType::BusinessError,
+            "30001104" => ConnectorErrorType::BusinessError,
+            "30001105" => ConnectorErrorType::BusinessError,
+            "30001106" => ConnectorErrorType::TechnicalError,
+            "30001120" => ConnectorErrorType::BusinessError,
+            "30001130" => ConnectorErrorType::BusinessError,
+            "30001140" => ConnectorErrorType::BusinessError,
+            "30001141" => ConnectorErrorType::BusinessError,
+            "30001142" => ConnectorErrorType::BusinessError,
+            "30001143" => ConnectorErrorType::BusinessError,
+            "30001158" => ConnectorErrorType::UserError,
+            "30001180" => ConnectorErrorType::TechnicalError,
+            "30031001" => ConnectorErrorType::UserError,
+            "30041001" => ConnectorErrorType::UserError,
+            "30051001" => ConnectorErrorType::BusinessError,
+            "30141001" => ConnectorErrorType::UserError,
+            "30431001" => ConnectorErrorType::UserError,
+            "30511001" => ConnectorErrorType::UserError,
+            "30581001" => ConnectorErrorType::UserError,
+            "30591001" => ConnectorErrorType::BusinessError,
+            "30621001" => ConnectorErrorType::BusinessError,
+            "30921001" => ConnectorErrorType::TechnicalError,
+            "40001134" => ConnectorErrorType::BusinessError,
+            "40001135" => ConnectorErrorType::BusinessError,
+            "50001081" => ConnectorErrorType::TechnicalError,
+            "40001137" => ConnectorErrorType::TechnicalError,
+            "40001138" => ConnectorErrorType::TechnicalError,
+            "40001139" => ConnectorErrorType::UserError,
+            "50001054" => ConnectorErrorType::TechnicalError,
+            "50001087" => ConnectorErrorType::TechnicalError,
+            _ => ConnectorErrorType::UnknownError,
+        }
     }
 }
