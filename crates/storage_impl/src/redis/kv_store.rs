@@ -1,12 +1,13 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use diesel_models::enums::MerchantStorageScheme;
 use error_stack::report;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
-use diesel_models::enums::MerchantStorageScheme;
+
 use crate::{metrics, store::kv::TypedSql, KVRouterStore, UniqueConstraints};
 
 pub trait KvStorePartition {
@@ -237,18 +238,20 @@ where
         })
 }
 
-pub enum Op<'a>{
+pub enum Op<'a> {
     Insert,
     Update(PartitionKey<'a>, &'a str, Option<&'a str>),
     Find,
 }
 
 impl<'a> std::fmt::Display for Op<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result{
-        match self{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
             Op::Insert => f.write_str("insert"),
             Op::Find => f.write_str("find"),
-            Op::Update(p_key, _, updated_by) => f.write_str(&format!("update_{} for updated_by_{:?}", p_key, updated_by)),
+            Op::Update(p_key, _, updated_by) => {
+                f.write_str(&format!("update_{} for updated_by_{:?}", p_key, updated_by))
+            }
         }
     }
 }
@@ -259,8 +262,13 @@ pub async fn decide_storage_scheme<'a, T, D>(
     operation: Op<'a>,
 ) -> MerchantStorageScheme
 where
-    D : de::DeserializeOwned + serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
-    T : crate::database::store::DatabaseStore,
+    D: de::DeserializeOwned
+        + serde::Serialize
+        + Debug
+        + KvStorePartition
+        + UniqueConstraints
+        + Sync,
+    T: crate::database::store::DatabaseStore,
 {
     if store.soft_kill_mode {
         let ops = operation.to_string();
@@ -275,7 +283,7 @@ where
                     Ok(_) => {
                         metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(&metrics::CONTEXT, 1, &[]);
                         MerchantStorageScheme::RedisKv
-                    },
+                    }
                     Err(_) => MerchantStorageScheme::PostgresOnly,
                 }
             }
@@ -285,12 +293,9 @@ where
 
         let type_name = std::any::type_name::<D>();
         logger::info!(soft_kill_mode = "decide_storage_scheme", decided_scheme = %updated_scheme, configured_scheme = %storage_scheme,entity = %type_name, operation = %ops);
-    
+
         updated_scheme
-    }
-    else {
+    } else {
         storage_scheme
     }
-    
-    
 }

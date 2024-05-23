@@ -22,11 +22,11 @@ pub struct CustomerNew {
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
-    pub updated_by : Option<String>,
+    pub updated_by: Option<String>,
 }
 
-impl CustomerNew{
-    pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme){
+impl CustomerNew {
+    pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
@@ -48,7 +48,7 @@ impl From<CustomerNew> for Customer {
             modified_at: customer_new.modified_at,
             address_id: customer_new.address_id,
             default_payment_method_id: None,
-            updated_by : customer_new.updated_by
+            updated_by: customer_new.updated_by,
         }
     }
 }
@@ -70,7 +70,7 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
-    pub updated_by : Option<String>,
+    pub updated_by: Option<String>,
 }
 
 #[derive(

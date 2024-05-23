@@ -57,7 +57,9 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey, Op, decide_storage_scheme};
+    use storage_impl::redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    };
 
     use super::MandateInterface;
     use crate::{
@@ -88,7 +90,9 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Find).await;
+            let storage_scheme =
+                decide_storage_scheme::<_, diesel_models::Mandate>(self, storage_scheme, Op::Find)
+                    .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -132,7 +136,9 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Find).await;
+            let storage_scheme =
+                decide_storage_scheme::<_, diesel_models::Mandate>(self, storage_scheme, Op::Find)
+                    .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -192,7 +198,12 @@ mod storage {
                 mandate_id,
             };
             let field = format!("mandate_{}", mandate_id);
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Update(key.clone(), &field,mandate.updated_by.as_deref())).await;
+            let storage_scheme = decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Update(key.clone(), &field, mandate.updated_by.as_deref()),
+            )
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     storage_types::Mandate::update_by_merchant_id_mandate_id(
@@ -275,7 +286,12 @@ mod storage {
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            let storage_scheme = decide_storage_scheme::<_,diesel_models::Mandate>(self,storage_scheme, Op::Insert).await;
+            let storage_scheme = decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Insert,
+            )
+            .await;
             mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => mandate
@@ -612,7 +628,7 @@ impl MandateInterface for MockDb {
             metadata: mandate_new.metadata,
             connector_mandate_ids: mandate_new.connector_mandate_ids,
             merchant_connector_id: mandate_new.merchant_connector_id,
-            updated_by : mandate_new.updated_by,
+            updated_by: mandate_new.updated_by,
         };
         mandates.push(mandate.clone());
         Ok(mandate)
