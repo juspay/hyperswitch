@@ -4,6 +4,7 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::RouterData,
     core::errors,
     types::{self, storage::enums},
 };
@@ -36,12 +37,12 @@ impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for Klarna
 pub struct KlarnaPaymentsRequest {
     order_lines: Vec<OrderLines>,
     order_amount: i64,
-    purchase_country: String,
+    purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
-    merchant_reference1: String,
+    merchant_reference1: Option<String>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
@@ -50,9 +51,8 @@ pub struct KlarnaPaymentsResponse {
 #[derive(Debug, Serialize)]
 pub struct KlarnaSessionRequest {
     intent: KlarnaSessionIntent,
-    purchase_country: String,
+    purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
-    locale: String,
     order_amount: i64,
     order_lines: Vec<OrderLines>,
 }
@@ -70,15 +70,18 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
                 intent: KlarnaSessionIntent::Buy,
-                purchase_country: "US".to_string(),
+                purchase_country: request.country.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "purchase_country",
+                    },
+                )?,
                 purchase_currency: request.currency,
                 order_amount: request.amount,
-                locale: "en-US".to_string(),
                 order_lines: order_details
                     .iter()
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
-                        quantity: data.quantity,
+                        quantity: i64::from(data.quantity),
                         unit_price: data.amount,
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
@@ -122,19 +125,19 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         let request = &item.router_data.request;
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
-                purchase_country: "US".to_string(),
+                purchase_country: item.router_data.get_billing_country()?,
                 purchase_currency: request.currency,
                 order_amount: request.amount,
                 order_lines: order_details
                     .iter()
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
-                        quantity: data.quantity,
+                        quantity: i64::from(data.quantity),
                         unit_price: data.amount,
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
                     .collect(),
-                merchant_reference1: item.router_data.connector_request_reference_id.clone(),
+                merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name"
@@ -167,10 +170,11 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
         })
     }
 }
+
 #[derive(Debug, Serialize)]
 pub struct OrderLines {
     name: String,
-    quantity: u16,
+    quantity: i64,
     unit_price: i64,
     total_amount: i64,
 }
@@ -201,11 +205,10 @@ impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum KlarnaFraudStatus {
     Accepted,
-    #[default]
     Pending,
 }
 
