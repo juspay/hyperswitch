@@ -1,4 +1,3 @@
-pub mod api_error_response;
 pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
@@ -11,7 +10,10 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use diesel_models::errors as storage_errors;
-pub use hyperswitch_domain_models::errors::StorageError as DataStorageError;
+pub use hyperswitch_domain_models::errors::{
+    api_error_response::{ApiErrorResponse, ErrorType, NotImplementedMessage},
+    StorageError as DataStorageError,
+};
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;
@@ -19,7 +21,6 @@ use storage_impl::errors as storage_impl_errors;
 pub use user::*;
 
 pub use self::{
-    api_error_response::{ApiErrorResponse, NotImplementedMessage},
     customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,

@@ -43,6 +43,15 @@ pub async fn check_totp_in_redis(state: &AppState, user_id: &str) -> UserResult<
         .change_context(UserErrors::InternalServerError)
 }
 
+pub async fn check_recovery_code_in_redis(state: &AppState, user_id: &str) -> UserResult<bool> {
+    let redis_conn = get_redis_connection(state)?;
+    let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODES_PREFIX, user_id);
+    redis_conn
+        .exists::<()>(&key)
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
+
 fn get_redis_connection(state: &AppState) -> UserResult<Arc<RedisConnectionPool>> {
     state
         .store

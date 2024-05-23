@@ -30,6 +30,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -57,6 +58,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_country: intent.business_country,
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
+            payment_confirm_source: intent.payment_confirm_source,
         }
     }
 }

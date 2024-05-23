@@ -679,3 +679,23 @@ pub async fn generate_recovery_codes(state: web::Data<AppState>, req: HttpReques
     ))
     .await
 }
+
+pub async fn terminate_two_factor_auth(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::SkipTwoFactorAuthQueryParam>,
+) -> HttpResponse {
+    let flow = Flow::TerminateTwoFactorAuth;
+    let skip_two_factor_auth = query.into_inner().skip_two_factor_auth.unwrap_or(false);
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::terminate_two_factor_auth(state, user, skip_two_factor_auth),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
