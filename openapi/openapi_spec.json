@@ -18340,6 +18340,16 @@
           },
           "poll_config": {
             "$ref": "#/components/schemas/PollConfigResponse"
+          },
+          "message_version": {
+            "type": "string",
+            "description": "Message Version",
+            "nullable": true
+          },
+          "directory_server_id": {
+            "type": "string",
+            "description": "Directory Server ID",
+            "nullable": true
           }
         }
       },

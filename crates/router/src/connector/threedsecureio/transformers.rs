@@ -108,6 +108,7 @@ impl
                         )
                         .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_metadata: Some(connector_metadata),
+                        directory_server_id: None,
                     },
                 )
             }

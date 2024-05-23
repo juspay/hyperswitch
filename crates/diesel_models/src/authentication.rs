@@ -43,6 +43,7 @@ pub struct Authentication {
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
     pub ds_trans_id: Option<String>,
+    pub directory_server_id: Option<String>,
 }
 
 impl Authentication {
@@ -88,6 +89,7 @@ pub struct AuthenticationNew {
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
     pub ds_trans_id: Option<String>,
+    pub directory_server_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -103,6 +105,7 @@ pub enum AuthenticationUpdate {
         authentication_status: common_enums::AuthenticationStatus,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        directory_server_id: Option<String>,
     },
     AuthenticationUpdate {
         authentication_value: Option<String>,
@@ -163,6 +166,7 @@ pub struct AuthenticationUpdateInternal {
     pub acs_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
     pub ds_trans_id: Option<String>,
+    pub directory_server_id: Option<String>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -194,6 +198,7 @@ impl Default for AuthenticationUpdateInternal {
             acs_trans_id: Default::default(),
             acs_signed_content: Default::default(),
             ds_trans_id: Default::default(),
+            directory_server_id: Default::default(),
         }
     }
 }
@@ -227,6 +232,7 @@ impl AuthenticationUpdateInternal {
             acs_trans_id,
             acs_signed_content,
             ds_trans_id,
+            directory_server_id,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -259,6 +265,7 @@ impl AuthenticationUpdateInternal {
             acs_trans_id: acs_trans_id.or(source.acs_trans_id),
             acs_signed_content: acs_signed_content.or(source.acs_signed_content),
             ds_trans_id: ds_trans_id.or(source.ds_trans_id),
+            directory_server_id: directory_server_id.or(source.directory_server_id),
             ..source
         }
     }
@@ -311,6 +318,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status,
                 acquirer_bin,
                 acquirer_merchant_id,
+                directory_server_id,
             } => Self {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 maximum_supported_version: Some(maximum_supported_3ds_version),
@@ -322,6 +330,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status: Some(authentication_status),
                 acquirer_bin,
                 acquirer_merchant_id,
+                directory_server_id,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {
