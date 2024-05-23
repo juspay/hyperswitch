@@ -1769,7 +1769,7 @@ pub async fn generate_recovery_codes(
 pub async fn terminate_two_factor_auth(
     state: AppState,
     user_token: auth::UserFromSinglePurposeToken,
-    skip_two_factor_auth: Option<bool>,
+    skip_two_factor_auth: bool,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
@@ -1778,11 +1778,15 @@ pub async fn terminate_two_factor_auth(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if !skip_two_factor_auth.unwrap_or(false) {
+    if !skip_two_factor_auth {
         if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
             && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
         {
             return Err(UserErrors::TwoFactorAuthRequired.into());
+        }
+
+        if user_from_db.get_recovery_codes().is_none() {
+            return Err(UserErrors::TwoFactorAuthNotSetup.into());
         }
 
         if user_from_db.get_totp_status() != TotpStatus::Set {

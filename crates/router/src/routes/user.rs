@@ -686,7 +686,7 @@ pub async fn terminate_two_factor_auth(
     query: web::Query<user_api::SkipTwoFactorAuthQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::TerminateTwoFactorAuth;
-    let skip_two_factor_auth = query.into_inner().skip_two_factor_auth;
+    let skip_two_factor_auth = query.into_inner().skip_two_factor_auth.unwrap_or(false);
 
     Box::pin(api::server_wrap(
         flow,
