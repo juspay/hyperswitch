@@ -74,6 +74,8 @@ pub enum UserErrors {
     TotpRequired,
     #[error("InvalidRecoveryCode")]
     InvalidRecoveryCode,
+    #[error("TwoFactorAuthNotSetup")]
+    TwoFactorAuthNotSetup,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -189,6 +191,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidRecoveryCode => {
                 AER::BadRequest(ApiError::new(sub_code, 39, self.get_error_message(), None))
             }
+            Self::TwoFactorAuthNotSetup => {
+                AER::BadRequest(ApiError::new(sub_code, 39, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -229,6 +234,7 @@ impl UserErrors {
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
+            Self::TwoFactorAuthNotSetup => "Two factor auth not setup"
         }
     }
 }

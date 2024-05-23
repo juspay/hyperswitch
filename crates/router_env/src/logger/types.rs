@@ -409,7 +409,7 @@ pub enum Flow {
     /// Verify Access Code
     RecoveryCodeVerify,
     /// Generate or Regenerate recovery codes
-    GenerateRecoveryCodes,
+    RecoveryCodesGenerate,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

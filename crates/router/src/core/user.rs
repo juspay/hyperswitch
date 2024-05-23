@@ -1780,15 +1780,12 @@ pub async fn verify_recovery_code(
         .into();
 
     if user_from_db.get_totp_status() != TotpStatus::Set {
-        return Err(UserErrors::TotpNotSetup.into());
+        return Err(UserErrors::TwoFactorAuthNotSetup.into());
     }
 
     let mut recovery_codes = user_from_db
         .get_recovery_codes()
         .ok_or(UserErrors::InternalServerError)?;
-
-    // let matching_index =
-    //     utils::user::password::get_index_for_correct_recovery_code(req.recovery_code, recovery_codes.clone())?;
 
     let matching_index = utils::user::password::get_index_for_correct_recovery_code(
         req.recovery_code,
@@ -1797,6 +1794,9 @@ pub async fn verify_recovery_code(
     .ok_or(UserErrors::InvalidRecoveryCode)?;
 
     let _ = recovery_codes.remove(matching_index);
+    let _ = insert_recovery_code_in_redis(&state, user_from_db.get_user_id())
+        .await
+        .map_err(|e| logger::error!(?e));
 
     state
         .store
@@ -1810,10 +1810,6 @@ pub async fn verify_recovery_code(
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
-
-    let _ = insert_recovery_code_in_redis(&state, user_from_db.get_user_id())
-        .await
-        .map_err(|e| logger::error!(?e));
 
     Ok(ApplicationResponse::StatusOk)
 }

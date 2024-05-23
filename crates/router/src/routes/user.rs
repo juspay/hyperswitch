@@ -685,7 +685,7 @@ pub async fn verify_recovery_code(
 }
 
 pub async fn generate_recovery_codes(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::GenerateRecoveryCodes;
+    let flow = Flow::RecoveryCodesGenerate;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
