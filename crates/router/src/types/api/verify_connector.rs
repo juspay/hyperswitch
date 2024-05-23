@@ -12,6 +12,8 @@ use crate::{
     AppState,
 };
 
+use common_utils::types::MinorUnit;
+
 #[derive(Clone)]
 pub struct VerifyConnectorData {
     pub connector: &'static (dyn api::Connector + Sync),
@@ -26,6 +28,7 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
+            test_amount: Some(MinorUnit::new(1000)),
             confirm: true,
             currency: storage_enums::Currency::USD,
             metadata: None,

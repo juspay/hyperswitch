@@ -494,3 +494,4 @@ impl StringMajorUnit {
         Ok(MinorUnit::new(amount as i64))
     }
 }
+

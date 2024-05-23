@@ -1174,6 +1174,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
+            test_amount: Some(amount),
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
