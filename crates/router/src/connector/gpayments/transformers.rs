@@ -1,26 +1,25 @@
-use error_stack::ResultExt;
-use masking::Secret;
+use api_models::payments::DeviceChannel;
 use base64::Engine;
-use serde::{Deserialize, Serialize};
-// use common_utils::date_time::DateTime;
 use common_utils::date_time;
+use error_stack::ResultExt;
+use masking::{ExposeInterface, Secret};
+use serde::{Deserialize, Serialize};
+use serde_json::to_string;
+
 use super::gpayments_types;
 use crate::{
-    connector::utils,
+    connector::{
+        gpayments::gpayments_types::{
+            AuthStatus, BrowserInfoCollected, GpaymentsAuthenticationResponse,
+        },
+        utils,
+        utils::{get_card_details, CardData},
+    },
+    consts::BASE64_ENGINE,
     core::errors,
-    types::{self, api}
+    types::{self, api, api::MessageCategory, authentication::ChallengeParams},
 };
-use crate::consts::BASE64_ENGINE;
-use serde_json::to_string;
-use masking::ExposeInterface;
-use api_models::payments::DeviceChannel;
-use crate::connector::utils::get_card_details;
-use crate::connector::utils::CardData;
-use crate::connector::gpayments::gpayments_types::{BrowserInfoCollected,GpaymentsAuthenticationResponse,AuthStatus};
-use crate::types::api::MessageCategory;
-use crate::types::authentication::ChallengeParams;
-// use pm_auth::consts::NO_ERROR_MESSAGE;
-//TODO: Fill the struct with respective fields
+
 pub struct GpaymentsRouterData<T> {
     pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -36,7 +35,6 @@ impl<T> TryFrom<(i64, T)> for GpaymentsRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct GpaymentsAuthType {
     /// base64 encoded certificate
@@ -78,7 +76,6 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNVersionCallRou
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GpaymentsErrorResponse {
     pub status_code: u16,
@@ -166,8 +163,6 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNRouterData>>
     }
 }
 
-
-
 impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
     for gpayments_types::GpaymentsAuthenticationRequest
 {
@@ -191,64 +186,32 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticatio
             }
         }?;
         let card_details = get_card_details(request.payment_method_data.clone(), "gpayments")?;
-        // let browser_info_colleted = BrowserInfoCollected {
-        //     browser_javascript_enabled: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.java_script_enabled),
-        //     browser_accept_header: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.accept_header.clone()),
-        //     browser_ip: browser_details
-        //         .clone()
-        //         .and_then(|details| details.ip_address.map(|ip| Secret::new(ip.to_string()))),
-        //     browser_java_enabled: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.java_enabled),
-        //     browser_language: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.language.clone()),
-        //     browser_color_depth: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.color_depth.map(|a| a.to_string())),
-        //     browser_screen_height: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.screen_height.map(|a| a.to_string())),
-        //     browser_screen_width: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.screen_width.map(|a| a.to_string())),
-        //     browser_tz: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.time_zone.map(|a| a.to_string())),
-        //     browser_user_agent: browser_details
-        //         .as_ref()
-        //         .and_then(|details| details.user_agent.clone().map(|a| a.to_string())),
-        // };
+
         let metadata = GpaymentsMetaData::try_from(&item.router_data.connector_meta_data)?;
-        // let merchant_id = request.pre_authentication_data.acquirer_merchant_id.clone().get_required_value("acquirer_details").change_context(errors::ConnectorError::MissingRequiredField {
-        //     field_name: "acquirer_details",
-        // })?;
+
         Ok(Self {
             acct_number: card_details.card_number.clone(),
             authentication_ind: "01".into(),
-            // browser_info_collected:_browser_info_collected,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
-            merchant_id: metadata.merchant_id ,
+            merchant_id: metadata.merchant_id,
             message_category: match item.router_data.request.message_category.clone() {
                 MessageCategory::Payment => "01".into(),
                 MessageCategory::NonPayment => "02".into(),
             },
             notification_url: request
-            .return_url
-            .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("missing return_url")?,
-            // three_ds_comp_ind:  request.threeds_method_comp_ind.ok_or(error_stack::Report::new(errors::ConnectorError::FailedToObtainIntegrationUrl)),
-            three_ds_comp_ind:  request.threeds_method_comp_ind.clone(),
+                .return_url
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("missing return_url")?,
+            three_ds_comp_ind: request.threeds_method_comp_ind.clone(),
             purchase_amount: item.amount.to_string(),
             purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
-            .to_string(),
-            three_ds_server_trans_id: request.pre_authentication_data.threeds_server_transaction_id.clone(),
-            browser_info_collected : BrowserInfoCollected {
+                .to_string(),
+            three_ds_server_trans_id: request
+                .pre_authentication_data
+                .threeds_server_transaction_id
+                .clone(),
+            browser_info_collected: BrowserInfoCollected {
                 browser_javascript_enabled: browser_details
                     .as_ref()
                     .and_then(|details| details.java_script_enabled),
@@ -280,16 +243,6 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticatio
                     .as_ref()
                     .and_then(|details| details.user_agent.clone().map(|a| a.to_string())),
             },
-            // acct_number: router_data.request.card_holder_account_number.clone(),
-            // card_scheme: None,
-            // challenge_window_size: Some(gpayments_types::ChallengeWindowSize::FullScreen),
-            // event_callback_url: "https://webhook.site/55e3db24-7c4e-4432-9941-d806f68d210b"
-            //     .to_string(),
-            // merchant_id: metadata.merchant_id,
-            // skip_auto_browser_info_collect: Some(true),
-            // // should auto generate this id.
-            // three_ds_requestor_trans_id: uuid::Uuid::new_v4().hyphenated().to_string(),
-            
         })
     }
 }
@@ -339,7 +292,9 @@ impl
                                         response.acs_reference_number.clone(),
                                     ),
                                     acs_trans_id: Some(response.acs_trans_id.clone()),
-                                    three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
+                                    three_dsserver_trans_id: Some(
+                                        response.three_ds_server_trans_id,
+                                    ),
                                     acs_signed_content: None,
                                 },
                             ))
@@ -350,20 +305,14 @@ impl
                     },
                 )
             }
-            GpaymentsAuthenticationResponse::Error(resp) => {
-                
-                    Err(types::ErrorResponse {
-                        code: resp.code,
-                        message: resp
-                            .message
-                            .clone(),
-                        reason: resp.reason,
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                    })
-              
-            },
+            GpaymentsAuthenticationResponse::Error(resp) => Err(types::ErrorResponse {
+                code: resp.code,
+                message: resp.message.clone(),
+                reason: resp.reason,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
         };
         Ok(Self {
             response,

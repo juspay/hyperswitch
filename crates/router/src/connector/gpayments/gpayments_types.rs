@@ -1,8 +1,7 @@
+use api_models::payments::ThreeDsCompletionIndicator;
 use cards::CardNumber;
 use common_utils::types;
-use masking::{Deserialize, Serialize};
-use api_models::payments::ThreeDsCompletionIndicator;
-use masking::Secret;
+use masking::{Deserialize, Secret, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -122,34 +121,18 @@ pub struct GpaymentsPreAuthenticationResponse {
     pub three_ds_server_trans_id: String,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsAuthenticationRequest {
-    // pub acct_number: CardNumber,
-    // pub card_scheme: Option<CardScheme>,
-    // pub challenge_window_size: Option<ChallengeWindowSize>,
-
-    // pub event_callback_url: String,
-
-
-    // pub merchant_id: String,
-
-    // pub skip_auto_browser_info_collect: Option<bool>,
-
-
-    // #[serde(rename = "threeDSRequestorTransID")]
-    // pub three_ds_requestor_trans_id: String,
-
     pub acct_number: CardNumber,
     pub authentication_ind: String,
     pub browser_info_collected: BrowserInfoCollected,
     pub card_expiry_date: String,
     #[serde(rename = "notificationURL")]
-    pub notification_url:String,
-    pub merchant_id: String,   
+    pub notification_url: String,
+    pub merchant_id: String,
     #[serde(rename = "threeDSCompInd")]
-    pub three_ds_comp_ind:ThreeDsCompletionIndicator,
+    pub three_ds_comp_ind: ThreeDsCompletionIndicator,
     pub message_category: String,
     pub purchase_amount: String,
     pub purchase_date: String,
@@ -162,7 +145,7 @@ pub struct BrowserInfoCollected {
     pub browser_accept_header: Option<String>,
     pub browser_color_depth: Option<String>,
     #[serde(rename = "browserIP")]
-    pub browser_ip: Option<Secret<String,common_utils::pii::IpAddress>>,
+    pub browser_ip: Option<Secret<String, common_utils::pii::IpAddress>>,
     pub browser_javascript_enabled: Option<bool>,
     pub browser_java_enabled: Option<bool>,
     pub browser_language: Option<String>,
@@ -171,7 +154,6 @@ pub struct BrowserInfoCollected {
     #[serde(rename = "browserTZ")]
     pub browser_tz: Option<String>,
     pub browser_user_agent: Option<String>,
-
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -208,20 +190,6 @@ pub struct GpaymentsErrorResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsAuthenticationSuccessResponse {
-    // pub acct_number: CardNumber,
-    // pub card_scheme: Option<CardScheme>,
-    // pub challenge_window_size: Option<ChallengeWindowSize>,
-
-    // pub event_callback_url: String,
-
-
-    // pub merchant_id: String,
-
-    // pub skip_auto_browser_info_collect: Option<bool>,
-
-
-    // #[serde(rename = "threeDSRequestorTransID")]
-    // pub three_ds_requestor_trans_id: String,
     #[serde(rename = "dsReferenceNumber")]
     pub ds_reference_number: String,
     #[serde(rename = "dsTransID")]
@@ -241,42 +209,21 @@ pub struct GpaymentsAuthenticationSuccessResponse {
     pub authentication_value: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone,Serialize,PartialEq)]
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub enum AuthStatus {
-    // #[serde(rename = "Y")]
-    // Successful,
-    // #[serde(rename = "N")]
-    // Denied,
-    // #[serde(rename = "U")]
-    // NotAuthenticated,
-    // #[serde(rename = "A")]
-    // Processing,
-    // #[serde(rename = "C")]
-    // ChallengeRequired,
-    // #[serde(rename = "R")]
-    // Rejected,
-        /// Authentication/ Account Verification Successful
-        Y,
-        /// Not Authenticated /Account Not Verified; Transaction denied
-        N,
-        /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in ARes or RReq
-        U,
-        /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
-        A,
-        /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
-        R,
-        C,
+    /// Authentication/ Account Verification Successful
+    Y,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    N,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in ARes or RReq
+    U,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    A,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    R,
+    /// Challenge required
+    C,
 }
-
-// impl From<ThreeDsCompletionIndicator> for ThreeDSecureIoThreeDsCompletionIndicator {
-//     fn from(value: ThreeDsCompletionIndicator) -> Self {
-//         match value {
-//             ThreeDsCompletionIndicator::Success => Self::Y,
-//             ThreeDsCompletionIndicator::Failure => Self::N,
-//             ThreeDsCompletionIndicator::NotAvailable => Self::U,
-//         }
-//     }
-// }
 
 impl From<AuthStatus> for common_enums::TransactionStatus {
     fn from(value: AuthStatus) -> Self {
@@ -290,8 +237,6 @@ impl From<AuthStatus> for common_enums::TransactionStatus {
         }
     }
 }
-
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsPostAuthenticationResponse {
