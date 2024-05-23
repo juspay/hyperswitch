@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
@@ -21,7 +19,6 @@ pub enum ErrorType {
     LockTimeout,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, router_derive::ApiError)]
 #[error(error_type_enum = ErrorType)]
 pub enum ApiErrorResponse {

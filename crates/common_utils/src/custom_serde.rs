@@ -266,7 +266,7 @@ pub mod iso8601custom {
     }
 }
 
-/// serde Serialize using display triat implementation
+/// serde Serialize using display trait implementation
 pub fn display_serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
     T: std::fmt::Display,
