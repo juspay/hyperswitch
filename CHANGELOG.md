@@ -4,6 +4,65 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.23.0
+
+### Features
+
+- **connector:**
+  - Accept connector_transaction_id in 4xx error_response of connector ([#4720](https://github.com/juspay/hyperswitch/pull/4720)) ([`2ad7fc0`](https://github.com/juspay/hyperswitch/commit/2ad7fc0cd6c102bea4d671c98f7fe50fd709d4ec))
+  - [AUTHORIZEDOTNET] Implement zero mandates ([#4704](https://github.com/juspay/hyperswitch/pull/4704)) ([`8afeda5`](https://github.com/juspay/hyperswitch/commit/8afeda54fc5e3f3d510c48c81c222387e9cacc0e))
+- **payment_methods:** Enable auto-retries for apple pay ([#4721](https://github.com/juspay/hyperswitch/pull/4721)) ([`d942a31`](https://github.com/juspay/hyperswitch/commit/d942a31d60595d366977746be7215620da0ababd))
+- **routing:** Use Moka cache for routing with cache invalidation ([#3216](https://github.com/juspay/hyperswitch/pull/3216)) ([`431560b`](https://github.com/juspay/hyperswitch/commit/431560b7fb4401d000c11dbb9c7eb70663591307))
+- **users:** Create generate recovery codes API ([#4708](https://github.com/juspay/hyperswitch/pull/4708)) ([`8fa2cd5`](https://github.com/juspay/hyperswitch/commit/8fa2cd556bf898621a1a8722a0af99d174447485))
+- **webhook:** Add frm webhook support ([#4662](https://github.com/juspay/hyperswitch/pull/4662)) ([`ae601e8`](https://github.com/juspay/hyperswitch/commit/ae601e8e1be9215488daaae7cb39ad5a030e98d9))
+
+### Bug Fixes
+
+- **core:** Fix failing token based MIT payments ([#4735](https://github.com/juspay/hyperswitch/pull/4735)) ([`1bd4061`](https://github.com/juspay/hyperswitch/commit/1bd406197b5baf1c041f0dffa5bc02dce10f1529))
+- Added hget lookup for all updated_by existing cases ([#4716](https://github.com/juspay/hyperswitch/pull/4716)) ([`fabf80c`](https://github.com/juspay/hyperswitch/commit/fabf80c2b18ca690b7fb709c8c12d1ef7f24e5b6))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`ec50843`](https://github.com/juspay/hyperswitch/commit/ec508435a19c2942a5d66757a74dd06bed5b1a76))
+
+**Full Changelog:** [`2024.05.22.0...2024.05.23.0`](https://github.com/juspay/hyperswitch/compare/2024.05.22.0...2024.05.23.0)
+
+- - -
+
+## 2024.05.22.0
+
+### Features
+
+- **core:** Add support for connectors having separate version call for pre authentication ([#4603](https://github.com/juspay/hyperswitch/pull/4603)) ([`528d692`](https://github.com/juspay/hyperswitch/commit/528d692a89f5cf9a82d1e5c28e4b3a1ef4bf6c6a))
+
+### Refactors
+
+- **graph:** Refactor the Knowledge Graph to include configs check, while eligibility analysis ([#4687](https://github.com/juspay/hyperswitch/pull/4687)) ([`a917776`](https://github.com/juspay/hyperswitch/commit/a917776bb8cd294f77c569e81ea4d665b6611c6d))
+
+### Miscellaneous Tasks
+
+- Move tracing to workspace deps and remove router_env as a dependency of redis_interface ([#4717](https://github.com/juspay/hyperswitch/pull/4717)) ([`fea2ea6`](https://github.com/juspay/hyperswitch/commit/fea2ea6d2cf4f3f68e4779e53b82120806748d7b))
+
+**Full Changelog:** [`2024.05.21.1...2024.05.22.0`](https://github.com/juspay/hyperswitch/compare/2024.05.21.1...2024.05.22.0)
+
+- - -
+
+## 2024.05.21.1
+
+### Features
+
+- **Cypress:** Add response handler for Connector Testing ([#4624](https://github.com/juspay/hyperswitch/pull/4624)) ([`2e79ee0`](https://github.com/juspay/hyperswitch/commit/2e79ee0615292182111586fda7655dd9a796ef4f))
+- **constraint_graph:** Add visualization functionality to the constraint graph ([#4701](https://github.com/juspay/hyperswitch/pull/4701)) ([`0f53f74`](https://github.com/juspay/hyperswitch/commit/0f53f74d26e829602519998c41a460dc9a4809af))
+
+### Refactors
+
+- **core:** Add support to enable pm_data and pm_id in payments response ([#4711](https://github.com/juspay/hyperswitch/pull/4711)) ([`2cd360e`](https://github.com/juspay/hyperswitch/commit/2cd360e6a9d6bbe4b91f7b501b6013db1f31d898))
+- **router:** Added a new type minor unit to amount ([#4629](https://github.com/juspay/hyperswitch/pull/4629)) ([`443b7e6`](https://github.com/juspay/hyperswitch/commit/443b7e6ea2cf63f35a28a1cd24860399d96b15ba))
+
+**Full Changelog:** [`2024.05.21.0...2024.05.21.1`](https://github.com/juspay/hyperswitch/compare/2024.05.21.0...2024.05.21.1)
+
+- - -
+
 ## 2024.05.21.0
 
 ### Features
