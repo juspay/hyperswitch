@@ -1262,6 +1262,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
+            payment_experience: payment_data.payment_attempt.payment_experience,
         })
     }
 }

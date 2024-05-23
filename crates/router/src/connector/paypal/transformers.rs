@@ -405,9 +405,9 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
         let item_details = vec![ItemDetails::from(item)];
 
         let purchase_units = vec![PurchaseUnitRequest {
-            reference_id: Some(connector_req_reference_id.clone()),
-            custom_id: Some(connector_req_reference_id.clone()),
-            invoice_id: Some(connector_req_reference_id),
+            reference_id: Some(connector_request_reference_id.clone()),
+            custom_id: Some(connector_request_reference_id.clone()),
+            invoice_id: Some(connector_request_reference_id),
             amount,
             payee,
             shipping: Some(shipping_address),
@@ -517,7 +517,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 ))?,
             },
             domain::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let intent = if item.router_data.request.is_auto_capture()? {
+                let bank_redirect_intent = if item.router_data.request.is_auto_capture()? {
                     PaypalPaymentIntent::Capture
                 } else {
                     Err(errors::ConnectorError::FlowNotSupported {
@@ -525,26 +525,12 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         connector: "Paypal".to_string(),
                     })?
                 };
-                let amount = OrderRequestAmount::from(item);
-                let connector_req_reference_id =
-                    item.router_data.connector_request_reference_id.clone();
-                let shipping_address = ShippingAddress::try_from(item)?;
-                let item_details = vec![ItemDetails::from(item)];
 
-                let purchase_units = vec![PurchaseUnitRequest {
-                    reference_id: Some(connector_req_reference_id.clone()),
-                    custom_id: Some(connector_req_reference_id.clone()),
-                    invoice_id: Some(connector_req_reference_id),
-                    amount,
-                    payee,
-                    shipping: Some(shipping_address),
-                    items: item_details,
-                }];
                 let payment_source =
                     Some(get_payment_source(item.router_data, bank_redirection_data)?);
 
                 Ok(Self {
-                    intent,
+                    intent: bank_redirect_intent,
                     purchase_units,
                     payment_source,
                 })
@@ -1187,23 +1173,27 @@ fn get_redirect_url(
 }
 
 impl<F>
-    TryFrom<
+    ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             PaypalSyncResponse,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+        Option<common_enums::PaymentExperience>,
+    )> for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            PaypalSyncResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
+    fn foreign_try_from(
+        (item, payment_experience): (
+            types::ResponseRouterData<
+                F,
+                PaypalSyncResponse,
+                types::PaymentsSyncData,
+                types::PaymentsResponseData,
+            >,
+            Option<common_enums::PaymentExperience>,
+        ),
     ) -> Result<Self, Self::Error> {
         match item.response {
             PaypalSyncResponse::PaypalOrdersSyncResponse(response) => {
@@ -1213,13 +1203,14 @@ impl<F>
                     http_code: item.http_code,
                 })
             }
-            PaypalSyncResponse::PaypalRedirectSyncResponse(response) => {
-                Self::try_from(types::ResponseRouterData {
+            PaypalSyncResponse::PaypalRedirectSyncResponse(response) => Self::foreign_try_from((
+                types::ResponseRouterData {
                     response,
                     data: item.data,
                     http_code: item.http_code,
-                })
-            }
+                },
+                payment_experience,
+            )),
             PaypalSyncResponse::PaypalPaymentsSyncResponse(response) => {
                 Self::try_from(types::ResponseRouterData {
                     response,
@@ -1239,23 +1230,34 @@ impl<F>
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    ForeignTryFrom<(
+        types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+        Option<common_enums::PaymentExperience>,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+    fn foreign_try_from(
+        (item, payment_experience): (
+            types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+            Option<common_enums::PaymentExperience>,
+        ),
     ) -> Result<Self, Self::Error> {
         let status = storage_enums::AttemptStatus::foreign_from((
             item.response.clone().status,
             item.response.intent.clone(),
         ));
         let link = get_redirect_url(item.response.links.clone())?;
+        let next_action =
+            if let Some(common_enums::PaymentExperience::InvokeSdkClient) = payment_experience {
+                Some(api_models::payments::NextActionCall::CompleteAuthorize)
+            } else {
+                None
+            };
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
             psync_flow: item.response.intent,
-            next_action: None,
+            next_action,
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
