@@ -201,7 +201,7 @@ impl HealthCheckInterface for Store {
         logger::debug!("Stream read succeeded");
 
         let (_, id_to_trim) = output
-            .get(&redis_conn.get_tenant_key(TEST_STREAM_NAME))
+            .get(&redis_conn.add_prefix(TEST_STREAM_NAME))
             .and_then(|entries| {
                 entries
                     .last()

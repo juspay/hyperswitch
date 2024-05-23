@@ -229,7 +229,7 @@ async fn drainer(
     // parse_stream_entries returns error if no entries is found, handle it
     let entries = utils::parse_stream_entries(
         &stream_read,
-        store.redis_conn.get_tenant_key(stream_name).as_str(),
+        store.redis_conn.add_prefix(stream_name).as_str(),
     )?;
     let read_count = entries.len();
 

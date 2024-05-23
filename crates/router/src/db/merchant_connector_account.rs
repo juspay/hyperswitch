@@ -758,7 +758,7 @@ mod merchant_connector_account_cache_tests {
     use error_stack::ResultExt;
     use masking::PeekInterface;
     use storage_impl::redis::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
+        cache::{CacheKind, CacheKey, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };
@@ -891,10 +891,10 @@ mod merchant_connector_account_cache_tests {
         .unwrap();
 
         assert!(ACCOUNTS_CACHE
-            .get_val::<domain::MerchantConnectorAccount>(&format!(
-                "{}_{}",
-                merchant_id, connector_label
-            ),)
+            .get_val::<domain::MerchantConnectorAccount>(CacheKey {
+                key: format!("{}_{}", merchant_id, connector_label),
+                prefix: String::default(),
+            },)
             .await
             .is_none())
     }

@@ -176,9 +176,12 @@ where
     T: DatabaseStore,
 {
     type Config = (RouterStore<T>, String, u8, u32, Option<bool>);
-    async fn new(config: Self::Config, schema: &str, _test_transaction: bool) -> StorageResult<Self> {
-        let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) =
-            config;
+    async fn new(
+        config: Self::Config,
+        schema: &str,
+        _test_transaction: bool,
+    ) -> StorageResult<Self> {
+        let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
         let drainer_stream_name = format!("{}_{}", schema, config.1);
         Ok(Self::from_store(
             router_store,

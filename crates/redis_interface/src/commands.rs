@@ -31,11 +31,11 @@ use crate::{
 };
 
 impl super::RedisConnectionPool {
-    pub fn get_tenant_key(&self, key: &str) -> String {
-        if self.tenant.is_empty() {
+    pub fn add_prefix(&self, key: &str) -> String {
+        if self.key_prefix.is_empty() {
             key.to_string()
         } else {
-            format!("{}:{}", self.tenant, key)
+            format!("{}:{}", self.key_prefix, key)
         }
     }
     #[instrument(level = "DEBUG", skip(self))]
@@ -46,7 +46,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .set(
-                self.get_tenant_key(key),
+                self.add_prefix(key),
                 value,
                 Some(Expiration::EX(self.config.default_ttl.into())),
                 None,
@@ -151,7 +151,7 @@ impl super::RedisConnectionPool {
 
         self.pool
             .set(
-                self.get_tenant_key(key),
+                self.add_prefix(key),
                 serialized.as_slice(),
                 Some(Expiration::EX(seconds)),
                 None,
@@ -167,7 +167,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         self.pool
-            .get(self.get_tenant_key(key))
+            .get(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::GetFailed)
     }
@@ -178,7 +178,7 @@ impl super::RedisConnectionPool {
         V: Into<MultipleKeys> + Unpin + Send + 'static,
     {
         self.pool
-            .exists(self.get_tenant_key(key))
+            .exists(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::GetFailed)
     }
@@ -204,7 +204,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &str) -> CustomResult<DelReply, errors::RedisError> {
         self.pool
-            .del(self.get_tenant_key(key))
+            .del(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::DeleteFailed)
     }
@@ -222,7 +222,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .set(
-                self.get_tenant_key(key),
+                self.add_prefix(key),
                 value,
                 Some(Expiration::EX(seconds)),
                 None,
@@ -245,7 +245,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .set(
-                self.get_tenant_key(key),
+                self.add_prefix(key),
                 value,
                 Some(Expiration::EX(
                     seconds.unwrap_or(self.config.default_ttl.into()),
@@ -264,7 +264,7 @@ impl super::RedisConnectionPool {
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError> {
         self.pool
-            .expire(self.get_tenant_key(key), seconds)
+            .expire(self.add_prefix(key), seconds)
             .await
             .change_context(errors::RedisError::SetExpiryFailed)
     }
@@ -276,7 +276,7 @@ impl super::RedisConnectionPool {
         timestamp: i64,
     ) -> CustomResult<(), errors::RedisError> {
         self.pool
-            .expire_at(self.get_tenant_key(key), timestamp)
+            .expire_at(self.add_prefix(key), timestamp)
             .await
             .change_context(errors::RedisError::SetExpiryFailed)
     }
@@ -294,7 +294,7 @@ impl super::RedisConnectionPool {
     {
         let output: Result<(), _> = self
             .pool
-            .hset(self.get_tenant_key(key), values)
+            .hset(self.add_prefix(key), values)
             .await
             .change_context(errors::RedisError::SetHashFailed);
         // setting expiry for the key
@@ -319,7 +319,7 @@ impl super::RedisConnectionPool {
     {
         let output: Result<HsetnxReply, _> = self
             .pool
-            .hsetnx(self.get_tenant_key(key), field, value)
+            .hsetnx(self.add_prefix(key), field, value)
             .await
             .change_context(errors::RedisError::SetHashFieldFailed);
 
@@ -381,7 +381,7 @@ impl super::RedisConnectionPool {
         Ok(self
             .pool
             .next()
-            .hscan::<&str, &str>(&self.get_tenant_key(key), pattern, count)
+            .hscan::<&str, &str>(&self.add_prefix(key), pattern, count)
             .filter_map(|value| async move {
                 match value {
                     Ok(mut v) => {
@@ -432,7 +432,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         self.pool
-            .hget(self.get_tenant_key(key), field)
+            .hget(self.add_prefix(key), field)
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
     }
@@ -469,7 +469,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send,
     {
         self.pool
-            .sadd(self.get_tenant_key(key), members)
+            .sadd(self.add_prefix(key), members)
             .await
             .change_context(errors::RedisError::SetAddMembersFailed)
     }
@@ -486,7 +486,7 @@ impl super::RedisConnectionPool {
         F::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
-            .xadd(self.get_tenant_key(stream), false, None, entry_id, fields)
+            .xadd(self.add_prefix(stream), false, None, entry_id, fields)
             .await
             .change_context(errors::RedisError::StreamAppendFailed)
     }
@@ -501,7 +501,7 @@ impl super::RedisConnectionPool {
         Ids: Into<MultipleStrings> + Debug + Send + Sync,
     {
         self.pool
-            .xdel(self.get_tenant_key(stream), ids)
+            .xdel(self.add_prefix(stream), ids)
             .await
             .change_context(errors::RedisError::StreamDeleteFailed)
     }
@@ -517,7 +517,7 @@ impl super::RedisConnectionPool {
         C::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
-            .xtrim(self.get_tenant_key(stream), xcap)
+            .xtrim(self.add_prefix(stream), xcap)
             .await
             .change_context(errors::RedisError::StreamTrimFailed)
     }
@@ -533,7 +533,7 @@ impl super::RedisConnectionPool {
         Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         self.pool
-            .xack(self.get_tenant_key(stream), group, ids)
+            .xack(self.add_prefix(stream), group, ids)
             .await
             .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
@@ -541,7 +541,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_get_length(&self, stream: &str) -> CustomResult<usize, errors::RedisError> {
         self.pool
-            .xlen(self.get_tenant_key(stream))
+            .xlen(self.add_prefix(stream))
             .await
             .change_context(errors::RedisError::GetLengthFailed)
     }
@@ -555,7 +555,7 @@ impl super::RedisConnectionPool {
             .inner()
             .iter()
             .filter_map(|key| key.as_str())
-            .map(|k| self.get_tenant_key(k))
+            .map(|k| self.add_prefix(k))
             .map(RedisKey::from)
             .collect::<Vec<_>>();
         MultipleKeys::from(res)
@@ -648,7 +648,7 @@ impl super::RedisConnectionPool {
         }
 
         self.pool
-            .xgroup_create(self.get_tenant_key(stream), group, id, true)
+            .xgroup_create(self.add_prefix(stream), group, id, true)
             .await
             .change_context(errors::RedisError::ConsumerGroupCreateFailed)
     }
@@ -660,7 +660,7 @@ impl super::RedisConnectionPool {
         group: &str,
     ) -> CustomResult<usize, errors::RedisError> {
         self.pool
-            .xgroup_destroy(self.get_tenant_key(stream), group)
+            .xgroup_destroy(self.add_prefix(stream), group)
             .await
             .change_context(errors::RedisError::ConsumerGroupDestroyFailed)
     }
@@ -674,7 +674,7 @@ impl super::RedisConnectionPool {
         consumer: &str,
     ) -> CustomResult<usize, errors::RedisError> {
         self.pool
-            .xgroup_delconsumer(self.get_tenant_key(stream), group, consumer)
+            .xgroup_delconsumer(self.add_prefix(stream), group, consumer)
             .await
             .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
     }
@@ -687,7 +687,7 @@ impl super::RedisConnectionPool {
         id: &RedisEntryId,
     ) -> CustomResult<String, errors::RedisError> {
         self.pool
-            .xgroup_setid(self.get_tenant_key(stream), group, id)
+            .xgroup_setid(self.add_prefix(stream), group, id)
             .await
             .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
     }
@@ -707,7 +707,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .xclaim(
-                self.get_tenant_key(stream),
+                self.add_prefix(stream),
                 group,
                 consumer,
                 min_idle_time,

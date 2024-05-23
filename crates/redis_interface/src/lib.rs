@@ -32,7 +32,7 @@ pub use self::types::*;
 
 pub struct RedisConnectionPool {
     pub pool: Arc<fred::prelude::RedisPool>,
-    pub tenant: String,
+    pub key_prefix: String,
     pub config: Arc<RedisConfig>,
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<RedisClient>,
@@ -173,13 +173,13 @@ impl RedisConnectionPool {
             is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
             subscriber: Arc::new(subscriber),
             publisher: Arc::new(publisher),
-            tenant: String::default(),
+            key_prefix: String::default(),
         })
     }
-    pub fn clone(&self, tenant: &str) -> Self {
+    pub fn clone(&self, key_prefix: &str) -> Self {
         Self {
             pool: Arc::clone(&self.pool),
-            tenant: tenant.to_string(),
+            key_prefix: key_prefix.to_string(),
             config: Arc::clone(&self.config),
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
