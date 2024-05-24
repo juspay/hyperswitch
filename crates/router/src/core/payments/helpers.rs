@@ -3890,18 +3890,27 @@ pub fn validate_customer_access(
 
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
+    connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
-    let apple_pay_metadata = get_applepay_metadata(connector_metadata)?;
+    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
+        .map_err(|error| {
+            logger::info!(
+                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
+                connector_name,
+                error
+            )
+        })
+        .ok();
 
-    Ok(match apple_pay_metadata {
-        api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-            apple_pay_combined_metadata,
-        ) => match apple_pay_combined_metadata {
-            api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => true,
-            api_models::payments::ApplePayCombinedMetadata::Manual { .. } => false,
-        },
-        api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => false,
-    })
+    // return true only if the apple flow type is simplified
+    Ok(matches!(
+        option_apple_pay_metadata,
+        Some(
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                api_models::payments::ApplePayCombinedMetadata::Simplified { .. }
+            )
+        )
+    ))
 }
 
 pub fn get_applepay_metadata(
@@ -3954,7 +3963,7 @@ where
             field_name: "profile_id",
         })?;
 
-    let merchant_connector_account = get_merchant_connector_account(
+    let merchant_connector_account_type = get_merchant_connector_account(
         &state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
@@ -3963,15 +3972,19 @@ where
         &decided_connector_data.connector_name.to_string(),
         merchant_connector_id,
     )
-    .await?
-    .get_metadata();
+    .await?;
 
-    let connector_data_list = if is_apple_pay_simplified_flow(merchant_connector_account)? {
+    let connector_data_list = if is_apple_pay_simplified_flow(
+        merchant_connector_account_type.get_metadata(),
+        merchant_connector_account_type
+            .get_connector_name()
+            .as_ref(),
+    )? {
         let merchant_connector_account_list = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 merchant_account.merchant_id.as_str(),
-                true,
+                false,
                 key_store,
             )
             .await
@@ -3980,7 +3993,10 @@ where
         let mut connector_data_list = vec![decided_connector_data.clone()];
 
         for merchant_connector_account in merchant_connector_account_list {
-            if is_apple_pay_simplified_flow(merchant_connector_account.metadata)? {
+            if is_apple_pay_simplified_flow(
+                merchant_connector_account.metadata,
+                Some(&merchant_connector_account.connector_name),
+            )? {
                 let connector_data = api::ConnectorData::get_connector_by_name(
                     &state.conf.connectors,
                     &merchant_connector_account.connector_name.to_string(),
