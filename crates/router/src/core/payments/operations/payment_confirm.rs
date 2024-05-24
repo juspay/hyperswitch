@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    payments::{AdditionalCardInfo, AdditionalPaymentData, ExtendedCardInfo},
+    payment_methods::PaymentMethodsData,
+    payments::{AdditionalPaymentData, ExtendedCardInfo},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
@@ -21,7 +22,6 @@ use crate::{
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::cards,
         payments::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
@@ -34,7 +34,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain,
+        domain::{self, types::decrypt},
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
@@ -1040,26 +1040,39 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
-        let key = key_store.key.get_inner().peek();
+        let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
+            let key = key_store.key.get_inner().peek();
 
-        let card_detail_from_locker = payment_data
-            .payment_method_info
-            .as_ref()
-            .async_map(|pm| async move {
-                cards::get_card_details_without_locker_fallback(pm, key, state).await
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> =
+                decrypt::<serde_json::Value, masking::WithType>(
+                    pm.payment_method_data.clone(),
+                    key,
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+                .attach_printable("unable to decrypt card details")
+                .ok()
+                .flatten()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+                .and_then(|pmd| match pmd {
+                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                    _ => None,
+                });
+
+            card_detail_from_locker.and_then(|card_details| {
+                let additional_data = card_details.into();
+                let additional_data_payment =
+                    AdditionalPaymentData::Card(Box::new(additional_data));
+                additional_data_payment
+                    .encode_to_value()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode additional pm data")
+                    .ok()
             })
-            .await
-            .transpose()?;
-
-        let additional_data: Option<AdditionalCardInfo> = card_detail_from_locker.map(From::from);
-
-        let encode_additional_pm_to_value = additional_data
-            .map(|additional_data| AdditionalPaymentData::Card(Box::new(additional_data)))
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
+        } else {
+            None
+        };
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;

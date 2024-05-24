@@ -336,6 +336,7 @@ impl<F, T>
                         network_txn_id: None,
                         connector_response_reference_id: Some(item.response.mer_ref.clone()),
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                     ..item.data
                 })
@@ -425,6 +426,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::Pa
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.mer_ref.clone()),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 ..item.data
             })

@@ -531,7 +531,8 @@ pub struct RequiredFieldInfo {
     #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
 
-    pub value: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub value: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]

@@ -31,7 +31,7 @@ pub enum AnalyticsCollection {
     ConnectorEvents,
     OutgoingWebhookEvent,
     Dispute,
-    ConnectorEventsAnalytics,
+    ApiEventsAnalytics,
 }
 
 #[allow(dead_code)]

@@ -423,6 +423,7 @@ pub trait ConnectorActions: Connector {
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
+                charges: None,
             }),
             payment_info,
         );
@@ -942,6 +943,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1018,6 +1020,7 @@ impl Default for PaymentRefundType {
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1081,6 +1084,7 @@ pub fn get_connector_metadata(
             network_txn_id: _,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
+            charge_id: _,
         }) => connector_metadata,
         _ => None,
     }

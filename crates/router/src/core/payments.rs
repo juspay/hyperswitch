@@ -26,7 +26,7 @@ use api_models::{
 };
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
-    id_type, pii,
+    pii,
     types::{MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
@@ -34,10 +34,11 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::{
+pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
     router_data::RouterData,
+    router_request_types::CustomerDetails,
 };
 use masking::{ExposeInterface, Secret};
 use redis_interface::errors::RedisError;
@@ -2488,15 +2489,6 @@ pub struct IncrementalAuthorizationDetails {
     pub authorization_id: Option<String>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct CustomerDetails {
-    pub customer_id: Option<id_type::CustomerId>,
-    pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
-    pub phone_country_code: Option<String>,
-}
-
 pub trait CustomerDetailsExt {
     type Error;
     fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error>;
@@ -3170,6 +3162,34 @@ where
             {
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
+
+            #[cfg(feature = "retry")]
+            let should_do_retry =
+                retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
+
+            #[cfg(feature = "retry")]
+            if payment_data.payment_attempt.payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
+            {
+                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
+                    state,
+                    merchant_account,
+                    payment_data,
+                    key_store,
+                    connector_data.clone(),
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    choice.merchant_connector_id.clone().as_ref(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    return Ok(ConnectorCallType::Retryable(connector_data_list));
+                }
+            }
+
             return Ok(ConnectorCallType::PreDetermined(connector_data));
         }
     }

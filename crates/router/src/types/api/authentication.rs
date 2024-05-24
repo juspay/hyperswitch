@@ -3,6 +3,7 @@ use std::str::FromStr;
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
 use super::BoxedConnector;
 use crate::core::errors;
@@ -64,12 +65,6 @@ pub struct PostAuthenticationResponse {
     pub trans_status: String,
     pub authentication_value: Option<String>,
     pub eci: Option<String>,
-}
-
-#[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
-pub enum MessageCategory {
-    Payment,
-    NonPayment,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]

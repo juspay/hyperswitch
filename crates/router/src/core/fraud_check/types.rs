@@ -5,20 +5,20 @@ use api_models::{
     refunds::RefundResponse,
 };
 use common_enums::FrmSuggestion;
-use common_utils::pii::{Email, SecretSerdeValue};
+use common_utils::pii::SecretSerdeValue;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+pub use hyperswitch_domain_models::router_request_types::fraud_check::{
+    Address, Destination, FrmFulfillmentRequest, FulfillmentStatus, Fulfillments, Product,
+};
 use masking::Serialize;
 use serde::Deserialize;
 use utoipa::ToSchema;
 
 use super::operation::BoxedFraudCheckOperation;
-use crate::{
-    pii::Secret,
-    types::{
-        domain::MerchantAccount,
-        storage::{enums as storage_enums, fraud_check::FraudCheck},
-        PaymentAddress,
-    },
+use crate::types::{
+    domain::MerchantAccount,
+    storage::{enums as storage_enums, fraud_check::FraudCheck},
+    PaymentAddress,
 };
 
 #[derive(Clone, Default, Debug)]
@@ -104,98 +104,6 @@ pub struct FrmFulfillmentSignifydApiRequest {
     ///contains details of the fulfillment
     #[schema(value_type = Vec<Fulfillments>)]
     pub fulfillments: Vec<Fulfillments>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "snake_case")]
-pub struct FrmFulfillmentRequest {
-    ///unique payment_id for the transaction
-    #[schema(max_length = 255, example = "pay_qiYfHcDou1ycIaxVXKHF")]
-    pub payment_id: String,
-    ///unique order_id for the order_details in the transaction
-    #[schema(max_length = 255, example = "pay_qiYfHcDou1ycIaxVXKHF")]
-    pub order_id: String,
-    ///denotes the status of the fulfillment... can be one of PARTIAL, COMPLETE, REPLACEMENT, CANCELED
-    #[schema(value_type = Option<FulfillmentStatus>, example = "COMPLETE")]
-    pub fulfillment_status: Option<FulfillmentStatus>,
-    ///contains details of the fulfillment
-    #[schema(value_type = Vec<Fulfillments>)]
-    pub fulfillments: Vec<Fulfillments>,
-    //name of the tracking Company
-    #[schema(max_length = 255, example = "fedex")]
-    pub tracking_company: Option<String>,
-    //tracking ID of the product
-    #[schema(example = r#"["track_8327446667", "track_8327446668"]"#)]
-    pub tracking_numbers: Option<Vec<String>>,
-    //tracking_url for tracking the product
-    pub tracking_urls: Option<Vec<String>>,
-    // The name of the Shipper.
-    pub carrier: Option<String>,
-    // Fulfillment method for the shipment.
-    pub fulfillment_method: Option<String>,
-    // Statuses to indicate shipment state.
-    pub shipment_status: Option<String>,
-    // The date and time items are ready to be shipped.
-    pub shipped_at: Option<String>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "snake_case")]
-pub struct Fulfillments {
-    ///shipment_id of the shipped items
-    #[schema(max_length = 255, example = "ship_101")]
-    pub shipment_id: String,
-    ///products sent in the shipment
-    #[schema(value_type = Option<Vec<Product>>)]
-    pub products: Option<Vec<Product>>,
-    ///destination address of the shipment
-    #[schema(value_type = Destination)]
-    pub destination: Destination,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(untagged)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "snake_case")]
-pub enum FulfillmentStatus {
-    PARTIAL,
-    COMPLETE,
-    REPLACEMENT,
-    CANCELED,
-}
-
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "snake_case")]
-pub struct Product {
-    pub item_name: String,
-    pub item_quantity: i64,
-    pub item_id: String,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "snake_case")]
-pub struct Destination {
-    pub full_name: Secret<String>,
-    pub organization: Option<String>,
-    pub email: Option<Email>,
-    pub address: Address,
-}
-
-#[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "snake_case")]
-pub struct Address {
-    pub street_address: Secret<String>,
-    pub unit: Option<Secret<String>>,
-    pub postal_code: Secret<String>,
-    pub city: String,
-    pub province_code: Secret<String>,
-    pub country_code: common_enums::CountryAlpha2,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize)]
