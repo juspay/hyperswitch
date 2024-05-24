@@ -1064,7 +1064,6 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 image_data_url: Some(image_data_url),
                 qr_code_url: Some(qr_code_url),
                 display_to_timestamp,
-                qr_code_data_url: None,
             },
             api_models::payments::QrCodeInformation::QrDataUrl {
                 image_data_url,
@@ -1073,7 +1072,6 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 image_data_url: Some(image_data_url),
                 display_to_timestamp,
                 qr_code_url: None,
-                qr_code_data_url: None,
             },
             api_models::payments::QrCodeInformation::QrCodeImageUrl {
                 qr_code_url,
@@ -1082,16 +1080,7 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 qr_code_url: Some(qr_code_url),
                 image_data_url: None,
                 display_to_timestamp,
-                qr_code_data_url: None,
             },
-            api_models::payments::QrCodeInformation::QrCodeDataUrl { qr_code_data_url } => {
-                Self::QrCodeInformation {
-                    qr_code_data_url: Some(qr_code_data_url),
-                    image_data_url: None,
-                    display_to_timestamp: None,
-                    qr_code_url: None,
-                }
-            }
         }
     }
 }

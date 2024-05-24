@@ -2950,8 +2950,6 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         /// The url for Qr code given by the connector
         qr_code_url: Option<Url>,
-        /// The url to fetch qr code data
-        qr_code_data_url: Option<Url>,
     },
     /// Contains url to fetch Qr code data
     FetchQrCodeInformation { qr_code_fetch_url: Url },
@@ -3026,9 +3024,6 @@ pub enum QrCodeInformation {
     QrCodeImageUrl {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
-    },
-    QrCodeDataUrl {
-        qr_code_data_url: Url,
     },
 }
 
