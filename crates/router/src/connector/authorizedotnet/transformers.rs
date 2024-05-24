@@ -1,7 +1,7 @@
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
-    pii,
+    id_type, pii,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
@@ -251,7 +251,7 @@ pub struct AuthorizedotnetZeroMandateRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Profile {
-    merchant_customer_id: String,
+    merchant_customer_id: id_type::CustomerId,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
     email: Option<pii::Email>,
