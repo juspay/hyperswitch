@@ -1224,11 +1224,18 @@ impl User {
                         ),
                 )
                 .service(
-                    web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
+                    web::scope("/recovery_code")
+                        .service(
+                            web::resource("/verify").route(web::post().to(verify_recovery_code)),
+                        )
+                        .service(
+                            web::resource("/generate")
+                                .route(web::get().to(generate_recovery_codes)),
+                        ),
                 )
-                .service(web::scope("/recovery_code").service(
-                    web::resource("/generate").route(web::get().to(generate_recovery_codes)),
-                )),
+                .service(
+                    web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
+                ),
         );
 
         #[cfg(feature = "email")]
