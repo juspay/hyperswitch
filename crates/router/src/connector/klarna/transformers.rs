@@ -1,10 +1,11 @@
 use api_models::payments;
-use error_stack::report;
+use common_utils::pii;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::{self, RouterData},
     core::errors,
     types::{self, storage::enums},
 };
@@ -30,6 +31,22 @@ impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for Klarna
             amount,
             router_data,
         })
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct KlarnaConnectorMetadataObject {
+    pub region_based_endpoint: Option<String>,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
     }
 }
 

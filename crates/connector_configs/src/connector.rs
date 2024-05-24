@@ -72,6 +72,18 @@ pub enum ApplePayTomlConfig {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+
+pub enum KlarnaEndpoint {
+    #[serde(rename = "")]
+    Europe,
+    #[serde(rename = "-na")]
+    NorthAmerica,
+    #[serde(rename = "-oc")]
+    Oceania,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<String>,
@@ -90,6 +102,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub region_based_endpoint: Option<KlarnaEndpoint>,
 }
 
 #[serde_with::skip_serializing_none]

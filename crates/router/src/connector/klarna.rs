@@ -118,6 +118,20 @@ impl
     // Not Implemented (R)
 }
 
+fn build_region_specific_endpoint(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let klarna_metadata_object =
+        transformers::KlarnaConnectorMetadataObject::try_from(connector_metadata)?;
+    let region_based_endpoint = klarna_metadata_object.region_based_endpoint.ok_or(
+        errors::ConnectorError::InvalidConnectorConfig {
+            config: "metadata.region_based_endpoint",
+        },
+    )?;
+    Ok(base_url.replace("{{region_based_endpoint}}", &region_based_endpoint))
+}
+
 impl
     services::ConnectorIntegration<
         api::Session,
@@ -147,14 +161,12 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "payments/v1/sessions"
-        ))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}{}", endpoint, "payments/v1/sessions"))
     }
 
     fn get_request_body(
@@ -304,6 +316,8 @@ impl
             .payment_method_type
             .as_ref()
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
@@ -313,8 +327,7 @@ impl
                         common_enums::PaymentMethodType::Klarna,
                     ) => Ok(format!(
                         "{}payments/v1/authorizations/{}/order",
-                        self.base_url(connectors),
-                        token
+                        endpoint, token
                     )),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
