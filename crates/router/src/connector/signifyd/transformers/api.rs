@@ -1,6 +1,7 @@
 use bigdecimal::ToPrimitive;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
+pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -13,8 +14,8 @@ use crate::{
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
-        ResponseId, ResponseRouterData,
+        self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
+        transformers::ForeignFrom, ResponseId, ResponseRouterData,
     },
 };
 
@@ -162,7 +163,9 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 field_name: "frm_metadata",
             })?
             .parse_value("Signifyd Frm Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "frm_metadata",
+            })?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
         let street_addr = ship_address.get_line1()?;
@@ -397,7 +400,9 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 field_name: "frm_metadata",
             })?
             .parse_value("Signifyd Frm Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "frm_metadata",
+            })?;
         let ship_address = item.get_shipping_address()?;
         let street_addr = ship_address.get_line1()?;
         let city_addr = ship_address.get_city()?;
@@ -505,7 +510,7 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydReq
                 .fulfillment_status
                 .as_ref()
                 .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status.clone())),
-            fulfillments: Vec::<Fulfillments>::from(&item.request.fulfillment_req),
+            fulfillments: Vec::<Fulfillments>::foreign_from(&item.request.fulfillment_req),
         })
     }
 }
@@ -521,8 +526,8 @@ impl From<&core_types::FulfillmentStatus> for FulfillmentStatus {
     }
 }
 
-impl From<&core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
-    fn from(fulfillment_req: &core_types::FrmFulfillmentRequest) -> Self {
+impl ForeignFrom<&core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
+    fn foreign_from(fulfillment_req: &core_types::FrmFulfillmentRequest) -> Self {
         fulfillment_req
             .fulfillments
             .iter()
@@ -639,15 +644,6 @@ pub struct SignifydPaymentsRecordReturnRequest {
     refund: SignifydRefund,
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum RefundMethod {
-    StoreCredit,
-    OriginalPaymentInstrument,
-    NewPaymentInstrument,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
@@ -701,5 +697,29 @@ impl TryFrom<&frm_types::FrmRecordReturnRouterData> for SignifydPaymentsRecordRe
             refund,
             order_id: item.attempt_id.clone(),
         })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct SignifydWebhookBody {
+    pub order_id: String,
+    pub review_disposition: ReviewDisposition,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ReviewDisposition {
+    Fraudulent,
+    Good,
+}
+
+impl From<ReviewDisposition> for api::IncomingWebhookEvent {
+    fn from(value: ReviewDisposition) -> Self {
+        match value {
+            ReviewDisposition::Fraudulent => Self::FrmRejected,
+            ReviewDisposition::Good => Self::FrmApproved,
+        }
     }
 }

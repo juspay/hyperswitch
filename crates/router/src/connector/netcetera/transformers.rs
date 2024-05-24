@@ -96,6 +96,9 @@ impl
                         three_ds_method_url,
                         message_version: maximum_supported_3ds_version,
                         connector_metadata: None,
+                        directory_server_id: card_range
+                            .as_ref()
+                            .and_then(|card_range| card_range.directory_server_id.clone()),
                     },
                 )
             }

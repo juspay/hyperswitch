@@ -8,6 +8,7 @@ use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
+    types::MinorUnit,
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
@@ -599,7 +600,9 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .flatten();
 
-    let original_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
+    let original_payment_authorized_amount = original_payment_intent
+        .clone()
+        .map(|pi| pi.amount.get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
 
@@ -716,7 +719,7 @@ pub fn validate_merchant_id(
 #[instrument(skip_all)]
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
-    op_amount_to_capture: Option<i64>,
+    op_amount_to_capture: Option<MinorUnit>,
     surcharge_details: Option<RequestSurchargeDetails>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match (op_amount, op_amount_to_capture) {
@@ -727,10 +730,10 @@ pub fn validate_request_amount_and_amount_to_capture(
                 api::Amount::Value(amount_inner) => {
                     // If both amount and amount to capture is present
                     // then amount to be capture should be less than or equal to request amount
-                    let total_capturable_amount = amount_inner.get()
+                    let total_capturable_amount = MinorUnit::new(amount_inner.get())
                         + surcharge_details
                             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-                            .unwrap_or(0);
+                            .unwrap_or_default();
                     utils::when(!amount_to_capture.le(&total_capturable_amount), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
@@ -765,23 +768,25 @@ pub fn validate_amount_to_capture_and_capture_method(
     if capture_method == api_enums::CaptureMethod::Automatic {
         let original_amount = request
             .amount
-            .map(|amount| amount.into())
+            .map(MinorUnit::from)
             .or(payment_attempt.map(|payment_attempt| payment_attempt.amount));
         let surcharge_amount = request
             .surcharge_details
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .or_else(|| {
                 payment_attempt.map(|payment_attempt| {
-                    payment_attempt.surcharge_amount.unwrap_or(0)
-                        + payment_attempt.tax_amount.unwrap_or(0)
+                    payment_attempt.surcharge_amount.unwrap_or_default()
+                        + payment_attempt.tax_amount.unwrap_or_default()
                 })
             })
-            .unwrap_or(0);
+            .unwrap_or_default();
         let total_capturable_amount =
             original_amount.map(|original_amount| original_amount + surcharge_amount);
+
         let amount_to_capture = request
             .amount_to_capture
             .or(payment_attempt.and_then(|pa| pa.amount_to_capture));
+
         if let Some((total_capturable_amount, amount_to_capture)) =
             total_capturable_amount.zip(amount_to_capture)
         {
@@ -1097,7 +1102,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 }
 
 pub fn verify_mandate_details(
-    request_amount: i64,
+    request_amount: MinorUnit,
     request_currency: api_enums::Currency,
     mandate: storage::Mandate,
 ) -> RouterResult<()> {
@@ -1105,7 +1110,7 @@ pub fn verify_mandate_details(
         storage_enums::MandateType::SingleUse => utils::when(
             mandate
                 .mandate_amount
-                .map(|mandate_amount| request_amount > mandate_amount)
+                .map(|mandate_amount| request_amount.get_amount_as_i64() > mandate_amount)
                 .unwrap_or(true),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
@@ -1117,7 +1122,8 @@ pub fn verify_mandate_details(
             mandate
                 .mandate_amount
                 .map(|mandate_amount| {
-                    (mandate.amount_captured.unwrap_or(0) + request_amount) > mandate_amount
+                    (mandate.amount_captured.unwrap_or(0) + request_amount.get_amount_as_i64())
+                        > mandate_amount
                 })
                 .unwrap_or(false),
             || {
@@ -1608,6 +1614,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                 connector_customer: None,
                                 address_id: None,
                                 default_payment_method_id: None,
+                                updated_by: None,
                             },
                         )
                     }
@@ -2698,7 +2705,7 @@ pub fn generate_mandate(
                 match data.mandate_type.get_required_value("mandate_type")? {
                     hyperswitch_domain_models::mandates::MandateDataType::SingleUse(data) => {
                         new_mandate
-                            .set_mandate_amount(Some(data.amount))
+                            .set_mandate_amount(Some(data.amount.get_amount_as_i64()))
                             .set_mandate_currency(Some(data.currency))
                             .set_mandate_type(storage_enums::MandateType::SingleUse)
                             .to_owned()
@@ -2707,7 +2714,7 @@ pub fn generate_mandate(
                     hyperswitch_domain_models::mandates::MandateDataType::MultiUse(op_data) => {
                         match op_data {
                             Some(data) => new_mandate
-                                .set_mandate_amount(Some(data.amount))
+                                .set_mandate_amount(Some(data.amount.get_amount_as_i64()))
                                 .set_mandate_currency(Some(data.currency))
                                 .set_start_date(data.start_date)
                                 .set_end_date(data.end_date),
@@ -2920,7 +2927,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -2965,6 +2972,8 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
+            charges: None,
+            frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -2978,7 +2987,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -3023,6 +3032,8 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
+            charges: None,
+            frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3035,7 +3046,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            amount: MinorUnit::new(200),
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -3080,6 +3091,8 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
+            charges: None,
+            frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3551,6 +3564,9 @@ impl AttemptType {
             // New payment method billing address can be passed for a retry
             payment_method_billing_address_id: None,
             fingerprint_id: None,
+            charge_id: None,
+            client_source: None,
+            client_version: None,
         }
     }
 
@@ -3710,7 +3726,7 @@ pub async fn get_additional_payment_data(
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
-            let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id).as_str(),
@@ -3719,11 +3735,11 @@ pub async fn get_additional_payment_data(
 
             let card_extended_bin = match enable_extended_bin {
                 Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.clone().get_extended_card_bin())
+                    Some(card_data.card_number.get_extended_card_bin())
                 }
                 _ => None,
             };
-            let last4 = Some(card_data.card_number.clone().get_last4());
+            let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
                 && card_data.card_type.is_some()
@@ -3874,6 +3890,138 @@ pub fn validate_customer_access(
         }
     }
     Ok(())
+}
+
+pub fn is_apple_pay_simplified_flow(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+    connector_name: Option<&String>,
+) -> CustomResult<bool, errors::ApiErrorResponse> {
+    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
+        .map_err(|error| {
+            logger::info!(
+                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
+                connector_name,
+                error
+            )
+        })
+        .ok();
+
+    // return true only if the apple flow type is simplified
+    Ok(matches!(
+        option_apple_pay_metadata,
+        Some(
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                api_models::payments::ApplePayCombinedMetadata::Simplified { .. }
+            )
+        )
+    ))
+}
+
+pub fn get_applepay_metadata(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {
+    connector_metadata
+        .clone()
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .map(|combined_metadata| {
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                combined_metadata.apple_pay_combined,
+            )
+        })
+        .or_else(|_| {
+            connector_metadata
+                .parse_value::<api_models::payments::ApplepaySessionTokenData>(
+                    "ApplepaySessionTokenData",
+                )
+                .map(|old_metadata| {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
+                        old_metadata.apple_pay,
+                    )
+                })
+        })
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_metadata".to_string(),
+            expected_format: "applepay_metadata_format".to_string(),
+        })
+}
+
+pub async fn get_apple_pay_retryable_connectors<F>(
+    state: AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+    key_store: &domain::MerchantKeyStore,
+    decided_connector_data: api::ConnectorData,
+    merchant_connector_id: Option<&String>,
+) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
+where
+    F: Send + Clone,
+{
+    let profile_id = &payment_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })?;
+
+    let merchant_connector_account_type = get_merchant_connector_account(
+        &state,
+        merchant_account.merchant_id.as_str(),
+        payment_data.creds_identifier.to_owned(),
+        key_store,
+        profile_id, // need to fix this
+        &decided_connector_data.connector_name.to_string(),
+        merchant_connector_id,
+    )
+    .await?;
+
+    let connector_data_list = if is_apple_pay_simplified_flow(
+        merchant_connector_account_type.get_metadata(),
+        merchant_connector_account_type
+            .get_connector_name()
+            .as_ref(),
+    )? {
+        let merchant_connector_account_list = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                merchant_account.merchant_id.as_str(),
+                false,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+        let mut connector_data_list = vec![decided_connector_data.clone()];
+
+        for merchant_connector_account in merchant_connector_account_list {
+            if is_apple_pay_simplified_flow(
+                merchant_connector_account.metadata,
+                Some(&merchant_connector_account.connector_name),
+            )? {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &merchant_connector_account.connector_name.to_string(),
+                    api::GetToken::Connector,
+                    Some(merchant_connector_account.merchant_connector_id),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name received")?;
+
+                if !connector_data_list.iter().any(|connector_details| {
+                    connector_details.merchant_connector_id == connector_data.merchant_connector_id
+                }) {
+                    connector_data_list.push(connector_data)
+                }
+            }
+        }
+        Some(connector_data_list)
+    } else {
+        None
+    };
+    Ok(connector_data_list)
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -4028,6 +4176,8 @@ impl ApplePayData {
         &self,
         symmetric_key: &[u8],
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        logger::info!("Decrypt apple pay token");
+
         let data = BASE64_ENGINE
             .decode(self.data.peek().as_bytes())
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
