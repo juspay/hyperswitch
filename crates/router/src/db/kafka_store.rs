@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::{errors::CustomResult, id_type, pii};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -175,7 +175,7 @@ impl AddressInterface for KafkaStore {
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         address: storage::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -320,7 +320,7 @@ impl ConfigInterface for KafkaStore {
 impl CustomerInterface for KafkaStore {
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
@@ -330,7 +330,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -347,7 +347,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: String,
+        customer_id: id_type::CustomerId,
         merchant_id: String,
         customer: domain::Customer,
         customer_update: storage::CustomerUpdate,
@@ -378,7 +378,7 @@ impl CustomerInterface for KafkaStore {
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -706,7 +706,7 @@ impl MandateInterface for KafkaStore {
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
         self.diesel_store
             .find_mandate_by_merchant_id_customer_id(merchant_id, customer_id)
@@ -1453,7 +1453,7 @@ impl PaymentMethodInterface for KafkaStore {
 
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
@@ -1464,7 +1464,7 @@ impl PaymentMethodInterface for KafkaStore {
 
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
@@ -1483,7 +1483,7 @@ impl PaymentMethodInterface for KafkaStore {
 
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {

@@ -730,11 +730,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 request
                     .customer
                     .as_ref()
-                    .map(|customer| customer.id.into_inner())
-                    .or(request
-                        .customer_id
-                        .as_ref()
-                        .map(|customer_id| customer_id.into_inner())),
+                    .map(|customer| &customer.id)
+                    .or(request.customer_id.as_ref()),
             )?;
         }
 
@@ -1058,7 +1055,7 @@ impl PaymentCreate {
         match request.customer_id.clone() {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
-                customer_id.into_inner().to_string(),
+                customer_id,
                 merchant_account.merchant_id.clone(),
             )
             .await

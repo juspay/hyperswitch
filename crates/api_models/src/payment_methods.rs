@@ -4,7 +4,7 @@ use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
-    pii,
+    id_type, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
 use serde::de;
@@ -50,7 +50,7 @@ pub struct PaymentMethodCreate {
 
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 
     /// The card network
     #[schema(example = "Visa")]
@@ -195,7 +195,7 @@ pub struct PaymentMethodResponse {
 
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
@@ -846,7 +846,7 @@ pub struct CustomerDefaultPaymentMethodResponse {
     pub default_payment_method_id: Option<String>,
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
@@ -866,7 +866,7 @@ pub struct CustomerPaymentMethod {
 
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -951,7 +951,7 @@ pub struct PaymentMethodId {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct DefaultPaymentMethod {
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub payment_method_id: String,
 }
 //------------------------------------------------TokenizeService------------------------------------------------
@@ -1033,7 +1033,7 @@ pub struct TokenizedCardValue2 {
     pub card_security_code: Option<String>,
     pub card_fingerprint: Option<String>,
     pub external_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_id: Option<String>,
 }
 
@@ -1044,7 +1044,7 @@ pub struct TokenizedWalletValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue2 {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1054,7 +1054,7 @@ pub struct TokenizedBankTransferValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankTransferValue2 {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1064,5 +1064,5 @@ pub struct TokenizedBankRedirectValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectValue2 {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }

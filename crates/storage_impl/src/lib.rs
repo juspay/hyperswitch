@@ -390,7 +390,7 @@ impl UniqueConstraints for diesel_models::Mandate {
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
-            "customer_{}_{}",
+            "customer_{:?}_{}",
             self.customer_id, self.merchant_id
         )]
     }

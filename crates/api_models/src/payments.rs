@@ -9,6 +9,7 @@ use common_utils::{
     consts::default_payments_list_limit,
     crypto,
     ext_traits::{ConfigExt, Encode},
+    id_type,
     pii::{self, Email},
     types::MinorUnit,
 };
@@ -27,7 +28,6 @@ use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
     ephemeral_key::EphemeralKeyCreateResponse,
-    id_types,
     mandates::RecurringDetails,
     refunds,
 };
@@ -181,7 +181,8 @@ mod client_secret_tests {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq)]
 pub struct CustomerDetails {
     /// The identifier for the customer.
-    pub id: id_types::CustomerId,
+    #[schema(value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub id: id_type::CustomerId,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
@@ -203,7 +204,7 @@ pub struct CustomerDetails {
 #[derive(Debug, serde::Serialize, Clone, ToSchema, PartialEq)]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
-    pub id: String,
+    pub id: id_type::CustomerId,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
@@ -300,9 +301,9 @@ pub struct PaymentsRequest {
     /// Passing this object creates a new customer or attaches an existing customer to the payment
     pub customer: Option<CustomerDetails>,
 
-    /// The identifier for the customer object.
+    /// The identifier for the customer
     #[schema(value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_types::CustomerId>,
+    pub customer_id: Option<id_type::CustomerId>,
 
     /// The customer's email address.
     /// This field will be deprecated soon, use the customer object instead
@@ -764,7 +765,7 @@ pub struct VerifyRequest {
     // The merchant_id is generated through api key
     // and is later passed in the struct
     pub merchant_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub email: Option<Email>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
@@ -3202,7 +3203,7 @@ pub struct PaymentsResponse {
         example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
         deprecated
     )]
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 
     /// Details of customer attached to this payment
     pub customer: Option<CustomerDetailsResponse>,
@@ -3475,7 +3476,7 @@ pub struct ExternalAuthenticationDetailsResponse {
 pub struct PaymentListConstraints {
     /// The identifier for customer
     #[schema(example = "cus_meowuwunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 
     /// A cursor for use in pagination, fetch the next list after some object
     #[schema(example = "pay_fafa124123")]
@@ -3572,7 +3573,7 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for business profile
     pub profile_id: Option<String>,
     /// The identifier for customer
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
     #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
@@ -3656,7 +3657,7 @@ pub struct VerifyResponse {
     pub merchant_id: Option<String>,
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub email: crypto::OptionalEncryptableEmail,
     pub name: crypto::OptionalEncryptableName,
     pub phone: crypto::OptionalEncryptablePhone,
@@ -3678,7 +3679,7 @@ pub struct PaymentsRedirectionResponse {
 pub struct MandateValidationFields {
     pub recurring_details: Option<RecurringDetails>,
     pub confirm: Option<bool>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub mandate_data: Option<MandateData>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -3700,8 +3701,7 @@ impl From<&PaymentsRequest> for MandateValidationFields {
                 .as_ref()
                 .map(|customer_details| &customer_details.id)
                 .or(req.customer_id.as_ref())
-                .map(|customer_id| customer_id.into_inner())
-                .map(ToString::to_string),
+                .map(ToOwned::to_owned),
             mandate_data: req.mandate_data.clone(),
             setup_future_usage: req.setup_future_usage,
             off_session: req.off_session,
@@ -3788,7 +3788,7 @@ pub struct PgRedirectResponse {
     pub payment_id: String,
     pub status: api_enums::IntentStatus,
     pub gateway_id: String,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub amount: Option<MinorUnit>,
 }
 

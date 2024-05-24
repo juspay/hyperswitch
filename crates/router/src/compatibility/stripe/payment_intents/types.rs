@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
-use api_models::{id_types, payments};
+use api_models::payments;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
+    id_type,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
     types::MinorUnit,
 };
@@ -246,7 +247,7 @@ pub struct StripePaymentIntentRequest {
     pub amount_capturable: Option<i64>,
     pub confirm: Option<bool>,
     pub capture_method: Option<api_enums::CaptureMethod>,
-    pub customer: Option<id_types::CustomerId>,
+    pub customer: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
     pub receipt_email: Option<Email>,
@@ -463,7 +464,7 @@ pub struct StripePaymentIntentResponse {
     pub status: StripePaymentStatus,
     pub client_secret: Option<masking::Secret<String>>,
     pub created: Option<i64>,
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
     pub mandate: Option<String>,
     pub metadata: Option<SecretSerdeValue>,
@@ -606,7 +607,7 @@ impl Charges {
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]

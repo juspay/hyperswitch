@@ -1,11 +1,25 @@
 //! Common ID types
 
-use std::{borrow::Cow, ops::Deref};
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Display},
+};
 
+mod customer;
+
+pub use customer::CustomerId;
+
+use diesel::{
+    backend::Backend,
+    deserialize::FromSql,
+    expression::AsExpression,
+    serialize::{Output, ToSql},
+    sql_types,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::fp_utils::when;
+use crate::{fp_utils::when, generate_id_with_default_len};
 
 /// This functions checks for the input string to contain valid characters
 /// Returns Some(char) if there are any invalid characters, else None
@@ -18,12 +32,12 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
 
 #[derive(Debug, PartialEq, Serialize, Clone, Eq)]
 /// A type for alphanumeric ids
-pub struct AlphaNumericId(String);
+pub(crate) struct AlphaNumericId(String);
 
 #[derive(Debug, Deserialize, Serialize, Error, Eq, PartialEq)]
 #[error("value `{0}` contains invalid character `{1}`")]
 /// The error type for alphanumeric id
-pub struct AlphaNumericIdError(String, char);
+pub(crate) struct AlphaNumericIdError(String, char);
 
 impl<'de> Deserialize<'de> for AlphaNumericId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -31,13 +45,13 @@ impl<'de> Deserialize<'de> for AlphaNumericId {
         D: serde::Deserializer<'de>,
     {
         let deserialized_string = String::deserialize(deserializer)?;
-        Self::new(deserialized_string.into()).map_err(serde::de::Error::custom)
+        Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
     }
 }
 
 impl AlphaNumericId {
-    /// Creates a new alphanumeric id from string
-    pub fn new(input_string: Cow<'static, str>) -> Result<Self, AlphaNumericIdError> {
+    /// Creates a new alphanumeric id from string by applying validation checks
+    pub fn from(input_string: Cow<'static, str>) -> Result<Self, AlphaNumericIdError> {
         let invalid_character = get_invalid_input_character(input_string.clone());
 
         if let Some(invalid_character) = invalid_character {
@@ -50,30 +64,25 @@ impl AlphaNumericId {
         Ok(Self(input_string.to_string()))
     }
 
-    /// Get the inner value as &str
-    pub fn into_inner(&self) -> &str {
-        &self.0
+    /// Create a new alphanumeric id without any validations
+    pub(crate) fn new_unchecked(input_string: String) -> Self {
+        Self(input_string)
+    }
+
+    /// Generate a new alphanumeric id of default length
+    pub(crate) fn new(prefix: &str) -> Self {
+        Self(generate_id_with_default_len(prefix))
     }
 }
 
-/// A common type of id that can be used for merchant reference ids in api models
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct MerchantReferenceId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
-
-/// Deref can be implemented safely because the type is always valid once it is deserialized
-impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deref
-    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
-{
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.into_inner()
-    }
-}
+/// A common type of id that can be used for merchant reference ids
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub(crate) struct MerchantReferenceId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
 
 /// Error generated from violation of constraints for MerchantReferenceId
 #[derive(Debug, Deserialize, Serialize, Error, PartialEq, Eq)]
-pub enum MerchantReferenceIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
+pub(crate) enum MerchantReferenceIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
     #[error("the maximum allowed length for this field is {MAX_LENGTH}")]
     /// Maximum length of string violated
     MaxLengthViolated,
@@ -95,7 +104,7 @@ impl From<AlphaNumericIdError> for MerchantReferenceIdError<0, 0> {
 
 impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> MerchantReferenceId<MAX_LENGTH, MIN_LENGTH> {
     /// Generates new [MerchantReferenceId] from the given input string
-    pub fn new(
+    pub fn from(
         input_string: Cow<'static, str>,
     ) -> Result<Self, MerchantReferenceIdError<MAX_LENGTH, MIN_LENGTH>> {
         let trimmed_input_string = input_string.trim().to_string();
@@ -110,7 +119,7 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> MerchantReferenceId<MAX_LENGTH,
             Err(MerchantReferenceIdError::MinLengthViolated)
         })?;
 
-        let alphanumeric_id = match AlphaNumericId::new(trimmed_input_string.into()) {
+        let alphanumeric_id = match AlphaNumericId::from(trimmed_input_string.into()) {
             Ok(valid_alphanumeric_id) => valid_alphanumeric_id,
             Err(error) => Err(MerchantReferenceIdError::AlphanumericIdError(error))?,
         };
@@ -118,9 +127,9 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> MerchantReferenceId<MAX_LENGTH,
         Ok(Self(alphanumeric_id))
     }
 
-    /// Get the inner value as &str
-    pub fn into_inner(&self) -> &str {
-        self.0.into_inner()
+    /// Generate a new MerchantRefId of default length with the given prefix
+    pub fn new(prefix: &str) -> Self {
+        Self(AlphaNumericId::new(prefix))
     }
 }
 
@@ -132,7 +141,38 @@ impl<'de, const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deserialize<'de>
         D: serde::Deserializer<'de>,
     {
         let deserialized_string = String::deserialize(deserializer)?;
-        Self::new(deserialized_string.into()).map_err(serde::de::Error::custom)
+        Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<DB, const MAX_LENGTH: u8, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
+    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0 .0.to_sql(out)
+    }
+}
+
+impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Display
+    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0 .0)
+    }
+}
+
+impl<DB, const MAX_LENGTH: u8, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
+    for MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let string_val = String::from_sql(value)?;
+        Ok(Self(AlphaNumericId::new_unchecked(string_val)))
     }
 }
 
@@ -154,7 +194,7 @@ mod alphanumeric_id_tests {
     fn test_id_deserialize_underscore() {
         let parsed_alphanumeric_id =
             serde_json::from_str::<AlphaNumericId>(VALID_UNDERSCORE_ID_JSON);
-        let alphanumeric_id = AlphaNumericId::new(EXPECTED_VALID_UNDERSCORE_ID.into()).unwrap();
+        let alphanumeric_id = AlphaNumericId::from(EXPECTED_VALID_UNDERSCORE_ID.into()).unwrap();
 
         assert_eq!(parsed_alphanumeric_id.unwrap(), alphanumeric_id);
     }
@@ -162,7 +202,7 @@ mod alphanumeric_id_tests {
     #[test]
     fn test_id_deserialize_hyphen() {
         let parsed_alphanumeric_id = serde_json::from_str::<AlphaNumericId>(VALID_HYPHEN_ID_JSON);
-        let alphanumeric_id = AlphaNumericId::new(VALID_HYPHEN_ID_STRING.into()).unwrap();
+        let alphanumeric_id = AlphaNumericId::from(VALID_HYPHEN_ID_STRING.into()).unwrap();
 
         assert_eq!(parsed_alphanumeric_id.unwrap(), alphanumeric_id);
     }
@@ -197,6 +237,8 @@ mod merchant_reference_id_tests {
     fn test_valid_reference_id() {
         let parsed_merchant_reference_id =
             serde_json::from_str::<MerchantReferenceId<MAX_LENGTH, MIN_LENGTH>>(VALID_REF_ID_JSON);
+
+        dbg!(&parsed_merchant_reference_id);
 
         assert!(parsed_merchant_reference_id.is_ok());
     }
@@ -244,7 +286,7 @@ mod merchant_reference_id_tests {
     #[test]
     fn test_invalid_ref_id_length_error_type() {
         let parsed_merchant_reference_id =
-            MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::new(INVALID_REF_ID_LENGTH.into());
+            MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::from(INVALID_REF_ID_LENGTH.into());
 
         dbg!(&parsed_merchant_reference_id);
 

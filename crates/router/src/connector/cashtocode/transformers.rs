@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 pub use common_utils::request::Method;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, pii::Email};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -18,11 +18,11 @@ use crate::{
 pub struct CashtocodePaymentsRequest {
     amount: f64,
     transaction_id: String,
-    user_id: Secret<String>,
+    user_id: Secret<id_type::CustomerId>,
     currency: enums::Currency,
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
-    user_alias: Secret<String>,
+    user_alias: Secret<id_type::CustomerId>,
     requested_url: String,
     cancel_url: String,
     email: Option<Email>,

@@ -1,4 +1,7 @@
-use common_utils::pii::{Email, SecretSerdeValue};
+use common_utils::{
+    id_type,
+    pii::{Email, SecretSerdeValue},
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -145,7 +148,7 @@ impl<T>
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCustomerObject {
-    handle: Option<String>,
+    handle: Option<id_type::CustomerId>,
     email: Option<Email>,
     address: Option<Secret<String>>,
     address2: Option<Secret<String>>,

@@ -26,7 +26,7 @@ use api_models::{
 };
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
-    pii,
+    id_type, pii,
     types::{MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
@@ -2490,7 +2490,7 @@ pub struct IncrementalAuthorizationDetails {
 
 #[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub name: Option<Secret<String, masking::WithType>>,
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
@@ -3792,7 +3792,7 @@ pub async fn payment_external_authentication(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
-                    format!("error while finding customer with customer_id {customer_id}")
+                    format!("error while finding customer with customer_id {customer_id:?}")
                 })?,
         ),
         None => None,

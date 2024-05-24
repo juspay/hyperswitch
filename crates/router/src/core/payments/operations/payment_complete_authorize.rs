@@ -172,13 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             payment_intent
                 .customer_id
                 .as_ref()
-                .map(|customer_id| customer_id.as_str())
-                .or_else(|| {
-                    request
-                        .customer_id
-                        .as_ref()
-                        .map(|customer_id| customer_id.into_inner())
-                }),
+                .or_else(|| request.customer_id.as_ref()),
         )?;
 
         let shipping_address = helpers::create_or_update_address_for_payment_by_request(
@@ -322,10 +316,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         };
 
         let customer_details = Some(CustomerDetails {
-            customer_id: request
-                .customer_id
-                .as_ref()
-                .map(|customer_id| customer_id.into_inner().to_string()),
+            customer_id: request.customer_id.clone(),
             name: request.name.clone(),
             email: request.email.clone(),
             phone: request.phone.clone(),

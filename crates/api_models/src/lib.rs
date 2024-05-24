@@ -17,7 +17,6 @@ pub mod events;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
-pub mod id_types;
 pub mod locker_migration;
 pub mod mandates;
 pub mod organization;

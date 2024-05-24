@@ -7,10 +7,11 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, pii,
+    fp_utils, generate_id, id_type, pii,
     types::MinorUnit,
 };
-use diesel_models::enums;
+
+use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -111,7 +112,7 @@ pub async fn create_or_update_address_for_payment_by_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: Option<&String>,
+    customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -273,7 +274,7 @@ pub async fn create_or_find_address_for_payment_by_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: Option<&String>,
+    customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -609,7 +610,7 @@ pub async fn get_token_for_recurring_mandate(
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
     let payment_method_id = {
-        if mandate.customer_id != customer.into_inner() {
+        if mandate.customer_id != customer {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "customer_id must match mandate customer_id".into()
             }))?
@@ -998,7 +999,7 @@ fn validate_new_mandate_request(
 
 pub fn validate_customer_id_mandatory_cases(
     has_setup_future_usage: bool,
-    customer_id: Option<&str>,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<()> {
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -1149,8 +1150,8 @@ pub fn verify_mandate_details(
 pub fn verify_mandate_details_for_recurring_payments(
     mandate_merchant_id: &str,
     merchant_id: &str,
-    mandate_customer_id: &str,
-    customer_id: &str,
+    mandate_customer_id: &id_type::CustomerId,
+    customer_id: &id_type::CustomerId,
 ) -> RouterResult<()> {
     if mandate_merchant_id != merchant_id {
         Err(report!(errors::ApiErrorResponse::MandateNotFound))?
@@ -1253,7 +1254,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<masking::Secret<String>>,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method_data {
@@ -1327,7 +1328,7 @@ pub(crate) async fn get_payment_method_create_request(
 
 pub async fn get_customer_from_details<F: Clone>(
     db: &dyn StorageInterface,
-    customer_id: Option<String>,
+    customer_id: Option<id_type::CustomerId>,
     merchant_id: &str,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1335,10 +1336,10 @@ pub async fn get_customer_from_details<F: Clone>(
 ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
-        Some(c_id) => {
+        Some(customer_id) => {
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    &c_id,
+                    &customer_id,
                     merchant_id,
                     merchant_key_store,
                     storage_scheme,
@@ -1401,12 +1402,8 @@ pub fn validate_customer_details_in_request(
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(customer_details) = request.customer.as_ref() {
         validate_options_for_inequality(
-            request
-                .customer_id
-                .as_ref()
-                .map(|customer_id| customer_id.to_string())
-                .as_ref(),
-            Some(customer_details.id.into_inner().to_string()).as_ref(),
+            request.customer_id.as_ref().map(|customer_id| customer_id),
+            Some(&customer_details.id),
             "customer_id",
         )?;
 
@@ -1449,8 +1446,8 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .map(|customer_details| &customer_details.id)
         .or(request.customer_id.as_ref())
-        .map(|customer_id| customer_id.into_inner())
-        .map(ToString::to_string);
+        .map(|customer_id| customer_id)
+        .map(ToOwned::to_owned);
 
     let customer_name = request
         .customer
@@ -1588,7 +1585,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         let key = key_store.key.get_inner().peek();
                         Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                             domain::Customer {
-                                customer_id: customer_id.to_string(),
+                                customer_id,
                                 merchant_id: merchant_id.to_string(),
                                 name: request_customer_details
                                     .name
@@ -2534,7 +2531,7 @@ pub fn make_merchant_url_with_response(
 
 pub async fn make_ephemeral_key(
     state: AppState,
-    customer_id: String,
+    customer_id: id_type::CustomerId,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
@@ -2662,7 +2659,7 @@ pub fn generate_mandate(
     payment_id: String,
     connector: String,
     setup_mandate_details: Option<MandateData>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
@@ -3884,11 +3881,7 @@ pub fn validate_customer_access(
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
     if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_same_customer = request
-            .customer_id
-            .as_ref()
-            .map(|customer_id| customer_id.into_inner().to_string())
-            == payment_intent.customer_id;
+        let is_same_customer = request.customer_id == payment_intent.customer_id;
         if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
