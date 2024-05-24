@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.17.0-hotfix1
+
+### Bug Fixes
+
+- **payment_methods:** Mask the email address being logged in the `payment_method_list` response logs ([#4753](https://github.com/juspay/hyperswitch/pull/4753)) ([`61032ab`](https://github.com/juspay/hyperswitch/commit/61032ab904d17a23cf674d7b83ed7dc68c45f6b7))
+
+- - -
+
 ## 2024.05.17.0
 
 ### Bug Fixes
