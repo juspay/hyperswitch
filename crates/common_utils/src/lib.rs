@@ -227,14 +227,13 @@ pub fn generate_time_ordered_id(prefix: &str) -> String {
 #[cfg(test)]
 mod nanoid_tests {
     #![allow(clippy::unwrap_used)]
+    use super::*;
     use crate::{
         consts::{
             MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
         },
         id_type::AlphaNumericId,
     };
-
-    use super::*;
 
     #[test]
     fn test_generate_id_with_alphanumeric_id() {

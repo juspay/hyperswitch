@@ -8,7 +8,6 @@ use std::{
 mod customer;
 
 pub use customer::CustomerId;
-
 use diesel::{
     backend::Backend,
     deserialize::FromSql,

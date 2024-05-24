@@ -1,7 +1,8 @@
-use crate::{encryption::Encryption, schema::customers};
 use common_utils::{id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
+
+use crate::{encryption::Encryption, schema::customers};
 
 #[derive(
     Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,

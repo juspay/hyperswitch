@@ -4,7 +4,6 @@ use common_utils::{
     id_type, pii,
     types::MinorUnit,
 };
-
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

@@ -2,8 +2,7 @@
 
 mod utils;
 
-use common_utils::id_type;
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 use router::{
     core::payments,
     db::StorageImpl,
