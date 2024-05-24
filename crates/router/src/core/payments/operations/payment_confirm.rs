@@ -1281,7 +1281,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
-       
+
         let client_src = header_payload
             .client_source
             .clone()
@@ -1291,10 +1291,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .client_version
             .clone()
             .or(payment_data.payment_attempt.client_version.clone());
-  
 
         let frm_message = payment_data.frm_message.clone();
-        
+
         _req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentConfirmed {
