@@ -53,6 +53,7 @@ recon_admin_api_key = "recon_test_admin"
 
 [user]
 password_validity_in_days = 90
+two_factor_auth_expiry_in_secs = 300
 
 [locker]
 host = ""

@@ -179,7 +179,7 @@ pub async fn signin(
         })?
         .into();
 
-    user_from_db.compare_password(request.password)?;
+    user_from_db.compare_password(&request.password)?;
 
     let signin_strategy =
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
@@ -217,7 +217,7 @@ pub async fn signin_token_only_flow(
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
 
-    user_from_db.compare_password(request.password)?;
+    user_from_db.compare_password(&request.password)?;
 
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
@@ -341,7 +341,7 @@ pub async fn change_password(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    user.compare_password(request.old_password.to_owned())
+    user.compare_password(&request.old_password)
         .change_context(UserErrors::InvalidOldPassword)?;
 
     if request.old_password == request.new_password {
@@ -439,7 +439,7 @@ pub async fn rotate_password(
     let password = domain::UserPassword::new(request.password.to_owned())?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    if user.compare_password(request.password).is_ok() {
+    if user.compare_password(&request.password).is_ok() {
         return Err(UserErrors::ChangePasswordError.into());
     }
 
@@ -1764,6 +1764,51 @@ pub async fn generate_recovery_codes(
     Ok(ApplicationResponse::Json(user_api::RecoveryCodes {
         recovery_codes: recovery_codes.into_inner(),
     }))
+}
+
+pub async fn verify_recovery_code(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::VerifyRecoveryCodeRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_totp_status() != TotpStatus::Set {
+        return Err(UserErrors::TwoFactorAuthNotSetup.into());
+    }
+
+    let mut recovery_codes = user_from_db
+        .get_recovery_codes()
+        .ok_or(UserErrors::InternalServerError)?;
+
+    let matching_index = utils::user::password::get_index_for_correct_recovery_code(
+        &req.recovery_code,
+        &recovery_codes,
+    )?
+    .ok_or(UserErrors::InvalidRecoveryCode)?;
+
+    tfa_utils::insert_recovery_code_in_redis(&state, user_from_db.get_user_id()).await?;
+    let _ = recovery_codes.remove(matching_index);
+
+    state
+        .store
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: None,
+                totp_secret: None,
+                totp_recovery_codes: Some(recovery_codes),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }
 
 pub async fn terminate_two_factor_auth(

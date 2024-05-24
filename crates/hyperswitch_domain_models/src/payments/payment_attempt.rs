@@ -167,6 +167,7 @@ pub struct PaymentAttempt {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
 }
@@ -255,6 +256,7 @@ pub struct PaymentAttemptNew {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
 }
@@ -381,6 +383,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
+        charge_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -434,6 +437,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
+        charge_id: Option<String>,
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
