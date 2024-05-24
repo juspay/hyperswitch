@@ -877,6 +877,21 @@ impl
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+
+        req.request
+            .charges
+            .as_ref()
+            .map(|charge| match &charge.charge_type {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                    if stripe_charge == &api::enums::StripeChargeType::Direct {
+                        let mut customer_account_header = vec![(
+                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                            charge.transfer_account_id.clone().into_masked(),
+                        )];
+                        header.append(&mut customer_account_header);
+                    }
+                }
+            });
         Ok(header)
     }
 
@@ -1355,6 +1370,21 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+
+        req.request
+            .charges
+            .as_ref()
+            .map(|charge| match &charge.charge_type {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                    if stripe_charge == &api::enums::StripeChargeType::Direct {
+                        let mut customer_account_header = vec![(
+                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                            charge.transfer_account_id.clone().into_masked(),
+                        )];
+                        header.append(&mut customer_account_header);
+                    }
+                }
+            });
         Ok(header)
     }
 
@@ -1375,8 +1405,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::RefundRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let request_body = match req.request.charges.as_ref() {
+            None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from(req)?)),
+            Some(_) => RequestContent::FormUrlEncoded(Box::new(
+                stripe::ChargeRefundRequest::try_from(req)?,
+            )),
+        };
+        Ok(request_body)
     }
 
     fn build_request(

@@ -190,6 +190,7 @@ impl<F, T>
                     .custom_id
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         };
 
