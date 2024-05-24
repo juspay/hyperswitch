@@ -140,6 +140,7 @@ pub async fn create_payment_method(
                 last_modified: current_time,
                 last_used_at: current_time,
                 payment_method_billing_address,
+                updated_by: None,
             },
             storage_scheme,
         )
