@@ -1648,8 +1648,8 @@ impl GetPaymentMethodType for CryptoData {
 impl GetPaymentMethodType for UpiData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
-            UpiData::Upi(_) => api_enums::PaymentMethodType::UpiCollect,
-            UpiData::UpiQr(_) => api_enums::PaymentMethodType::UpiIntent,
+            Self::Upi(_) => api_enums::PaymentMethodType::UpiCollect,
+            Self::UpiQr(_) => api_enums::PaymentMethodType::UpiIntent,
         }
     }
 }
@@ -2953,6 +2953,8 @@ pub enum NextActionData {
         /// The url to fetch qr code data
         qr_code_data_url: Option<Url>,
     },
+    /// Contains url to fetch Qr code data
+    FetchQrCodeInformation { qr_code_fetch_url: Url },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
@@ -3029,6 +3031,13 @@ pub enum QrCodeInformation {
         qr_code_data_url: Url,
     },
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct FetchQrCodeInformation 
+{ pub qr_code_fetch_url: Url }
+
+
+
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BankTransferNextStepsData {
