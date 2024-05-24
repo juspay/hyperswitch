@@ -1,19 +1,27 @@
+use diesel_models::fraud_check::FraudCheck;
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
-use diesel_models::fraud_check::FraudCheck;
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event_type")]
 pub enum AuditEventType {
-    Error { error_message: String },
+    Error {
+        error_message: String,
+    },
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentConfirmed {client_src: Option<String>,client_ver:Option<String>,frm_message: Option<FraudCheck>},
-    PaymentCancelled { cancellation_reason: Option<String> },
+    PaymentConfirmed {
+        client_src: Option<String>,
+        client_ver: Option<String>,
+        frm_message: Option<FraudCheck>,
+    },
+    PaymentCancelled {
+        cancellation_reason: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
