@@ -1,7 +1,7 @@
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
-use serde_json::Value;
+use diesel_models::fraud_check::FraudCheck;
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event_type")]
 pub enum AuditEventType {
@@ -12,7 +12,7 @@ pub enum AuditEventType {
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentConfirmed {client_src: Option<String>,client_ver:Option<String>,frm_status: Option<String>,frm_reason: Option<Option<Value>>},
+    PaymentConfirmed {client_src: Option<String>,client_ver:Option<String>,frm_message: Option<FraudCheck>},
     PaymentCancelled { cancellation_reason: Option<String> },
 }
 

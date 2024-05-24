@@ -1292,22 +1292,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .clone()
             .or(payment_data.payment_attempt.client_version.clone());
   
-          let frm_status = payment_data
-            .frm_message
-            .clone()
-            .map(|frm| frm.frm_status.to_string());
-        let frm_reason = payment_data
-            .frm_message
-            .clone()
-            .map(|frm| frm.frm_reason);
 
+        let frm_message = payment_data.frm_message.clone();
+        
         _req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentConfirmed {
                 client_src,
                 client_ver,
-                frm_status,
-                frm_reason,
+                frm_message,
             }))
             .with(payment_data.to_event())
             .emit();
