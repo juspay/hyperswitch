@@ -11758,6 +11758,25 @@
           },
           {
             "type": "object",
+            "description": "Contains url to fetch Qr code data",
+            "required": [
+              "qr_code_fetch_url",
+              "type"
+            ],
+            "properties": {
+              "qr_code_fetch_url": {
+                "$ref": "#/components/schemas/Url"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fetch_qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Contains the download url and the reference number for transaction",
             "required": [
               "voucher_details",
@@ -13510,6 +13529,7 @@
           "trustly",
           "twint",
           "upi_collect",
+          "upi_intent",
           "vipps",
           "venmo",
           "walley",
@@ -18653,15 +18673,43 @@
         },
         "additionalProperties": false
       },
-      "UpiData": {
+      "Upi": {
         "type": "object",
         "properties": {
           "vpa_id": {
             "type": "string",
-            "example": "successtest@iata",
             "nullable": true
           }
         }
+      },
+      "UpiData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi"
+            ],
+            "properties": {
+              "upi": {
+                "$ref": "#/components/schemas/Upi"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQr"
+              }
+            }
+          }
+        ]
+      },
+      "UpiQr": {
+        "type": "object"
       },
       "ValueType": {
         "oneOf": [
