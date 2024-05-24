@@ -29,6 +29,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, AppState},
     services,
     types::{
@@ -1280,7 +1281,36 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
+       
+        let client_src = header_payload
+            .client_source
+            .clone()
+            .or(payment_data.payment_attempt.client_source.clone());
 
+        let client_ver = header_payload
+            .client_version
+            .clone()
+            .or(payment_data.payment_attempt.client_version.clone());
+  
+          let frm_status = payment_data
+            .frm_message
+            .clone()
+            .map(|frm| frm.frm_status.to_string());
+        let frm_reason = payment_data
+            .frm_message
+            .clone()
+            .map(|frm| frm.frm_reason);
+
+        _req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentConfirmed {
+                client_src,
+                client_ver,
+                frm_status,
+                frm_reason,
+            }))
+            .with(payment_data.to_event())
+            .emit();
         Ok((Box::new(self), payment_data))
     }
 }

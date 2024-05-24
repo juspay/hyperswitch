@@ -1,7 +1,7 @@
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
-
+use serde_json::Value;
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event_type")]
 pub enum AuditEventType {
@@ -12,6 +12,7 @@ pub enum AuditEventType {
     RefundCreated,
     RefundSuccess,
     RefundFail,
+    PaymentConfirmed {client_src: Option<String>,client_ver:Option<String>,frm_status: Option<String>,frm_reason: Option<Option<Value>>},
     PaymentCancelled { cancellation_reason: Option<String> },
 }
 
@@ -43,6 +44,7 @@ impl Event for AuditEvent {
         let event_type = match &self.event_type {
             AuditEventType::Error { .. } => "error",
             AuditEventType::PaymentCreated => "payment_created",
+            AuditEventType::PaymentConfirmed { .. } => "payment_confirmed",
             AuditEventType::ConnectorDecided => "connector_decided",
             AuditEventType::ConnectorCalled => "connector_called",
             AuditEventType::RefundCreated => "refund_created",
