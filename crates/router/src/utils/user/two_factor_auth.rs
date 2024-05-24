@@ -50,9 +50,16 @@ pub async fn check_recovery_code_in_redis(state: &AppState, user_id: &str) -> Us
 }
 
 pub async fn insert_totp_in_redis(state: &AppState, user_id: &str) -> UserResult<()> {
-    let _redis_conn = super::get_redis_connection(state)?;
-    let _key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
-    todo!() // after redis cooldown config
+    let redis_conn = super::get_redis_connection(state)?;
+    let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
+    redis_conn
+        .set_key_with_expiry(
+            key.as_str(),
+            common_utils::date_time::now_unix_timestamp(),
+            state.conf.user.two_factor_auth_expiry_in_secs,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
 }
 
 pub async fn insert_totp_secret_in_redis(

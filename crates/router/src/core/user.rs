@@ -588,7 +588,7 @@ pub async fn invite_multiple_user(
                 email: request.email.clone(),
                 is_email_sent: false,
                 password: None,
-                error: Some(error.current_context().to_string()),
+                error: Some(error.current_context().get_error_message().to_string()),
             },
         }
     }))
@@ -1635,8 +1635,6 @@ pub async fn begin_totp(
     let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
     let secret = totp.get_secret_base32().into();
 
-    tfa_utils::delete_totp_secret_from_redis(&state, user_from_db.get_user_id()).await?;
-
     tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
     Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
@@ -1735,6 +1733,7 @@ pub async fn update_totp(
         .change_context(UserErrors::InternalServerError)?;
 
     tfa_utils::delete_totp_secret_from_redis(&state, user_from_db.get_user_id()).await?;
+    tfa_utils::insert_totp_in_redis(&state, &user_token.user_id).await?;
 
     Ok(ApplicationResponse::StatusOk)
 }
