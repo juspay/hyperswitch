@@ -701,9 +701,9 @@ impl From<api_models::payments::CryptoData> for CryptoData {
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
         match value {
-                api_models::payments::UpiData::Upi(upi) => Self::Upi(Upi { vpa_id: upi.vpa_id }),
-                api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQr {}),
-            }
+            api_models::payments::UpiData::Upi(upi) => Self::Upi(Upi { vpa_id: upi.vpa_id }),
+            api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQr {}),
+        }
     }
 }
 
