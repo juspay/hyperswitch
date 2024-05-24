@@ -22,6 +22,7 @@ impl ConnectorResponseNew {
             connector_transaction_id: self.connector_transaction_id.clone(),
             connector: self.connector_name.clone(),
             updated_by: self.updated_by.clone(),
+            charge_id: self.charge_id.clone(),
         };
 
         let _payment_attempt: Result<PaymentAttempt, _> =
@@ -63,12 +64,14 @@ impl ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_name,
+                charge_id,
                 updated_by,
             } => PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
                 connector: connector_name,
+                charge_id,
                 updated_by,
             },
             ConnectorResponseUpdate::ErrorUpdate {
@@ -79,6 +82,7 @@ impl ConnectorResponse {
                 encoded_data: None,
                 connector_transaction_id: None,
                 connector: connector_name,
+                charge_id: None,
                 updated_by,
             },
         };

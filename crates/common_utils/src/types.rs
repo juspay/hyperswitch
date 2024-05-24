@@ -17,7 +17,7 @@ use diesel::{
 };
 use error_stack::{report, ResultExt};
 use semver::Version;
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
     errors::{CustomResult, ParsingError, PercentageError},
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
-#[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize)]
 pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
@@ -160,7 +160,7 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
 }
 
 /// represents surcharge type and value
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
@@ -172,7 +172,7 @@ pub enum Surcharge {
 /// This struct lets us represent a semantic version type
 #[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
 #[diesel(sql_type = Jsonb)]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, serde::Deserialize)]
 pub struct SemanticVersion(#[serde(with = "Version")] Version);
 
 impl SemanticVersion {
@@ -213,6 +213,48 @@ where
 }
 
 impl ToSql<Jsonb, diesel::pg::Pg> for SemanticVersion
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+#[derive(
+    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+/// Charge object for refunds
+pub struct ChargeRefunds {
+    /// Identifier for charge created for the payment
+    pub charge_id: String,
+
+    /// Toggle for reverting the application fee that was collected for the payment.
+    /// If set to false, the funds are pulled from the destination account.
+    pub revert_platform_fee: Option<bool>,
+
+    /// Toggle for reverting the transfer that was made during the charge.
+    /// If set to false, the funds are pulled from the main platform's account.
+    pub revert_transfer: Option<bool>,
+}
+
+impl<DB: Backend> FromSql<Jsonb, DB> for ChargeRefunds
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for ChargeRefunds
 where
     serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
 {

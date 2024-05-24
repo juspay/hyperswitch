@@ -474,6 +474,23 @@ pub struct PaymentsRequest {
 
     /// Details required for recurring payment
     pub recurring_details: Option<RecurringDetails>,
+
+    /// Fee information to be charged on the payment being collected
+    pub charges: Option<PaymentChargeRequest>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct PaymentChargeRequest {
+    /// Stripe's charge type
+    #[schema(value_type = PaymentChargeType, example = "direct")]
+    pub charge_type: api_enums::PaymentChargeType,
+
+    /// Platform fees to be collected on the payment
+    pub fees: i64,
+
+    /// Identifier for the reseller's account to send the funds to
+    pub transfer_account_id: String,
 }
 
 impl PaymentsRequest {
@@ -3426,9 +3443,28 @@ pub struct PaymentsResponse {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated: Option<PrimitiveDateTime>,
 
+    /// Fee information to be charged on the payment being collected
+    pub charges: Option<PaymentChargeResponse>,
+
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct PaymentChargeResponse {
+    /// Identifier for charge created for the payment
+    pub charge_id: Option<String>,
+
+    /// Type of charge (connector specific)
+    #[schema(value_type = PaymentChargeType, example = "direct")]
+    pub charge_type: api_enums::PaymentChargeType,
+
+    /// Platform fees collected on the payment
+    pub application_fees: i64,
+
+    /// Identifier for the reseller's account where the funds were transferred
+    pub transfer_account_id: String,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
