@@ -29,11 +29,18 @@ transforms:
       del(.message);
       .log_type = get(payment_topic_to_log_type, [.topic]) ?? "unknown";
 
+  filter_out_negatives:
+    type: filter
+    inputs:
+      - parse_kafka_payments
+    condition: .log.sign_flag == 1
+
   init_sessionizer_vars:
     type: remap
     inputs:
-      - parse_kafka_payments
+      - filter_out_negatives
     source: >-
+      log(.);
       .sessionizer = {
         "table": "${CASSANDRA_TABLE:-payments}",
         "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
@@ -72,6 +79,13 @@ transforms:
         socket.select(nil, nil, sec)
       end
 
+      function client_connect()
+        assert(client:connect())
+      end
+
+      function client_close()
+        assert(client:close())
+      end
 
       function create_cassandra_connection()
         client = assert(cassandra.new {
@@ -85,7 +99,7 @@ transforms:
 
         client:settimeout(1000)
         client:setkeepalive(0)
-        assert(client:connect())
+        client_connect()
       end
 
       function init(emit)
@@ -104,12 +118,14 @@ transforms:
         local is_success, data = pcall(db_get, table, id, version)
         while not is_success do
           sleep(5)
-          if not client then
-            create_cassandra_connection()
-          else
-            client:connect()
-            is_success, data = pcall(db_get, table, id, version)
-          end
+
+          print(string.format("db_get - recreate cassandra connection start - reason - %s", data))
+          local connection_closed, err = pcall(client_close)
+          print(string.format("db_get - close old cassandra connection - result - %s, %s", connection_closed, err))
+          local connection_success, err = pcall(create_cassandra_connection)
+          print(string.format("db_get - recreate cassandra connection end - result - %s, %s", connection_success, err))
+
+          is_success, data = pcall(db_get, table, id, version)
         end
 
         return data
@@ -188,6 +204,14 @@ transforms:
         socket.select(nil, nil, sec)
       end
 
+      function client_connect()
+        assert(client:connect())
+      end
+
+      function client_close()
+        assert(client:close())
+      end
+
       function create_cassandra_connection()
         client = assert(cassandra.new {
           host = os.getenv("CASSANDRA_HOST") or "cassandra0",
@@ -200,7 +224,7 @@ transforms:
 
         client:settimeout(1000)
         client:setkeepalive(0)
-        assert(client:connect())
+        client_connect()
       end
 
       function init(emit)
@@ -222,12 +246,14 @@ transforms:
 
         while not is_success do
           sleep(5)
-          if not client then
-            create_cassandra_connection()
-          else
-            client:connect()
-            is_success, res = pcall(db_set, table, state, id, version)
-          end
+
+          print(string.format("db_set - recreate cassandra connection start - reason - %s", data))
+          local connection_closed, err = pcall(client_close)
+          print(string.format("db_set - close old cassandra connection - result - %s, %s", connection_closed, err))
+          local connection_success, err = pcall(create_cassandra_connection)
+          print(string.format("db_set - recreate cassandra connection end - result - %s, %s", connection_success, err))
+
+          is_success, res = pcall(db_set, table, state, id, version)
         end
 
         return res
@@ -337,7 +363,6 @@ transforms:
         .attempts = set!(.attempts, [attempt_id], attempt_log)
       }
 
-      log(attempt_total_amount + to_float(.attempt_total_amount) ?? 0);
       .attempt_total_count = attempt_total_count + to_int(.attempt_total_count) ?? 0;
       .attempt_total_amount = attempt_total_amount + to_float(.attempt_total_amount) ?? 0;
       .attempt_success_count = attempt_success_count + to_int(.attempt_success_count) ?? 0;
@@ -348,7 +373,8 @@ transforms:
     inputs:
       - consolidate_events
     source: >-
-      del(.attempts)
+      del(.attempts);
+      .sessionizer_key = string!(.merchant_id) + "_" + string!(.payment_id);
       # .log_type = "intent";
 
   consolidate_events_attempts:
@@ -363,6 +389,7 @@ transforms:
           del(attempt.disputes);
           attempt.sign_flag = .sign_flag;
           # attempt.log_type = "attempt";
+          attempt.sessionizer_key = string!(attempt.merchant_id) + "_" + string!(attempt.payment_id) + "_" + string!(attempt.attempt_id);
           attempt
         }
       } else {
@@ -382,6 +409,7 @@ transforms:
               refund = object!(r);
               refund.sign_flag = .sign_flag;
               # refund.log_type = "refund";
+              refund.sessionizer_key = string!(refund.merchant_id) + "_" + string!(refund.payment_id) + "_" + string!(refund.attempt_id) + "_" + string!(refund.refund_id);
               refund
             }
           } else {
@@ -405,6 +433,7 @@ transforms:
               dispute = object!(d);
               dispute.sign_flag = .sign_flag;
               # dispute.log_type = "dispute";
+              dispute.sessionizer_key = string!(dispute.merchant_id) + "_" + string!(dispute.payment_id) + "_" + string!(dispute.attempt_id) + "_" + string!(dispute.dispute_id);
               dispute
             }
           } else {
@@ -422,6 +451,7 @@ sinks:
   #     - consolidate_events_intents
   #   bootstrap_servers: kafka0:29092
   #   topic: consolidated-intent-events
+  #   key_field: sessionizer_key
   #   encoding:
   #     codec: json
 
