@@ -135,16 +135,31 @@ struct TransactionRequest {
     amount: f64,
     currency_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    profile: Option<CustomerProfileDetails>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     payment: Option<PaymentDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    profile: Option<ProfileDetails>,
     order: Order,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer: Option<CustomerDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+enum ProfileDetails {
+    CreateProfileDetails(CreateProfileDetails),
+    CustomerProfileDetails(CustomerProfileDetails),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProfileDetails {
+    create_profile: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -158,6 +173,12 @@ struct CustomerProfileDetails {
 #[serde(rename_all = "camelCase")]
 struct PaymentProfileDetails {
     payment_profile_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomerDetails {
+    id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -461,126 +482,168 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let (payment_details, processing_options, subsequent_auth_information, profile) = match item
-            .router_data
-            .request
-            .mandate_id
-            .to_owned()
-            .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
-        {
-            Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
-                let processing_options = Some(ProcessingOptions {
-                    is_subsequent_auth: true,
-                });
-                let subsequent_auth_info = Some(SubsequentAuthInformation {
-                    original_network_trans_id: Secret::new(network_trans_id),
-                    reason: Reason::Resubmission,
-                });
-                match item.router_data.request.payment_method_data {
-                    domain::PaymentMethodData::Card(ref ccard) => {
-                        let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
-                            card_number: (*ccard.card_number).clone(),
-                            expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                            card_code: None,
-                        });
-                        (
-                            Some(payment_details),
-                            processing_options,
-                            subsequent_auth_info,
-                            None,
-                        )
-                    }
-                    domain::PaymentMethodData::CardRedirect(_)
-                    | domain::PaymentMethodData::Wallet(_)
-                    | domain::PaymentMethodData::PayLater(_)
-                    | domain::PaymentMethodData::BankRedirect(_)
-                    | domain::PaymentMethodData::BankDebit(_)
-                    | domain::PaymentMethodData::BankTransfer(_)
-                    | domain::PaymentMethodData::Crypto(_)
-                    | domain::PaymentMethodData::MandatePayment
-                    | domain::PaymentMethodData::Reward
-                    | domain::PaymentMethodData::Upi(_)
-                    | domain::PaymentMethodData::Voucher(_)
-                    | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message(
-                                "authorizedotnet",
-                            ),
-                        ))?
-                    }
-                }
-            }
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                connector_mandate_id,
-            )) => (
-                None,
-                Some(ProcessingOptions {
-                    is_subsequent_auth: true,
-                }),
-                None,
-                Some(CustomerProfileDetails {
-                    customer_profile_id: Secret::from(
-                        connector_mandate_id
-                            .connector_mandate_id
-                            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-                    ),
-                    payment_profile: PaymentProfileDetails {
-                        payment_profile_id: Secret::from(
-                            connector_mandate_id
-                                .payment_method_id
-                                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-                        ),
-                    },
-                }),
-            ),
-            None => {
-                match item.router_data.request.payment_method_data {
-                    domain::PaymentMethodData::Card(ref ccard) => {
-                        (
-                            Some(PaymentDetails::CreditCard(CreditCardDetails {
+        let (payment_details, processing_options, subsequent_auth_information, profile, customer) =
+            match item
+                .router_data
+                .request
+                .mandate_id
+                .to_owned()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
+            {
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                    network_trans_id,
+                )) => {
+                    let processing_options = Some(ProcessingOptions {
+                        is_subsequent_auth: true,
+                    });
+                    let subsequent_auth_info = Some(SubsequentAuthInformation {
+                        original_network_trans_id: Secret::new(network_trans_id),
+                        reason: Reason::Resubmission,
+                    });
+                    match item.router_data.request.payment_method_data {
+                        domain::PaymentMethodData::Card(ref ccard) => {
+                            let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
                                 card_number: (*ccard.card_number).clone(),
-                                // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
                                 expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                                card_code: Some(ccard.card_cvc.clone()),
-                            })),
-                            Some(ProcessingOptions {
-                                is_subsequent_auth: true,
-                            }),
-                            None,
-                            None,
-                        )
-                    }
-                    domain::PaymentMethodData::Wallet(ref wallet_data) => (
-                        Some(get_wallet_data(
-                            wallet_data,
-                            &item.router_data.request.complete_authorize_url,
-                        )?),
-                        None,
-                        None,
-                        None,
-                    ),
-                    domain::PaymentMethodData::CardRedirect(_)
-                    | domain::PaymentMethodData::PayLater(_)
-                    | domain::PaymentMethodData::BankRedirect(_)
-                    | domain::PaymentMethodData::BankDebit(_)
-                    | domain::PaymentMethodData::BankTransfer(_)
-                    | domain::PaymentMethodData::Crypto(_)
-                    | domain::PaymentMethodData::MandatePayment
-                    | domain::PaymentMethodData::Reward
-                    | domain::PaymentMethodData::Upi(_)
-                    | domain::PaymentMethodData::Voucher(_)
-                    | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message(
-                                "authorizedotnet",
-                            ),
-                        ))?
+                                card_code: None,
+                            });
+                            (
+                                Some(payment_details),
+                                processing_options,
+                                subsequent_auth_info,
+                                None,
+                                None,
+                            )
+                        }
+                        domain::PaymentMethodData::CardRedirect(_)
+                        | domain::PaymentMethodData::Wallet(_)
+                        | domain::PaymentMethodData::PayLater(_)
+                        | domain::PaymentMethodData::BankRedirect(_)
+                        | domain::PaymentMethodData::BankDebit(_)
+                        | domain::PaymentMethodData::BankTransfer(_)
+                        | domain::PaymentMethodData::Crypto(_)
+                        | domain::PaymentMethodData::MandatePayment
+                        | domain::PaymentMethodData::Reward
+                        | domain::PaymentMethodData::Upi(_)
+                        | domain::PaymentMethodData::Voucher(_)
+                        | domain::PaymentMethodData::GiftCard(_)
+                        | domain::PaymentMethodData::CardToken(_) => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message(
+                                    "authorizedotnet",
+                                ),
+                            ))?
+                        }
                     }
                 }
-            }
-        };
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_id,
+                )) => (
+                    None,
+                    Some(ProcessingOptions {
+                        is_subsequent_auth: true,
+                    }),
+                    None,
+                    Some(ProfileDetails::CustomerProfileDetails(
+                        CustomerProfileDetails {
+                            customer_profile_id: Secret::from(
+                                connector_mandate_id
+                                    .connector_mandate_id
+                                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                            ),
+                            payment_profile: PaymentProfileDetails {
+                                payment_profile_id: Secret::from(
+                                    connector_mandate_id
+                                        .payment_method_id
+                                        .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                                ),
+                            },
+                        },
+                    )),
+                    None,
+                ),
+                None => {
+                    match item.router_data.request.payment_method_data {
+                        domain::PaymentMethodData::Card(ref ccard) => {
+                            let (profile, customer) = if item
+                                .router_data
+                                .request
+                                .setup_future_usage
+                                .map_or(false, |future_usage| {
+                                    matches!(future_usage, common_enums::FutureUsage::OffSession)
+                                })
+                                && (item.router_data.request.customer_acceptance.is_some()
+                                    || item
+                                        .router_data
+                                        .request
+                                        .setup_mandate_details
+                                        .clone()
+                                        .map_or(false, |mandate_details| {
+                                            mandate_details.customer_acceptance.is_some()
+                                        })) {
+                                (
+                                    Some(ProfileDetails::CreateProfileDetails(
+                                        CreateProfileDetails {
+                                            create_profile: true,
+                                        },
+                                    )),
+                                    Some(CustomerDetails {
+                                        id: item
+                                            .router_data
+                                            .customer_id
+                                            .clone()
+                                            .ok_or_else(missing_field_err("customer_id"))?,
+                                    }),
+                                )
+                            } else {
+                                (None, None)
+                            };
+                            (
+                                Some(PaymentDetails::CreditCard(CreditCardDetails {
+                                    card_number: (*ccard.card_number).clone(),
+                                    // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
+                                    expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                                    card_code: Some(ccard.card_cvc.clone()),
+                                })),
+                                Some(ProcessingOptions {
+                                    is_subsequent_auth: true,
+                                }),
+                                None,
+                                profile,
+                                customer,
+                            )
+                        }
+                        domain::PaymentMethodData::Wallet(ref wallet_data) => (
+                            Some(get_wallet_data(
+                                wallet_data,
+                                &item.router_data.request.complete_authorize_url,
+                            )?),
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
+                        domain::PaymentMethodData::CardRedirect(_)
+                        | domain::PaymentMethodData::PayLater(_)
+                        | domain::PaymentMethodData::BankRedirect(_)
+                        | domain::PaymentMethodData::BankDebit(_)
+                        | domain::PaymentMethodData::BankTransfer(_)
+                        | domain::PaymentMethodData::Crypto(_)
+                        | domain::PaymentMethodData::MandatePayment
+                        | domain::PaymentMethodData::Reward
+                        | domain::PaymentMethodData::Upi(_)
+                        | domain::PaymentMethodData::Voucher(_)
+                        | domain::PaymentMethodData::GiftCard(_)
+                        | domain::PaymentMethodData::CardToken(_) => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message(
+                                    "authorizedotnet",
+                                ),
+                            ))?
+                        }
+                    }
+                }
+            };
         let authorization_indicator_type = match item.router_data.request.capture_method {
             Some(capture_method) => Some(AuthorizationIndicator {
                 authorization_indicator: capture_method.try_into()?,
@@ -612,6 +675,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             order: Order {
                 description: item.router_data.connector_request_reference_id.clone(),
             },
+            customer,
             bill_to,
             processing_options,
             subsequent_auth_information,
@@ -804,6 +868,7 @@ pub struct SecureAcceptance {
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
+    pub profile_response: Option<AuthorizedotnetSetupMandateResponse>,
     pub messages: ResponseMessages,
 }
 
@@ -913,7 +978,15 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             redirection_data,
-                            mandate_reference: None,
+                            mandate_reference: item.response.profile_response.map(
+                                |profile_response| types::MandateReference {
+                                    connector_mandate_id: profile_response.customer_profile_id,
+                                    payment_method_id: profile_response
+                                        .customer_payment_profile_id_list
+                                        .first()
+                                        .cloned(),
+                                },
+                            ),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
