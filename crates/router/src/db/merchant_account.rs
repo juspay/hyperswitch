@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 
 use common_utils::ext_traits::AsyncExt;
+use diesel_models::MerchantAccountUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
@@ -39,6 +40,11 @@ where
         merchant_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
+
+    async fn update_all_merchant_account(
+        &self,
+        merchant_account: storage::MerchantAccountUpdate,
+    ) -> CustomResult<usize, errors::StorageError>;
 
     async fn update_merchant(
         &self,
@@ -354,6 +360,38 @@ impl MerchantAccountInterface for Store {
 
         Ok(merchant_accounts)
     }
+
+    async fn update_all_merchant_account(
+        &self,
+        merchant_account: storage::MerchantAccountUpdate,
+    ) -> CustomResult<usize, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        let db_func = || async {
+            storage::MerchantAccount::update_all_merchant_accounts(
+                &conn,
+                MerchantAccountUpdateInternal::from(merchant_account),
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        let total;
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            let ma = db_func().await?;
+            total = ma.len();
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            let ma = db_func().await?;
+            publish_and_redact_all_merchant_account_cache(self, &ma).await?;
+            total = ma.len();
+        }
+
+        Ok(total)
+    }
 }
 
 #[async_trait::async_trait]
@@ -433,6 +471,13 @@ impl MerchantAccountInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    async fn update_all_merchant_account(
+        &self,
+        _merchant_account_update: storage::MerchantAccountUpdate,
+    ) -> CustomResult<usize, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
     async fn delete_merchant_account_by_merchant_id(
         &self,
         _merchant_id: &str,
@@ -473,6 +518,25 @@ async fn publish_and_redact_merchant_account_cache(
     )];
 
     cache_keys.extend(publishable_key.into_iter());
+
+    super::cache::publish_into_redact_channel(store, cache_keys).await?;
+    Ok(())
+}
+
+#[cfg(feature = "accounts_cache")]
+async fn publish_and_redact_all_merchant_account_cache(
+    store: &dyn super::StorageInterface,
+    merchant_accounts: &[storage::MerchantAccount],
+) -> CustomResult<(), errors::StorageError> {
+    let merchant_ids = merchant_accounts.iter().map(|m| m.merchant_id.clone());
+    let publishable_keys = merchant_accounts
+        .iter()
+        .filter_map(|m| m.publishable_key.clone());
+
+    let cache_keys: Vec<CacheKind<'_>> = merchant_ids
+        .chain(publishable_keys)
+        .map(|s| CacheKind::Accounts(s.into()))
+        .collect();
 
     super::cache::publish_into_redact_channel(store, cache_keys).await?;
     Ok(())
