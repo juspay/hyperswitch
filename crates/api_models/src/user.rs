@@ -255,12 +255,11 @@ pub struct BeginTotpResponse {
 pub struct TotpSecret {
     pub secret: Secret<String>,
     pub totp_url: Secret<String>,
-    pub recovery_codes: Vec<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VerifyTotpRequest {
-    pub totp: Option<Secret<String>>,
+    pub totp: Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
