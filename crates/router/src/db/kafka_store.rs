@@ -836,7 +836,7 @@ impl MerchantAccountInterface for KafkaStore {
             .update_all_merchant_account(merchant_account)
             .await
     }
-    
+
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
