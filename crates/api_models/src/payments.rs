@@ -2120,20 +2120,20 @@ pub struct CryptoData {
     pub pay_currency: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UpiData {
     Upi(Upi),
     UpiQr(UpiQr),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Upi {
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct UpiQr {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
