@@ -535,7 +535,8 @@ where
 
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_containing_fetch_qr_code_url = fetch_qr_code_url_next_steps_check(payment_attempt.clone())?;
+        let next_action_containing_fetch_qr_code_url =
+            fetch_qr_code_url_next_steps_check(payment_attempt.clone())?;
 
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
@@ -856,13 +857,13 @@ pub fn qr_code_next_steps_check(
     Ok(qr_code_instructions)
 }
 
-
 pub fn fetch_qr_code_url_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::FetchQrCodeInformation>> {
-    let qr_code_steps: Option<Result<api_models::payments::FetchQrCodeInformation, _>> = payment_attempt
-        .connector_metadata
-        .map(|metadata| metadata.parse_value("FetchQrCodeInformation"));
+    let qr_code_steps: Option<Result<api_models::payments::FetchQrCodeInformation, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("FetchQrCodeInformation"));
 
     let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_fetch_url)

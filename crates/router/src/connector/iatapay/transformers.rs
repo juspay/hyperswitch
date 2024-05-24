@@ -314,7 +314,7 @@ fn get_iatpay_response(
             let (connector_metadata, redirection_data) =
                 match checkout_methods.redirect.redirect_url.ends_with("qr") {
                     true => {
-                        let qr_code_info = api_models::payments::FetchQrCodeInformation { 
+                        let qr_code_info = api_models::payments::FetchQrCodeInformation {
                             qr_code_fetch_url: url::Url::parse(
                                 &checkout_methods.redirect.redirect_url,
                             )

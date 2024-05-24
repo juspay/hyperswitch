@@ -3033,11 +3033,9 @@ pub enum QrCodeInformation {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct FetchQrCodeInformation 
-{ pub qr_code_fetch_url: Url }
-
-
-
+pub struct FetchQrCodeInformation {
+    pub qr_code_fetch_url: Url,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BankTransferNextStepsData {

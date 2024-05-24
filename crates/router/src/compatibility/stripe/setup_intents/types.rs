@@ -383,7 +383,9 @@ pub enum StripeNextAction {
         qr_code_url: Option<url::Url>,
         qr_code_data_url: Option<url::Url>,
     },
-    FetchQrCodeInformation { qr_code_fetch_url: url::Url },
+    FetchQrCodeInformation {
+        qr_code_fetch_url: url::Url,
+    },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
     },
@@ -413,7 +415,7 @@ pub(crate) fn into_stripe_next_action(
         },
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
-        },
+        }
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
@@ -425,11 +427,9 @@ pub(crate) fn into_stripe_next_action(
             qr_code_url,
             qr_code_data_url,
         },
-        payments::NextActionData::FetchQrCodeInformation {
-            qr_code_fetch_url
-        } => StripeNextAction::FetchQrCodeInformation {
-            qr_code_fetch_url
-        },
+        payments::NextActionData::FetchQrCodeInformation { qr_code_fetch_url } => {
+            StripeNextAction::FetchQrCodeInformation { qr_code_fetch_url }
+        }
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
