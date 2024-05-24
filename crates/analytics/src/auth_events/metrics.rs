@@ -15,6 +15,7 @@ mod challenge_attempt_count;
 mod challenge_flow_count;
 mod challenge_success_count;
 mod frictionless_flow_count;
+mod frictionless_success_count;
 mod three_ds_sdk_count;
 
 use authentication_attempt_count::AuthenticationAttemptCount;
@@ -23,6 +24,7 @@ use challenge_attempt_count::ChallengeAttemptCount;
 use challenge_flow_count::ChallengeFlowCount;
 use challenge_success_count::ChallengeSuccessCount;
 use frictionless_flow_count::FrictionlessFlowCount;
+use frictionless_success_count::FrictionlessSuccessCount;
 use three_ds_sdk_count::ThreeDsSdkCount;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
@@ -99,6 +101,11 @@ where
             }
             Self::FrictionlessFlowCount => {
                 FrictionlessFlowCount
+                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .await
+            }
+            Self::FrictionlessSuccessCount => {
+                FrictionlessSuccessCount
                     .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
                     .await
             }

@@ -17,7 +17,7 @@ use crate::user::{
     RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
     SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
     TokenOrPayloadResponse, TokenResponse, UpdateUserAccountDetailsRequest, UserFromEmailRequest,
-    UserMerchantCreate, VerifyEmailRequest, VerifyTotpRequest,
+    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -75,6 +75,7 @@ common_utils::impl_misc_api_event_type!(
     TokenResponse,
     UserFromEmailRequest,
     BeginTotpResponse,
+    VerifyRecoveryCodeRequest,
     VerifyTotpRequest,
     RecoveryCodes
 );

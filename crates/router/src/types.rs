@@ -22,10 +22,11 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
-use common_utils::{pii, pii::Email};
-pub use common_utils::{request::RequestContent, types::MinorUnit};
-use error_stack::ResultExt;
+pub use common_utils::request::RequestContent;
+use common_utils::{pii, pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+#[cfg(feature = "payouts")]
+pub use hyperswitch_domain_models::router_request_types::PayoutsData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
@@ -33,9 +34,13 @@ pub use hyperswitch_domain_models::{
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
+    router_request_types::{
+        AcceptDisputeRequestData, AccessTokenRequestData, BrowserInformation,
+        DefendDisputeRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+    },
 };
 use masking::Secret;
-use serde::Serialize;
 
 use self::storage::enums as storage_enums;
 pub use crate::core::payments::CustomerDetails;
@@ -51,7 +56,10 @@ use crate::{
         payments::{types, PaymentData},
     },
     services,
-    types::{transformers::ForeignFrom, types::AuthenticationData},
+    types::{
+        transformers::{ForeignFrom, ForeignTryFrom},
+        types::AuthenticationData,
+    },
 };
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -274,20 +282,6 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
-
-#[cfg(feature = "payouts")]
-#[derive(Debug, Clone)]
-pub struct PayoutsData {
-    pub payout_id: String,
-    pub amount: i64,
-    pub connector_payout_id: Option<String>,
-    pub destination_currency: storage_enums::Currency,
-    pub source_currency: storage_enums::Currency,
-    pub payout_type: storage_enums::PayoutType,
-    pub entity_type: storage_enums::PayoutEntityType,
-    pub customer_details: Option<CustomerDetails>,
-    pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
-}
 
 #[cfg(feature = "payouts")]
 pub trait PayoutIndividualDetailsExt {
@@ -532,13 +526,6 @@ pub struct SetupMandateRequestData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AccessTokenRequestData {
-    pub app_id: Secret<String>,
-    pub id: Option<Secret<String>>,
-    // Add more keys if required
 }
 
 pub trait Capturable {
@@ -868,60 +855,6 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
-pub enum ResponseId {
-    ConnectorTransactionId(String),
-    EncodedData(String),
-    #[default]
-    NoResponseId,
-}
-
-impl ResponseId {
-    pub fn get_connector_transaction_id(
-        &self,
-    ) -> errors::CustomResult<String, errors::ValidationError> {
-        match self {
-            Self::ConnectorTransactionId(txn_id) => Ok(txn_id.to_string()),
-            _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "connector_transaction_id",
-            })
-            .attach_printable("Expected connector transaction ID not found"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RefundsData {
-    pub refund_id: String,
-    pub connector_transaction_id: String,
-
-    pub connector_refund_id: Option<String>,
-    pub currency: storage_enums::Currency,
-    /// Amount for the payment against which this refund is issued
-    pub payment_amount: i64,
-    pub reason: Option<String>,
-    pub webhook_url: Option<String>,
-    /// Amount to be refunded
-    pub refund_amount: i64,
-    /// Arbitrary metadata required for refund
-    pub connector_metadata: Option<serde_json::Value>,
-    pub browser_info: Option<BrowserInformation>,
-}
-
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct BrowserInformation {
-    pub color_depth: Option<u8>,
-    pub java_enabled: Option<bool>,
-    pub java_script_enabled: Option<bool>,
-    pub language: Option<String>,
-    pub screen_height: Option<u32>,
-    pub screen_width: Option<u32>,
-    pub time_zone: Option<i32>,
-    pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: Option<String>,
-    pub user_agent: Option<String>,
-}
-
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
@@ -936,13 +869,6 @@ pub enum Redirection {
 }
 
 #[derive(Debug, Clone)]
-pub struct VerifyWebhookSourceRequestData {
-    pub webhook_headers: actix_web::http::header::HeaderMap,
-    pub webhook_body: Vec<u8>,
-    pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
-}
-
-#[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceResponseData {
     pub verify_webhook_status: VerifyWebhookStatus,
 }
@@ -953,58 +879,10 @@ pub enum VerifyWebhookStatus {
     SourceNotVerified,
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct AcceptDisputeRequestData {
-    pub dispute_id: String,
-    pub connector_dispute_id: String,
-}
-
 #[derive(Default, Clone, Debug)]
 pub struct AcceptDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct SubmitEvidenceRequestData {
-    pub dispute_id: String,
-    pub connector_dispute_id: String,
-    pub access_activity_log: Option<String>,
-    pub billing_address: Option<String>,
-    pub cancellation_policy: Option<Vec<u8>>,
-    pub cancellation_policy_provider_file_id: Option<String>,
-    pub cancellation_policy_disclosure: Option<String>,
-    pub cancellation_rebuttal: Option<String>,
-    pub customer_communication: Option<Vec<u8>>,
-    pub customer_communication_provider_file_id: Option<String>,
-    pub customer_email_address: Option<String>,
-    pub customer_name: Option<String>,
-    pub customer_purchase_ip: Option<String>,
-    pub customer_signature: Option<Vec<u8>>,
-    pub customer_signature_provider_file_id: Option<String>,
-    pub product_description: Option<String>,
-    pub receipt: Option<Vec<u8>>,
-    pub receipt_provider_file_id: Option<String>,
-    pub refund_policy: Option<Vec<u8>>,
-    pub refund_policy_provider_file_id: Option<String>,
-    pub refund_policy_disclosure: Option<String>,
-    pub refund_refusal_explanation: Option<String>,
-    pub service_date: Option<String>,
-    pub service_documentation: Option<Vec<u8>>,
-    pub service_documentation_provider_file_id: Option<String>,
-    pub shipping_address: Option<String>,
-    pub shipping_carrier: Option<String>,
-    pub shipping_date: Option<String>,
-    pub shipping_documentation: Option<Vec<u8>>,
-    pub shipping_documentation_provider_file_id: Option<String>,
-    pub shipping_tracking_number: Option<String>,
-    pub invoice_showing_distinct_transactions: Option<Vec<u8>>,
-    pub invoice_showing_distinct_transactions_provider_file_id: Option<String>,
-    pub recurring_transaction_agreement: Option<Vec<u8>>,
-    pub recurring_transaction_agreement_provider_file_id: Option<String>,
-    pub uncategorized_file: Option<Vec<u8>>,
-    pub uncategorized_file_provider_file_id: Option<String>,
-    pub uncategorized_text: Option<String>,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -1014,37 +892,15 @@ pub struct SubmitEvidenceResponse {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct DefendDisputeRequestData {
-    pub dispute_id: String,
-    pub connector_dispute_id: String,
-}
-
-#[derive(Default, Debug, Clone)]
 pub struct DefendDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct UploadFileRequestData {
-    pub file_key: String,
-    #[serde(skip)]
-    pub file: Vec<u8>,
-    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
-    pub file_type: mime::Mime,
-    pub file_size: i32,
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct UploadFileResponse {
     pub provider_file_id: String,
 }
-
-#[derive(Clone, Debug)]
-pub struct RetrieveFileRequestData {
-    pub provider_file_id: String,
-}
-
 #[derive(Clone, Debug)]
 pub struct RetrieveFileResponse {
     pub file_data: Vec<u8>,
@@ -1210,9 +1066,9 @@ pub struct Response {
     pub status_code: u16,
 }
 
-impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
+impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
-    fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn foreign_try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
         match connector_auth {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 app_id: api_key,
@@ -1234,22 +1090,6 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector_account_details",
             }),
-        }
-    }
-}
-
-impl From<errors::ApiErrorResponse> for ErrorResponse {
-    fn from(error: errors::ApiErrorResponse) -> Self {
-        Self {
-            code: error.error_code(),
-            message: error.error_message(),
-            reason: None,
-            status_code: match error {
-                errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
-                _ => 500,
-            },
-            attempt_status: None,
-            connector_transaction_id: None,
         }
     }
 }

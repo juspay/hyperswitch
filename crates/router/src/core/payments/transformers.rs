@@ -603,6 +603,9 @@ where
                                                     three_ds_method_url: None,
                                             }),
                                             poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
+                                            message_version: authentication.message_version.as_ref()
+                                            .map(|version| version.to_string()),
+                                            directory_server_id: authentication.directory_server_id.clone(),
                                         },
                                     })
                                 }else{

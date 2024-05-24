@@ -14,3 +14,4 @@ pub const MAX_PASSWORD_LENGTH: usize = 70;
 pub const MIN_PASSWORD_LENGTH: usize = 8;
 
 pub const TOTP_PREFIX: &str = "TOTP_";
+pub const REDIS_RECOVERY_CODE_PREFIX: &str = "RC_";
