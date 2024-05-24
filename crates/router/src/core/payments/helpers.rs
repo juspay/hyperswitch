@@ -2972,6 +2972,7 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
+            charges: None,
             frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
@@ -3031,6 +3032,7 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
+            charges: None,
             frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
@@ -3089,6 +3091,7 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
+            charges: None,
             frm_metadata: None,
         };
         let req_cs = Some("1".to_string());
@@ -3561,6 +3564,7 @@ impl AttemptType {
             // New payment method billing address can be passed for a retry
             payment_method_billing_address_id: None,
             fingerprint_id: None,
+            charge_id: None,
             client_source: None,
             client_version: None,
         }

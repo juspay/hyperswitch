@@ -111,6 +111,7 @@ impl WorldlineTest {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         })
     }
 }

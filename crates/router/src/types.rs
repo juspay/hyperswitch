@@ -35,8 +35,9 @@ pub use hyperswitch_domain_models::{
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
     router_request_types::{
-        AcceptDisputeRequestData, AccessTokenRequestData, BrowserInformation,
-        DefendDisputeRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
+        AcceptDisputeRequestData, AccessTokenRequestData, BrowserInformation, ChargeRefunds,
+        ChargeRefundsOptions, DefendDisputeRequestData, DestinationChargeRefund,
+        DirectChargeRefund, RefundsData, ResponseId, RetrieveFileRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
 };
@@ -349,6 +350,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub authentication_data: Option<AuthenticationData>,
+    pub charges: Option<types::PaymentCharges>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -806,6 +808,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        charge_id: Option<String>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -1169,6 +1172,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
+            charges: None, // TODO: allow charges on mandates?
         }
     }
 }
