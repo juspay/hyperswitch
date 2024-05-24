@@ -3990,8 +3990,6 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        println!("listtt {:?}", merchant_connector_account_list.clone());
-
         let mut connector_data_list = vec![decided_connector_data.clone()];
 
         for merchant_connector_account in merchant_connector_account_list {
