@@ -3700,7 +3700,12 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.to_string(),
             })?;
+
         let mut mca_ids = HashSet::new();
+        let mcas = mcas
+            .into_iter()
+            .filter(|mca| mca.disabled == Some(true))
+            .collect::<Vec<_>>();
 
         for mca in mcas {
             mca_ids.insert(mca.merchant_connector_id);
