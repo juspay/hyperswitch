@@ -84,93 +84,144 @@ function bankRedirectRedirection(
   connectorId,
   payment_method_type
 ) {
+  let verifyUrl = false;
+
   cy.visit(redirection_url.href);
-  if (connectorId === "adyen") {
-    if (payment_method_type === "ideal") {
-      cy.get(":nth-child(4) > td > p").should(
-        "contain.text",
-        "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
-      );
-      cy.get(".btnLink").click();
-      cy.url().should("include", "status=succeeded");
-    } else if (payment_method_type === "giropay") {
-      cy.get(
-        ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
-      ).click();
-      cy.wait(6000);
-      cy.get(".normal-3").should(
-        "contain.text",
-        "Bank suchen ‑ mit giropay zahlen."
-      );
-      cy.get("#bankSearch").type("giropay TestBank{enter}");
-      cy.get(".normal-2 > div").click();
-      cy.get('[data-testid="customerIban"]').type("DE48499999601234567890");
-      cy.get('[data-testid="customerIdentification"]').type("1234567890");
-      cy.get(":nth-child(3) > .rds-button").click();
-      cy.get('[data-testid="onlineBankingPin"]').type("1234");
-      cy.get(".rds-button--primary").click();
-      cy.get(":nth-child(5) > .rds-radio-input-group__label").click();
-      cy.get(".rds-button--primary").click();
-      cy.get('[data-testid="photoTan"]').type("123456");
-      cy.get(".rds-button--primary").click();
-      cy.wait(10000);
-      cy.url().should("include", "status=succeeded");
-    } else if (payment_method_type === "sofort") {
-      cy.task(
-        "cli_log",
-        "print here ->> " + JSON.stringify(payment_method_type)
-      );
-    } else if (payment_method_type === "eps") {
-      cy.get("h1").should("contain.text", "Acquirer Simulator");
-      cy.get('[value="authorised"]').click();
-      cy.url().should("include", "status=succeeded");
-    }
-  } else if (connectorId === "trustpay") {
-    if (payment_method_type === "ideal") {
-      cy.get("p").should(
-        "contain.text",
-        "Choose your iDeal Issuer Bank please"
-      );
-      cy.get("#issuerSearchInput").click();
-      cy.get("#issuerSearchInput").type("ING{enter}");
-      cy.get("#trustpay__selectIssuer_submit").click();
-    } else if (payment_method_type === "giropay") {
-      cy.get("._transactionId__header__iXVd_").should(
-        "contain.text",
-        "Bank suchen ‑ mit giropay zahlen."
-      );
-      cy.get(".BankSearch_searchInput__uX_9l").type(
-        "Volksbank Hildesheim{enter}"
-      );
-      cy.get(".BankSearch_searchIcon__EcVO7").click();
-      cy.get(".BankSearch_bankWrapper__R5fUK").click();
-      cy.get("._transactionId__primaryButton__nCa0r").click();
-      cy.get(".normal-3").should("contain.text", "Kontoauswahl");
-    } else if (payment_method_type === "eps") {
-      cy.get("._transactionId__header__iXVd_").should(
-        "contain.text",
-        "Bank suchen ‑ mit eps zahlen."
-      );
-      cy.get(".BankSearch_searchInput__uX_9l").type(
-        "Allgemeine Sparkasse Oberösterreich Bank AG{enter}"
-      );
-      cy.get(".BankSearch_searchResultItem__lbcKm").click();
-      cy.get("._transactionId__primaryButton__nCa0r").click();
-      cy.get("#loginTitle").should(
-        "contain.text",
-        "eps Online-Überweisung Login"
-      );
-      cy.get("#user")
-        .should("be.visible")
-        .should("be.enabled")
-        .focus()
-        .type("Verfügernummer");
-      cy.get("input#submitButton.btn.btn-primary").click();
-    }
-  } else {
-    throw new Error(`Unsupported connector: ${connectorId}`);
+
+  switch (connectorId) {
+    case "adyen":
+      switch (payment_method_type) {
+        case "eps":
+          cy.get("h1").should("contain.text", "Acquirer Simulator");
+          cy.get('[value="authorised"]').click();
+          cy.url().should("include", "status=succeeded");
+          cy.wait(5000);
+          break;
+        case "ideal":
+          cy.get(":nth-child(4) > td > p").should(
+            "contain.text",
+            "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
+          );
+          cy.get(".btnLink").click();
+          cy.url().should("include", "status=succeeded");
+          cy.wait(5000);
+          break;
+        case "giropay":
+          cy.get(
+            ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
+          ).click();
+          cy.wait(5000);
+          cy.get(".normal-3").should(
+            "contain.text",
+            "Bank suchen ‑ mit giropay zahlen."
+          );
+          cy.get("#bankSearch").type("giropay TestBank{enter}");
+          cy.get(".normal-2 > div").click();
+          cy.get('[data-testid="customerIban"]').type("DE48499999601234567890");
+          cy.get('[data-testid="customerIdentification"]').type("1234567890");
+          cy.get(":nth-child(3) > .rds-button").click();
+          cy.get('[data-testid="onlineBankingPin"]').type("1234");
+          cy.get(".rds-button--primary").click();
+          cy.get(":nth-child(5) > .rds-radio-input-group__label").click();
+          cy.get(".rds-button--primary").click();
+          cy.get('[data-testid="photoTan"]').type("123456");
+          cy.get(".rds-button--primary").click();
+          cy.wait(5000);
+          cy.url().should("include", "status=succeeded");
+          cy.wait(5000);
+          break;
+        case "sofort":
+          cy.get(".modal-overlay.modal-shown.in", { timeout: 5000 }).then(
+            ($modal) => {
+              // If modal is found, handle it
+              if ($modal.length > 0) {
+                cy.get("button.cookie-modal-deny-all.button-tertiary")
+                  .should("be.visible")
+                  .should("contain", "Reject All")
+                  .click({ force: true, multiple: true });
+                cy.get("div#TopBanks.top-banks-multistep")
+                  .should("contain", "Demo Bank")
+                  .as("btn")
+                  .click();
+                cy.get("@btn").click();
+              } else {
+                cy.get("input.phone").type("9123456789");
+                cy.get("#button.onContiue")
+                  .should("contain", "Continue")
+                  .click();
+              }
+            }
+          );
+          break;
+        case "trustly":
+          break;
+        default:
+          throw new Error(
+            `Unsupported payment method type: ${payment_method_type}`
+          );
+      }
+      verifyUrl = true;
+      break;
+    case "trustpay":
+      switch (payment_method_type) {
+        case "eps":
+          cy.get("._transactionId__header__iXVd_").should(
+            "contain.text",
+            "Bank suchen ‑ mit eps zahlen."
+          );
+          cy.get(".BankSearch_searchInput__uX_9l").type(
+            "Allgemeine Sparkasse Oberösterreich Bank AG{enter}"
+          );
+          cy.get(".BankSearch_searchResultItem__lbcKm").click();
+          cy.get("._transactionId__primaryButton__nCa0r").click();
+          cy.get("#loginTitle").should(
+            "contain.text",
+            "eps Online-Überweisung Login"
+          );
+          cy.get("#user")
+            .should("be.visible")
+            .should("be.enabled")
+            .focus()
+            .type("Verfügernummer");
+          cy.get("input#submitButton.btn.btn-primary").click();
+          break;
+        case "ideal":
+          cy.get("p").should(
+            "contain.text",
+            "Choose your iDeal Issuer Bank please"
+          );
+          cy.get("#issuerSearchInput").click();
+          cy.get("#issuerSearchInput").type("ING{enter}");
+          cy.get("#trustpay__selectIssuer_submit").click();
+          break;
+        case "giropay":
+          cy.get("._transactionId__header__iXVd_").should(
+            "contain.text",
+            "Bank suchen ‑ mit giropay zahlen."
+          );
+          cy.get(".BankSearch_searchInput__uX_9l").type(
+            "Volksbank Hildesheim{enter}"
+          );
+          cy.get(".BankSearch_searchIcon__EcVO7").click();
+          cy.get(".BankSearch_bankWrapper__R5fUK").click();
+          cy.get("._transactionId__primaryButton__nCa0r").click();
+          cy.get(".normal-3").should("contain.text", "Kontoauswahl");
+          break;
+        case "sofort":
+          break;
+        case "trustly":
+          break;
+        default:
+          throw new Error(
+            `Unsupported payment method type: ${payment_method_type}`
+          );
+      }
+      verifyUrl = false;
+      break;
+    default:
+      throw new Error(`Unsupported connector: ${connectorId}`);
   }
-  verifyReturnUrl(redirection_url, expected_url, false);
+  verifyReturnUrl(redirection_url, expected_url, verifyUrl);
 }
 
 function verifyReturnUrl(redirection_url, expected_url, forward_flow) {

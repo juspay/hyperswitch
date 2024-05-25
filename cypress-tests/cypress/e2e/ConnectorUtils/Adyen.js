@@ -1,3 +1,5 @@
+import { getCustomIntent } from "./Commons";
+
 const successfulNo3DSCardDetails = {
   card_number: "371449635398431",
   card_exp_month: "03",
@@ -387,6 +389,117 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    PaymentIntent: getCustomIntent({
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        bank_redirect: {
+          ideal: {
+            bank_name: "ing",
+            country: "NL",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    giropay: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        bank_redirect: {
+          giropay: {
+            bank_name: "",
+            bank_account_bic: "",
+            bank_account_iban: "",
+            preferred_language: "en",
+            country: "DE",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        bank_redirect: {
+          sofort: {
+            country: "DE",
+            preferred_language: "en",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        bank_redirect: {
+          eps: {
+            bank_name: "ing",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    blik: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "blik",
+        bank_redirect: {
+          blik: {
+            name: "John Doe",
+            email: "example@email.com",
+            blik_code: "777987",
+          },
+        },
+        billing: {
+          address: {
+            country: "PL",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
         },
       },
     },
