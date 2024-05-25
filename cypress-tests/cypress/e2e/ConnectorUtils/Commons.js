@@ -1,4 +1,14 @@
 // This file is the default. To override, add to connector.js
+import State from "../../utils/State";
+
+const globalState = new State({
+  connectorId: Cypress.env("CONNECTOR"),
+  baseUrl: Cypress.env("BASEURL"),
+  adminApiKey: Cypress.env("ADMINAPIKEY"),
+  connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
+});
+
+const connectorId = globalState.get("connectorId");
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -16,9 +26,43 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
+// Function to get default PaymentIntent object
+const getDefaultIntent = () => ({
+  Request: {
+    currency: "EUR",
+  },
+  Response: {
+    status: 501,
+    body: {
+      error: {
+        type: "invalid_request",
+        message: `Selected payment method through ${connectorId} is not implemented`,
+        code: "IR_00",
+      },
+    },
+  },
+});
+
+// Function to get PaymentIntent with overridden properties
+export const getCustomIntent = (overrides) => {
+  const defaultIntent = getDefaultIntent();
+
+  return {
+    ...defaultIntent,
+    Request: {
+      ...defaultIntent.Request,
+      ...(overrides.Request || {}),
+    },
+    Response: {
+      ...defaultIntent.Response,
+      ...(overrides.Response || {}),
+    },
+  };
+};
+
 export const connectorDetails = {
   card_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -31,7 +75,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    },
+    }),
     "3DSManualCapture": {
       Request: {
         card: successfulThreeDSTestCardDetails,
@@ -182,7 +226,7 @@ export const connectorDetails = {
         },
       },
     },
-    MandateSingleUse3DSAutoCapture: {
+    MandateSingleUse3DSAutoCapture: getCustomIntent({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -193,19 +237,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    MandateSingleUse3DSManualCapture: {
+    }),
+    MandateSingleUse3DSManualCapture: getCustomIntent({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -216,19 +249,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    MandateSingleUseNo3DSAutoCapture: {
+    }),
+    MandateSingleUseNo3DSAutoCapture: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -239,19 +261,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    MandateSingleUseNo3DSManualCapture: {
+    }),
+    MandateSingleUseNo3DSManualCapture: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -262,19 +273,20 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
+    }),
+    MandateMultiUseNo3DSAutoCapture: getCustomIntent({
+      Request: {
+        card: successfulNo3DSCardDetails,
+        currency: "USD",
+        mandate_type: {
+          single_use: {
+            amount: 8000,
+            currency: "USD",
           },
         },
       },
-    },
-    MandateMultiUseNo3DSAutoCapture: {
+    }),
+    MandateMultiUseNo3DSManualCapture: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -285,42 +297,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    MandateMultiUseNo3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    MandateMultiUse3DSAutoCapture: {
+    }),
+    MandateMultiUse3DSAutoCapture: getCustomIntent({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -331,19 +309,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    MandateMultiUse3DSManualCapture: {
+    }),
+    MandateMultiUse3DSManualCapture: getCustomIntent({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -354,19 +321,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    ZeroAuthMandate: {
+    }),
+    ZeroAuthMandate: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -377,19 +333,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    SaveCardUseNo3DSAutoCapture: {
+    }),
+    SaveCardUseNo3DSAutoCapture: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -403,19 +348,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCapture: {
+    }),
+    SaveCardUseNo3DSManualCapture: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -429,21 +363,10 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
+    }),
   },
   bank_transfer_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomIntent({
       Request: {
         currency: "BRL",
       },
@@ -453,8 +376,8 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    },
-    Pix: {
+    }),
+    Pix: getCustomIntent({
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix",
@@ -463,38 +386,21 @@ export const connectorDetails = {
         },
         currency: "USD",
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
+    }),
   },
-
   bank_redirect_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomIntent({
       Request: {
         currency: "EUR",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
+          status: "requires_payment_method",
         },
       },
-    },
-    ideal: {
+    }),
+    ideal: getCustomIntent({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -505,19 +411,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    giropay: {
+    }),
+    giropay: getCustomIntent({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -531,19 +426,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    sofort: {
+    }),
+    sofort: getCustomIntent({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -554,19 +438,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
-    eps: {
+    }),
+    eps: getCustomIntent({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -576,40 +449,34 @@ export const connectorDetails = {
           },
         },
       },
+    }),
+    blikPaymentIntent: getCustomIntent({
+      Request: {
+        currency: "PLN",
+      },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
+          status: "requires_payment_method",
         },
       },
-    },
-    blik: {
+    }),
+    blik: getCustomIntent({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
         bank_redirect: {
-          giropay: {
-            bank_name: "ing",
-            country: "NL",
+          blik: {
+            name: "John Doe",
+            email: "example@email.com",
+          },
+        },
+        billing: {
+          address: {
+            country: "PL",
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "HE_04",
-          },
-        },
-      },
-    },
+    }),
   },
 };

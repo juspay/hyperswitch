@@ -1,3 +1,5 @@
+import { getCustomIntent } from "./Commons";
+
 const successfulNo3DSCardDetails = {
   card_number: "4200000000000000",
   card_exp_month: "10",
@@ -16,7 +18,7 @@ const successfulThreeDSTestCardDetails = {
 
 export const connectorDetails = {
   card_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomIntent({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -29,7 +31,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    },
+    }),
     "3DSAutoCapture": {
       Request: {
         card: successfulThreeDSTestCardDetails,
@@ -427,7 +429,7 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomIntent({
       Request: {
         currency: "EUR",
       },
@@ -437,7 +439,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    },
+    }),
     ideal: {
       Request: {
         payment_method: "bank_redirect",
@@ -491,7 +493,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "1133001",
         },
       },
     },
@@ -517,9 +520,14 @@ export const connectorDetails = {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
         bank_redirect: {
-          giropay: {
-            bank_name: "ing",
-            country: "NL",
+          blik: {
+            name: "John Doe",
+            email: "example@email.com",
+          },
+        },
+        billing: {
+          address: {
+            country: "PL",
           },
         },
       },

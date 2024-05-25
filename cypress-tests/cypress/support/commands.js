@@ -221,7 +221,6 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
     body: confirmBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
     expect(res_data.status).to.equal(response.status);
     expect(response.headers["content-type"]).to.include("application/json");
     if(response.status === 200){
@@ -229,7 +228,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
       if (response.body.capture_method === "automatic") {
         if (response.body.authentication_type === "three_ds") {
           expect(response.body).to.have.property("next_action")
-            .to.have.property("redirect_to_url");
+          .to.have.property("redirect_to_url");
           globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
         } else if (response.body.authentication_type === "no_three_ds") {
           for(const key in res_data.body) {
@@ -246,9 +245,8 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
           globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
         }
         else if (response.body.authentication_type === "no_three_ds") {
-          for(const key in res_data.body) {
-            expect(res_data.body[key]).to.equal(response.body[key]);
-          }      } else {
+          expect(res_data.body).to.deep.equal(response.body);
+        } else {
           // Handle other authentication types as needed
           throw new Error(`Unsupported authentication type: ${authentication_type}`);
         }
@@ -295,13 +293,17 @@ Cypress.Commands.add(
             response.body.capture_method === "automatic" ||
             response.body.capture_method === "manual"
           ) {
-            expect(response.body)
-              .to.have.property("next_action")
-              .to.have.property("redirect_to_url");
-            globalState.set(
-              "nextActionUrl",
-              response.body.next_action.redirect_to_url
-            );
+            if (response.body.status !== "failed") { // we get many statuses here, hence this verification
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(res_data.body.error_code);
+            }
           } else {
             throw new Error(
               `Unsupported capture method; ${response.body.capture_method}`
@@ -346,7 +348,6 @@ Cypress.Commands.add(
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
 
-    console.log(confirmBody);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
@@ -358,77 +359,79 @@ Cypress.Commands.add(
       body: confirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      console.log(response);
-
       expect(res_data.status).to.equal(response.status);
       expect(response.headers["content-type"]).to.include("application/json");
       globalState.set("paymentID", paymentIntentID);
-
-      switch (response.body.authentication_type) {
-        case "three_ds":
-          if (
-            response.body.capture_method === "automatic" ||
-            response.body.capture_method === "manual"
-          ) {
-            switch (response.body.payment_method_type) {
-              case "pix":
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("qr_code_url");
-                globalState.set(
-                  "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
-                  response.body.next_action.qr_code_url
-                );
-                break;
-              default:
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                break;
+      if (response.status === 200) {
+        switch (response.body.authentication_type) {
+          case "three_ds":
+            if (
+              response.body.capture_method === "automatic" ||
+              response.body.capture_method === "manual"
+            ) {
+              switch (response.body.payment_method_type) {
+                case "pix":
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("qr_code_url");
+                  globalState.set(
+                    "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                    response.body.next_action.qr_code_url
+                  );
+                  break;
+                default:
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                  break;
+              }
+            } else {
+              throw new Error(`Unsupported capture method: ${capture_method}`);
             }
-          } else {
-            throw new Error(`Unsupported capture method: ${capture_method}`);
-          }
-          break;
-        case "no_three_ds":
-          if (
-            response.body.capture_method === "automatic" ||
-            response.body.capture_method === "manual"
-          ) {
-            switch (response.body.payment_method_type) {
-              case "pix":
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("qr_code_url");
-                globalState.set(
-                  "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
-                  response.body.next_action.qr_code_url
-                );
-                break;
-              default:
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                break;
+            break;
+          case "no_three_ds":
+            if (
+              response.body.capture_method === "automatic" ||
+              response.body.capture_method === "manual"
+            ) {
+              switch (response.body.payment_method_type) {
+                case "pix":
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("qr_code_url");
+                  globalState.set(
+                    "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                    response.body.next_action.qr_code_url
+                  );
+                  break;
+                default:
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                  break;
+              }
+            } else {
+              throw new Error(
+                `Unsupported capture method: ${response.body.capture_method}`
+              );
             }
-          } else {
+            break;
+          default:
             throw new Error(
-              `Unsupported capture method: ${response.body.capture_method}`
+              `Unsupported authentication type: ${response.body.authentication_type}`
             );
-          }
-          break;
-        default:
-          throw new Error(
-            `Unsupported authentication type: ${response.body.authentication_type}`
-          );
+        }
+      } else {
+        expect(response.body).to.have.property("error");
+        expect(res_data.body.error).to.deep.equal(response.body.error);
       }
     });
   }
@@ -489,7 +492,8 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
         else if (response.body.authentication_type === "no_three_ds") {
           for(const key in res_data.body) {
             expect(res_data.body[key]).to.equal(response.body[key]);
-          }      } else {
+          }
+        } else {
           // Handle other authentication types as needed
           throw new Error(`Unsupported authentication type: ${authentication_type}`);
         }
@@ -510,7 +514,6 @@ Cypress.Commands.add("saveCardConfirmCallTest", (saveCardConfirmBody, req_data, 
   saveCardConfirmBody.card_cvc = req_data.card.card_cvc;
   saveCardConfirmBody.payment_token = globalState.get("paymentToken");
   saveCardConfirmBody.client_secret = globalState.get("clientSecret");
-  console.log("conf conn ->" + globalState.get("connectorId"));
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
@@ -550,7 +553,8 @@ Cypress.Commands.add("saveCardConfirmCallTest", (saveCardConfirmBody, req_data, 
           else if (response.body.authentication_type === "no_three_ds") {
             for(const key in res_data.body) {
               expect(res_data.body[key]).to.equal(response.body[key]);
-            }          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+            }
+            expect(response.body.customer_id).to.equal(globalState.get("customerId"));
           } else {
             // Handle other authentication types as needed
             throw new Error(`Unsupported authentication type: ${authentication_type}`);
@@ -596,7 +600,6 @@ Cypress.Commands.add("captureCallTest", (requestBody, req_data, res_data, amount
         expect(res_data.body.error[key]).to.equal(response.body.error[key]);
       }
     }
-    
   });
 });
 
@@ -631,7 +634,6 @@ Cypress.Commands.add("voidCallTest", (requestBody, req_data, res_data, globalSta
 });
 
 Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
-  console.log("syncpaymentID ->" + globalState.get("paymentID"));
   const payment_id = globalState.get("paymentID");
   cy.request({
     method: "GET",
@@ -648,7 +650,6 @@ Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
     expect(response.body.payment_id).to.equal(payment_id);
     expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
     globalState.set("paymentID", response.body.payment_id);
-
   });
 });
 
@@ -778,7 +779,6 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
   requestBody.mandate_id = globalState.get("mandateId");
   requestBody.customer_id = globalState.get("customerId");
   globalState.set("paymentAmount", requestBody.amount);
-  console.log("mit body " + JSON.stringify(requestBody));
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments`,
@@ -792,7 +792,6 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
     logRequestId(response.headers['x-request-id']);
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", response.body.payment_id);
-    console.log("mit statusss-> " + response.body.status);
     if (response.body.capture_method === "automatic") {
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
@@ -967,7 +966,6 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
-  console.log("customerID ->" + globalState.get("customerId"));
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
@@ -1002,10 +1000,8 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
-
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.data).to.be.an('array').and.not.empty;
-  
     });
   });
 

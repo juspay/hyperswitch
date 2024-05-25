@@ -160,6 +160,12 @@ function bankRedirectRedirection(
         "contain.text",
         "eps Online-Überweisung Login"
       );
+      cy.get("#user")
+        .should("be.visible")
+        .should("be.enabled")
+        .focus()
+        .type("Verfügernummer");
+      cy.get("input#submitButton.btn.btn-primary").click();
     }
   } else {
     throw new Error(`Unsupported connector: ${connectorId}`);
