@@ -290,18 +290,18 @@ pub struct CryptoData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UpiData {
-    Upi(Upi),
-    UpiQr(UpiQr),
+    UpiCollect(UpiCollectData),
+    UpiIntent(UpiIntentData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct Upi {
+pub struct UpiCollectData {
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UpiQr {}
+pub struct UpiIntentData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -701,8 +701,8 @@ impl From<api_models::payments::CryptoData> for CryptoData {
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
         match value {
-            api_models::payments::UpiData::Upi(upi) => Self::Upi(Upi { vpa_id: upi.vpa_id }),
-            api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQr {}),
+            api_models::payments::UpiData::UpiCollect(upi) => Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id }),
+            api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
         }
     }
 }

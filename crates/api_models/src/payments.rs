@@ -1665,8 +1665,8 @@ impl GetPaymentMethodType for CryptoData {
 impl GetPaymentMethodType for UpiData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
-            Self::Upi(_) => api_enums::PaymentMethodType::UpiCollect,
-            Self::UpiQr(_) => api_enums::PaymentMethodType::UpiIntent,
+            Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
+            Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
         }
     }
 }
@@ -2123,19 +2123,19 @@ pub struct CryptoData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UpiData {
-    Upi(Upi),
-    UpiQr(UpiQr),
+    UpiCollect(UpiCollectData),
+    UpiIntent(UpiIntentData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct Upi {
-    #[schema(value_type = Option<String>)]
+pub struct UpiCollectData {
+    #[schema(value_type = Option<String>, example = "successtest@iata")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct UpiQr {}
+pub struct UpiIntentData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {

@@ -5,6 +5,6 @@ pub use hyperswitch_domain_models::payment_method_data::{
     GooglePayPaymentMethodInfo, GooglePayRedirectData, GooglePayThirdPartySdkData,
     GooglePayWalletData, GpayTokenizationData, IndomaretVoucherData, KakaoPayRedirection,
     MbWayRedirection, PayLaterData, PaymentMethodData, SamsungPayWalletData,
-    SepaAndBacsBillingDetails, SwishQrData, TouchNGoRedirection, Upi, UpiData, UpiQr, VoucherData,
+    SepaAndBacsBillingDetails, SwishQrData, TouchNGoRedirection, UpiCollectData, UpiData, UpiIntentData, VoucherData,
     WalletData, WeChatPayQr,
 };

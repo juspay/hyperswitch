@@ -142,7 +142,7 @@ impl From<StripeWallet> for payments::WalletData {
 
 impl From<StripeUpi> for payments::UpiData {
     fn from(upi_data: StripeUpi) -> Self {
-        Self::Upi(payments::Upi {
+        Self::UpiCollect(payments::UpiCollectData {
             vpa_id: Some(upi_data.vpa_id),
         })
     }
@@ -894,7 +894,7 @@ fn get_pmd_based_on_payment_method_type(
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
-            payments::UpiData::UpiQr(payments::UpiQr {}),
+            payments::UpiData::UpiIntent(payments::UpiIntentData {}),
         )),
         _ => None,
     }

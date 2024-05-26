@@ -149,13 +149,13 @@ impl
         let (payer_info, preferred_checkout_method) =
             match item.router_data.request.payment_method_data.clone() {
                 domain::PaymentMethodData::Upi(upi_type) => match upi_type {
-                    domain::UpiData::Upi(upi_data) => (
+                    domain::UpiData::UpiCollect(upi_data) => (
                         upi_data.vpa_id.map(|id| PayerInfo {
                             token_id: id.switch_strategy(),
                         }),
                         Some(PreferredCheckoutMethod::Vpa),
                     ),
-                    domain::UpiData::UpiQr(_) => (None, Some(PreferredCheckoutMethod::Qr)),
+                    domain::UpiData::UpiIntent(_) => (None, Some(PreferredCheckoutMethod::Qr)),
                 },
                 domain::PaymentMethodData::Card(_)
                 | domain::PaymentMethodData::CardRedirect(_)
