@@ -824,7 +824,7 @@ pub enum StripeNextAction {
         display_to_timestamp: Option<i128>,
     },
     InvokeSdkClient {
-        next_action: payments::NextActionCall,
+        next_action_data: payments::SdkNextActionData,
     },
 }
 
@@ -875,9 +875,7 @@ pub(crate) fn into_stripe_next_action(
             },
         },
         payments::NextActionData::InvokeSdkClient { next_action_data } => {
-            StripeNextAction::InvokeSdkClient {
-                next_action: next_action_data,
-            }
+            StripeNextAction::InvokeSdkClient { next_action_data }
         }
     })
 }

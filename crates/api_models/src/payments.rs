@@ -2975,7 +2975,7 @@ pub enum NextActionData {
         three_ds_data: ThreeDsData,
     },
     InvokeSdkClient {
-        next_action_data: NextActionCall,
+        next_action_data: SdkNextActionData,
     },
 }
 
@@ -3039,9 +3039,9 @@ pub enum QrCodeInformation {
     },
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub struct PaypalSdkNextActionData {
+pub struct SdkNextActionData {
     pub next_action: NextActionCall,
 }
 
@@ -4431,7 +4431,6 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub payment_id: String,
     /// The shipping address for the payment
     pub shipping: Option<Address>,
-
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: Secret<String>,

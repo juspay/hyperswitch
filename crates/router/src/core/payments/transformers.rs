@@ -567,7 +567,9 @@ where
                             api_models::payments::NextActionData::foreign_from(qr_code_data)
                         }))
                         .or(papal_sdk_next_action.map(|paypal_next_action_data| {
-                            api_models::payments::NextActionData::foreign_from(paypal_next_action_data)
+                            api_models::payments::NextActionData::InvokeSdkClient{
+                                next_action_data: paypal_next_action_data
+                            }
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
@@ -883,12 +885,11 @@ pub fn qr_code_next_steps_check(
 }
 pub fn paypal_sdk_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::PaypalSdkNextActionData>> {
-    let paypal_connector_metadata: Option<
-        Result<api_models::payments::PaypalSdkNextActionData, _>,
-    > = payment_attempt
-        .connector_metadata
-        .map(|metadata| metadata.parse_value("PaypalSdkNextActionData"));
+) -> RouterResult<Option<api_models::payments::SdkNextActionData>> {
+    let paypal_connector_metadata: Option<Result<api_models::payments::SdkNextActionData, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("SdkNextActionData"));
 
     let paypal_next_steps = paypal_connector_metadata.transpose().ok().flatten();
     Ok(paypal_next_steps)
@@ -1106,16 +1107,6 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 display_to_timestamp,
                 image_data_url: None,
             },
-        }
-    }
-}
-
-impl ForeignFrom<api_models::payments::PaypalSdkNextActionData>
-    for api_models::payments::NextActionData
-{
-    fn foreign_from(paypal_sdk_data: api_models::payments::PaypalSdkNextActionData) -> Self {
-        Self::InvokeSdkClient {
-            next_action_data: paypal_sdk_data.next_action,
         }
     }
 }
