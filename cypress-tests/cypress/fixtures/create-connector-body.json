@@ -3,7 +3,6 @@
   "connector_name": "stripe",
   "business_country": "US",
   "business_label": "default",
-  "connector_label": "first_stripe_connector",
   "connector_account_details": {
     "auth_type": "BodyKey",
     "api_key": "api-key",
