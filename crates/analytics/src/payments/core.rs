@@ -291,6 +291,8 @@ pub async fn get_filters(
             PaymentDimensions::AuthType => fil.authentication_type.map(|i| i.as_ref().to_string()),
             PaymentDimensions::PaymentMethod => fil.payment_method,
             PaymentDimensions::PaymentMethodType => fil.payment_method_type,
+            PaymentDimensions::ClientSource => fil.client_source,
+            PaymentDimensions::ClientVersion => fil.client_version,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

@@ -3667,18 +3667,25 @@ dependencies = [
 name = "hyperswitch_domain_models"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "api_models",
  "async-trait",
+ "cards",
  "common_enums",
  "common_utils",
  "diesel_models",
  "error-stack",
  "http 0.2.12",
  "masking",
+ "mime",
+ "router_derive",
  "serde",
  "serde_json",
+ "serde_with",
  "thiserror",
  "time",
+ "url",
+ "utoipa",
 ]
 
 [[package]]
@@ -3999,6 +4006,7 @@ dependencies = [
  "masking",
  "serde",
  "serde_json",
+ "strum 0.26.2",
  "thiserror",
 ]
 
@@ -5419,11 +5427,11 @@ dependencies = [
  "error-stack",
  "fred",
  "futures 0.3.30",
- "router_env",
  "serde",
  "thiserror",
  "tokio 1.37.0",
  "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -6050,6 +6058,7 @@ dependencies = [
  "error-stack",
  "external_services",
  "futures 0.3.30",
+ "hyperswitch_domain_models",
  "masking",
  "num_cpus",
  "once_cell",

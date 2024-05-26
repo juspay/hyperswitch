@@ -225,6 +225,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
@@ -378,6 +379,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -754,6 +756,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -848,6 +851,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -904,6 +908,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -954,6 +959,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -1004,6 +1010,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
                 ..item.data
             }),

@@ -774,8 +774,8 @@ impl UserFromStorage {
         self.0.user_id.as_str()
     }
 
-    pub fn compare_password(&self, candidate: Secret<String>) -> UserResult<()> {
-        match password::is_correct_password(candidate, self.0.password.clone()) {
+    pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
+        match password::is_correct_password(candidate, &self.0.password) {
             Ok(true) => Ok(()),
             Ok(false) => Err(UserErrors::InvalidCredentials.into()),
             Err(e) => Err(e),
@@ -928,6 +928,10 @@ impl UserFromStorage {
 
     pub fn get_totp_status(&self) -> TotpStatus {
         self.0.totp_status
+    }
+
+    pub fn get_recovery_codes(&self) -> Option<Vec<Secret<String>>> {
+        self.0.totp_recovery_codes.clone()
     }
 
     pub async fn decrypt_and_get_totp_secret(

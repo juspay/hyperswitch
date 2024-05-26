@@ -4,7 +4,7 @@ use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
-use crate::{core::errors::api_error_response, headers, logger, routes::AppState, services};
+use crate::{core::errors, headers, logger, routes::AppState, services};
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
@@ -12,10 +12,8 @@ pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
     body: verifications::ApplepayMerchantVerificationRequest,
     merchant_id: String,
-) -> CustomResult<
-    services::ApplicationResponse<ApplepayMerchantResponse>,
-    api_error_response::ApiErrorResponse,
-> {
+) -> CustomResult<services::ApplicationResponse<ApplepayMerchantResponse>, errors::ApiErrorResponse>
+{
     let applepay_merchant_configs = state.conf.applepay_merchant_configs.get_inner();
 
     let applepay_internal_merchant_identifier = applepay_merchant_configs
@@ -55,7 +53,7 @@ pub async fn verify_merchant_creds_for_applepay(
     utils::log_applepay_verification_response_if_error(&response);
 
     let applepay_response =
-        response.change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
+        response.change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // Error is already logged
     match applepay_response {
@@ -67,7 +65,7 @@ pub async fn verify_merchant_creds_for_applepay(
                 body.domain_names.clone(),
             )
             .await
-            .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
             Ok(services::api::ApplicationResponse::Json(
                 ApplepayMerchantResponse {
                     status_message: "Applepay verification Completed".to_string(),
@@ -76,7 +74,7 @@ pub async fn verify_merchant_creds_for_applepay(
         }
         Err(error) => {
             logger::error!(?error);
-            Err(api_error_response::ApiErrorResponse::InvalidRequestData {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Applepay verification Failed".to_string(),
             }
             .into())
@@ -90,13 +88,13 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
     merchant_connector_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<verifications::ApplepayVerifiedDomainsResponse>,
-    api_error_response::ApiErrorResponse,
+    errors::ApiErrorResponse,
 > {
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .change_context(api_error_response::ApiErrorResponse::MerchantAccountNotFound)?;
+        .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let verified_domains = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -105,7 +103,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
             &key_store,
         )
         .await
-        .change_context(api_error_response::ApiErrorResponse::ResourceIdNotFound)?
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?
         .applepay_verified_domains
         .unwrap_or_default();
 

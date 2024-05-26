@@ -115,6 +115,7 @@ pub struct PaymentIntentNew {
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
