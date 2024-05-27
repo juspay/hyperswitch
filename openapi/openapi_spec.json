@@ -8903,8 +8903,11 @@
           "mandate_revoked",
           "payout_success",
           "payout_failed",
+          "payout_created",
           "payout_processing",
-          "payout_cancelled"
+          "payout_cancelled",
+          "payout_expired",
+          "payout_reversed"
         ]
       },
       "ExtendedCardInfo": {
@@ -16747,6 +16750,9 @@
           "success",
           "failed",
           "cancelled",
+          "created",
+          "expired",
+          "reversed",
           "pending",
           "ineligible",
           "requires_creation",
