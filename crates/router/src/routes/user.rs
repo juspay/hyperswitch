@@ -666,8 +666,26 @@ pub async fn totp_verify(
     .await
 }
 
+pub async fn verify_recovery_code(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyRecoveryCodeRequest>,
+) -> HttpResponse {
+    let flow = Flow::RecoveryCodeVerify;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req_body, _| user_core::verify_recovery_code(state, user, req_body),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn generate_recovery_codes(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::GenerateRecoveryCodes;
+    let flow = Flow::RecoveryCodesGenerate;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),

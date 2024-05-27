@@ -360,6 +360,7 @@ where
             resource_id,
             connector_metadata,
             redirection_data,
+            charge_id,
             ..
         }) => {
             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
@@ -407,6 +408,7 @@ where
                     unified_code: None,
                     unified_message: None,
                     payment_method_data: additional_payment_method_data,
+                    charge_id,
                 },
                 storage_scheme,
             )

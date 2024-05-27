@@ -774,8 +774,8 @@ impl UserFromStorage {
         self.0.user_id.as_str()
     }
 
-    pub fn compare_password(&self, candidate: Secret<String>) -> UserResult<()> {
-        match password::is_correct_password(candidate, self.0.password.clone()) {
+    pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
+        match password::is_correct_password(candidate, &self.0.password) {
             Ok(true) => Ok(()),
             Ok(false) => Err(UserErrors::InvalidCredentials.into()),
             Err(e) => Err(e),

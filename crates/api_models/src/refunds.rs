@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::pii;
+pub use common_utils::types::ChargeRefunds;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -53,6 +54,10 @@ pub struct RefundRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Charge specific fields for controlling the revert of funds from either platform or connected account
+    #[schema(value_type = Option<ChargeRefunds>)]
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -137,6 +142,9 @@ pub struct RefundResponse {
     pub profile_id: Option<String>,
     /// The merchant_connector_id of the processor through which this payment went through
     pub merchant_connector_id: Option<String>,
+    /// Charge specific fields for controlling the revert of funds from either platform or connected account
+    #[schema(value_type = Option<ChargeRefunds>)]
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
@@ -168,7 +176,7 @@ pub struct RefundListRequest {
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
     pub count: usize,

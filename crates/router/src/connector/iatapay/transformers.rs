@@ -300,6 +300,7 @@ fn get_iatpay_response(
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
+            charge_id: None,
         },
         |checkout_methods| types::PaymentsResponseData::TransactionResponse {
             resource_id: id,
@@ -313,6 +314,7 @@ fn get_iatpay_response(
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
+            charge_id: None,
         },
     );
     Ok((status, error, payment_response_data))

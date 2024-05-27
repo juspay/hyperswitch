@@ -1012,6 +1012,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
+                        api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -3163,8 +3164,14 @@ where
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
 
+            #[cfg(feature = "retry")]
+            let should_do_retry =
+                retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
+
+            #[cfg(feature = "retry")]
             if payment_data.payment_attempt.payment_method_type
                 == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
             {
                 let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
                     state,
