@@ -466,6 +466,7 @@ pub struct PaymentsSyncData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
 }
 
 #[derive(Debug, Default, Clone)]

@@ -11660,7 +11660,8 @@
         "type": "string",
         "enum": [
           "confirm",
-          "sync"
+          "sync",
+          "complete_authorize"
         ]
       },
       "NextActionData": {
@@ -11813,6 +11814,24 @@
                 "type": "string",
                 "enum": [
                   "three_ds_invoke"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "next_action_data",
+              "type"
+            ],
+            "properties": {
+              "next_action_data": {
+                "$ref": "#/components/schemas/SdkNextActionData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_sdk_client"
                 ]
               }
             }
@@ -16780,12 +16799,21 @@
       "PaypalSessionTokenResponse": {
         "type": "object",
         "required": [
-          "session_token"
+          "connector",
+          "session_token",
+          "sdk_next_action"
         ],
         "properties": {
+          "connector": {
+            "type": "string",
+            "description": "Name of the connector"
+          },
           "session_token": {
             "type": "string",
             "description": "The session token for PayPal"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
@@ -18020,6 +18048,17 @@
         }
       },
       "SdkNextAction": {
+        "type": "object",
+        "required": [
+          "next_action"
+        ],
+        "properties": {
+          "next_action": {
+            "$ref": "#/components/schemas/NextActionCall"
+          }
+        }
+      },
+      "SdkNextActionData": {
         "type": "object",
         "required": [
           "next_action"

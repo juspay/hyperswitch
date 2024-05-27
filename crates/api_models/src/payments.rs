@@ -2939,13 +2939,17 @@ pub enum NextActionType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
-    RedirectToUrl { redirect_to_url: String },
+    RedirectToUrl {
+        redirect_to_url: String,
+    },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
-    ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    ThirdPartySdkSessionToken {
+        session_token: Option<SessionToken>,
+    },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
@@ -2967,7 +2971,12 @@ pub enum NextActionData {
         display_to_timestamp: Option<i128>,
     },
     /// Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows
-    ThreeDsInvoke { three_ds_data: ThreeDsData },
+    ThreeDsInvoke {
+        three_ds_data: ThreeDsData,
+    },
+    InvokeSdkClient {
+        next_action_data: SdkNextActionData,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -3028,6 +3037,12 @@ pub enum QrCodeInformation {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
     },
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SdkNextActionData {
+    pub next_action: NextActionCall,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4031,6 +4046,17 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaypalSdkMetaData {
+    pub client_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaypalSdkSessionTokenData {
+    #[serde(rename = "paypal_sdk")]
+    pub data: PaypalSdkMetaData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplepaySessionRequest {
     pub merchant_identifier: String,
@@ -4207,8 +4233,12 @@ pub struct KlarnaSessionTokenResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PaypalSessionTokenResponse {
+    /// Name of the connector
+    pub connector: String,
     /// The session token for PayPal
     pub session_token: String,
+    /// The next action for the sdk (ex: calling confirm or sync call)
+    pub sdk_next_action: SdkNextAction,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4238,13 +4268,15 @@ pub struct SdkNextAction {
     pub next_action: NextActionCall,
 }
 
-#[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NextActionCall {
     /// The next action call is confirm
     Confirm,
     /// The next action call is sync
     Sync,
+    /// The next action call is Complete Authorize
+    CompleteAuthorize,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
