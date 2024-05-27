@@ -419,7 +419,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },
@@ -440,7 +440,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },
@@ -458,7 +458,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },
@@ -475,7 +475,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },

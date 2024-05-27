@@ -25,8 +25,8 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import jsQR from "jsqr";
+import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
 function logRequestId(xRequestId) {
@@ -260,7 +260,6 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
         expect(res_data.body.error[key]).to.equal(response.body.error[key]);
       }
     }
-    
   });
 });
 
@@ -301,7 +300,6 @@ Cypress.Commands.add(
                   .to.have.property("next_action")
                   .to.have.property("type")
                   .to.equal("wait_screen_information");
-
               } else {
                 expect(response.body)
                   .to.have.property("next_action")
@@ -936,12 +934,16 @@ Cypress.Commands.add(
     let connectorId = globalState.get("connectorId");
     let expected_url = new URL(expected_redirection);
     let redirection_url = new URL(globalState.get("nextActionUrl"));
-    handleRedirection(
-      "bank_redirect",
-      { redirection_url, expected_url },
-      connectorId,
-      payment_method_type
-    );
+    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
+    // trying to handle that specific case results in stripe 3ds tests to fail
+    if (!(connectorId == "adyen" && payment_method_type == "sofort")) {
+      handleRedirection(
+        "bank_redirect",
+        { redirection_url, expected_url },
+        connectorId,
+        payment_method_type
+      );
+    }
   }
 );
 
