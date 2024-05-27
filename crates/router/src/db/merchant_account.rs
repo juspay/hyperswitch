@@ -6,7 +6,7 @@ use diesel_models::MerchantAccountUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
+use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 
 use super::{MasterKeyInterface, MockDb, Store};
 use crate::{
@@ -128,7 +128,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
+            cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
                 .await?
                 .convert(merchant_key_store.key.get_inner())
                 .await
@@ -209,7 +209,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            merchant_account = super::cache::get_or_populate_in_memory(
+            merchant_account = cache::get_or_populate_in_memory(
                 self,
                 publishable_key,
                 fetch_by_pub_key_func,
@@ -537,7 +537,7 @@ async fn publish_and_redact_merchant_account_cache(
     cache_keys.extend(publishable_key.into_iter());
     cache_keys.extend(kgraph_key.into_iter());
 
-    super::cache::publish_into_redact_channel(store, cache_keys).await?;
+    cache::publish_into_redact_channel(store.get_cache_store().as_ref(), cache_keys).await?;
     Ok(())
 }
 
@@ -556,6 +556,6 @@ async fn publish_and_redact_all_merchant_account_cache(
         .map(|s| CacheKind::Accounts(s.into()))
         .collect();
 
-    super::cache::publish_into_redact_channel(store, cache_keys).await?;
+    cache::publish_into_redact_channel(store.get_cache_store().as_ref(), cache_keys).await?;
     Ok(())
 }

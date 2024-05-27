@@ -2,12 +2,12 @@ use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use storage_impl::redis::{
-    cache::{CacheKind, CONFIG_CACHE},
+    cache::{self, CacheKind, CONFIG_CACHE},
     kv_store::RedisConnInterface,
     pub_sub::PubSubInterface,
 };
 
-use super::{cache, MockDb, Store};
+use super::{MockDb, Store};
 use crate::{
     connection, consts,
     core::errors::{self, CustomResult},

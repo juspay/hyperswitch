@@ -1,11 +1,20 @@
 use std::{any::Any, borrow::Cow, sync::Arc};
 
-use common_utils::errors;
+use common_utils::{
+    errors::{self, CustomResult},
+    ext_traits::AsyncExt,
+};
 use dyn_clone::DynClone;
-use error_stack::Report;
+use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
-use redis_interface::RedisValue;
+use redis_interface::{errors::RedisError, RedisValue};
+use router_env::tracing::{self, instrument};
+
+use crate::{
+    errors::StorageError,
+    redis::{PubSubInterface, RedisConnInterface},
+};
 
 /// Prefix for config cache key
 const CONFIG_CACHE_PREFIX: &str = "config";
@@ -155,6 +164,154 @@ impl Cache {
     pub async fn remove(&self, key: &str) {
         self.inner.invalidate(key).await;
     }
+}
+
+#[instrument(skip_all)]
+pub async fn get_or_populate_redis<T, F, Fut>(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    key: impl AsRef<str>,
+    fun: F,
+) -> CustomResult<T, StorageError>
+where
+    T: serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug,
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+{
+    let type_name = std::any::type_name::<T>();
+    let key = key.as_ref();
+    let redis = &store
+        .get_redis_conn()
+        .change_context(StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
+    let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
+    let get_data_set_redis = || async {
+        let data = fun().await?;
+        redis
+            .serialize_and_set_key(key, &data)
+            .await
+            .change_context(StorageError::KVError)?;
+        Ok::<_, Report<StorageError>>(data)
+    };
+    match redis_val {
+        Err(err) => match err.current_context() {
+            RedisError::NotFound | RedisError::JsonDeserializationFailed => {
+                get_data_set_redis().await
+            }
+            _ => Err(err
+                .change_context(StorageError::KVError)
+                .attach_printable(format!("Error while fetching cache for {type_name}"))),
+        },
+        Ok(val) => Ok(val),
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn get_or_populate_in_memory<T, F, Fut>(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    key: &str,
+    fun: F,
+    cache: &Cache,
+) -> CustomResult<T, StorageError>
+where
+    T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone,
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+{
+    let cache_val = cache.get_val::<T>(key).await;
+    if let Some(val) = cache_val {
+        Ok(val)
+    } else {
+        let val = get_or_populate_redis(store, key, fun).await?;
+        cache.push(key.to_string(), val.clone()).await;
+        Ok(val)
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn redact_cache<T, F, Fut>(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    key: &str,
+    fun: F,
+    in_memory: Option<&Cache>,
+) -> CustomResult<T, StorageError>
+where
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+{
+    let data = fun().await?;
+    in_memory.async_map(|cache| cache.remove(key)).await;
+
+    let redis_conn = store
+        .get_redis_conn()
+        .change_context(StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
+
+    redis_conn
+        .delete_key(key)
+        .await
+        .change_context(StorageError::KVError)?;
+    Ok(data)
+}
+
+#[instrument(skip_all)]
+pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    keys: K,
+) -> CustomResult<usize, StorageError> {
+    let redis_conn = store
+        .get_redis_conn()
+        .change_context(StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
+
+    let futures = keys.into_iter().map(|key| async {
+        redis_conn
+            .clone()
+            .publish(PUB_SUB_CHANNEL, key)
+            .await
+            .change_context(StorageError::KVError)
+    });
+
+    Ok(futures::future::try_join_all(futures)
+        .await?
+        .iter()
+        .sum::<usize>())
+}
+
+#[instrument(skip_all)]
+pub async fn publish_and_redact<'a, T, F, Fut>(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    key: CacheKind<'a>,
+    fun: F,
+) -> CustomResult<T, StorageError>
+where
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+{
+    let data = fun().await?;
+    publish_into_redact_channel(store, [key]).await?;
+    Ok(data)
+}
+
+#[instrument(skip_all)]
+pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    keys: K,
+    fun: F,
+) -> CustomResult<T, StorageError>
+where
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+    K: IntoIterator<Item = CacheKind<'a>> + Send,
+{
+    let data = fun().await?;
+    publish_into_redact_channel(store, keys).await?;
+    Ok(data)
 }
 
 #[cfg(test)]
