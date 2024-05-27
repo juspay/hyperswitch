@@ -735,6 +735,7 @@ fn handle_cards_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -764,6 +765,7 @@ fn handle_bank_redirects_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -797,6 +799,7 @@ fn handle_bank_redirects_error_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -857,6 +860,7 @@ fn handle_bank_redirects_sync_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -904,6 +908,7 @@ pub fn handle_webhook_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }

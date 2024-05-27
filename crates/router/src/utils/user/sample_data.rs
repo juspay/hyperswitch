@@ -218,6 +218,7 @@ pub async fn generate_sample_data(
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: None,
+            charges: None,
             frm_metadata: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
@@ -295,6 +296,7 @@ pub async fn generate_sample_data(
                 profile_id: payment_intent.profile_id.clone(),
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                charges: None,
             })
         } else {
             None
