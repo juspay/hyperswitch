@@ -133,7 +133,7 @@ pub enum WalletMethod {
 struct TransactionRequest {
     transaction_type: TransactionType,
     amount: f64,
-    currency_code: String,
+    currency_code: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     payment: Option<PaymentDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -560,7 +560,7 @@ impl
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
-            currency_code: item.router_data.request.currency.to_string(),
+            currency_code: item.router_data.request.currency,
             payment: Some(match item.router_data.request.payment_method_data {
                 domain::PaymentMethodData::Card(ref ccard) => {
                     PaymentDetails::CreditCard(CreditCardDetails {
@@ -638,7 +638,7 @@ impl
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
-            currency_code: item.router_data.request.currency.to_string(),
+            currency_code: item.router_data.request.currency,
             payment: None,
             profile: Some(ProfileDetails::CustomerProfileDetails(
                 CustomerProfileDetails {
@@ -722,10 +722,9 @@ impl
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
-            currency_code: item.router_data.request.currency.to_string(),
+            currency_code: item.router_data.request.currency,
             payment: Some(PaymentDetails::CreditCard(CreditCardDetails {
                 card_number: (*ccard.card_number).clone(),
-                // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
                 expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                 card_code: Some(ccard.card_cvc.clone()),
             })),
@@ -775,7 +774,7 @@ impl
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
-            currency_code: item.router_data.request.currency.to_string(),
+            currency_code: item.router_data.request.currency,
             payment: Some(get_wallet_data(
                 wallet_data,
                 &item.router_data.request.complete_authorize_url,
