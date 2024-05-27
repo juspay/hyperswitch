@@ -15,7 +15,7 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::MockDb;
+use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 #[cfg(feature = "olap")]
@@ -46,7 +46,7 @@ use super::{pm_auth, poll::retrieve_poll_status};
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
-use crate::configs::secrets_transformers;
+use crate::configs::{secrets_transformers, Settings};
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -129,6 +129,7 @@ impl SessionStateInfo for SessionState {
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
+    pub global_store: Box<dyn StorageInterface>,
     pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
@@ -253,39 +254,30 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
+            let global_tenant = if conf.multitenancy.enabled {
+                GLOBAL_TENANT
+            } else {
+                DEFAULT_TENANT
+            };
+            let global_store = Self::get_store_interface(
+                &storage_impl,
+                &event_handler,
+                &conf,
+                global_tenant,
+                Arc::clone(&cache_store),
+                testable,
+            )
+            .await;
             for tenant in conf.clone().multitenancy.get_tenant_names() {
-                let store: Box<dyn StorageInterface> = match storage_impl {
-                    StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
-                        EventsHandler::Kafka(kafka_client) => Box::new(
-                            crate::db::KafkaStore::new(
-                                #[allow(clippy::expect_used)]
-                                get_store(
-                                    &conf.clone(),
-                                    tenant.as_str(),
-                                    Arc::clone(&cache_store),
-                                    testable,
-                                )
-                                .await
-                                .expect("Failed to create store"),
-                                kafka_client.clone(),
-                                crate::db::kafka_store::TenantID(tenant.clone()),
-                            )
-                            .await,
-                        ),
-                        EventsHandler::Logs(_) => Box::new(
-                            #[allow(clippy::expect_used)]
-                            get_store(&conf, tenant.as_str(), Arc::clone(&cache_store), testable)
-                                .await
-                                .expect("Failed to create store"),
-                        ),
-                    },
-                    #[allow(clippy::expect_used)]
-                    StorageImpl::Mock => Box::new(
-                        MockDb::new(&conf.redis)
-                            .await
-                            .expect("Failed to create mock store"),
-                    ),
-                };
+                let store: Box<dyn StorageInterface> = Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    tenant.as_str(),
+                    Arc::clone(&cache_store),
+                    testable,
+                )
+                .await;
                 stores.insert(tenant.clone(), store);
                 #[cfg(feature = "olap")]
                 let pool =
@@ -302,6 +294,7 @@ impl AppState {
             Self {
                 flow_name: String::from("default"),
                 stores,
+                global_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
@@ -317,6 +310,43 @@ impl AppState {
             }
         })
         .await
+    }
+
+    async fn get_store_interface(
+        storage_impl: &StorageImpl,
+        event_handler: &EventsHandler,
+        conf: &Settings,
+        tenant: &str,
+        cache_store: Arc<RedisStore>,
+        testable: bool,
+    ) -> Box<dyn StorageInterface> {
+        match storage_impl {
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
+                EventsHandler::Kafka(kafka_client) => Box::new(
+                    crate::db::KafkaStore::new(
+                        #[allow(clippy::expect_used)]
+                        get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
+                            .await
+                            .expect("Failed to create store"),
+                        kafka_client.clone(),
+                        crate::db::kafka_store::TenantID(tenant.to_string()),
+                    )
+                    .await,
+                ),
+                EventsHandler::Logs(_) => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(conf, tenant, Arc::clone(&cache_store), testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
+            },
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
+        }
     }
 
     pub async fn new(
@@ -346,14 +376,9 @@ impl AppState {
     where
         F: FnOnce() -> E + Copy,
     {
-        let global_tenant = if self.conf.multitenancy.enabled {
-            GLOBAL_TENANT
-        } else {
-            DEFAULT_TENANT
-        };
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
-            global_store: self.stores.get(global_tenant).ok_or_else(err)?.clone(),
+            global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
             event_handler: self.event_handler.clone(),

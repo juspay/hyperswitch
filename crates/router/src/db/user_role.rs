@@ -519,7 +519,7 @@ impl UserRoleInterface for MockDb {
             .iter()
             .cloned()
             .filter_map(|ele| {
-                if ele.user_id == merchant_id {
+                if ele.merchant_id == merchant_id {
                     return Some(ele);
                 }
                 None
