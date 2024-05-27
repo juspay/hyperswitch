@@ -1401,7 +1401,7 @@ pub fn validate_customer_details_in_request(
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(customer_details) = request.customer.as_ref() {
         validate_options_for_inequality(
-            request.customer_id.as_ref().map(|customer_id| customer_id),
+            request.customer_id.as_ref(),
             Some(&customer_details.id),
             "customer_id",
         )?;
@@ -1445,7 +1445,6 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .map(|customer_details| &customer_details.id)
         .or(request.customer_id.as_ref())
-        .map(|customer_id| customer_id)
         .map(ToOwned::to_owned);
 
     let customer_name = request

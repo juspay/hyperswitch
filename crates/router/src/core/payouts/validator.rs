@@ -91,7 +91,7 @@ pub async fn validate_create_request(
             let customer_id = req
                 .customer_id
                 .to_owned()
-                .unwrap_or_else(|| common_utils::generate_customer_id_of_default_length());
+                .unwrap_or_else(common_utils::generate_customer_id_of_default_length);
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),

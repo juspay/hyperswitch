@@ -172,7 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             payment_intent
                 .customer_id
                 .as_ref()
-                .or_else(|| request.customer_id.as_ref()),
+                .or(request.customer_id.as_ref()),
         )?;
 
         let shipping_address = helpers::create_or_update_address_for_payment_by_request(

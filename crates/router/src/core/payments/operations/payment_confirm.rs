@@ -363,7 +363,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent
                 .customer_id
                 .as_ref()
-                .or_else(|| customer_details.customer_id.as_ref()),
+                .or(customer_details.customer_id.as_ref()),
         )?;
 
         let creds_identifier = request

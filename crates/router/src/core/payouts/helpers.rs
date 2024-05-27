@@ -582,7 +582,7 @@ pub async fn get_or_create_customer_details(
     let customer_id = customer_details
         .customer_id
         .clone()
-        .unwrap_or_else(|| generate_customer_id_of_default_length());
+        .unwrap_or_else(generate_customer_id_of_default_length);
 
     let merchant_id = &merchant_account.merchant_id;
     let key = key_store.key.get_inner().peek();

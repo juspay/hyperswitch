@@ -1231,8 +1231,7 @@ pub async fn add_card_hs(
         },
     });
 
-    let store_card_payload =
-        call_to_locker_hs(state, &payload, &customer_id, locker_choice).await?;
+    let store_card_payload = call_to_locker_hs(state, &payload, customer_id, locker_choice).await?;
 
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
         card.clone(),
