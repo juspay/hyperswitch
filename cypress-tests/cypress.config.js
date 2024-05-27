@@ -19,5 +19,4 @@ module.exports = {
     experimentalRunAllSpecs: true,
   },
   chromeWebSecurity: false,
-  experimentalModifyObstructiveThirdPartyCode: true,
 };

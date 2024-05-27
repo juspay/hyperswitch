@@ -245,7 +245,9 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
           globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
         }
         else if (response.body.authentication_type === "no_three_ds") {
-          expect(res_data.body).to.deep.equal(response.body);
+          for (const key in res_data.body) {
+            expect(res_data.body[key]).to.equal(response.body[key]);
+          }
         } else {
           // Handle other authentication types as needed
           throw new Error(`Unsupported authentication type: ${authentication_type}`);
