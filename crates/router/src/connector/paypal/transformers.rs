@@ -1248,6 +1248,8 @@ impl<F, T>
             item.response.intent.clone(),
         ));
         let link = get_redirect_url(item.response.links.clone())?;
+
+        // For Paypal SDK flow, we need to trigger SDK client and then complete authorize
         let next_action =
             if let Some(common_enums::PaymentExperience::InvokeSdkClient) = payment_experience {
                 Some(api_models::payments::NextActionCall::CompleteAuthorize)
@@ -1301,6 +1303,8 @@ impl<F, T>
             item.response.intent.clone(),
         ));
         let link = get_redirect_url(item.response.links.clone())?;
+
+        // For Paypal SDK flow, we need to trigger SDK client and then complete authorize
         let next_action =
             if let domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) =
                 payment_method_data

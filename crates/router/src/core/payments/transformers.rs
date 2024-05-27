@@ -887,9 +887,13 @@ pub fn paypal_sdk_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::SdkNextActionData>> {
     let paypal_connector_metadata: Option<Result<api_models::payments::SdkNextActionData, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("SdkNextActionData"));
+        payment_attempt.connector_metadata.map(|metadata| {
+            metadata.parse_value("SdkNextActionData").map_err(|_| {
+                crate::logger::warn!(
+                    "SdkNextActionData parsing failed for paypal_connector_metadata"
+                )
+            })
+        });
 
     let paypal_next_steps = paypal_connector_metadata.transpose().ok().flatten();
     Ok(paypal_next_steps)

@@ -7915,6 +7915,8 @@ impl Default for super::settings::RequiredFields {
                         },
                     ),
                     (
+                        // Added shipping fields for the SDK flow to accept it from wallet directly,
+                        // this won't show up in SDK in payment's sheet but will be used in the background
                         enums::PaymentMethodType::Paypal,
                         ConnectorFields {
                             fields: HashMap::from([
