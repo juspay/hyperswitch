@@ -117,7 +117,8 @@ pub async fn add_payment_method_status_update_task(
     merchant_id: &str,
 ) -> Result<(), errors::ProcessTrackerError> {
     let created_at = payment_method.created_at;
-    let schedule_time = created_at.saturating_add(time::Duration::seconds(30));
+    let schedule_time =
+        created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
     let tracking_data = storage::PaymentMethodStatusTrackingData {
         payment_method_id: payment_method.payment_method_id.clone(),

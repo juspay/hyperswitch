@@ -1,6 +1,7 @@
 use common_utils::{date_time, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 // use router_env::logger;
+use error_stack::ResultExt;
 use scheduler::workflows::ProcessTrackerWorkflow;
 
 use crate::{
@@ -49,9 +50,14 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             .await?;
 
         if payment_method.status != prev_pm_status {
-            return Err(errors::ProcessTrackerError::FlowExecutionError {
-                flow: "PaymentMethodStatusUpdate",
-            });
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process,
+                    "PROCESS_ALREADY_COMPLETED".to_string(),
+                )
+                .await?;
+
+            return Ok(());
         }
 
         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
