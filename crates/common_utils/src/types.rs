@@ -353,7 +353,11 @@ impl MinorUnit {
         currency: enums::Currency,
     ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
         let amount_f64 = self.to_major_unit_asf64(currency)?;
-        let amount_string = format!("{:.2}", amount_f64.0);
+        let amount_string = if currency.is_three_decimal_currency() {
+            format!("{:.3}", amount_f64.0)
+        } else {
+            format!("{:.2}", amount_f64.0)
+        };
         Ok(StringMajorUnit::new(amount_string))
     }
 
@@ -580,14 +584,27 @@ mod amount_conversion_tests {
     #[test]
     fn amount_conversion_to_float_major_unit() {
         let request_amount = MinorUnit::new(13124364);
-        let currency = enums::Currency::USD;
+        let two_decimal_currency = enums::Currency::USD;
+        let three_decimal_currency = enums::Currency::BHD;
         let required_conversion = FloatMajorUnitForConnector;
+
+        // Two decimal currency conversions
         let converted_amount = required_conversion
-            .convert(request_amount, currency)
+            .convert(request_amount, two_decimal_currency)
             .unwrap();
         assert_eq!(converted_amount.0, 131243.64);
         let converted_back_amount = required_conversion
-            .convert_back(converted_amount, currency)
+            .convert_back(converted_amount, two_decimal_currency)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Three decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, three_decimal_currency)
+            .unwrap();
+        assert_eq!(converted_amount.0, 13124.364);
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, three_decimal_currency)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
     }
@@ -595,14 +612,36 @@ mod amount_conversion_tests {
     #[test]
     fn amount_conversion_to_string_major_unit() {
         let request_amount = MinorUnit::new(13124364);
-        let currency = enums::Currency::USD;
+        let two_decimal_currency = enums::Currency::USD;
+        let three_decimal_currency = enums::Currency::BHD;
         let required_conversion = StringMajorUnitForConnector;
-        let converted_amount = required_conversion
-            .convert(request_amount, currency)
+
+        // Two decimal currency conversions
+        let converted_amount_two_decimal_currency = required_conversion
+            .convert(request_amount, two_decimal_currency)
             .unwrap();
-        assert_eq!(converted_amount.0, "131243.64".to_string());
+        assert_eq!(
+            converted_amount_two_decimal_currency.0,
+            "131243.64".to_string()
+        );
         let converted_back_amount = required_conversion
-            .convert_back(converted_amount, currency)
+            .convert_back(converted_amount_two_decimal_currency, two_decimal_currency)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Three decimal currency conversions
+        let converted_amount_three_decimal_currency = required_conversion
+            .convert(request_amount, three_decimal_currency)
+            .unwrap();
+        assert_eq!(
+            converted_amount_three_decimal_currency.0,
+            "13124.364".to_string()
+        );
+        let converted_back_amount = required_conversion
+            .convert_back(
+                converted_amount_three_decimal_currency,
+                three_decimal_currency,
+            )
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
     }
