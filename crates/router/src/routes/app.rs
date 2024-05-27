@@ -335,11 +335,7 @@ impl AppState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
     }
-    pub fn get_session_state<E, F>(
-        self: Arc<Self>,
-        tenant: &str,
-        err: F,
-    ) -> Result<SessionState, E>
+    pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
     where
         F: FnOnce() -> E + Copy,
     {
