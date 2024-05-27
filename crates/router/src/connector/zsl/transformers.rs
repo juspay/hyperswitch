@@ -382,12 +382,15 @@ pub struct ZslWebhookResponse {
     pub txn_id: String,
     pub txn_date: String,
     pub paid_ccy: api_models::enums::Currency,
-    pub paid_amt: String,
+    #[serde(deserialize_with = "connector_utils::str_or_int_to_i64")]
+    pub paid_amt: i64,
     pub consr_paid_ccy: api_models::enums::Currency,
-    pub consr_paid_amt: String,
+    #[serde(deserialize_with = "connector_utils::str_or_int_to_i64")]
+    pub consr_paid_amt: i64,
     pub service_fee_ccy: api_models::enums::Currency,
     pub service_fee: String,
-    pub txn_amt: String,
+    #[serde(deserialize_with = "connector_utils::str_or_int_to_i64")]
+    pub txn_amt: i64,
     pub ccy: String,
     pub mer_ref: String,
     pub mer_txn_date: String,
@@ -406,16 +409,35 @@ impl types::transformers::ForeignFrom<String> for api_models::webhooks::Incoming
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            ZslWebhookResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            ZslWebhookResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
+        let status = if item.response.txn_amt > item.response.paid_amt {
+            enums::AttemptStatus::PartialCharged
+        } else {
+            enums::AttemptStatus::Charged
+        };
+
         if item.response.status == "0" {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status,
+                amount_captured: Some(item.response.paid_amt),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.mer_ref.clone(),

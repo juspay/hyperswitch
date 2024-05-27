@@ -20,7 +20,7 @@ use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::Serializer;
+use serde::{Deserialize, Serializer};
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
@@ -1747,6 +1747,27 @@ where
         serde::ser::Error::custom("Invalid string, cannot be converted to float value")
     })?;
     serializer.serialize_f64(float_value)
+}
+
+pub fn str_or_int_to_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = serde_json::Value::deserialize(deserializer)?;
+    match s {
+        serde_json::Value::String(str_val) => {
+            str_val.parse::<i64>().map_err(serde::de::Error::custom)
+        }
+        serde_json::Value::Number(num_val) => match num_val.as_i64() {
+            Some(val) => Ok(val),
+            None => Err(serde::de::Error::custom(format!(
+                "could not convert {num_val:?} to i64"
+            ))),
+        },
+        other => Err(serde::de::Error::custom(format!(
+            "unexpected data format - expected string or number, got: {other:?}"
+        ))),
+    }
 }
 
 pub fn collect_values_by_removing_signature(

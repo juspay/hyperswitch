@@ -437,7 +437,7 @@ impl api::IncomingWebhook for Zsl {
                 txn_id: webhook_response.txn_id,
                 txn_date: webhook_response.txn_date,
                 paid_ccy: webhook_response.paid_ccy.to_string(),
-                paid_amt: webhook_response.paid_amt,
+                paid_amt: webhook_response.paid_amt.to_string(),
                 mer_ref: webhook_response.mer_ref,
                 mer_id,
                 key,
