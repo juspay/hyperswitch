@@ -114,6 +114,7 @@ impl DerefMut for PaymentsMandateReference {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodStatusTrackingData {
     pub payment_method_id: String,
-    pub status: enums::PaymentMethodStatus,
+    pub prev_status: enums::PaymentMethodStatus,
+    pub curr_status: enums::PaymentMethodStatus,
     pub merchant_id: String,
 }

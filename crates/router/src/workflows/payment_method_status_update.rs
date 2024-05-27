@@ -28,7 +28,8 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
         let task_id = process.id.clone();
         let retry_count = process.retry_count;
         let pm_id = tracking_data.payment_method_id;
-        let pm_status = tracking_data.status;
+        let prev_pm_status = tracking_data.prev_status;
+        let curr_pm_status = tracking_data.curr_status;
         let merchant_id = tracking_data.merchant_id;
 
         let key_store = state
@@ -47,8 +48,14 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             .find_payment_method(pm_id.as_str(), merchant_account.storage_scheme)
             .await?;
 
+        if payment_method.status != prev_pm_status {
+            return Err(errors::ProcessTrackerError::FlowExecutionError {
+                flow: "PaymentMethodStatusUpdate",
+            });
+        }
+
         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-            status: Some(pm_status),
+            status: Some(curr_pm_status),
         };
 
         let res = db

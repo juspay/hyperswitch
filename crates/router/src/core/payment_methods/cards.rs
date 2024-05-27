@@ -313,6 +313,7 @@ pub async fn get_client_secret_or_add_payment_method(
             add_payment_method_status_update_task(
                 db,
                 &res,
+                enums::PaymentMethodStatus::AwaitingData,
                 enums::PaymentMethodStatus::Inactive,
                 merchant_id,
             )
