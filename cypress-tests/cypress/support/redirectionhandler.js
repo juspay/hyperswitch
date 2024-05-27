@@ -146,7 +146,7 @@ function bankRedirectRedirection(
                 cy.get("@btn").click();
               } else {
                 cy.get("input.phone").type("9123456789");
-                cy.get("#button.onContiue")
+                cy.get("#button.onContinue")
                   .should("contain", "Continue")
                   .click();
               }
