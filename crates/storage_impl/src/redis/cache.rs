@@ -16,6 +16,9 @@ use crate::{
     redis::{PubSubInterface, RedisConnInterface},
 };
 
+/// Redis channel name used for publishing invalidation messages
+pub const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
+
 /// Prefix for config cache key
 const CONFIG_CACHE_PREFIX: &str = "config";
 
@@ -25,7 +28,7 @@ const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
 /// Prefix for routing cache key
 const ROUTING_CACHE_PREFIX: &str = "routing";
 
-/// Prefix for kgraph cache key
+/// Prefix for cgraph cache key
 const CGRAPH_CACHE_PREFIX: &str = "cgraph";
 
 /// Prefix for PM Filter cgraph cache key
