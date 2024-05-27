@@ -364,6 +364,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use common_utils::id_type;
     use error_stack::report;
     use router_env::{instrument, tracing};
 
@@ -374,8 +375,6 @@ mod storage {
         services::Store,
         types::storage::{self as storage_types, enums::MerchantStorageScheme, MandateDbExt},
     };
-
-    use common_utils::id_type;
 
     #[async_trait::async_trait]
     impl MandateInterface for Store {
