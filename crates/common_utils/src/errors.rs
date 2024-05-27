@@ -43,6 +43,12 @@ pub enum ParsingError {
     /// Failed to convert String value to Float value
     #[error("Failed to parse string value for f64 value conversion")]
     StringToFloatConversionFailure,
+    /// Failed to convert String value to Float value
+    #[error("Failed to parse i64 value for f64 value conversion")]
+    I64ToDecimalConversionFailure,
+    /// Failed to convert String value to Float value
+    #[error("Failed to parse String value to Decimal value conversion")]
+    StringToDecimalConversionFailure,
 }
 
 /// Validation errors.

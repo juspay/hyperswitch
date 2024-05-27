@@ -1,7 +1,6 @@
 //! Types that can be used in other crates
 use std::{
     fmt::Display,
-    num::{ParseFloatError, TryFromIntError},
     ops::{Add, Sub},
     primitive::i64,
     str::FromStr,
@@ -241,7 +240,7 @@ pub trait AmountConvertor: Send {
         &self,
         i: MinorUnit,
         currency: enums::Currency,
-    ) -> Result<Self::Output, TryFromIntError>;
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>>;
 
     /// helps in converting back connector required amount type to core minor unit
     fn convert_back(
@@ -249,6 +248,29 @@ pub trait AmountConvertor: Send {
         i: Self::Output,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMinorUnitForConnector;
+
+impl AmountConvertor for StringMinorUnitForConnector {
+    type Output = StringMinorUnit;
+    fn convert(
+        &self,
+        i: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        i.to_minor_unit_as_string()
+    }
+
+    fn convert_back(
+        &self,
+        i: Self::Output,
+        _currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        i.to_minor_unit_as_i64()
+    }
 }
 
 /// Connector required amount type
@@ -261,7 +283,7 @@ impl AmountConvertor for StringMajorUnitForConnector {
         &self,
         i: MinorUnit,
         currency: enums::Currency,
-    ) -> Result<Self::Output, TryFromIntError> {
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
         i.to_major_unit_as_string(currency)
     }
 
@@ -284,7 +306,7 @@ impl AmountConvertor for FloatMajorUnitForConnector {
         &self,
         i: MinorUnit,
         currency: enums::Currency,
-    ) -> Result<Self::Output, TryFromIntError> {
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
         i.to_major_unit_asf64(currency)
     }
     fn convert_back(
@@ -315,9 +337,8 @@ impl AmountConvertor for FloatMajorUnitForConnector {
 pub struct MinorUnit(i64);
 
 impl MinorUnit {
-    /// gets amount as i64 value
+    /// gets amount as i64 value will be removed in future
     pub fn get_amount_as_i64(&self) -> i64 {
-        // will be removed in future
         self.0
     }
 
@@ -330,7 +351,7 @@ impl MinorUnit {
     pub fn to_major_unit_as_string(
         &self,
         currency: enums::Currency,
-    ) -> Result<StringMajorUnit, TryFromIntError> {
+    ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
         let amount_f64 = self.to_major_unit_asf64(currency)?;
         let amount_string = format!("{:.2}", amount_f64.0);
         Ok(StringMajorUnit::new(amount_string))
@@ -340,8 +361,12 @@ impl MinorUnit {
     pub fn to_major_unit_asf64(
         &self,
         currency: enums::Currency,
-    ) -> Result<FloatMajorUnit, TryFromIntError> {
-        let amount_f64: f64 = u32::try_from(self.0)?.into();
+    ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal =
+            Decimal::from_i64(self.0).ok_or(ParsingError::I64ToDecimalConversionFailure)?;
+        let amount_f64 = amount_decimal
+            .to_f64()
+            .ok_or(ParsingError::FloatToDecimalConversionFailure)?;
         let amount = if currency.is_zero_decimal_currency() {
             amount_f64
         } else if currency.is_three_decimal_currency() {
@@ -355,17 +380,10 @@ impl MinorUnit {
     ///Convert the higher decimal amount to its major absolute units
     pub fn to_minor_unit_as_string(
         &self,
-        currency: enums::Currency,
-    ) -> Result<String, ParseFloatError> {
-        let amount_f64 = self.0.to_string().parse::<f64>()?;
-        let amount_string = if currency.is_zero_decimal_currency() {
-            amount_f64
-        } else if currency.is_three_decimal_currency() {
-            amount_f64 * 1000.00
-        } else {
-            amount_f64 * 100.00
-        };
-        Ok(amount_string.to_string())
+    ) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal =
+            Decimal::from_i64(self.0).ok_or(ParsingError::I64ToDecimalConversionFailure)?;
+        Ok(StringMinorUnit::new(amount_decimal.to_string()))
     }
 
     /// Convert the amount to its major denomination based on Currency and check for zero decimal currency and return String
@@ -374,7 +392,7 @@ impl MinorUnit {
     pub fn to_major_unit_as_string_with_zero_decimal_check(
         &self,
         currency: enums::Currency,
-    ) -> Result<StringMajorUnit, TryFromIntError> {
+    ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
         let amount_f64 = self.to_major_unit_asf64(currency)?;
         if currency.is_zero_decimal_currency() {
             Ok(StringMajorUnit::new(amount_f64.0.to_string()))
@@ -440,6 +458,29 @@ impl Sub for MinorUnit {
 
 /// Connector specific types to send
 
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+pub struct StringMinorUnit(String);
+
+impl StringMinorUnit {
+    /// forms a new minor unit in string from amount
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    /// converts to i64 from minor unit string value
+    pub fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_string = &self.0;
+        let amount_decimal = Decimal::from_str(amount_string)
+            .map_err(|_| ParsingError::StringToDecimalConversionFailure)?;
+        let amount_decimal_scaled = amount_decimal.round();
+        let amount_i64 = amount_decimal_scaled
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+/// Connector specific types to send
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct FloatMajorUnit(f64);
 
@@ -507,5 +548,77 @@ impl StringMajorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+#[cfg(test)]
+mod amount_conversion_tests {
+    use super::*;
+    // #[test]
+    // fn max_bound_amount_conversion_to_float_major_unit(){
+    //     let max_amount = MinorUnit::new(std::i64::MAX);
+    //     let currency = enums::Currency::USD;
+    //     let required_conversion = FloatMajorUnitForConnector;
+    //     let conversion_amount = required_conversion.convert(max_amount, currency).unwrap();
+    //     assert_eq!(conversion_amount.0, 92233720368547758.07);
+    //     let converted_back_amount = required_conversion.convert_back(conversion_amount, currency).unwrap();
+    //     assert_eq!(converted_back_amount, max_amount);
+    // }
+
+    // #[test]
+    // fn max_bound_amount_conversion_to_string_major_unit(){
+    //     let max_amount = MinorUnit::new(std::i64::MAX);
+    //     // let small_amount = MinorUnit::new(23235);
+    //     // let convertion_in_usd_float = max_amount.to_major_unit_asf64(enums::Currency::USD).unwrap();
+    //     // println!("float value {:?}", convertion_in_usd_float.0);
+    //     let convertion_in_usd = max_amount.to_major_unit_as_string(enums::Currency::USD).unwrap();
+    //     println!("string value {:?}", convertion_in_usd);
+    //     // assert_eq!(convertion_in_usd.0, "232.35".to_string());
+    //     assert_eq!(convertion_in_usd.0, "92233720368547758.07".to_string());
+    // }
+
+    #[test]
+    fn amount_conversion_to_float_major_unit() {
+        let request_amount = MinorUnit::new(13124364);
+        let currency = enums::Currency::USD;
+        let required_conversion = FloatMajorUnitForConnector;
+        let converted_amount = required_conversion
+            .convert(request_amount, currency)
+            .unwrap();
+        assert_eq!(converted_amount.0, 131243.64);
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, currency)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_to_string_major_unit() {
+        let request_amount = MinorUnit::new(13124364);
+        let currency = enums::Currency::USD;
+        let required_conversion = StringMajorUnitForConnector;
+        let converted_amount = required_conversion
+            .convert(request_amount, currency)
+            .unwrap();
+        assert_eq!(converted_amount.0, "131243.64".to_string());
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, currency)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_to_string_minor_unit() {
+        let request_amount = MinorUnit::new(13124364);
+        let currency = enums::Currency::USD;
+        let required_conversion = StringMinorUnitForConnector;
+        let converted_amount = required_conversion
+            .convert(request_amount, currency)
+            .unwrap();
+        assert_eq!(converted_amount.0, "13124364".to_string());
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, currency)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
     }
 }
