@@ -65,7 +65,7 @@ pub struct MifinityPaymentsRequest {
     address: MifinityAddress,
     validation_key: String,
     client_reference: String,
-    trace_id: Secret<String>,
+    trace_id: String,
     description: String,
     destination_account_number: Secret<String>,
     brand_id: Secret<String>,
@@ -145,7 +145,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         address,
                         validation_key,
                         client_reference,
-                        trace_id: Secret::new(trace_id.clone()),
+                        trace_id: trace_id.clone(),
                         description: trace_id.clone(), //Connector recommend to use the traceId for a better experience in the BackOffice application later.
                         destination_account_number,
                         brand_id,
