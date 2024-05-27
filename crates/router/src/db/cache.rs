@@ -88,7 +88,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let data = fun().await?;
-    in_memory.async_map(|cache| cache.invalidate(key)).await;
+    in_memory.async_map(|cache| cache.remove(key)).await;
 
     let redis_conn = store
         .get_redis_conn()

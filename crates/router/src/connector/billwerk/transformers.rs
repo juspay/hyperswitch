@@ -276,6 +276,7 @@ impl<F, T>
             network_txn_id: None,
             connector_response_reference_id: Some(item.response.handle),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),

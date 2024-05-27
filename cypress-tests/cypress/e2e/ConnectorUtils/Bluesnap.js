@@ -15,99 +15,411 @@ const successfulThreeDSTestCardDetails = {
 };
 
 export const connectorDetails = {
-card_pm:{
-    "3DS": {
-        "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "customer_acceptance": null,
-        "setup_future_usage": "on_session",
-    },
-    "No3DS": {
-        "card": successfulNo3DSCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "customer_acceptance": null,
-        "setup_future_usage": "on_session",
-    },
-    "MandateSingleUse3DS": {
-        "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "mandate_type": {
-            "single_use": {
-                "amount": 8000,
-                "currency": "USD"
-            }
-        }
-    },
-    "MandateSingleUseNo3DS": {
-        "card": successfulNo3DSCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "mandate_type": {
-            "single_use": {
-                "amount": 8000,
-                "currency": "USD"
-            }
-        }
-    },
-    "MandateMultiUseNo3DS": {
-        "card": successfulNo3DSCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "mandate_type": {
-            "multi_use": {
-                "amount": 8000,
-                "currency": "USD"
-            }
-        }
-    },
-    "MandateMultiUse3DS": {
-        "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "requires_customer_action",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "mandate_type": {
-            "multi_use": {
-                "amount": 8000,
-                "currency": "USD"
-            }
-        }
-    },
-    "SaveCardUseNo3DS": {
-        "card": successfulNo3DSCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
-        "refundSyncStatus": "succeeded",
-        "setup_future_usage": "on_session",
-        "customer_acceptance": {
-            "acceptance_type": "offline",
-            "accepted_at": "1963-05-03T04:07:52.723Z",
-            "online": {
-                "ip_address": "127.0.0.1",
-                "user_agent": "amet irure esse"
+    card_pm:{
+        "PaymentIntent": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+                "setup_future_usage": "on_session"
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "requires_payment_method"
+                }
             }
         },
-    },
- }
-};
+        "3DSManualCapture": {
+            "Request": {
+                "card": successfulThreeDSTestCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+                "setup_future_usage": "on_session"
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "requires_capture"
+                }
+            }
+        },
+        "3DSAutoCapture": {
+            "Request": {
+                "card": successfulThreeDSTestCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+                "setup_future_usage": "on_session"
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "succeeded"
+                }
+            }
+        },
+        "No3DSManualCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+                "setup_future_usage": "on_session"
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "requires_capture"
+                }
+            }
+        },
+        "No3DSAutoCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+                "setup_future_usage": "on_session"
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "succeeded"
+                }
+            }
+        },
+        "Capture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+            },
+            "Response": {
+                "status": 200,
+                "body":{
+                    "status": "succeeded",
+                    "amount": 6500,
+                    "amount_capturable": 0,
+                    "amount_received": 6500,
+    
+                }
+            }
+        },
+        "PartialCapture": {
+            "Request": {
+             
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "partially_captured",
+                    "amount": 6500,
+                    "amount_capturable": 0,
+                    "amount_received": 100,
+                }
+    
+            }
+        },
+        "Void":{
+            "Request": {
+            },
+            "Response": {
+                "status": 200,
+                "body":{
+                    status: "cancelled"
+        
+                }
+            }
+        },
+        "Refund": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "succeeded",
+                }
+    
+            }
+        },
+        "PartialRefund": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "succeeded",
+                }
+    
+            }
+        },
+        "SyncRefund": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "customer_acceptance": null,
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "succeeded",
+                }
+    
+            }
+        },
+        "MandateSingleUse3DSAutoCapture": {
+            "Request": {
+                "card": successfulThreeDSTestCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "single_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                }
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+            
+        },
+        "MandateSingleUse3DSManualCapture": {
+            "Request": {
+                "card": successfulThreeDSTestCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "single_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                }
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+            
+        },
+        "MandateSingleUseNo3DSAutoCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "single_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                }
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+        },
+        "MandateSingleUseNo3DSManualCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "single_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                }
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+        },
+        "MandateMultiUseNo3DSAutoCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "multi_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                }
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+        },
+        "MandateMultiUseNo3DSManualCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "multi_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                }
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+        },
+        "MandateMultiUse3DSAutoCapture": {
+            "Request": {
+                "card": successfulThreeDSTestCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "multi_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                },
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+        },
+        "MandateMultiUse3DSManualCapture": {
+            "Request": {
+                "card": successfulThreeDSTestCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "multi_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                },
+            },
+            "Response": {
+                "status": 400,
+                "body":{
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Payment method type not supported",
+                        "code": "HE_03",
+                        "reason": "debit mandate payment is not supported by bluesnap"
+                    }
+                }
+            }
+        },
+        "ZeroAuthMandate": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "mandate_type": {
+                    "single_use": {
+                        "amount": 8000,
+                        "currency": "USD"
+                    }
+                }
+            },
+            "Response": {
+                "status": 501,
+                "body": {
+                    "error": {
+                        "type": "invalid_request",
+                        "message": "Setup Mandate flow for Bluesnap is not implemented",
+                        "code": "IR_00",
+                    }
+                }
+            }
+        },
+        "SaveCardUseNo3DSAutoCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "setup_future_usage": "on_session",
+                "customer_acceptance": {
+                    "acceptance_type": "offline",
+                    "accepted_at": "1963-05-03T04:07:52.723Z",
+                    "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                    }
+                },
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "succeeded"
+                }
+            }
+        },
+        "SaveCardUseNo3DSManualCapture": {
+            "Request": {
+                "card": successfulNo3DSCardDetails,
+                "currency": "USD",
+                "setup_future_usage": "on_session",
+                "customer_acceptance": {
+                    "acceptance_type": "offline",
+                    "accepted_at": "1963-05-03T04:07:52.723Z",
+                    "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                    }
+                },
+            },
+            "Response": {
+                "status": 200,
+                "body": {
+                    "status": "requires_capture"
+                }
+            }
+        },
+    }
+    };

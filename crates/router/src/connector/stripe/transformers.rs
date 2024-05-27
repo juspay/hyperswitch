@@ -157,6 +157,18 @@ pub struct PaymentIntentRequest {
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(flatten)]
+    pub charges: Option<IntentCharges>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct IntentCharges {
+    pub application_fee_amount: i64,
+    #[serde(
+        rename = "transfer_data[destination]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub destination_account_id: Option<String>,
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -1826,6 +1838,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None
         };
 
+        let (charges, customer) = match &item.request.charges {
+            Some(charges) => {
+                let charges = match &charges.charge_type {
+                    api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
+                        api_enums::StripeChargeType::Direct => Some(IntentCharges {
+                            application_fee_amount: charges.fees,
+                            destination_account_id: None,
+                        }),
+                        api_enums::StripeChargeType::Destination => Some(IntentCharges {
+                            application_fee_amount: charges.fees,
+                            destination_account_id: Some(charges.transfer_account_id.clone()),
+                        }),
+                    },
+                };
+                (charges, None)
+            }
+            None => (None, item.connector_customer.to_owned().map(Secret::new)),
+        };
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1845,13 +1876,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             payment_data,
             payment_method_options,
             payment_method,
-            customer: item.connector_customer.to_owned().map(Secret::new),
+            customer,
             setup_mandate_details,
             off_session: item.request.off_session,
             setup_future_usage: item.request.setup_future_usage,
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
+            charges,
         })
     }
 }
@@ -2350,6 +2382,14 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
+            let charge_id = item
+                .response
+                .latest_charge
+                .as_ref()
+                .map(|charge| match charge {
+                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
+                });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2358,6 +2398,7 @@ impl<F, T>
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id,
             })
         };
 
@@ -2533,6 +2574,14 @@ impl<F, T>
                     }),
                 _ => None,
             };
+            let charge_id = item
+                .response
+                .latest_charge
+                .as_ref()
+                .map(|charge| match charge {
+                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
+                });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2541,6 +2590,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
+                charge_id,
             })
         };
 
@@ -2614,6 +2664,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         };
 
@@ -2814,6 +2865,50 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
                 is_refund_id_as_reference: Some("true".to_string()),
             },
         })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChargeRefundRequest {
+    pub charge: String,
+    pub refund_application_fee: Option<bool>,
+    pub reverse_transfer: Option<bool>,
+    pub amount: Option<i64>, //amount in cents, hence passed as integer
+    #[serde(flatten)]
+    pub meta_data: StripeMetadata,
+}
+
+impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let amount = item.request.refund_amount;
+        match item.request.charges.as_ref() {
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "charges",
+            }
+            .into()),
+            Some(charges) => {
+                let (refund_application_fee, reverse_transfer) = match charges.options {
+                    types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
+                        revert_platform_fee,
+                    }) => (Some(revert_platform_fee), None),
+                    types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
+                        revert_platform_fee,
+                        revert_transfer,
+                    }) => (Some(revert_platform_fee), Some(revert_transfer)),
+                };
+                Ok(Self {
+                    charge: charges.charge_id.clone(),
+                    refund_application_fee,
+                    reverse_transfer,
+                    amount: Some(amount),
+                    meta_data: StripeMetadata {
+                        order_id: Some(item.request.refund_id.clone()),
+                        is_refund_id_as_reference: Some("true".to_string()),
+                    },
+                })
+            }
+        }
     }
 }
 
@@ -3248,8 +3343,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
+                charge_id: Some(item.response.id),
             })
         };
 

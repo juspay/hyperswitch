@@ -174,7 +174,7 @@ pub async fn generate_sample_data(
                 true => common_enums::IntentStatus::Failed,
                 _ => common_enums::IntentStatus::Succeeded,
             },
-            amount: amount * 100,
+            amount: common_utils::types::MinorUnit::new(amount * 100),
             currency: Some(
                 *currency_vec
                     .get((num - 1) % currency_vec_len)
@@ -192,7 +192,7 @@ pub async fn generate_sample_data(
             ),
             attempt_count: 1,
             customer_id: Some("hs-dashboard-user".to_string()),
-            amount_captured: Some(amount * 100),
+            amount_captured: Some(common_utils::types::MinorUnit::new(amount * 100)),
             profile_id: Some(profile_id.clone()),
             return_url: Default::default(),
             metadata: Default::default(),
@@ -218,6 +218,7 @@ pub async fn generate_sample_data(
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: None,
+            charges: None,
             frm_metadata: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
@@ -295,6 +296,7 @@ pub async fn generate_sample_data(
                 profile_id: payment_intent.profile_id.clone(),
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                charges: None,
             })
         } else {
             None

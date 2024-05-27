@@ -622,6 +622,7 @@ pub async fn get_or_create_customer_details(
                 modified_at: common_utils::date_time::now(),
                 address_id: None,
                 default_payment_method_id: None,
+                updated_by: None,
             };
 
             Ok(Some(
@@ -670,7 +671,6 @@ pub async fn decide_payout_connector(
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
@@ -729,7 +729,6 @@ pub async fn decide_payout_connector(
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
