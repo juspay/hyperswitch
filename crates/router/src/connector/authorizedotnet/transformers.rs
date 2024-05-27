@@ -143,6 +143,7 @@ struct TransactionRequest {
     customer: Option<CustomerDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
@@ -746,9 +747,7 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
-            processing_options: Some(ProcessingOptions {
-                is_subsequent_auth: true,
-            }),
+            processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
                 Some(capture_method) => Some(AuthorizationIndicator {
