@@ -34,7 +34,7 @@ use crate::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt, VerifyWebhookSource},
         storage::enums as storage_enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ConnectorAuthType, ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -629,7 +629,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             res.response
                 .parse_struct("paypal PaypalAuthResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
+        let payment_method_data = data.request.payment_method_data.clone();
         match response {
             PaypalAuthResponse::PaypalOrdersResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
@@ -644,11 +644,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             PaypalAuthResponse::PaypalRedirectResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
+                types::RouterData::foreign_try_from((
+                    types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    },
+                    payment_method_data,
+                ))
             }
             PaypalAuthResponse::PaypalThreeDsResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
@@ -1033,11 +1036,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.request.payment_experience,
+        ))
     }
 
     fn get_error_response(

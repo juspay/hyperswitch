@@ -46,7 +46,9 @@ impl DashboardRequestPayload {
                 (Connector::Zen, GooglePay) | (Connector::Zen, ApplePay) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
-                (Connector::Braintree, Paypal) | (Connector::Klarna, Klarna) => {
+                (Connector::Paypal, Paypal)
+                | (Connector::Braintree, Paypal)
+                | (Connector::Klarna, Klarna) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (Connector::Globepay, AliPay)
@@ -194,6 +196,7 @@ impl DashboardRequestPayload {
             three_ds_requestor_name: None,
             three_ds_requestor_id: None,
             pull_mechanism_for_external_3ds_enabled: None,
+            paypal_sdk: None,
             region_based_endpoint: None,
         };
         let meta_data = match request.metadata {
@@ -206,6 +209,7 @@ impl DashboardRequestPayload {
         let merchant_id = meta_data.merchant_id.clone();
         let terminal_id = meta_data.terminal_id.clone();
         let endpoint_prefix = meta_data.endpoint_prefix.clone();
+        let paypal_sdk = meta_data.paypal_sdk;
         let apple_pay = meta_data.apple_pay;
         let apple_pay_combined = meta_data.apple_pay_combined;
         let merchant_config_currency = meta_data.merchant_config_currency;
@@ -230,6 +234,7 @@ impl DashboardRequestPayload {
             merchant_config_currency,
             apple_pay_combined,
             endpoint_prefix,
+            paypal_sdk,
             mcc,
             merchant_country_code,
             merchant_name,
