@@ -412,6 +412,8 @@ pub enum Flow {
     RecoveryCodesGenerate,
     // Terminate two factor authentication
     TerminateTwoFactorAuth,
+    // Check 2FA status
+    CheckTwoFactorAuthStatus,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

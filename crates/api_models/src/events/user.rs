@@ -16,7 +16,7 @@ use crate::user::{
     GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
     RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
     SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
-    TokenOrPayloadResponse, TokenResponse, UpdateUserAccountDetailsRequest, UserFromEmailRequest,
+    TokenOrPayloadResponse, TokenResponse, CheckTwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest, UserFromEmailRequest,
     UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
@@ -73,6 +73,7 @@ common_utils::impl_misc_api_event_type!(
     GetUserRoleDetailsRequest,
     GetUserRoleDetailsResponse,
     TokenResponse,
+    CheckTwoFactorAuthStatusResponse,
     UserFromEmailRequest,
     BeginTotpResponse,
     VerifyRecoveryCodeRequest,

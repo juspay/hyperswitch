@@ -1214,6 +1214,9 @@ impl User {
             .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
             .service(
                 web::resource("/2fa/terminate").route(web::get().to(terminate_two_factor_auth)),
+            )
+            .service(
+                web::resource("/2fa/check").route(web::get().to(check_two_factor_auth_status)),
             );
 
         route = route.service(
