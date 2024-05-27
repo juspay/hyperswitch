@@ -172,7 +172,6 @@ impl
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
-        println!("###session{:?}", endpoint);
         Ok(format!("{}{}", endpoint, "payments/v1/sessions"))
     }
 
@@ -325,8 +324,6 @@ impl
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-
-        println!("###authorize{:?}", endpoint);
 
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
