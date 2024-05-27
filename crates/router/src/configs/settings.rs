@@ -131,8 +131,8 @@ pub struct Multitenancy {
 }
 
 impl Multitenancy {
-    pub fn get_tenants(&self) -> HashMap<String, Tenant> {
-        self.tenants.0.clone()
+    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+        &self.tenants.0
     }
     pub fn get_tenant_names(&self) -> Vec<String> {
         self.tenants.0.keys().cloned().collect()
@@ -474,7 +474,6 @@ pub struct Server {
     pub workers: usize,
     pub host: String,
     pub request_body_limit: usize,
-    // pub base_url: String,
     pub shutdown_timeout: u64,
 }
 

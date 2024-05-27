@@ -17,7 +17,7 @@ async fn invalidate_existing_cache_success() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state).get_session_state( "public", || {}).unwrap();
     let cache_key = "cacheKey".to_string();
     let cache_key_value = "val".to_string();
     let _ = state

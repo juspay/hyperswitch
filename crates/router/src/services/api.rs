@@ -1,7 +1,7 @@
 pub mod client;
 pub mod request;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     error::Error,
     fmt::Debug,
     future::Future,
@@ -1010,7 +1010,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
-
+    let tenants: HashSet<_> = state.conf.multitenancy.get_tenant_names().into_iter().collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
         common_utils::consts::DEFAULT_TENANT.to_string()
     } else {
@@ -1023,25 +1023,21 @@ where
                 }
                 .switch()
             })
-            .map(|tenant_id| {
-                if !state
-                    .conf
-                    .multitenancy
-                    .get_tenant_names()
-                    .contains(&tenant_id.to_string())
+            .map(|req_tenant_id| {
+                if !tenants.contains(&req_tenant_id.to_string())
                 {
                     Err(errors::ApiErrorResponse::InvalidTenant {
-                        tenant_id: tenant_id.to_string(),
+                        tenant_id: req_tenant_id.to_string(),
                     }
                     .switch())
                 } else {
-                    Ok(tenant_id.to_string())
+                    Ok(req_tenant_id.to_string())
                 }
             })??
     };
-    // let tenant_id = "public";
+    // let tenant_id = "public".to_string();
     let mut session_state =
-        SessionState::from_app_state(Arc::new(app_state.clone()), tenant_id.as_str(), || {
+        Arc::new(app_state.clone()).get_session_state( tenant_id.as_str(), || {
             errors::ApiErrorResponse::InvalidTenant {
                 tenant_id: tenant_id.clone(),
             }

@@ -5,6 +5,7 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+use common_utils::consts::{DEFAULT_TENANT, GLOBAL_TENANT};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -69,6 +70,8 @@ pub struct ReqState {
 #[derive(Clone)]
 pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
+    /// Global store is used for global schema operations in tables like Users and Tenants
+    pub global_store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -93,34 +96,6 @@ impl SessionState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
-    }
-    pub fn from_app_state<E, F>(state: Arc<AppState>, tenant: &str, err: F) -> Result<Self, E>
-    where
-        F: FnOnce() -> E + Copy,
-    {
-        Ok(Self {
-            store: state.stores.get(tenant).ok_or_else(err)?.clone(),
-            conf: Arc::clone(&state.conf),
-            api_client: state.api_client.clone(),
-            event_handler: state.event_handler.clone(),
-            #[cfg(feature = "olap")]
-            pool: state.pools.get(tenant).ok_or_else(err)?.clone(),
-            file_storage_client: state.file_storage_client.clone(),
-            request_id: state.request_id,
-            base_url: state
-                .conf
-                .multitenancy
-                .get_tenant(tenant)
-                .ok_or_else(err)?
-                .clone()
-                .base_url
-                .clone(),
-            tenant: tenant.to_string().clone(),
-            #[cfg(feature = "email")]
-            email_client: Arc::clone(&state.email_client),
-            #[cfg(feature = "olap")]
-            opensearch_client: Arc::clone(&state.opensearch_client),
-        })
     }
 }
 
@@ -170,7 +145,7 @@ pub struct AppState {
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
-        self.conf.multitenancy.get_tenant_names().clone()
+        self.conf.multitenancy.get_tenant_names()
     }
 }
 pub trait AppStateInfo {
@@ -363,6 +338,34 @@ impl AppState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
     }
+    pub fn get_session_state<E, F>(self: Arc<AppState>, tenant: &str, err: F) -> Result<SessionState, E> where
+    F: FnOnce() -> E + Copy,{ 
+        let global_tenant = if self.conf.multitenancy.enabled { GLOBAL_TENANT } else { DEFAULT_TENANT };
+        Ok(SessionState {
+            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            global_store: self.stores.get(global_tenant).ok_or_else(err)?.clone(),
+            conf: Arc::clone(&self.conf),
+            api_client: self.api_client.clone(),
+            event_handler: self.event_handler.clone(),
+            #[cfg(feature = "olap")]
+            pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
+            file_storage_client: self.file_storage_client.clone(),
+            request_id: self.request_id,
+            base_url: self
+                .conf
+                .multitenancy
+                .get_tenant(tenant)
+                .ok_or_else(err)?
+                .clone()
+                .base_url
+                .clone(),
+            tenant: tenant.to_string().clone(),
+            #[cfg(feature = "email")]
+            email_client: Arc::clone(&self.email_client),
+            #[cfg(feature = "olap")]
+            opensearch_client: Arc::clone(&self.opensearch_client),
+        })
+     }
 }
 
 pub struct Health;

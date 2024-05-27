@@ -4,12 +4,12 @@ use api_models::{
     analytics::refunds::RefundType,
     enums::{DisputeStage, DisputeStatus},
 };
+use common_utils::DbConnectionParams;
 use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
 };
 use error_stack::ResultExt;
-use masking::PeekInterface;
 use sqlx::{
     postgres::{PgArgumentBuffer, PgPoolOptions, PgRow, PgTypeInfo, PgValueRef},
     Decode, Encode,
@@ -50,11 +50,7 @@ impl Default for SqlxClient {
 
 impl SqlxClient {
     pub async fn from_conf(conf: &Database, schema: &str) -> Self {
-        let password = &conf.password.peek();
-        let database_url = format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
-            conf.username, password, conf.host, conf.port, conf.dbname, schema, schema
-        );
+        let database_url = conf.get_database_url(schema);
         #[allow(clippy::expect_used)]
         let pool = PgPoolOptions::new()
             .max_connections(conf.pool_size)

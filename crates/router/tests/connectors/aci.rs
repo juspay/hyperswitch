@@ -195,7 +195,7 @@ async fn payments_create_success() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state).get_session_state( "public", || {}).unwrap();
 
     static CV: aci::Aci = aci::Aci;
     let connector = types::api::ConnectorData {
@@ -242,7 +242,7 @@ async fn payments_create_failure() {
         ))
         .await;
         let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+            Arc::new(app_state).get_session_state( "public", || {}).unwrap();
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Aci,
@@ -304,7 +304,7 @@ async fn refund_for_successful_payments() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state).get_session_state( "public", || {}).unwrap();
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Authorize,
@@ -374,7 +374,7 @@ async fn refunds_create_failure() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state).get_session_state( "public", || {}).unwrap();
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Execute,

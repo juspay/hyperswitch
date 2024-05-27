@@ -1,10 +1,9 @@
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
+use common_utils::DbConnectionParams;
 use diesel::PgConnection;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
-use masking::PeekInterface;
-
 use crate::config::Database;
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
@@ -83,16 +82,7 @@ pub async fn diesel_make_pg_pool(
     schema: &str,
     test_transaction: bool,
 ) -> StorageResult<PgPool> {
-    let database_url = format!(
-        "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
-        database.username,
-        database.password.peek(),
-        database.host,
-        database.port,
-        database.dbname,
-        schema,
-        schema,
-    );
+    let database_url = database.get_database_url(schema);
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
         .max_size(database.pool_size)
