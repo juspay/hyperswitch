@@ -2242,17 +2242,26 @@ impl<'a>
     }
 }
 
-impl<'a> TryFrom<(&domain::BankRedirectData, Option<bool>)> for AdyenPaymentMethod<'a> {
+impl<'a>
+    TryFrom<(
+        &domain::BankRedirectData,
+        Option<bool>,
+        &types::PaymentsAuthorizeRouterData,
+    )> for AdyenPaymentMethod<'a>
+{
     type Error = Error;
     fn try_from(
-        (bank_redirect_data, test_mode): (&domain::BankRedirectData, Option<bool>),
+        (bank_redirect_data, test_mode, item): (
+            &domain::BankRedirectData,
+            Option<bool>,
+            &types::PaymentsAuthorizeRouterData,
+        ),
     ) -> Result<Self, Self::Error> {
         match bank_redirect_data {
             domain::BankRedirectData::BancontactCard {
                 card_number,
                 card_exp_month,
                 card_exp_year,
-                card_holder_name,
                 ..
             } => Ok(AdyenPaymentMethod::BancontactCard(Box::new(
                 BancontactCardData {
@@ -2276,12 +2285,7 @@ impl<'a> TryFrom<(&domain::BankRedirectData, Option<bool>)> for AdyenPaymentMeth
                             field_name: "bancontact_card.card_exp_year",
                         })?
                         .clone(),
-                    holder_name: card_holder_name
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bancontact_card.card_holder_name",
-                        })?
-                        .clone(),
+                    holder_name: item.get_billing_full_name()?,
                 },
             ))),
             domain::BankRedirectData::Bizum { .. } => {
@@ -2886,8 +2890,11 @@ impl<'a>
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method =
-            AdyenPaymentMethod::try_from((bank_redirect_data, item.router_data.test_mode))?;
+        let payment_method = AdyenPaymentMethod::try_from((
+            bank_redirect_data,
+            item.router_data.test_mode,
+            item.router_data,
+        ))?;
         let (shopper_locale, country) = get_redirect_extra_details(item.router_data)?;
         let line_items = Some(get_line_items(item));
 
@@ -2922,18 +2929,18 @@ impl<'a>
 
 fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError> {
+) -> errors::CustomResult<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError>
+{
     match item.request.payment_method_data {
         domain::PaymentMethodData::BankRedirect(ref redirect_data) => match redirect_data {
             domain::BankRedirectData::Sofort {
-                country,
-                preferred_language,
-                ..
-            } => Ok((preferred_language.clone(), *country)),
-            domain::BankRedirectData::OpenBankingUk { country, .. } => {
-                let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "country",
-                })?;
+                preferred_language, ..
+            } => {
+                let country = item.get_billing_country()?;
+                Ok((preferred_language.clone(), Some(country)))
+            }
+            domain::BankRedirectData::OpenBankingUk { .. } => {
+                let country = item.get_billing_country()?;
                 Ok((None, Some(country)))
             }
             _ => Ok((None, None)),
@@ -3178,6 +3185,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -3212,6 +3220,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
                 amount: item.response.balance.value,
@@ -3276,6 +3285,7 @@ pub fn get_adyen_response(
         network_txn_id,
         connector_response_reference_id: Some(response.merchant_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3338,6 +3348,7 @@ pub fn get_webhook_response(
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok((status, error, payments_response_data))
     }
@@ -3410,6 +3421,7 @@ pub fn get_redirection_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3467,6 +3479,7 @@ pub fn get_present_to_shopper_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3523,6 +3536,7 @@ pub fn get_qr_code_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3559,6 +3573,7 @@ pub fn get_redirection_error_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
 
     Ok((status, error, payments_response_data))
@@ -3808,7 +3823,7 @@ pub fn get_present_to_shopper_metadata(
 }
 
 impl<F, Req>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
         Option<storage_enums::CaptureMethod>,
         bool,
@@ -3816,7 +3831,7 @@ impl<F, Req>
     )> for types::RouterData<F, Req, types::PaymentsResponseData>
 {
     type Error = Error;
-    fn try_from(
+    fn foreign_try_from(
         (item, capture_method, is_multiple_capture_psync_flow, pmt): (
             types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
             Option<storage_enums::CaptureMethod>,
@@ -3925,6 +3940,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: Some(0),
             ..item.data

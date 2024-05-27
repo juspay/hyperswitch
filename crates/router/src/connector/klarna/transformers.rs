@@ -161,6 +161,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: item.response.fraud_status.into(),
             ..item.data

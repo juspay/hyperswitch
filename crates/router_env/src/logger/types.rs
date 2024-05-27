@@ -180,6 +180,8 @@ pub enum Flow {
     PayoutsAccounts,
     /// Payments Redirect flow.
     PaymentsRedirect,
+    /// Payemnts Complete Authorize Flow
+    PaymentsCompleteAuthorize,
     /// Refunds create flow.
     RefundsCreate,
     /// Refunds retrieve flow.
@@ -404,6 +406,12 @@ pub enum Flow {
     TotpBegin,
     /// Verify TOTP
     TotpVerify,
+    /// Verify Access Code
+    RecoveryCodeVerify,
+    /// Generate or Regenerate recovery codes
+    RecoveryCodesGenerate,
+    // Terminate two factor authentication
+    TerminateTwoFactorAuth,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

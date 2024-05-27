@@ -27,16 +27,20 @@ use api_models::{
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     pii,
-    types::Surcharge,
+    types::{MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+pub use hyperswitch_domain_models::{
+    mandates::{CustomerAcceptance, MandateData},
+    payment_address::PaymentAddress,
+    router_data::RouterData,
+    router_request_types::CustomerDetails,
+};
 use masking::{ExposeInterface, Secret};
-pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
@@ -117,7 +121,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -291,7 +295,7 @@ where
                         call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
-                        header_payload,
+                        header_payload.clone(),
                         #[cfg(feature = "frm")]
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
@@ -361,7 +365,7 @@ where
                         call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
-                        header_payload,
+                        header_payload.clone(),
                         #[cfg(feature = "frm")]
                         frm_info.as_ref().and_then(|fi| fi.suggested_action),
                         #[cfg(not(feature = "frm"))]
@@ -494,7 +498,7 @@ where
                     frm_info.and_then(|info| info.suggested_action),
                     #[cfg(not(feature = "frm"))]
                     None,
-                    header_payload,
+                    header_payload.clone(),
                 )
                 .await?;
         }
@@ -525,7 +529,7 @@ where
                 None,
                 &key_store,
                 None,
-                header_payload,
+                header_payload.clone(),
             )
             .await?;
     }
@@ -691,7 +695,7 @@ where
     O: Send + Clone + Sync,
 {
     if let Some(surcharge_amount) = payment_data.payment_attempt.surcharge_amount {
-        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or(0);
+        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or_default();
         let final_amount =
             payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
@@ -756,7 +760,7 @@ where
     Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -782,7 +786,7 @@ where
             call_connector_action,
             auth_flow,
             eligible_routable_connectors,
-            header_payload,
+            header_payload.clone(),
         )
         .await?;
 
@@ -1207,7 +1211,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             );
         let response = if is_pull_mechanism_enabled
             || authentication.authentication_type
-                == Some(common_enums::DecoupledAuthenticationType::Frictionless)
+                != Some(common_enums::DecoupledAuthenticationType::Challenge)
         {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
@@ -1386,15 +1390,14 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &storage::business_profile::BusinessProfile,
-) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -1495,23 +1498,29 @@ where
         };
 
         let apple_pay_predecrypt = apple_pay_data
-            .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
+            .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
+                "ApplePayPredecryptData",
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         logger::debug!(?apple_pay_predecrypt);
 
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
-            Box::new(apple_pay_predecrypt),
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(Box::new(
+                apple_pay_predecrypt,
+            )),
+        );
     }
 
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
     if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
-            payment_method_token,
-        ));
+        router_data.payment_method_token = Some(
+            hyperswitch_domain_models::router_data::PaymentMethodToken::Token(Secret::new(
+                payment_method_token,
+            )),
+        );
     };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
@@ -1571,7 +1580,7 @@ where
             updated_customer,
             key_store,
             frm_suggestion,
-            header_payload,
+            header_payload.clone(),
         )
         .await?;
 
@@ -1657,7 +1666,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1771,7 +1780,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1863,17 +1872,14 @@ async fn complete_preprocessing_steps_if_required<F, Req, Q>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
     operation: &BoxedOperation<'_, F, Q>,
     should_continue_payment: bool,
-) -> RouterResult<(
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
-    bool,
-)>
+) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
@@ -2398,91 +2404,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-pub mod payment_address {
-    use super::*;
-
-    #[derive(Clone, Default, Debug)]
-    pub struct PaymentAddress {
-        shipping: Option<api::Address>,
-        billing: Option<api::Address>,
-        unified_payment_method_billing: Option<api::Address>,
-        payment_method_billing: Option<api::Address>,
-    }
-
-    impl PaymentAddress {
-        pub fn new(
-            shipping: Option<api::Address>,
-            billing: Option<api::Address>,
-            payment_method_billing: Option<api::Address>,
-            should_unify_address: Option<bool>,
-        ) -> Self {
-            // billing -> .billing, this is the billing details passed in the root of payments request
-            // payment_method_billing -> payment_method_data.billing
-
-            let unified_payment_method_billing = if should_unify_address.unwrap_or(true) {
-                // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
-                // The unified payment_method_billing will be used as billing address and passed to the connector module
-                // This unification is required in order to provide backwards compatibility
-                // so that if `payment.billing` is passed it should be sent to the connector module
-                // Unify the billing details with `payment_method_data.billing`
-                payment_method_billing
-                    .as_ref()
-                    .map(|payment_method_billing| {
-                        payment_method_billing
-                            .clone()
-                            .unify_address(billing.as_ref())
-                    })
-                    .or(billing.clone())
-            } else {
-                payment_method_billing.clone()
-            };
-
-            Self {
-                shipping,
-                billing,
-                unified_payment_method_billing,
-                payment_method_billing,
-            }
-        }
-
-        pub fn get_shipping(&self) -> Option<&api::Address> {
-            self.shipping.as_ref()
-        }
-
-        pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
-            self.unified_payment_method_billing.as_ref()
-        }
-
-        /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
-        pub fn unify_with_payment_method_data_billing(
-            self,
-            payment_method_data_billing: Option<api::Address>,
-        ) -> Self {
-            // Unify the billing details with `payment_method_data.billing_details`
-            let unified_payment_method_billing = payment_method_data_billing
-                .map(|payment_method_data_billing| {
-                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
-                })
-                .or(self.get_payment_method_billing().cloned());
-
-            Self {
-                shipping: self.shipping,
-                billing: self.billing,
-                unified_payment_method_billing,
-                payment_method_billing: self.payment_method_billing,
-            }
-        }
-
-        pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
-            self.payment_method_billing.as_ref()
-        }
-
-        pub fn get_payment_billing(&self) -> Option<&api::Address> {
-            self.billing.as_ref()
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct MandateConnectorDetails {
     pub connector: String,
@@ -2520,7 +2441,8 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
-    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
+    pub recurring_mandate_payment_data:
+        Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<types::SurchargeDetails>,
@@ -2529,7 +2451,6 @@ where
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<storage::Authentication>,
-    pub frm_metadata: Option<serde_json::Value>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
 }
@@ -2562,26 +2483,10 @@ impl EventInfo for PaymentEvent {
 
 #[derive(Debug, Default, Clone)]
 pub struct IncrementalAuthorizationDetails {
-    pub additional_amount: i64,
-    pub total_amount: i64,
+    pub additional_amount: MinorUnit,
+    pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct RecurringMandatePaymentData {
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
-    pub original_payment_authorized_amount: Option<i64>,
-    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct CustomerDetails {
-    pub customer_id: Option<String>,
-    pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
-    pub phone_country_code: Option<String>,
 }
 
 pub trait CustomerDetailsExt {
@@ -3257,6 +3162,34 @@ where
             {
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
+
+            #[cfg(feature = "retry")]
+            let should_do_retry =
+                retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
+
+            #[cfg(feature = "retry")]
+            if payment_data.payment_attempt.payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
+            {
+                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
+                    state,
+                    merchant_account,
+                    payment_data,
+                    key_store,
+                    connector_data.clone(),
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    choice.merchant_connector_id.clone().as_ref(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    return Ok(ConnectorCallType::Retryable(connector_data_list));
+                }
+            }
+
             return Ok(ConnectorCallType::PreDetermined(connector_data));
         }
     }
@@ -3279,7 +3212,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3337,7 +3269,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3506,7 +3437,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                     },
                                 ));
                             payment_data.recurring_mandate_payment_data =
-                                Some(RecurringMandatePaymentData {
+                                Some(hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                                     payment_method_type: mandate_reference_record
                                         .payment_method_type,
                                     original_payment_authorized_amount: mandate_reference_record
@@ -3767,7 +3698,6 @@ where
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
-        merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
         &transaction_data,
         eligible_connectors,
@@ -3894,7 +3824,7 @@ pub async fn payment_external_authentication(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
     let currency = payment_attempt.currency.get_required_value("currency")?;
-    let amount = payment_attempt.get_total_amount().into();
+    let amount = payment_attempt.get_total_amount();
     let shipping_address = helpers::create_or_find_address_for_payment_by_request(
         db,
         None,
@@ -4001,7 +3931,7 @@ pub async fn payment_external_authentication(
         browser_info,
         business_profile,
         merchant_connector_account,
-        amount,
+        Some(amount),
         Some(currency),
         authentication::MessageCategory::Payment,
         req.device_channel,

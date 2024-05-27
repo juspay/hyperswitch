@@ -1,6 +1,6 @@
 use std::{str::FromStr, vec::IntoIter};
 
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use router_env::{
@@ -150,7 +150,7 @@ where
                 }
                 api_models::gsm::GsmDecision::Requeue => {
                     Err(report!(errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                        message: errors::NotImplementedMessage::Reason(
                             "Requeue not implemented".to_string(),
                         ),
                     }))?
@@ -360,6 +360,7 @@ where
             resource_id,
             connector_metadata,
             redirection_data,
+            charge_id,
             ..
         }) => {
             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
@@ -397,7 +398,7 @@ where
                     error_message: None,
                     error_reason: None,
                     amount_capturable: if router_data.status.is_terminal_status() {
-                        Some(0)
+                        Some(MinorUnit::new(0))
                     } else {
                         None
                     },
@@ -407,6 +408,7 @@ where
                     unified_code: None,
                     unified_message: None,
                     payment_method_data: additional_payment_method_data,
+                    charge_id,
                 },
                 storage_scheme,
             )
@@ -428,7 +430,7 @@ where
                     error_message: Some(Some(error_response.message.clone())),
                     status: storage_enums::AttemptStatus::Failure,
                     error_reason: Some(error_response.reason.clone()),
-                    amount_capturable: Some(0),
+                    amount_capturable: Some(MinorUnit::new(0)),
                     updated_by: storage_scheme.to_string(),
                     unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),

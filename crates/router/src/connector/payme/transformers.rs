@@ -17,7 +17,10 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
+    types::{
+        self, api, domain, domain::PaymentMethodData, storage::enums, transformers::ForeignFrom,
+        MandateReference,
+    },
     unimplemented_payment_method,
 };
 
@@ -68,7 +71,7 @@ pub struct MandateRequest {
 pub struct Pay3dsRequest {
     buyer_name: Secret<String>,
     buyer_email: pii::Email,
-    buyer_key: String,
+    buyer_key: Secret<String>,
     payme_sale_id: String,
     meta_data_jwt: Secret<String>,
 }
@@ -188,7 +191,10 @@ impl<F, T>
         let status = enums::AttemptStatus::from(item.response.sale_status.clone());
         let response = if is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::from((&item.response, item.http_code)))
+            Err(types::ErrorResponse::foreign_from((
+                &item.response,
+                item.http_code,
+            )))
         } else {
             Ok(types::PaymentsResponseData::try_from(&item.response)?)
         };
@@ -200,8 +206,8 @@ impl<F, T>
     }
 }
 
-impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
-    fn from((pay_sale_response, http_code): (&PaymePaySaleResponse, u16)) -> Self {
+impl ForeignFrom<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
+    fn foreign_from((pay_sale_response, http_code): (&PaymePaySaleResponse, u16)) -> Self {
         let code = pay_sale_response
             .status_error_code
             .map(|error_code| error_code.to_string())
@@ -245,6 +251,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            charge_id: None,
         })
     }
 }
@@ -266,7 +273,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
         let status = enums::AttemptStatus::from(transaction_response.sale_status.clone());
         let response = if is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::from((
+            Err(types::ErrorResponse::foreign_from((
                 &transaction_response,
                 item.http_code,
             )))
@@ -281,8 +288,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
     }
 }
 
-impl From<(&SaleQuery, u16)> for types::ErrorResponse {
-    fn from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
+impl ForeignFrom<(&SaleQuery, u16)> for types::ErrorResponse {
+    fn foreign_from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
         Self {
             code: sale_query_response
                 .sale_error_code
@@ -311,6 +318,7 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            charge_id: None,
         }
     }
 }
@@ -519,6 +527,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         }),
                         ..item.data
                     }),
@@ -880,7 +889,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.buyer_key.clone().expose(),
+                item.response.buyer_key.clone(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key.expose(),
@@ -1074,6 +1083,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         };
         Ok(Self {

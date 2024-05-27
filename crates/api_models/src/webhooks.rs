@@ -41,6 +41,8 @@ pub enum IncomingWebhookEvent {
     MandateRevoked,
     EndpointVerification,
     ExternalAuthenticationARes,
+    FrmApproved,
+    FrmRejected,
     #[cfg(feature = "payouts")]
     PayoutSuccess,
     #[cfg(feature = "payouts")]
@@ -62,6 +64,7 @@ pub enum WebhookFlow {
     BankTransfer,
     Mandate,
     ExternalAuthentication,
+    FraudCheck,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -136,6 +139,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::SourceChargeable
             | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
             IncomingWebhookEvent::ExternalAuthenticationARes => Self::ExternalAuthentication,
+            IncomingWebhookEvent::FrmApproved | IncomingWebhookEvent::FrmRejected => {
+                Self::FraudCheck
+            }
             #[cfg(feature = "payouts")]
             IncomingWebhookEvent::PayoutSuccess
             | IncomingWebhookEvent::PayoutFailure

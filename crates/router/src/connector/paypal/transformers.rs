@@ -11,8 +11,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
-        BankRedirectBillingData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
+        PaymentsAuthorizeRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -280,95 +280,59 @@ fn get_payment_source(
     bank_redirection_data: &domain::BankRedirectData,
 ) -> Result<PaymentSourceItem, error_stack::Report<errors::ConnectorError>> {
     match bank_redirection_data {
-        domain::BankRedirectData::Eps {
-            billing_details,
-            bank_name: _,
-            country,
-        } => Ok(PaymentSourceItem::Eps(RedirectRequest {
-            name: billing_details
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "eps.billing_details",
-                })?
-                .get_billing_name()?,
-            country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "eps.country",
-            })?,
-            experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
-                shipping_preference: if item.get_optional_shipping().is_some() {
-                    ShippingPreference::SetProvidedAddress
-                } else {
-                    ShippingPreference::GetFromFile
+        domain::BankRedirectData::Eps { bank_name: _ } => {
+            Ok(PaymentSourceItem::Eps(RedirectRequest {
+                name: item.get_billing_full_name()?,
+                country_code: item.get_billing_country()?,
+                experience_context: ContextStruct {
+                    return_url: item.request.complete_authorize_url.clone(),
+                    cancel_url: item.request.complete_authorize_url.clone(),
+                    shipping_preference: if item.get_optional_shipping().is_some() {
+                        ShippingPreference::SetProvidedAddress
+                    } else {
+                        ShippingPreference::GetFromFile
+                    },
+                    user_action: Some(UserAction::PayNow),
                 },
-                user_action: Some(UserAction::PayNow),
-            },
-        })),
-        domain::BankRedirectData::Giropay {
-            billing_details,
-            country,
-            ..
-        } => Ok(PaymentSourceItem::Giropay(RedirectRequest {
-            name: billing_details
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "giropay.billing_details",
-                })?
-                .get_billing_name()?,
-            country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "giropay.country",
-            })?,
-            experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
-                shipping_preference: if item.get_optional_shipping().is_some() {
-                    ShippingPreference::SetProvidedAddress
-                } else {
-                    ShippingPreference::GetFromFile
+            }))
+        }
+        domain::BankRedirectData::Giropay { .. } => {
+            Ok(PaymentSourceItem::Giropay(RedirectRequest {
+                name: item.get_billing_full_name()?,
+                country_code: item.get_billing_country()?,
+                experience_context: ContextStruct {
+                    return_url: item.request.complete_authorize_url.clone(),
+                    cancel_url: item.request.complete_authorize_url.clone(),
+                    shipping_preference: if item.get_optional_shipping().is_some() {
+                        ShippingPreference::SetProvidedAddress
+                    } else {
+                        ShippingPreference::GetFromFile
+                    },
+                    user_action: Some(UserAction::PayNow),
                 },
-                user_action: Some(UserAction::PayNow),
-            },
-        })),
-        domain::BankRedirectData::Ideal {
-            billing_details,
-            bank_name: _,
-            country,
-        } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
-            name: billing_details
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "ideal.billing_details",
-                })?
-                .get_billing_name()?,
-            country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "ideal.country",
-            })?,
-            experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
-                shipping_preference: if item.get_optional_shipping().is_some() {
-                    ShippingPreference::SetProvidedAddress
-                } else {
-                    ShippingPreference::GetFromFile
+            }))
+        }
+        domain::BankRedirectData::Ideal { bank_name: _, .. } => {
+            Ok(PaymentSourceItem::IDeal(RedirectRequest {
+                name: item.get_billing_full_name()?,
+                country_code: item.get_billing_country()?,
+                experience_context: ContextStruct {
+                    return_url: item.request.complete_authorize_url.clone(),
+                    cancel_url: item.request.complete_authorize_url.clone(),
+                    shipping_preference: if item.get_optional_shipping().is_some() {
+                        ShippingPreference::SetProvidedAddress
+                    } else {
+                        ShippingPreference::GetFromFile
+                    },
+                    user_action: Some(UserAction::PayNow),
                 },
-                user_action: Some(UserAction::PayNow),
-            },
-        })),
+            }))
+        }
         domain::BankRedirectData::Sofort {
-            country,
             preferred_language: _,
-            billing_details,
         } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
-            name: billing_details
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "sofort.billing_details",
-                })?
-                .get_billing_name()?,
-            country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "sofort.country",
-            })?,
+            name: item.get_billing_full_name()?,
+            country_code: item.get_billing_country()?,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
                 cancel_url: item.request.complete_authorize_url.clone(),
@@ -1199,6 +1163,7 @@ impl<F, T>
                     .clone()
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1304,6 +1269,7 @@ impl<F, T>
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1341,6 +1307,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1391,6 +1358,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1459,6 +1427,7 @@ impl<F, T>
                     .clone()
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -1794,6 +1763,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     .invoice_id
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -1845,6 +1815,7 @@ impl<F, T>
                     .invoice_id
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
