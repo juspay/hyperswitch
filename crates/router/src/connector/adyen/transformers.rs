@@ -4545,7 +4545,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
             },
             merchant_account: auth_type.merchant_account,
             payment_method: payout_method_data,
-            reference: item.router_data.request.payout_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
             shopper_reference: item.router_data.merchant_id.clone(),
         })
     }
@@ -4729,7 +4729,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                     billing_address: get_address_info(item.router_data.get_billing().ok())
                         .transpose()?,
                     merchant_account,
-                    reference: item.router_data.request.payout_id.clone(),
+                    reference: item.router_data.connector_request_reference_id.clone(),
                     shopper_name: ShopperName {
                         first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
                         last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts

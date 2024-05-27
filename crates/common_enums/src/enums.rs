@@ -1069,6 +1069,7 @@ pub enum EventClass {
     Refunds,
     Disputes,
     Mandates,
+    #[cfg(feature = "payouts")]
     Payouts,
 }
 

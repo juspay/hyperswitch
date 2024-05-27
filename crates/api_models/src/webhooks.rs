@@ -41,14 +41,19 @@ pub enum IncomingWebhookEvent {
     MandateRevoked,
     EndpointVerification,
     ExternalAuthenticationARes,
+    #[cfg(feature = "payouts")]
     PayoutSuccess,
+    #[cfg(feature = "payouts")]
     PayoutFailure,
+    #[cfg(feature = "payouts")]
     PayoutProcessing,
+    #[cfg(feature = "payouts")]
     PayoutCancelled,
 }
 
 pub enum WebhookFlow {
     Payment,
+    #[cfg(feature = "payouts")]
     Payout,
     Refund,
     Dispute,
@@ -66,6 +71,7 @@ pub enum WebhookResponseTracker {
         payment_id: String,
         status: common_enums::IntentStatus,
     },
+    #[cfg(feature = "payouts")]
     Payout {
         payout_id: String,
         status: common_enums::PayoutStatus,
@@ -130,6 +136,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::SourceChargeable
             | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
             IncomingWebhookEvent::ExternalAuthenticationARes => Self::ExternalAuthentication,
+            #[cfg(feature = "payouts")]
             IncomingWebhookEvent::PayoutSuccess
             | IncomingWebhookEvent::PayoutFailure
             | IncomingWebhookEvent::PayoutProcessing
@@ -158,6 +165,7 @@ pub enum AuthenticationIdType {
     ConnectorAuthenticationId(String),
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Clone)]
 pub enum PayoutIdType {
     PayoutAttemptId(String),
