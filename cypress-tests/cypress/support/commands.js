@@ -348,6 +348,7 @@ Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
+    confirmBody.currency = req_data.currency;
     confirmBody.payment_method = req_data.payment_method;
     confirmBody.payment_method_type = req_data.payment_method_type;
     confirmBody.payment_method_data.bank_transfer = req_data.bank_transfer;
