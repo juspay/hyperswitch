@@ -1029,7 +1029,7 @@ where
                 .switch()
             })
             .map(|req_tenant_id| {
-                if !tenants.contains(&req_tenant_id.to_string()) {
+                if !tenants.contains(req_tenant_id) {
                     Err(errors::ApiErrorResponse::InvalidTenant {
                         tenant_id: req_tenant_id.to_string(),
                     }

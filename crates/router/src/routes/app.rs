@@ -336,7 +336,7 @@ impl AppState {
         }
     }
     pub fn get_session_state<E, F>(
-        self: Arc<AppState>,
+        self: Arc<Self>,
         tenant: &str,
         err: F,
     ) -> Result<SessionState, E>
