@@ -415,6 +415,7 @@ pub async fn get_mca_from_payment_intent(
     }
 }
 
+#[cfg(feature = "payouts")]
 pub async fn get_mca_from_payout_attempt(
     db: &dyn StorageInterface,
     merchant_account: &domain::MerchantAccount,
@@ -534,6 +535,7 @@ pub async fn get_mca_from_object_reference_id(
                 )
                 .await
             }
+            #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
                 get_mca_from_payout_attempt(
                     db,

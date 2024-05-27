@@ -102,7 +102,9 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
-            Self::NoEffect | Self::Payout { .. } | Self::Mandate { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } => None,
+            #[cfg(feature = "payouts")]
+            Self::Payout { .. } => None,
         }
     }
 }
@@ -184,6 +186,7 @@ pub enum ObjectReferenceId {
     RefundId(RefundIdType),
     MandateId(MandateIdType),
     ExternalAuthenticationID(AuthenticationIdType),
+    #[cfg(feature = "payouts")]
     PayoutId(PayoutIdType),
 }
 
