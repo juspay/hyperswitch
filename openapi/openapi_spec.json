@@ -11826,7 +11826,7 @@
             ],
             "properties": {
               "next_action_data": {
-                "$ref": "#/components/schemas/NextActionCall"
+                "$ref": "#/components/schemas/SdkNextActionData"
               },
               "type": {
                 "type": "string",
@@ -18048,6 +18048,17 @@
         }
       },
       "SdkNextAction": {
+        "type": "object",
+        "required": [
+          "next_action"
+        ],
+        "properties": {
+          "next_action": {
+            "$ref": "#/components/schemas/NextActionCall"
+          }
+        }
+      },
+      "SdkNextActionData": {
         "type": "object",
         "required": [
           "next_action"
