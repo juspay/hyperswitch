@@ -86,3 +86,6 @@ pub const MAX_TTL_FOR_EXTENDED_CARD_INFO: u16 = 60 * 60 * 2;
 
 /// Default tenant to be used when multitenancy is disabled
 pub const DEFAULT_TENANT: &str = "public";
+
+/// Global tenant to be used when multitenancy is enabled
+pub const GLOBAL_TENANT: &str = "global";

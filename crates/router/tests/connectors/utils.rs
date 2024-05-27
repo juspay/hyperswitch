@@ -102,8 +102,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
@@ -129,8 +130,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
@@ -156,8 +158,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
@@ -187,8 +190,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
@@ -611,8 +615,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         connector_integration
             .execute_pretasks(&mut request, &state)
             .await?;
@@ -654,8 +659,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         connector_integration
             .execute_pretasks(&mut request, &state)
             .await?;
@@ -698,8 +704,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         connector_integration
             .execute_pretasks(&mut request, &state)
             .await?;
@@ -742,8 +749,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         connector_integration
             .execute_pretasks(&mut request, &state)
             .await?;
@@ -832,8 +840,9 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         connector_integration
             .execute_pretasks(&mut request, &state)
             .await?;
@@ -867,7 +876,9 @@ async fn call_connector<
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
     services::api::execute_connector_processing_step(
         &state,
         integration,

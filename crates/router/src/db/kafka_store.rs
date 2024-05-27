@@ -2354,6 +2354,12 @@ impl UserInterface for KafkaStore {
             .find_users_and_roles_by_merchant_id(merchant_id)
             .await
     }
+    async fn find_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        self.diesel_store.find_users_by_user_ids(user_ids).await
+    }
 }
 
 impl RedisConnInterface for KafkaStore {
@@ -2435,6 +2441,15 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
             .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id)
+            .await
+    }
+
+    async fn list_user_roles_by_merchant_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles_by_merchant_id(user_id)
             .await
     }
 }

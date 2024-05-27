@@ -151,13 +151,12 @@ pub async fn deep_health_check(
     let app_state = Arc::clone(&state.into_inner());
     let service_name = service.into_inner();
     for (tenant, _) in stores {
-        let session_state_res =
-            routes::SessionState::from_app_state(app_state.clone(), &tenant, || {
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "tenant_id",
-                }
-                .into()
-            });
+        let session_state_res = app_state.clone().get_session_state(&tenant, || {
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "tenant_id",
+            }
+            .into()
+        });
         let session_state = match session_state_res {
             Ok(state) => state,
             Err(err) => {
@@ -359,9 +358,8 @@ async fn start_scheduler(
         channel,
         WorkflowRunner {},
         |state, tenant| {
-            routes::SessionState::from_app_state(Arc::new(state.clone()), tenant, || {
-                ProcessTrackerError::TenantNotFound.into()
-            })
+            Arc::new(state.clone())
+                .get_session_state(tenant, || ProcessTrackerError::TenantNotFound.into())
         },
     )
     .await

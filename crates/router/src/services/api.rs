@@ -1041,7 +1041,7 @@ where
     };
     // let tenant_id = "public";
     let mut session_state =
-        SessionState::from_app_state(Arc::new(app_state.clone()), tenant_id.as_str(), || {
+        Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
             errors::ApiErrorResponse::InvalidTenant {
                 tenant_id: tenant_id.clone(),
             }

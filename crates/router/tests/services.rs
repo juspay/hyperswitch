@@ -17,7 +17,9 @@ async fn get_redis_conn_failure() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     let _ = state.store.get_redis_conn().map(|conn| {
         conn.is_redis_available
@@ -43,7 +45,9 @@ async fn get_redis_conn_success() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     // Act
     let result = state.store.get_redis_conn();

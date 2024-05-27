@@ -635,3 +635,4 @@ enabled = false
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080"}
+global = { name = "hyperswitch_global", base_url = "http://localhost:8080"}

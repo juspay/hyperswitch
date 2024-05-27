@@ -285,7 +285,9 @@ async fn payments_create_core() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     let key_store = state
         .store
@@ -467,7 +469,9 @@ async fn payments_create_core_adyen_no_redirect() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = routes::SessionState::from_app_state(Arc::new(app_state), "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();

@@ -50,6 +50,11 @@ pub trait UserInterface {
         &self,
         merchant_id: &str,
     ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError>;
+
+    async fn find_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -130,6 +135,16 @@ impl UserInterface for Store {
     ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn find_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::User::find_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -334,6 +349,13 @@ impl UserInterface for MockDb {
         &self,
         _merchant_id: &str,
     ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_users_by_user_ids(
+        &self,
+        _user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }

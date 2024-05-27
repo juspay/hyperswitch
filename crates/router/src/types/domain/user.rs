@@ -559,7 +559,7 @@ impl NewUser {
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
-            .store
+            .global_store
             .find_user_by_email(&self.get_email().into_inner())
             .await
             .is_ok()
@@ -574,7 +574,7 @@ impl NewUser {
         state: SessionState,
     ) -> UserResult<UserFromStorage> {
         self.check_if_already_exists_in_db(state.clone()).await?;
-        let db = state.store.as_ref();
+        let db = state.global_store.as_ref();
         let merchant_id = self.get_new_merchant().get_merchant_id();
         self.new_merchant
             .create_new_merchant_and_insert_in_db(state.clone())
