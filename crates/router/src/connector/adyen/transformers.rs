@@ -3186,6 +3186,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -3220,6 +3221,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
                 amount: item.response.balance.value,
@@ -3284,6 +3286,7 @@ pub fn get_adyen_response(
         network_txn_id,
         connector_response_reference_id: Some(response.merchant_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3346,6 +3349,7 @@ pub fn get_webhook_response(
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok((status, error, payments_response_data))
     }
@@ -3418,6 +3422,7 @@ pub fn get_redirection_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3475,6 +3480,7 @@ pub fn get_present_to_shopper_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3531,6 +3537,7 @@ pub fn get_qr_code_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3567,6 +3574,7 @@ pub fn get_redirection_error_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
 
     Ok((status, error, payments_response_data))
@@ -3933,6 +3941,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: Some(0),
             ..item.data

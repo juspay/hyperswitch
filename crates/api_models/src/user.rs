@@ -264,6 +264,11 @@ pub struct VerifyTotpRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyRecoveryCodeRequest {
+    pub recovery_code: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct RecoveryCodes {
     pub recovery_codes: Vec<Secret<String>>,
 }

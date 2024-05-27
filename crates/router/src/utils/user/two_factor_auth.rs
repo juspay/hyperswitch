@@ -45,7 +45,7 @@ pub async fn check_totp_in_redis(state: &AppState, user_id: &str) -> UserResult<
 
 pub async fn check_recovery_code_in_redis(state: &AppState, user_id: &str) -> UserResult<bool> {
     let redis_conn = get_redis_connection(state)?;
-    let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODES_PREFIX, user_id);
+    let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     redis_conn
         .exists::<()>(&key)
         .await
@@ -58,4 +58,17 @@ fn get_redis_connection(state: &AppState) -> UserResult<Arc<RedisConnectionPool>
         .get_redis_conn()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get redis connection")
+}
+
+pub async fn insert_recovery_code_in_redis(state: &AppState, user_id: &str) -> UserResult<()> {
+    let redis_conn = get_redis_connection(state)?;
+    let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
+    redis_conn
+        .set_key_with_expiry(
+            key.as_str(),
+            common_utils::date_time::now_unix_timestamp(),
+            state.conf.user.two_factor_auth_expiry_in_secs,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
 }

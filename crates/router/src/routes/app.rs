@@ -1213,12 +1213,14 @@ impl User {
             .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
             .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
             .service(
-                web::resource("/recovery_codes/generate")
-                    .route(web::get().to(generate_recovery_codes)),
-            )
-            .service(
                 web::resource("/2fa/terminate").route(web::get().to(terminate_two_factor_auth)),
             );
+
+        route = route.service(
+            web::scope("/recovery_code")
+                .service(web::resource("/verify").route(web::post().to(verify_recovery_code)))
+                .service(web::resource("/generate").route(web::post().to(generate_recovery_codes))),
+        );
 
         #[cfg(feature = "email")]
         {

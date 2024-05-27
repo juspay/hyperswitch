@@ -315,6 +315,33 @@ pub struct RefundsData {
     /// Arbitrary metadata required for refund
     pub connector_metadata: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    /// Charges associated with the payment
+    pub charges: Option<ChargeRefunds>,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct ChargeRefunds {
+    pub charge_id: String,
+    pub transfer_account_id: String,
+    pub charge_type: api_models::enums::PaymentChargeType,
+    pub options: ChargeRefundsOptions,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum ChargeRefundsOptions {
+    Destination(DestinationChargeRefund),
+    Direct(DirectChargeRefund),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DirectChargeRefund {
+    pub revert_platform_fee: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DestinationChargeRefund {
+    pub revert_platform_fee: bool,
+    pub revert_transfer: bool,
 }
 
 #[derive(Debug, Clone)]
