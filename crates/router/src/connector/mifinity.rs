@@ -124,18 +124,21 @@ impl ConnectorCommon for Mifinity {
                 .errors
                 .iter()
                 .map(|error| error.error_code.clone())
-                .collect(),
+                .collect::<Vec<String>>()
+                        .join(" & "),
             message: response
                 .errors
                 .iter()
                 .map(|error| error.message.clone())
-                .collect(),
+                .collect::<Vec<String>>()
+                        .join(" & "),
             reason: Some(
                 response
                     .errors
                     .iter()
                     .map(|error| error.message.clone())
-                    .collect(),
+                    .collect::<Vec<String>>()
+                        .join(" & "),
             ),
             attempt_status: None,
             connector_transaction_id: None,

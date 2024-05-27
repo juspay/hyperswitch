@@ -35,7 +35,7 @@ pub mod auth_headers {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MifinityConnectorMetadataObject {
-    pub brand_id: Option<String>,
+    pub brand_id: String,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject {
@@ -43,22 +43,19 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
+                config: "merchant_connector_account.metadata",
             })?;
         Ok(metadata)
     }
 }
 
-fn get_brand_id_for_mifinity(
+fn get_brand_id(
     connector_metadata: &Option<pii::SecretSerdeValue>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let mifinity_metadata = MifinityConnectorMetadataObject::try_from(connector_metadata)?;
     let brand_id =
         mifinity_metadata
-            .brand_id
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "brand_id",
-            })?;
+            .brand_id;
     Ok(brand_id)
 }
 
@@ -123,7 +120,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         dialing_code: phone_details.get_country_code()?,
                         nationality: item.router_data.get_billing_country()?,
                         email_address: item.router_data.get_billing_email()?,
-                        dob: data.dob.clone(),
+                        dob: data.date_of_birth.clone(),
                     };
                     let address = MifinityAddress {
                         address_line1: item.router_data.get_billing_line1()?,
@@ -142,7 +139,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     )?;
                     let destination_account_number = data.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
-                    let brand_id = Secret::new(get_brand_id_for_mifinity(
+                    let brand_id = Secret::new(get_brand_id(
                         &item.router_data.connector_meta_data,
                     )?);
                     Ok(Self {
