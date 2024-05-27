@@ -467,6 +467,9 @@ mod storage {
         services::Store,
         types::storage::{self as storage_types, enums::MerchantStorageScheme},
     };
+
+    use common_utils::id_type;
+
     #[async_trait::async_trait]
     impl PaymentMethodInterface for Store {
         #[instrument(skip_all)]

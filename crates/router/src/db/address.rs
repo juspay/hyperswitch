@@ -77,6 +77,7 @@ where
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
+    use common_utils::id_type;
     use error_stack::{report, ResultExt};
     use router_env::{instrument, tracing};
 

@@ -375,6 +375,8 @@ mod storage {
         types::storage::{self as storage_types, enums::MerchantStorageScheme, MandateDbExt},
     };
 
+    use common_utils::id_type;
+
     #[async_trait::async_trait]
     impl MandateInterface for Store {
         #[instrument(skip_all)]

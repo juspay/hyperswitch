@@ -419,7 +419,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use common_utils::ext_traits::AsyncExt;
+    use common_utils::{ext_traits::AsyncExt, id_type};
     use error_stack::{report, ResultExt};
     use futures::future::try_join_all;
     use masking::PeekInterface;
