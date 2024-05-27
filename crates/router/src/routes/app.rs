@@ -5,7 +5,6 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
-use common_utils::consts::{DEFAULT_TENANT, GLOBAL_TENANT};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -70,8 +69,6 @@ pub struct ReqState {
 #[derive(Clone)]
 pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
-    /// Global store is used for global schema operations in tables like Users and Tenants
-    pub global_store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -340,10 +337,8 @@ impl AppState {
     }
     pub fn get_session_state<E, F>(self: Arc<AppState>, tenant: &str, err: F) -> Result<SessionState, E> where
     F: FnOnce() -> E + Copy,{ 
-        let global_tenant = if self.conf.multitenancy.enabled { GLOBAL_TENANT } else { DEFAULT_TENANT };
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
-            global_store: self.stores.get(global_tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
             event_handler: self.event_handler.clone(),
