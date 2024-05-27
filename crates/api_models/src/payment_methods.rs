@@ -5,7 +5,7 @@ use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
     pii,
-    types::{Percentage, Surcharge},
+    types::{MinorUnit, Percentage, Surcharge},
 };
 use serde::de;
 use utoipa::{schema, ToSchema};
@@ -492,7 +492,7 @@ pub struct SurchargeDetailsResponse {
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum SurchargeResponse {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(SurchargePercentage),
 }
@@ -531,7 +531,8 @@ pub struct RequiredFieldInfo {
     #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
 
-    pub value: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub value: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -638,7 +639,7 @@ pub struct PaymentMethodListRequest {
 
     /// Filter by amount
     #[schema(example = 60)]
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]

@@ -78,6 +78,9 @@ pub async fn get_metrics(
                     AuthEventMetrics::FrictionlessFlowCount => metrics_builder
                         .frictionless_flow_count
                         .add_metrics_bucket(&value),
+                    AuthEventMetrics::FrictionlessSuccessCount => metrics_builder
+                        .frictionless_success_count
+                        .add_metrics_bucket(&value),
                 }
             }
         }

@@ -679,6 +679,118 @@ pub async fn mandates_incoming_webhook_flow(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
+pub(crate) async fn frm_incoming_webhook_flow(
+    state: AppState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    source_verified: bool,
+    event_type: webhooks::IncomingWebhookEvent,
+    object_ref_id: api::ObjectReferenceId,
+    business_profile: diesel_models::business_profile::BusinessProfile,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    if source_verified {
+        let payment_attempt =
+            get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_account)
+                .await?;
+        let payment_response = match event_type {
+            webhooks::IncomingWebhookEvent::FrmApproved => {
+                Box::pin(payments::payments_core::<
+                    api::Capture,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                >(
+                    state.clone(),
+                    req_state,
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    payments::PaymentApprove,
+                    api::PaymentsCaptureRequest {
+                        payment_id: payment_attempt.payment_id,
+                        amount_to_capture: payment_attempt.amount_to_capture,
+                        ..Default::default()
+                    },
+                    services::api::AuthFlow::Merchant,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    HeaderPayload::default(),
+                ))
+                .await?
+            }
+            webhooks::IncomingWebhookEvent::FrmRejected => {
+                Box::pin(payments::payments_core::<
+                    api::Void,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                >(
+                    state.clone(),
+                    req_state,
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    payments::PaymentReject,
+                    api::PaymentsCancelRequest {
+                        payment_id: payment_attempt.payment_id.clone(),
+                        cancellation_reason: Some(
+                            "Rejected by merchant based on FRM decision".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                    services::api::AuthFlow::Merchant,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    HeaderPayload::default(),
+                ))
+                .await?
+            }
+            _ => Err(errors::ApiErrorResponse::EventNotFound)?,
+        };
+        match payment_response {
+            services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
+                let payment_id = payments_response
+                    .payment_id
+                    .clone()
+                    .get_required_value("payment_id")
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("payment id not received from payments core")?;
+                let status = payments_response.status;
+                let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+                if let Some(outgoing_event_type) = event_type {
+                    let primary_object_created_at = payments_response.created;
+                    create_event_and_trigger_outgoing_webhook(
+                        state,
+                        merchant_account,
+                        business_profile,
+                        &key_store,
+                        outgoing_event_type,
+                        enums::EventClass::Payments,
+                        payment_id.clone(),
+                        enums::EventObjectType::PaymentDetails,
+                        api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                        primary_object_created_at,
+                    )
+                    .await?;
+                };
+                let response = WebhookResponseTracker::Payment { payment_id, status };
+                Ok(response)
+            }
+            _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+                "Did not get payment id as object reference id in webhook payments flow",
+            )?,
+        }
+    } else {
+        logger::error!("Webhook source verification failed for frm webhooks flow");
+        Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub async fn disputes_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -1828,6 +1940,18 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 .await
                 .attach_printable("Incoming webhook flow for external authentication failed")?
             }
+            api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow(
+                state.clone(),
+                req_state,
+                merchant_account,
+                key_store,
+                source_verified,
+                event_type,
+                object_ref_id,
+                business_profile,
+            ))
+            .await
+            .attach_printable("Incoming webhook flow for fraud check failed")?,
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
@@ -1901,6 +2025,19 @@ fn get_connector_by_connector_name(
 ) -> CustomResult<(&'static (dyn api::Connector + Sync), String), errors::ApiErrorResponse> {
     let authentication_connector =
         api_models::enums::convert_authentication_connector(connector_name);
+    #[cfg(feature = "frm")]
+    {
+        let frm_connector = api_models::enums::convert_frm_connector(connector_name);
+        if frm_connector.is_some() {
+            let frm_connector_data =
+                api::FraudCheckConnectorData::get_connector_by_name(connector_name)?;
+            return Ok((
+                *frm_connector_data.connector,
+                frm_connector_data.connector_name.to_string(),
+            ));
+        }
+    }
+
     let (connector, connector_name) = if authentication_connector.is_some() {
         let authentication_connector_data =
             api::AuthenticationConnectorData::get_connector_by_name(connector_name)?;
