@@ -14,23 +14,22 @@ use euclid::{
 use router_env::{instrument, tracing};
 
 use crate::{
-    core::payments::{types, PaymentData},
+    core::{
+        errors::ConditionalConfigError as ConfigError,
+        payments::{
+            conditional_configs::ConditionalConfigResult, routing::make_dsl_input_for_surcharge,
+            types, PaymentData,
+        },
+    },
     db::StorageInterface,
     types::{
         storage::{self as oss_storage, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryFrom,
     },
-};
-static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
-use crate::{
-    core::{
-        errors::ConditionalConfigError as ConfigError,
-        payments::{
-            conditional_configs::ConditionalConfigResult, routing::make_dsl_input_for_surcharge,
-        },
-    },
     AppState,
 };
+
+static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
 
 struct VirInterpreterBackendCacheWrapper {
     cached_alogorith: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
