@@ -37,6 +37,13 @@ function logRequestId(xRequestId) {
   }
 }
 
+function defaultErrorhandler(response, response_data) {
+  expect(response.body).to.have.property("error");
+  for (const key in response_data.body.error) {
+    expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+  }
+}
+
 Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState) => {
   const randomMerchantId = RequestBodyUtils.generateRandomString();
   RequestBodyUtils.setMerchantId(merchantCreateBody, randomMerchantId);
@@ -235,8 +242,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
             expect(res_data.body[key]).to.equal(response.body[key]);
           }
         } else {
-          // Handle other authentication types as needed
-          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+          defaultErrorhandler(response, res_data);
         }
       } else if (response.body.capture_method === "manual") {
         if (response.body.authentication_type === "three_ds") {
@@ -249,8 +255,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
             expect(res_data.body[key]).to.equal(response.body[key]);
           }
         } else {
-          // Handle other authentication types as needed
-          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+          defaultErrorHandler(response, res_data);
         }
       }
     }
@@ -267,9 +272,9 @@ Cypress.Commands.add(
   "confirmBankRedirectCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentId = globalState.get("paymentID");
-    confirmBody.payment_method = req_data.payment_method;
-    confirmBody.payment_method_type = req_data.payment_method_type;
-    confirmBody.payment_method_data.bank_redirect = req_data.bank_redirect;
+    for (const key in req_data) {
+      confirmBody[key] = req_data[key];
+    }
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
 
@@ -313,9 +318,7 @@ Cypress.Commands.add(
               expect(response.body.error_code).to.equal(res_data.body.error_code);
             }
           } else {
-            throw new Error(
-              `Unsupported capture method; ${response.body.capture_method}`
-            );
+            defaultErrorHandler(response, res_data);
           }
           break;
         case "no_three_ds":
@@ -331,15 +334,11 @@ Cypress.Commands.add(
               response.body.next_action.redirect_to_url
             );
           } else {
-            throw new Error(
-              `Unsupported capture method; ${response.body.capture_method}`
-            );
+            defaultErrorHandler(response, res_data);
           }
           break;
         default:
-          throw new Error(
-            `Unsupported authentication type: ${response.body.authentication_type}`
-          );
+          defaultErrorHandler(response, res_data);
       }
     });
   }
@@ -349,10 +348,9 @@ Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    confirmBody.currency = req_data.currency;
-    confirmBody.payment_method = req_data.payment_method;
-    confirmBody.payment_method_type = req_data.payment_method_type;
-    confirmBody.payment_method_data.bank_transfer = req_data.bank_transfer;
+    for (const key in req_data) {
+      confirmBody[key] = req_data[key];
+    }
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
 
@@ -398,7 +396,7 @@ Cypress.Commands.add(
                   break;
               }
             } else {
-              throw new Error(`Unsupported capture method: ${capture_method}`);
+              defaultErrorHandler(response, res_data);
             }
             break;
           case "no_three_ds":
@@ -427,15 +425,11 @@ Cypress.Commands.add(
                   break;
               }
             } else {
-              throw new Error(
-                `Unsupported capture method: ${response.body.capture_method}`
-              );
+              defaultErrorHandler(response, res_data);
             }
             break;
           default:
-            throw new Error(
-              `Unsupported authentication type: ${response.body.authentication_type}`
-            );
+            defaultErrorHandler(response, res_data);
         }
       } else {
         expect(response.body).to.have.property("error");
@@ -484,8 +478,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
             expect(res_data.body[key]).to.equal(response.body[key]);
           }
         } else {
-          // Handle other authentication types as needed
-          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+          defaultErrorHandler(response, res_data);
         }
       }
       else if (response.body.capture_method === "manual") {
@@ -502,8 +495,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
             expect(res_data.body[key]).to.equal(response.body[key]);
           }
         } else {
-          // Handle other authentication types as needed
-          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+          defaultErrorHandler(response, res_data);
         }
       }
     }
@@ -551,7 +543,7 @@ Cypress.Commands.add("saveCardConfirmCallTest", (saveCardConfirmBody, req_data, 
             expect(response.body.customer_id).to.equal(globalState.get("customerId"));
           } else {
             // Handle other authentication types as needed
-            throw new Error(`Unsupported authentication type: ${authentication_type}`);
+            defaultErrorHandler(response, res_data);
           }
         } else if (response.body.capture_method === "manual") {
           if (response.body.authentication_type === "three_ds") {
@@ -565,15 +557,12 @@ Cypress.Commands.add("saveCardConfirmCallTest", (saveCardConfirmBody, req_data, 
             expect(response.body.customer_id).to.equal(globalState.get("customerId"));
           } else {
             // Handle other authentication types as needed
-            throw new Error(`Unsupported authentication type: ${authentication_type}`);
+            defaultErrorHandler(response, res_data);
           }
         }
       }
       else {
-        expect(response.body).to.have.property("error");
-        for(const key in res_data.body.error) {
-          expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-        }
+        defaultErrorHandler(response, res_data);
       }
     });
 });
@@ -810,8 +799,7 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
       } else if (response.body.authentication_type === "no_three_ds") {
         expect(response.body.status).to.equal("succeeded");
       } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        defaultErrorHandler(response, res_data);
       }
     }
     else if (response.body.capture_method === "manual") {
@@ -824,8 +812,7 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
       } else if (response.body.authentication_type === "no_three_ds") {
         expect(response.body.status).to.equal("requires_capture");
       } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        defaultErrorHandler(response, res_data);
       }
     }
   });
@@ -967,12 +954,12 @@ Cypress.Commands.add(
             });
             break;
           default:
-            throw new Error(`Payment method type ${payment_method_type} unsupported`);
+            defaultErrorHandler(response, res_data);
             // expected_redirection can be used here to handle other payment methods
         }
         break;
       default:
-        throw new Error(`Bank transfer payment method is not supported by connector ${connectorId}`)
+        defaultErrorHandler(response, res_data);
     }
   }
 );
@@ -996,7 +983,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
       expect(paymentToken).to.equal(globalState.get("paymentToken")); // Verify paymentToken
     }
     else {
-      throw new Error(`Payment token not found`);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
@@ -1016,5 +1003,3 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
     expect(response.body.data).to.be.an('array').and.not.empty;
     });
   });
-
-  

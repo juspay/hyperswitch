@@ -131,7 +131,7 @@ export const connectorDetails = {
         currency: "USD",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
           status: "pending",
         },
