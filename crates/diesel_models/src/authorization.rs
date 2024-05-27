@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -11,7 +12,7 @@ pub struct Authorization {
     pub authorization_id: String,
     pub merchant_id: String,
     pub payment_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -20,7 +21,7 @@ pub struct Authorization {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
-    pub previously_authorized_amount: i64,
+    pub previously_authorized_amount: MinorUnit,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -29,12 +30,12 @@ pub struct AuthorizationNew {
     pub authorization_id: String,
     pub merchant_id: String,
     pub payment_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub status: storage_enums::AuthorizationStatus,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
-    pub previously_authorized_amount: i64,
+    pub previously_authorized_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

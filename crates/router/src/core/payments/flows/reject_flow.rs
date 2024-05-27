@@ -3,12 +3,12 @@ use async_trait::async_trait;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{api_error_response::NotImplementedMessage, ApiErrorResponse, RouterResult},
+        errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -50,6 +50,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
+        _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),

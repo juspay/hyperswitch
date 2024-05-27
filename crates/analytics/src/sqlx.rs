@@ -260,6 +260,15 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let client_source: Option<String> = row.try_get("client_source").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let client_version: Option<String> =
+            row.try_get("client_version").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -282,6 +291,8 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             authentication_type,
             payment_method,
             payment_method_type,
+            client_source,
+            client_version,
             total,
             count,
             start_bucket,
@@ -321,6 +332,15 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let client_source: Option<String> = row.try_get("client_source").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let client_version: Option<String> =
+            row.try_get("client_version").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -347,6 +367,8 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             authentication_type,
             payment_method,
             payment_method_type,
+            client_source,
+            client_version,
             total,
             count,
             error_message,
@@ -387,6 +409,15 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::FilterRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let client_source: Option<String> = row.try_get("client_source").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let client_version: Option<String> =
+            row.try_get("client_version").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             currency,
             status,
@@ -394,6 +425,8 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::FilterRow {
             authentication_type,
             payment_method,
             payment_method_type,
+            client_source,
+            client_version,
         })
     }
 }
@@ -517,6 +550,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::PaymentIntent => Ok("payment_intent".to_string()),
             Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
+            Self::ApiEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
@@ -563,6 +598,20 @@ where
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
+            Self::Percentile {
+                field,
+                alias,
+                percentile,
+            } => {
+                format!(
+                    "percentile_cont(0.{}) within group (order by {} asc){}",
+                    percentile.map_or_else(|| "50".to_owned(), |percentile| percentile.to_string()),
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to percentile aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
         })
     }
 }
@@ -593,7 +642,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
@@ -616,7 +665,7 @@ where
                         |(order_column, order)| format!(
                             " order by {} {}",
                             order_column.to_owned(),
-                            order.to_string()
+                            order
                         )
                     ),
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))

@@ -18,18 +18,13 @@ pub struct VoltRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for VoltRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for VoltRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -288,6 +283,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -369,6 +365,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data
@@ -409,6 +406,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data

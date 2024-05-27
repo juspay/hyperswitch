@@ -274,6 +274,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::Payments
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -295,7 +296,7 @@ fn get_authorize_response(
     let redirection_data = match response.hosted {
         Some(hosted_value) => Ok(hosted_value
             .redirect_url
-            .map(|url| services::RedirectForm::from((url, services::Method::Get)))),
+            .map(|url| RedirectForm::from((url, services::Method::Get)))),
         None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
             field_name: "redirect_url",
         }),
