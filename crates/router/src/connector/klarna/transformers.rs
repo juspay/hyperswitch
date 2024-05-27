@@ -34,9 +34,26 @@ impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for Klarna
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KlarnaConnectorMetadataObject {
-    pub region_based_endpoint: Option<String>,
+    pub region_based_endpoint: Option<KlarnaEndpoint>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum KlarnaEndpoint {
+    Europe,
+    NorthAmerica,
+    Oceania,
+}
+
+impl From<KlarnaEndpoint> for &'static str {
+    fn from(endpoint: KlarnaEndpoint) -> Self {
+        match endpoint {
+            KlarnaEndpoint::Europe => "",
+            KlarnaEndpoint::NorthAmerica => "-na",
+            KlarnaEndpoint::Oceania => "-oc",
+        }
+    }
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
@@ -98,7 +115,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                     .iter()
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
-                        quantity: i64::from(data.quantity),
+                        quantity: data.quantity,
                         unit_price: data.amount,
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
@@ -149,7 +166,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     .iter()
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
-                        quantity: i64::from(data.quantity),
+                        quantity: data.quantity,
                         unit_price: data.amount,
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
@@ -192,7 +209,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
 #[derive(Debug, Serialize)]
 pub struct OrderLines {
     name: String,
-    quantity: i64,
+    quantity: u16,
     unit_price: i64,
     total_amount: i64,
 }

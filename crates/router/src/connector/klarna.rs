@@ -124,12 +124,17 @@ fn build_region_specific_endpoint(
 ) -> CustomResult<String, errors::ConnectorError> {
     let klarna_metadata_object =
         transformers::KlarnaConnectorMetadataObject::try_from(connector_metadata)?;
-    let region_based_endpoint = klarna_metadata_object.region_based_endpoint.ok_or(
-        errors::ConnectorError::InvalidConnectorConfig {
+    let region_based_endpoint = klarna_metadata_object
+        .region_based_endpoint
+        .ok_or(errors::ConnectorError::InvalidConnectorConfig {
             config: "metadata.region_based_endpoint",
-        },
-    )?;
-    Ok(base_url.replace("{{region_based_endpoint}}", &region_based_endpoint))
+        })
+        .map(|endpoint| {
+            let endpoint_str: &'static str = endpoint.into();
+            endpoint_str
+        })?;
+
+    Ok(base_url.replace("{{region_based_endpoint}}", region_based_endpoint))
 }
 
 impl
@@ -166,6 +171,8 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+
+        println!("###session{:?}", endpoint);
         Ok(format!("{}{}", endpoint, "payments/v1/sessions"))
     }
 
@@ -318,6 +325,8 @@ impl
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+
+        println!("###authorize{:?}", endpoint);
 
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {

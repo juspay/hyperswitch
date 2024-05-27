@@ -104,11 +104,8 @@ pub struct ApiModelMetaData {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 
 pub enum KlarnaEndpoint {
-    #[serde(rename = "")]
     Europe,
-    #[serde(rename = "-na")]
     NorthAmerica,
-    #[serde(rename = "-oc")]
     Oceania,
 }
 

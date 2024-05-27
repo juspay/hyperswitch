@@ -1947,6 +1947,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
+            klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Mollie => {
