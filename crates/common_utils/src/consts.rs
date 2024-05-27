@@ -83,5 +83,3 @@ pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
 
 /// Max ttl for Extended card info in redis (in seconds)
 pub const MAX_TTL_FOR_EXTENDED_CARD_INFO: u16 = 60 * 60 * 2;
-
-

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use time::Date;
 
 use crate::{
-    connector::utils::{self, PhoneDetailsData, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
     core::errors::{self, CustomResult},
     services,
     types::{self, api, domain, storage::enums},
@@ -53,9 +53,7 @@ fn get_brand_id(
     connector_metadata: &Option<pii::SecretSerdeValue>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let mifinity_metadata = MifinityConnectorMetadataObject::try_from(connector_metadata)?;
-    let brand_id =
-        mifinity_metadata
-            .brand_id;
+    let brand_id = mifinity_metadata.brand_id;
     Ok(brand_id)
 }
 
@@ -139,9 +137,8 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     )?;
                     let destination_account_number = data.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
-                    let brand_id = Secret::new(get_brand_id(
-                        &item.router_data.connector_meta_data,
-                    )?);
+                    let brand_id =
+                        Secret::new(get_brand_id(&item.router_data.connector_meta_data)?);
                     Ok(Self {
                         money,
                         client,
@@ -149,14 +146,10 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         validation_key,
                         client_reference,
                         trace_id: Secret::new(trace_id.clone()),
-                        description: trace_id.clone(),
+                        description: trace_id.clone(), //Connector recommend to use the traceId for a better experience in the BackOffice application later.
                         destination_account_number,
                         brand_id,
-                        return_url: item.router_data.return_url.clone().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "return_url",
-                            },
-                        )?,
+                        return_url: item.router_data.request.get_router_return_url()?,
                     })
                 }
                 domain::WalletData::AliPayQr(_)
@@ -238,28 +231,6 @@ pub struct MifinityPaymentsResponse {
 pub struct MifinityPayload {
     trace_id: String,
     initialization_token: String,
-    client: MifinityClientResponse,
-    address: MifinityAddressResponse,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MifinityClientResponse {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
-    phone: Secret<String>,
-    dialing_code: String,
-    nationality: String,
-    email_address: String,
-    dob: Secret<Date>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MifinityAddressResponse {
-    address_line1: String,
-    country_code: String,
-    city: String,
 }
 
 impl<F, T>
@@ -275,18 +246,14 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let payload = item.response.payload.first();
+        let payload = item
+            .response
+            .payload
+            .first()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let trace_id = payload.map(|payload| payload.trace_id.clone()).ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "trace_id",
-            },
-        )?;
-        let initialization_token = payload
-            .map(|payload| payload.initialization_token.clone())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "initialization_token",
-            })?;
+        let trace_id = payload.trace_id.clone();
+        let initialization_token = payload.initialization_token.clone();
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -344,14 +311,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = item
+        let payload = item
             .response
             .payload
             .first()
-            .map(|payload| payload.to_owned().status.clone())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "status",
-            })?;
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let status = payload.to_owned().status.clone();
         let payment_response = item
             .response
             .payload

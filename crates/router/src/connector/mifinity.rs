@@ -51,6 +51,8 @@ impl
     // Not Implemented (R)
 }
 
+const API_VERSION: &str = "1";
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Mifinity
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -67,7 +69,7 @@ where
             ),
             (
                 auth_headers::API_VERSION.to_string(),
-                "1".to_string().into(),
+                API_VERSION.to_string().into(),
             ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
@@ -125,20 +127,20 @@ impl ConnectorCommon for Mifinity {
                 .iter()
                 .map(|error| error.error_code.clone())
                 .collect::<Vec<String>>()
-                        .join(" & "),
+                .join(" & "),
             message: response
                 .errors
                 .iter()
                 .map(|error| error.message.clone())
                 .collect::<Vec<String>>()
-                        .join(" & "),
+                .join(" & "),
             reason: Some(
                 response
                     .errors
                     .iter()
                     .map(|error| error.message.clone())
                     .collect::<Vec<String>>()
-                        .join(" & "),
+                    .join(" & "),
             ),
             attempt_status: None,
             connector_transaction_id: None,
