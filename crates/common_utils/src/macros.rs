@@ -95,3 +95,14 @@ macro_rules! collect_missing_value_keys {
         }
     };
 }
+
+#[macro_export]
+macro_rules! get_formatted_date_time {
+    ($date_format:tt) => {
+        {
+        let format=time::macros::format_description!($date_format);
+        time::OffsetDateTime::now_utc()
+            .format(&format)
+            .change_context(errors::ConnectorError::InvalidDateFormat)} 
+    }
+}

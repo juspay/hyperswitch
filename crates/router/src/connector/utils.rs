@@ -1054,7 +1054,7 @@ impl From<domain::GooglePayWalletData> for GooglePayWalletData {
     }
 }
 
-pub static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
+static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
     let mut map = HashMap::new();
     // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
     // [#379]: Determine card issuer from card BIN number
@@ -1156,7 +1156,6 @@ impl CardData for payouts::Card {
         }
         Secret::new(year)
     }
-
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.expiry_month.clone().expose();

@@ -15,7 +15,7 @@ use self::transformers as payone;
 #[cfg(feature = "payouts")]
 use crate::services;
 #[cfg(feature = "payouts")]
-use crate::utils::get_formatted_date_time;
+use common_utils::get_formatted_date_time;
 use crate::{
     configs::settings,
     connector::{
@@ -106,11 +106,8 @@ where
         let content_type = Self::get_content_type(self);
         let base_url = self.base_url(connectors);
         let url = Self::get_url(self, req, connectors)?;
-        let date_header = get_formatted_date_time(
-            "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
-        )?;
+        let date_header = get_formatted_date_time!("[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT")?;
         let path: String = url.replace(base_url, "/");
-
         let authorization_header: String = self.generate_signature(
             auth,
             http_method,

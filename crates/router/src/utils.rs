@@ -30,7 +30,6 @@ use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use time::{format_description, OffsetDateTime};
 use tracing_futures::Instrument;
 use uuid::Uuid;
 
@@ -159,13 +158,6 @@ impl<E> ConnectorResponseExt
 #[inline]
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
-}
-pub fn get_formatted_date_time(format: &str) -> CustomResult<String, errors::ConnectorError> {
-    let format = format_description::parse(format)
-        .change_context(errors::ConnectorError::InvalidDateFormat)?;
-    OffsetDateTime::now_utc()
-        .format(&format)
-        .change_context(errors::ConnectorError::InvalidDateFormat)
 }
 #[derive(Debug)]
 pub struct QrImage {
