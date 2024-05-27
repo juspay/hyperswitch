@@ -246,30 +246,43 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let payload = item
-            .response
-            .payload
-            .first()
-            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        let trace_id = payload.trace_id.clone();
-        let initialization_token = payload.initialization_token.clone();
-        Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
-                redirection_data: Some(services::RedirectForm::Mifinity {
-                    initialization_token,
+        let payload = item.response.payload.first();
+        match payload {
+            Some(payload) => {
+                let trace_id = payload.trace_id.clone();
+                let initialization_token = payload.initialization_token.clone();
+                Ok(Self {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
+                        redirection_data: Some(services::RedirectForm::Mifinity {
+                            initialization_token,
+                        }),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(trace_id),
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    ..item.data
+                })
+            }
+            None => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(trace_id),
-                incremental_authorization_allowed: None,
-                charge_id: None,
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
@@ -312,40 +325,51 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let payload = item
-            .response
-            .payload
-            .first()
-            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        let status = payload.to_owned().status.clone();
-        let payment_response = item
-            .response
-            .payload
-            .first()
-            .and_then(|payload| payload.payment_response.clone());
+        let payload = item.response.payload.first();
 
-        match payment_response {
-            Some(payment_response) => {
-                let transaction_reference = payment_response.transaction_reference.clone();
-                Ok(Self {
-                    status: enums::AttemptStatus::from(status),
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_reference,
-                        ),
-                        redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        charge_id: None,
+        match payload {
+            Some(payload) => {
+                let status = payload.to_owned().status.clone();
+                let payment_response = payload.payment_response.clone();
+
+                match payment_response {
+                    Some(payment_response) => {
+                        let transaction_reference = payment_response.transaction_reference.clone();
+                        Ok(Self {
+                            status: enums::AttemptStatus::from(status),
+                            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                                resource_id: types::ResponseId::ConnectorTransactionId(
+                                    transaction_reference,
+                                ),
+                                redirection_data: None,
+                                mandate_reference: None,
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charge_id: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                    None => Ok(Self {
+                        status: enums::AttemptStatus::from(status),
+                        response: Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::NoResponseId,
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        }),
+                        ..item.data
                     }),
-                    ..item.data
-                })
+                }
             }
             None => Ok(Self {
-                status: enums::AttemptStatus::from(status),
+                status: item.data.status,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
                     redirection_data: None,
