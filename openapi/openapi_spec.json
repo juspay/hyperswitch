@@ -8783,8 +8783,7 @@
           "payments",
           "refunds",
           "disputes",
-          "mandates",
-          "payouts"
+          "mandates"
         ]
       },
       "EventListItemResponse": {
