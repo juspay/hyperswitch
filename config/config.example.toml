@@ -354,6 +354,7 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 password_validity_in_days = 90             # Number of days after which password should be updated
 two_factor_auth_expiry_in_secs = 300       # Number of seconds after which 2FA should be done again if doing update/change from inside
 totp_issuer_name = "Hyperswitch"           # Name of the issuer for TOTP
+force_two_factor_auth = false              # Whether to force two factor authentication for all users
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

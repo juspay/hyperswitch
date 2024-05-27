@@ -1632,7 +1632,11 @@ pub async fn begin_totp(
         }));
     }
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        None,
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
     let recovery_codes = domain::RecoveryCodes::generate_new();
 
     let key_store = user_from_db.get_or_create_key_store(&state).await?;
@@ -1694,8 +1698,11 @@ pub async fn verify_totp(
             .await?
             .ok_or(UserErrors::InternalServerError)?;
 
-        let totp =
-            tfa_utils::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
+        let totp = tfa_utils::generate_default_totp(
+            user_from_db.get_email(),
+            Some(user_totp_secret),
+            state.conf.user.totp_issuer_name.clone(),
+        )?;
 
         if totp
             .generate_current()
@@ -1823,7 +1830,7 @@ pub async fn terminate_two_factor_auth(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if !skip_two_factor_auth {
+    if !skip_two_factor_auth || state.conf.user.force_two_factor_auth {
         if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
             && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
         {
