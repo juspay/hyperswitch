@@ -3039,7 +3039,7 @@ pub enum QrCodeInformation {
     },
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SdkNextActionData {
     pub next_action: NextActionCall,
