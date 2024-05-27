@@ -11623,13 +11623,13 @@
         "type": "object",
         "required": [
           "destination_account_number",
-          "dob"
+          "date_of_birth"
         ],
         "properties": {
           "destination_account_number": {
             "type": "string"
           },
-          "dob": {
+          "date_of_birth": {
             "type": "string",
             "format": "date"
           }
