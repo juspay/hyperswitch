@@ -133,6 +133,9 @@ pub enum StripePayoutStatus {
     PayoutFailure,
     PayoutProcessing,
     PayoutCancelled,
+    PayoutCreated,
+    PayoutExpired,
+    PayoutReversed,
 }
 
 impl From<common_enums::PayoutStatus> for StripePayoutStatus {
@@ -141,6 +144,9 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
             common_enums::PayoutStatus::Success => Self::PayoutSuccess,
             common_enums::PayoutStatus::Failed => Self::PayoutFailure,
             common_enums::PayoutStatus::Cancelled => Self::PayoutCancelled,
+            common_enums::PayoutStatus::Created => Self::PayoutCreated,
+            common_enums::PayoutStatus::Expired => Self::PayoutExpired,
+            common_enums::PayoutStatus::Reversed => Self::PayoutReversed,
             common_enums::PayoutStatus::Pending
             | common_enums::PayoutStatus::Ineligible
             | common_enums::PayoutStatus::RequiresCreation
@@ -271,8 +277,11 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PaymentCaptured => "payment_intent.succeeded",
         api_models::enums::EventType::PayoutSuccess => "payout.paid",
         api_models::enums::EventType::PayoutFailed => "payout.failed",
+        api_models::enums::EventType::PayoutCreated => "payout.created",
         api_models::enums::EventType::PayoutCancelled => "payout.canceled",
         api_models::enums::EventType::PayoutProcessing => "payout.created",
+        api_models::enums::EventType::PayoutExpired => "payout.failed",
+        api_models::enums::EventType::PayoutReversed => "payout.reconciliation_completed",
     }
 }
 

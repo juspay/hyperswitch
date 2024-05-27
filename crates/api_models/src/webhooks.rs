@@ -51,6 +51,12 @@ pub enum IncomingWebhookEvent {
     PayoutProcessing,
     #[cfg(feature = "payouts")]
     PayoutCancelled,
+    #[cfg(feature = "payouts")]
+    PayoutCreated,
+    #[cfg(feature = "payouts")]
+    PayoutExpired,
+    #[cfg(feature = "payouts")]
+    PayoutReversed,
 }
 
 pub enum WebhookFlow {
@@ -148,7 +154,10 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::PayoutSuccess
             | IncomingWebhookEvent::PayoutFailure
             | IncomingWebhookEvent::PayoutProcessing
-            | IncomingWebhookEvent::PayoutCancelled => Self::Payout,
+            | IncomingWebhookEvent::PayoutCancelled
+            | IncomingWebhookEvent::PayoutCreated
+            | IncomingWebhookEvent::PayoutExpired
+            | IncomingWebhookEvent::PayoutReversed => Self::Payout,
         }
     }
 }

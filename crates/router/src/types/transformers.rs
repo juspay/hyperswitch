@@ -557,6 +557,9 @@ impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventTyp
             storage_enums::PayoutStatus::Cancelled => {
                 Some(storage_enums::EventType::PayoutCancelled)
             }
+            storage_enums::PayoutStatus::Created => Some(storage_enums::EventType::PayoutCreated),
+            storage_enums::PayoutStatus::Expired => Some(storage_enums::EventType::PayoutExpired),
+            storage_enums::PayoutStatus::Reversed => Some(storage_enums::EventType::PayoutReversed),
             storage_enums::PayoutStatus::Ineligible
             | storage_enums::PayoutStatus::Pending
             | storage_enums::PayoutStatus::RequiresCreation
@@ -607,6 +610,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::PayoutStatus {
     type Error = errors::ValidationError;
 
@@ -618,6 +622,9 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
             api_models::webhooks::IncomingWebhookEvent::PayoutFailure => Ok(Self::Failed),
             api_models::webhooks::IncomingWebhookEvent::PayoutCancelled => Ok(Self::Cancelled),
             api_models::webhooks::IncomingWebhookEvent::PayoutProcessing => Ok(Self::Pending),
+            api_models::webhooks::IncomingWebhookEvent::PayoutCreated => Ok(Self::Created),
+            api_models::webhooks::IncomingWebhookEvent::PayoutExpired => Ok(Self::Expired),
+            api_models::webhooks::IncomingWebhookEvent::PayoutReversed => Ok(Self::Reversed),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "incoming_webhook_event_type",
             }),

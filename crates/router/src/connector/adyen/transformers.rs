@@ -292,6 +292,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
             AdyenWebhookStatus::Captured => Ok(Self::Charged),
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            AdyenWebhookStatus::Reversed => Ok(Self::AutoRefunded),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent => {
@@ -373,6 +374,7 @@ pub enum AdyenWebhookStatus {
     CancelFailed,
     Captured,
     CaptureFailed,
+    Reversed,
     UnexpectedEvent,
 }
 
@@ -4094,6 +4096,8 @@ pub enum WebhookEventCode {
     PrearbitrationLost,
     PayoutThirdparty,
     PayoutDecline,
+    PayoutExpire,
+    PayoutReversed,
     #[serde(other)]
     Unknown,
 }
@@ -4136,7 +4140,10 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
 pub fn is_payout_event(event_code: &WebhookEventCode) -> bool {
     matches!(
         event_code,
-        WebhookEventCode::PayoutThirdparty | WebhookEventCode::PayoutDecline
+        WebhookEventCode::PayoutThirdparty
+            | WebhookEventCode::PayoutDecline
+            | WebhookEventCode::PayoutExpire
+            | WebhookEventCode::PayoutReversed
     )
 }
 
@@ -4199,8 +4206,14 @@ impl ForeignFrom<(WebhookEventCode, String, Option<DisputeStatus>)>
                 }
             }
             WebhookEventCode::CaptureFailed => Self::PaymentIntentCaptureFailure,
-            WebhookEventCode::PayoutThirdparty => Self::PayoutSuccess,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutThirdparty => Self::PayoutCreated,
+            #[cfg(feature = "payouts")]
             WebhookEventCode::PayoutDecline => Self::PayoutFailure,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutExpire => Self::PayoutExpired,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutReversed => Self::PayoutReversed,
             WebhookEventCode::Unknown => Self::EventNotSupported,
         }
     }
@@ -4283,6 +4296,8 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 }
                 WebhookEventCode::PayoutDecline => AdyenWebhookStatus::Cancelled,
                 WebhookEventCode::CaptureFailed => AdyenWebhookStatus::CaptureFailed,
+                WebhookEventCode::PayoutExpire => AdyenWebhookStatus::AuthorisationFailed,
+                WebhookEventCode::PayoutReversed => AdyenWebhookStatus::Reversed,
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
                 | WebhookEventCode::RefundFailed

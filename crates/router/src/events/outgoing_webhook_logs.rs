@@ -78,6 +78,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 content: masking::masked_serialize(&mandate_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
+            #[cfg(feature = "payouts")]
             Self::PayoutDetails(payout_payload) => Some(OutgoingWebhookEventContent::Payout {
                 payout_id: payout_payload.payout_id.clone(),
                 content: masking::masked_serialize(&payout_payload)

@@ -1111,8 +1111,11 @@ pub enum EventType {
     MandateRevoked,
     PayoutSuccess,
     PayoutFailed,
+    PayoutCreated,
     PayoutProcessing,
     PayoutCancelled,
+    PayoutExpired,
+    PayoutReversed,
 }
 
 #[derive(
@@ -2121,6 +2124,9 @@ pub enum PayoutStatus {
     Success,
     Failed,
     Cancelled,
+    Created,
+    Expired,
+    Reversed,
     Pending,
     Ineligible,
     #[default]
