@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::payment_attempt::PaymentAttempt,
 };
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use time::PrimitiveDateTime;
@@ -933,6 +933,7 @@ impl PaymentCreate {
                 fingerprint_id: None,
                 authentication_connector: None,
                 authentication_id: None,
+                charge_id: None,
                 client_source: None,
                 client_version: None,
             },
@@ -997,6 +998,19 @@ impl PaymentCreate {
                 request.capture_method,
             )?;
 
+        let charges = request
+            .charges
+            .as_ref()
+            .map(|charges| {
+                charges.encode_to_value().map_err(|err| {
+                    logger::warn!("Failed to serialize PaymentCharges - {}", err);
+                    err
+                })
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(Secret::new);
+
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -1042,6 +1056,7 @@ impl PaymentCreate {
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
+            charges,
             frm_metadata: request.frm_metadata.clone(),
         })
     }

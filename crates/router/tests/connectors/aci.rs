@@ -75,6 +75,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::new(
@@ -152,6 +153,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             reason: None,
             connector_refund_id: None,
             browser_info: None,
+            ..utils::PaymentRefundType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
@@ -195,7 +197,9 @@ async fn payments_create_success() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = Arc::new(app_state).get_session_state( "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     static CV: aci::Aci = aci::Aci;
     let connector = types::api::ConnectorData {
@@ -241,8 +245,9 @@ async fn payments_create_failure() {
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state =
-            Arc::new(app_state).get_session_state( "public", || {}).unwrap();
+        let state = Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Aci,
@@ -304,7 +309,9 @@ async fn refund_for_successful_payments() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = Arc::new(app_state).get_session_state( "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Authorize,
@@ -374,7 +381,9 @@ async fn refunds_create_failure() {
         Box::new(services::MockApiClient),
     ))
     .await;
-    let state = Arc::new(app_state).get_session_state( "public", || {}).unwrap();
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Execute,

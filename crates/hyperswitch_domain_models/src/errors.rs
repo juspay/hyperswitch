@@ -1,3 +1,4 @@
+pub mod api_error_response;
 use diesel_models::errors::DatabaseError;
 
 pub type StorageResult<T> = error_stack::Result<T, StorageError>;

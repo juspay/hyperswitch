@@ -335,8 +335,14 @@ impl AppState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
     }
-    pub fn get_session_state<E, F>(self: Arc<AppState>, tenant: &str, err: F) -> Result<SessionState, E> where
-    F: FnOnce() -> E + Copy,{ 
+    pub fn get_session_state<E, F>(
+        self: Arc<AppState>,
+        tenant: &str,
+        err: F,
+    ) -> Result<SessionState, E>
+    where
+        F: FnOnce() -> E + Copy,
+    {
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
@@ -360,7 +366,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
         })
-     }
+    }
 }
 
 pub struct Health;
@@ -1309,9 +1315,14 @@ impl User {
             .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
             .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
             .service(
-                web::resource("/recovery_codes/generate")
-                    .route(web::get().to(generate_recovery_codes)),
+                web::resource("/2fa/terminate").route(web::get().to(terminate_two_factor_auth)),
             );
+
+        route = route.service(
+            web::scope("/recovery_code")
+                .service(web::resource("/verify").route(web::post().to(verify_recovery_code)))
+                .service(web::resource("/generate").route(web::post().to(generate_recovery_codes))),
+        );
 
         #[cfg(feature = "email")]
         {

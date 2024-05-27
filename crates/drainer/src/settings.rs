@@ -1,11 +1,10 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, DbConnectionParams};
 use config::{Environment, File};
 use external_services::managers::{
     encryption_management::EncryptionManagementConfig, secrets_management::SecretsManagementConfig,
 };
-use common_utils::DbConnectionParams;
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{

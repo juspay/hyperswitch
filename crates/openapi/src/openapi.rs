@@ -367,6 +367,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplepaySessionTokenResponse,
         api_models::payments::SdkNextAction,
         api_models::payments::NextActionCall,
+        api_models::payments::SdkNextActionData,
         api_models::payments::SamsungPayWalletData,
         api_models::payments::WeChatPay,
         api_models::payments::GpayTokenizationData,
@@ -521,6 +522,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::webhook_events::OutgoingWebhookRequestContent,
         api_models::webhook_events::OutgoingWebhookResponseContent,
         api_models::enums::WebhookDeliveryAttempt,
+        api_models::enums::PaymentChargeType,
+        api_models::enums::StripeChargeType,
+        api_models::payments::PaymentChargeRequest,
+        api_models::payments::PaymentChargeResponse,
+        api_models::refunds::ChargeRefunds,
     )),
     modifiers(&SecurityAddon)
 )]

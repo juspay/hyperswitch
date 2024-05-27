@@ -4,6 +4,7 @@ use common_utils::DbConnectionParams;
 use diesel::PgConnection;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
+
 use crate::config::Database;
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;

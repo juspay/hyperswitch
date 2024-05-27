@@ -1,6 +1,6 @@
 use bb8::PooledConnection;
-use diesel::PgConnection;
 use common_utils::DbConnectionParams;
+use diesel::PgConnection;
 
 use crate::{settings::Database, Settings};
 

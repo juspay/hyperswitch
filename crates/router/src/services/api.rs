@@ -1010,7 +1010,12 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
-    let tenants: HashSet<_> = state.conf.multitenancy.get_tenant_names().into_iter().collect();
+    let tenants: HashSet<_> = state
+        .conf
+        .multitenancy
+        .get_tenant_names()
+        .into_iter()
+        .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
         common_utils::consts::DEFAULT_TENANT.to_string()
     } else {
@@ -1024,8 +1029,7 @@ where
                 .switch()
             })
             .map(|req_tenant_id| {
-                if !tenants.contains(&req_tenant_id.to_string())
-                {
+                if !tenants.contains(&req_tenant_id.to_string()) {
                     Err(errors::ApiErrorResponse::InvalidTenant {
                         tenant_id: req_tenant_id.to_string(),
                     }
@@ -1037,7 +1041,7 @@ where
     };
     // let tenant_id = "public".to_string();
     let mut session_state =
-        Arc::new(app_state.clone()).get_session_state( tenant_id.as_str(), || {
+        Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
             errors::ApiErrorResponse::InvalidTenant {
                 tenant_id: tenant_id.clone(),
             }
@@ -1363,6 +1367,11 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
         #[cfg(not(feature = "detailed_errors"))]
         self
     }
+}
+
+impl EmbedError
+    for Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>
+{
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {

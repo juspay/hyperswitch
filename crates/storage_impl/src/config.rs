@@ -1,5 +1,5 @@
-use masking::Secret;
 use common_utils::DbConnectionParams;
+use masking::Secret;
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Database {
