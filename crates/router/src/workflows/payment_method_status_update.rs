@@ -1,14 +1,13 @@
-use common_utils::{ext_traits::ValueExt, date_time};
+use common_utils::{date_time, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 // use router_env::logger;
 use scheduler::workflows::ProcessTrackerWorkflow;
 
 use crate::{
-    errors,
+    consts, errors,
     logger::error,
     routes::{metrics, AppState},
     types::storage::{self, PaymentMethodStatusTrackingData},
-    consts,
 };
 
 pub struct PaymentMethodStatusUpdateWorkflow;
@@ -52,20 +51,22 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             status: Some(pm_status),
         };
 
-        let res = db.update_payment_method(payment_method, pm_update, merchant_account.storage_scheme)
+        let res = db
+            .update_payment_method(payment_method, pm_update, merchant_account.storage_scheme)
             .await
             .map_err(errors::ProcessTrackerError::EStorageError);
 
         if let Ok(_pm) = res {
             db.as_scheduler()
-            .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
-            .await?;
-        } else if retry_count + 1  == 5 {
+                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                .await?;
+        } else if retry_count + 1 == 5 {
             db.as_scheduler()
-            .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
-            .await?;
+                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                .await?;
         } else {
-            let updated_schedule_time = date_time::now().saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+            let updated_schedule_time = date_time::now()
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
             let updated_process_tracker_data = storage::ProcessTrackerUpdate::Update {
                 name: None,
                 retry_count: Some(retry_count + 1),
