@@ -226,6 +226,7 @@ async fn should_sync_auto_captured_payment() {
                 connector_meta: None,
                 payment_method_type: None,
                 currency: enums::Currency::USD,
+                ..Default::default()
             }),
             None,
         )
