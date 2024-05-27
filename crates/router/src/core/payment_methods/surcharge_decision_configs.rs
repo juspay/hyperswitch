@@ -32,7 +32,7 @@ use crate::{
 static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
 
 struct VirInterpreterBackendCacheWrapper {
-    cached_alogorith: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
+    cached_algorithm: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
     merchant_surcharge_configs: surcharge_decision_configs::MerchantSurchargeConfigs,
 }
 
@@ -40,12 +40,12 @@ impl TryFrom<SurchargeDecisionManagerRecord> for VirInterpreterBackendCacheWrapp
     type Error = error_stack::Report<ConfigError>;
 
     fn try_from(value: SurchargeDecisionManagerRecord) -> Result<Self, Self::Error> {
-        let cached_alogorith = backend::VirInterpreterBackend::with_program(value.algorithm)
+        let cached_algorithm = backend::VirInterpreterBackend::with_program(value.algorithm)
             .change_context(ConfigError::DslBackendInitError)
             .attach_printable("Error initializing DSL interpreter backend")?;
         let merchant_surcharge_configs = value.merchant_surcharge_configs;
         Ok(Self {
-            cached_alogorith,
+            cached_algorithm,
             merchant_surcharge_configs,
         })
     }
@@ -69,7 +69,7 @@ impl SurchargeSource {
             Self::Generate(interpreter) => {
                 let surcharge_output = execute_dsl_and_get_conditional_config(
                     backend_input.clone(),
-                    &interpreter.cached_alogorith,
+                    &interpreter.cached_algorithm,
                 )?;
                 Ok(surcharge_output
                     .surcharge_details
