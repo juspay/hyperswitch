@@ -217,6 +217,7 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 pub enum GetToken {
     GpayMetadata,
     ApplePayMetadata,
+    PaypalSdkMetadata,
     Connector,
 }
 

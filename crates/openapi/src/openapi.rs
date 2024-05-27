@@ -367,6 +367,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplepaySessionTokenResponse,
         api_models::payments::SdkNextAction,
         api_models::payments::NextActionCall,
+        api_models::payments::SdkNextActionData,
         api_models::payments::SamsungPayWalletData,
         api_models::payments::WeChatPay,
         api_models::payments::GpayTokenizationData,

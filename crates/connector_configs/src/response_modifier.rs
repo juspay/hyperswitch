@@ -309,6 +309,7 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             terminal_id: api_model.terminal_id,
             merchant_id: api_model.merchant_id,
             google_pay: get_google_pay_metadata_response(api_model.google_pay),
+            paypal_sdk: api_model.paypal_sdk,
             apple_pay: api_model.apple_pay,
             apple_pay_combined: api_model.apple_pay_combined,
             endpoint_prefix: api_model.endpoint_prefix,
