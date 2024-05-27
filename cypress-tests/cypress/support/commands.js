@@ -272,9 +272,9 @@ Cypress.Commands.add(
   "confirmBankRedirectCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentId = globalState.get("paymentID");
-    for (const key in req_data) {
-      confirmBody[key] = req_data[key];
-    }
+    confirmBody.payment_method = req_data.payment_method;
+    confirmBody.payment_method_type = req_data.payment_method_type;
+    confirmBody.payment_method_data.bank_redirect = req_data.bank_redirect;
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
 
@@ -348,9 +348,9 @@ Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    for (const key in req_data) {
-      confirmBody[key] = req_data[key];
-    }
+    confirmBody.payment_method = req_data.payment_method;
+    confirmBody.payment_method_type = req_data.payment_method_type;
+    confirmBody.payment_method_data.bank_transfer = req_data.bank_transfer;
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
 
