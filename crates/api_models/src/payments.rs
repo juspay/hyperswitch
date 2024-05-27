@@ -2970,7 +2970,10 @@ pub enum NextActionData {
         qr_code_url: Option<Url>,
     },
     /// Contains url to fetch Qr code data
-    FetchQrCodeInformation { qr_code_fetch_url: Url },
+    FetchQrCodeInformation {
+        #[schema(value_type = String)]
+        qr_code_fetch_url: Url,
+    },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]

@@ -11765,7 +11765,7 @@
             ],
             "properties": {
               "qr_code_fetch_url": {
-                "$ref": "#/components/schemas/Url"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -18673,11 +18673,12 @@
         },
         "additionalProperties": false
       },
-      "Upi": {
+      "UpiCollectData": {
         "type": "object",
         "properties": {
           "vpa_id": {
             "type": "string",
+            "example": "successtest@iata",
             "nullable": true
           }
         }
@@ -18687,28 +18688,28 @@
           {
             "type": "object",
             "required": [
-              "upi"
+              "upi_collect"
             ],
             "properties": {
-              "upi": {
-                "$ref": "#/components/schemas/Upi"
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectData"
               }
             }
           },
           {
             "type": "object",
             "required": [
-              "upi_qr"
+              "upi_intent"
             ],
             "properties": {
-              "upi_qr": {
-                "$ref": "#/components/schemas/UpiQr"
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
               }
             }
           }
         ]
       },
-      "UpiQr": {
+      "UpiIntentData": {
         "type": "object"
       },
       "ValueType": {
