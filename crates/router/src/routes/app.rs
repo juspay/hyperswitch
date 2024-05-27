@@ -145,7 +145,7 @@ pub struct AppState {
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
-        self.conf.multitenancy.get_tenant_names().clone()
+        self.conf.multitenancy.get_tenant_names()
     }
 }
 pub trait AppStateInfo {

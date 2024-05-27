@@ -137,7 +137,7 @@ impl From<CacheKey> for String {
         if val.prefix.is_empty() {
             val.key
         } else {
-            format!("{}:{}", val.prefix.clone(), val.key.clone())
+            format!("{}:{}", val.prefix, val.key)
         }
     }
 }

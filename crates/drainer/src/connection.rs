@@ -1,6 +1,6 @@
 use bb8::PooledConnection;
+use common_utils::DbConnectionParams;
 use diesel::PgConnection;
-use masking::PeekInterface;
 
 use crate::{settings::Database, Settings};
 
@@ -23,16 +23,7 @@ pub async fn diesel_make_pg_pool(
     _test_transaction: bool,
     schema: &str,
 ) -> PgPool {
-    let database_url = format!(
-        "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
-        database.username,
-        database.password.peek(),
-        database.host,
-        database.port,
-        database.dbname,
-        schema,
-        schema
-    );
+    let database_url = database.get_database_url(schema);
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder()
         .max_size(database.pool_size)

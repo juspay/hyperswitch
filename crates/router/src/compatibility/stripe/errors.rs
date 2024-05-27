@@ -264,7 +264,7 @@ pub enum StripeErrorCode {
     PaymentMethodDeleteFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_27", message = "Invalid tenant")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_28", message = "Invalid tenant")]
     InvalidTenant,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes

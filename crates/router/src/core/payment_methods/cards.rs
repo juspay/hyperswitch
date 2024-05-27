@@ -1909,7 +1909,7 @@ pub async fn list_payment_methods(
     #[cfg(not(feature = "business_profile_routing"))]
     let key = { format!("pm_filters_cgraph_{}", &merchant_account.merchant_id) };
 
-    if let Some(graph) = get_merchant_pm_filter_graph(&key, state.tenant.to_string()).await {
+    if let Some(graph) = get_merchant_pm_filter_graph(&key, state.tenant.clone()).await {
         // Derivation of PM_FILTER_CGRAPH from MokaCache successful
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
@@ -1952,7 +1952,7 @@ pub async fn list_payment_methods(
         }
 
         // Refreshing our CGraph cache
-        let graph = refresh_pm_filters_cache(&key, state.tenant.to_string(), builder.build()).await;
+        let graph = refresh_pm_filters_cache(&key, state.tenant.clone(), builder.build()).await;
 
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
