@@ -630,6 +630,10 @@ pub struct PaymentAttemptResponse {
     pub unified_code: Option<String>,
     /// error message unified across the connectors is received here if there was an error while calling connector
     pub unified_message: Option<String>,
+    /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
+    pub client_source: Option<String>,
+    /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
+    pub client_version: Option<String>,
 }
 
 #[derive(
@@ -1664,7 +1668,10 @@ impl GetPaymentMethodType for CryptoData {
 
 impl GetPaymentMethodType for UpiData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
-        api_enums::PaymentMethodType::UpiCollect
+        match self {
+            Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
+            Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
+        }
     }
 }
 impl GetPaymentMethodType for VoucherData {
@@ -2115,14 +2122,25 @@ pub struct SepaAndBacsBillingDetails {
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {
     pub pay_currency: Option<String>,
+    pub network: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct UpiData {
+pub enum UpiData {
+    UpiCollect(UpiCollectData),
+    UpiIntent(UpiIntentData),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiCollectData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct UpiIntentData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -2960,6 +2978,11 @@ pub enum NextActionData {
         /// The url for Qr code given by the connector
         qr_code_url: Option<Url>,
     },
+    /// Contains url to fetch Qr code data
+    FetchQrCodeInformation {
+        #[schema(value_type = String)]
+        qr_code_fetch_url: Url,
+    },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
@@ -3043,6 +3066,11 @@ pub enum QrCodeInformation {
 #[serde(rename_all = "snake_case")]
 pub struct SdkNextActionData {
     pub next_action: NextActionCall,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct FetchQrCodeInformation {
+    pub qr_code_fetch_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

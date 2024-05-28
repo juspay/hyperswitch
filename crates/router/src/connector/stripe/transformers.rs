@@ -675,6 +675,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Paypal
             | enums::PaymentMethodType::Pix
             | enums::PaymentMethodType::UpiCollect
+            | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
             | enums::PaymentMethodType::Oxxo => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
