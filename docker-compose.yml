@@ -1,5 +1,3 @@
-version: "3.8"
-
 volumes:
   pg_data:
   redisinsight_store:
@@ -137,8 +135,8 @@ services:
       context: ./docker
       dockerfile: web.Dockerfile
     environment:
-      - HYPERSWITCH_PUBLISHABLE_KEY=$HYPERSWITCH_PUBLISHABLE_KEY
-      - HYPERSWITCH_SECRET_KEY=$HYPERSWITCH_SECRET_KEY
+      - HYPERSWITCH_PUBLISHABLE_KEY=${HYPERSWITCH_PUBLISHABLE_KEY:PUBLISHABLE_KEY}
+      - HYPERSWITCH_SECRET_KEY=${HYPERSWITCH_SECRET_KEY:SECRET_KEY}
       - HYPERSWITCH_SERVER_URL=${HYPERSWITCH_SERVER_URL:-http://hyperswitch-server:8080}
       - HYPERSWITCH_CLIENT_URL=${HYPERSWITCH_CLIENT_URL:-http://localhost:9050}
       - SELF_SERVER_URL=${SELF_SERVER_URL:-http://localhost:5252}
@@ -156,8 +154,11 @@ services:
     ports:
       - "9000:9000"
     environment:
-      - apiBaseUrl=http://localhost:8080
-      - sdkBaseUrl=http://localhost:9050/HyperLoader.js
+      - configPath=/tmp/dashboard-config.toml
+    volumes:
+      - ./config/dashboard.toml:/tmp/dashboard-config.toml
+    depends_on:
+      - hyperswitch-web
     labels:  
       logs: "promtail" 
 
@@ -185,38 +186,23 @@ services:
       - redis-cluster
     networks:
       - router_net
-    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
-
-      \ if [ $$COUNT -lt 3 ]
-
-      \ then
-
-      \ echo \"Minimum 3 nodes are needed for redis cluster\"
-
-      \ exit 1
-
-      \ fi
-
-      \ HOSTS=\"\"
-
-      \ for ((c=1; c<=$$COUNT;c++))
-
-      \ do
-
-      \ NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
-
-      \ echo $$NODE
-
-      \ HOSTS=\"$$HOSTS $$NODE\"
-
-      \ done
-
-      \ echo Creating a cluster with $$HOSTS
-
-      \ redis-cli --cluster create $$HOSTS --cluster-yes
-
-      \ '"
-
+    command: |-
+      bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
+      if [ $$COUNT -lt 3 ]
+      then
+      echo \"Minimum 3 nodes are needed for redis cluster\"
+      exit 1
+      fi
+      HOSTS=\"\"
+      for ((c=1; c<=$$COUNT;c++))
+      do
+      NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
+      echo $$NODE
+      HOSTS=\"$$HOSTS $$NODE\"
+      done
+      echo Creating a cluster with $$HOSTS
+      redis-cli --cluster create $$HOSTS --cluster-yes
+      '
   ### Monitoring
   grafana:
     image: grafana/grafana:latest
@@ -304,7 +290,7 @@ services:
     networks:
       - router_net
     profiles:
-      - full_kv
+      - monitoring
     ports:
       - "8001:8001"
     volumes:
@@ -390,24 +376,20 @@ services:
     hostname: opensearch
     environment:
       - "discovery.type=single-node"
-    expose:
-      - "9200"
+    profiles:
+      - olap
     ports:
       - "9200:9200"
     networks:
       - router_net
-    profiles:
-      - olap
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:1.3.14
     ports:
       - 5601:5601
-    expose:
-      - "5601"
+    profiles:
+      - olap
     environment:
       OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
     networks:
       - router_net
-    profiles:
-      - olap
