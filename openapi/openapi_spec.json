@@ -12587,6 +12587,16 @@
             "type": "string",
             "description": "error message unified across the connectors is received here if there was an error while calling connector",
             "nullable": true
+          },
+          "client_source": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-SOURCE header during payments confirm request by the client",
+            "nullable": true
+          },
+          "client_version": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
+            "nullable": true
           }
         }
       },
