@@ -3972,7 +3972,7 @@ where
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
-        profile_id, // need to fix this
+        profile_id,
         &decided_connector_data.connector_name.to_string(),
         merchant_connector_id,
     )
@@ -3994,9 +3994,14 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
+        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
+            merchant_connector_account_list,
+            Some(profile_id.to_string()),
+        );
+
         let mut connector_data_list = vec![decided_connector_data.clone()];
 
-        for merchant_connector_account in merchant_connector_account_list {
+        for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata,
                 Some(&merchant_connector_account.connector_name),
