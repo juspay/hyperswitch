@@ -382,15 +382,12 @@ pub struct ZslWebhookResponse {
     pub txn_id: String,
     pub txn_date: String,
     pub paid_ccy: api_models::enums::Currency,
-    #[serde(deserialize_with = "connector_utils::str_or_int_to_i64")]
-    pub paid_amt: i64,
+    pub paid_amt: String,
     pub consr_paid_ccy: api_models::enums::Currency,
-    #[serde(deserialize_with = "connector_utils::str_or_int_to_i64")]
-    pub consr_paid_amt: i64,
+    pub consr_paid_amt: String,
     pub service_fee_ccy: api_models::enums::Currency,
     pub service_fee: String,
-    #[serde(deserialize_with = "connector_utils::str_or_int_to_i64")]
-    pub txn_amt: i64,
+    pub txn_amt: String,
     pub ccy: String,
     pub mer_ref: String,
     pub mer_txn_date: String,
@@ -428,7 +425,17 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = if item.response.txn_amt > item.response.paid_amt {
+        let paid_amount = item
+            .response
+            .paid_amt
+            .parse::<i64>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let txn_amount = item
+            .response
+            .txn_amt
+            .parse::<i64>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let status = if txn_amount > paid_amount {
             enums::AttemptStatus::PartialCharged
         } else {
             enums::AttemptStatus::Charged
@@ -437,7 +444,7 @@ impl<F>
         if item.response.status == "0" {
             Ok(Self {
                 status,
-                amount_captured: Some(item.response.paid_amt),
+                amount_captured: Some(paid_amount),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.mer_ref.clone(),
