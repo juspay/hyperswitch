@@ -124,11 +124,12 @@ recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authent
 # PCI Compliant storage entity which stores payment method information
 # like card details
 [locker]
-host = ""                   # Locker host
-host_rs = ""                # Rust Locker host
-mock_locker = true          # Emulate a locker locally using Postgres
-locker_signing_key_id = "1" # Key_id to sign basilisk hs locker
-locker_enabled = true       # Boolean to enable or disable saving cards in locker
+host = ""                                # Locker host
+host_rs = ""                             # Rust Locker host
+mock_locker = true                       # Emulate a locker locally using Postgres
+locker_signing_key_id = "1"              # Key_id to sign basilisk hs locker
+locker_enabled = true                    # Boolean to enable or disable saving cards in locker
+ttl_for_storage_in_secs = 220752000      # Time to live for storage entries in locker
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response

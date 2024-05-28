@@ -68,6 +68,8 @@ impl Default for super::settings::Locker {
             locker_signing_key_id: "1".into(),
             //true or false
             locker_enabled: true,
+            //Time to live for storage entries in locker
+            ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
         }
     }
 }

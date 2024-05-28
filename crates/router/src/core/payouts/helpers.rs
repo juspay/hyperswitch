@@ -220,6 +220,7 @@ pub async fn save_payout_data_to_locker(
                         nick_name: None,
                     },
                     requestor_card_reference: None,
+                    ttl: state.conf.locker.ttl_for_storage_in_secs,
                 });
                 (
                     payload,
@@ -255,6 +256,7 @@ pub async fn save_payout_data_to_locker(
                     merchant_id: merchant_account.merchant_id.as_ref(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     enc_data,
+                    ttl: state.conf.locker.ttl_for_storage_in_secs,
                 });
                 match payout_method_data {
                     payouts::PayoutMethodData::Bank(bank) => (

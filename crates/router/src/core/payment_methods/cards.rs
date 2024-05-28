@@ -1070,6 +1070,7 @@ pub async fn add_bank_to_locker(
             merchant_id: &merchant_account.merchant_id,
             merchant_customer_id: customer_id.to_owned(),
             enc_data,
+            ttl: state.conf.locker.ttl_for_storage_in_secs,
         });
     let store_resp = call_to_locker_hs(
         state,
@@ -1229,6 +1230,7 @@ pub async fn add_card_hs(
             card_isin: None,
             nick_name: card.nick_name.as_ref().map(Secret::peek).cloned(),
         },
+        ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
     let store_card_payload =
