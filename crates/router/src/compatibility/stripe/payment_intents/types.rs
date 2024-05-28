@@ -141,10 +141,10 @@ impl From<StripeWallet> for payments::WalletData {
 }
 
 impl From<StripeUpi> for payments::UpiData {
-    fn from(upi: StripeUpi) -> Self {
-        Self {
-            vpa_id: Some(upi.vpa_id),
-        }
+    fn from(upi_data: StripeUpi) -> Self {
+        Self::UpiCollect(payments::UpiCollectData {
+            vpa_id: Some(upi_data.vpa_id),
+        })
     }
 }
 
@@ -315,6 +315,18 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
         let amount = item.amount.map(|amount| MinorUnit::new(amount).into());
 
+        let payment_method_data = item.payment_method_data.as_ref().map(|pmd| {
+            let payment_method_data = match pmd.payment_method_details.as_ref() {
+                Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
+                None => get_pmd_based_on_payment_method_type(item.payment_method_types),
+            };
+
+            payments::PaymentMethodDataRequest {
+                payment_method_data,
+                billing: pmd.billing_details.clone().map(payments::Address::from),
+            }
+        });
+
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount,
@@ -334,16 +346,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             phone: item.shipping.as_ref().and_then(|s| s.phone.clone()),
             description: item.description,
             return_url: item.return_url,
-            payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
-                pmd.payment_method_details
-                    .as_ref()
-                    .map(|spmd| payments::PaymentMethodDataRequest {
-                        payment_method_data: Some(payments::PaymentMethodData::from(
-                            spmd.to_owned(),
-                        )),
-                        billing: pmd.billing_details.clone().map(payments::Address::from),
-                    })
-            }),
+            payment_method_data,
             payment_method: item
                 .payment_method_data
                 .as_ref()
@@ -816,6 +819,9 @@ pub enum StripeNextAction {
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
     },
+    FetchQrCodeInformation {
+        qr_code_fetch_url: url::Url,
+    },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
     },
@@ -858,6 +864,9 @@ pub(crate) fn into_stripe_next_action(
             display_to_timestamp,
             qr_code_url,
         },
+        payments::NextActionData::FetchQrCodeInformation { qr_code_fetch_url } => {
+            StripeNextAction::FetchQrCodeInformation { qr_code_fetch_url }
+        }
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
@@ -883,4 +892,16 @@ pub(crate) fn into_stripe_next_action(
 #[derive(Deserialize, Clone)]
 pub struct StripePaymentRetrieveBody {
     pub client_secret: Option<String>,
+}
+
+//To handle payment types that have empty payment method data
+fn get_pmd_based_on_payment_method_type(
+    payment_method_type: Option<api_enums::PaymentMethodType>,
+) -> Option<payments::PaymentMethodData> {
+    match payment_method_type {
+        Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
+            payments::UpiData::UpiIntent(payments::UpiIntentData {}),
+        )),
+        _ => None,
+    }
 }
