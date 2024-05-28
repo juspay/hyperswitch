@@ -1,3 +1,4 @@
+
 use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
@@ -44,7 +45,7 @@ pub async fn get_mandate(
         |state, auth, req, _| {
             mandate::get_mandate(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -85,7 +86,7 @@ pub async fn revoke_mandate(
         |state, auth, req, _| {
             mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -130,7 +131,7 @@ pub async fn retrieve_mandates_list(
             mandate::retrieve_mandates_list(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MandateRead),
             req.headers(),
         ),

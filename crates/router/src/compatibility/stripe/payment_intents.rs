@@ -1,4 +1,5 @@
 pub mod types;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
@@ -71,7 +72,7 @@ pub async fn payment_intents_create(
                 api_types::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -400,7 +401,7 @@ pub async fn payment_intents_capture(
                 api_types::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -498,7 +499,7 @@ pub async fn payment_intent_list(
         &req,
         payload,
         |state, auth, req, _| payments::list_payments(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

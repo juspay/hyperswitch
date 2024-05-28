@@ -45,7 +45,7 @@ pub async fn retrieve_dispute(
         dispute_id,
         |state, auth, req, _| disputes::retrieve_dispute(state, auth.merchant_account, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::DisputeRead),
             req.headers(),
         ),
@@ -92,7 +92,7 @@ pub async fn retrieve_disputes_list(
         payload,
         |state, auth, req, _| disputes::retrieve_disputes_list(state, auth.merchant_account, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::DisputeRead),
             req.headers(),
         ),
@@ -134,7 +134,7 @@ pub async fn accept_dispute(
             disputes::accept_dispute(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::DisputeWrite),
             req.headers(),
         ),
@@ -171,7 +171,7 @@ pub async fn submit_dispute_evidence(
             disputes::submit_evidence(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::DisputeWrite),
             req.headers(),
         ),
@@ -216,7 +216,7 @@ pub async fn attach_dispute_evidence(
             disputes::attach_evidence(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::DisputeWrite),
             req.headers(),
         ),
@@ -259,7 +259,7 @@ pub async fn retrieve_dispute_evidence(
             disputes::retrieve_dispute_evidence(state, auth.merchant_account, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::DisputeRead),
             req.headers(),
         ),
@@ -297,7 +297,7 @@ pub async fn delete_dispute_evidence(
         json_payload.into_inner(),
         |state, auth, req, _| disputes::delete_evidence(state, auth.merchant_account, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::DisputeWrite),
             req.headers(),
         ),

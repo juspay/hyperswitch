@@ -3,13 +3,14 @@ use std::string::ToString;
 use actix_web::http::header::HeaderMap;
 use common_utils::crypto::VerifySignature;
 
+#[derive(Debug)]
 pub struct ExtractedPayload {
     pub payload_type: PayloadType,
     pub merchant_id: Option<String>,
     pub key_id: Option<String>,
 }
 
-#[derive(strum::EnumString, strum::Display, PartialEq)]
+#[derive(strum::EnumString, strum::Display, PartialEq, Debug)]
 #[strum(serialize_all = "snake_case")]
 pub enum PayloadType {
     ApiKey,

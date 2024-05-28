@@ -1,3 +1,4 @@
+
 use actix_web::{web, HttpRequest, Responder};
 use api_models::verifications;
 use router_env::{instrument, tracing, Flow};
@@ -30,7 +31,7 @@ pub async fn apple_pay_merchant_registration(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),
@@ -62,7 +63,7 @@ pub async fn retrieve_apple_pay_verified_domains(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantAccountRead),
             req.headers(),
         ),

@@ -1,3 +1,4 @@
+
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
 use diesel_models::enums::IntentStatus;
@@ -38,7 +39,7 @@ pub async fn create_payment_method_api(
             ))
             .await
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -240,7 +241,7 @@ pub async fn payment_method_retrieve_api(
         |state, auth, pm, _| {
             cards::retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -300,7 +301,7 @@ pub async fn payment_method_delete_api(
         |state, auth, req, _| {
             cards::delete_payment_method(state, auth.merchant_account, req, auth.key_store)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -324,7 +325,7 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
             req.headers(),
         ),

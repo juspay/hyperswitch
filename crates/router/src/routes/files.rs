@@ -1,3 +1,4 @@
+
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
@@ -46,7 +47,7 @@ pub async fn files_create(
         create_file_request,
         |state, auth, req, _| files_create_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
@@ -88,7 +89,7 @@ pub async fn files_delete(
         file_id,
         |state, auth, req, _| files_delete_core(state, auth.merchant_account, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
@@ -132,7 +133,7 @@ pub async fn files_retrieve(
             files_retrieve_core(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),

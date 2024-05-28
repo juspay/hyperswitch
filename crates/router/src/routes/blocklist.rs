@@ -35,7 +35,7 @@ pub async fn add_entry_to_blocklist(
             blocklist::add_entry_to_blocklist(state, auth.merchant_account, body)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),
@@ -71,7 +71,7 @@ pub async fn remove_entry_from_blocklist(
             blocklist::remove_entry_from_blocklist(state, auth.merchant_account, body)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),
@@ -109,7 +109,7 @@ pub async fn list_blocked_payment_methods(
             blocklist::list_blocklist_entries(state, auth.merchant_account, query)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantAccountRead),
             req.headers(),
         ),
@@ -147,7 +147,7 @@ pub async fn toggle_blocklist_guard(
             blocklist::toggle_blocklist_guard(state, auth.merchant_account, query)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),

@@ -632,7 +632,7 @@ pub async fn toggle_connector_agnostic_mit(
         json_payload.into_inner(),
         |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),

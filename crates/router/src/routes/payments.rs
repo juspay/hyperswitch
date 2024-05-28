@@ -1,3 +1,4 @@
+
 use crate::{
     core::api_locking::{self, GetLockingInput},
     services::authorization::permissions::Permission,
@@ -137,9 +138,9 @@ pub async fn payments_create(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 req.headers(),
             ),
@@ -564,7 +565,7 @@ pub async fn payments_capture(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -622,7 +623,7 @@ pub async fn payments_connector_session(
                 HeaderPayload::default(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,
     ))
     .await
@@ -910,7 +911,7 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -956,7 +957,7 @@ pub async fn payments_list(
         payload,
         |state, auth, req, _| payments::list_payments(state, auth.merchant_account, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::PaymentRead),
             req.headers(),
         ),
@@ -1072,9 +1073,9 @@ pub async fn payments_approve(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 http_req.headers(),
             ),
@@ -1127,9 +1128,9 @@ pub async fn payments_reject(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 http_req.headers(),
             ),
@@ -1271,7 +1272,7 @@ pub async fn payments_incremental_authorization(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -1323,7 +1324,7 @@ pub async fn payments_external_authentication(
                 req,
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,
     ))
     .await
@@ -1407,7 +1408,7 @@ pub async fn retrieve_extended_card_info(
         |state, auth, payment_id, _| {
             payments::get_extended_card_info(state, auth.merchant_account.merchant_id, payment_id)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
