@@ -3,13 +3,12 @@ use async_trait::async_trait;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::{metrics, AppState},
     services,
     types::{self, api, domain, storage},
-    utils::OptionExt,
 };
 
 #[async_trait]
@@ -219,20 +218,5 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
         Ok(authorize_router_data)
     } else {
         Ok(router_data.clone())
-    }
-}
-
-impl TryFrom<types::CompleteAuthorizeData> for types::PaymentMethodTokenizationData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: data
-                .payment_method_data
-                .get_required_value("payment_method_data")?,
-            browser_info: data.browser_info,
-            currency: data.currency,
-            amount: Some(data.amount),
-        })
     }
 }
