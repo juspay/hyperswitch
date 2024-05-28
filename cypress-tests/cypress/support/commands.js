@@ -180,10 +180,7 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
       expect(request.amount).to.equal(response.body.amount_capturable);
     }
     else {
-      expect(response.body).to.have.property("error");
-      for(const key in res_data.body.error) {
-        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-      }
+      defaultErrorhandler(response, res_data);
     }
   });
 });
@@ -260,10 +257,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
       }
     }
     else {
-      expect(response.body).to.have.property("error");
-      for(const key in res_data.body.error) {
-        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-      }
+      defaultErrorhandler(response, res_data);
     }
   });
 });
@@ -433,8 +427,7 @@ Cypress.Commands.add(
             defaultErrorHandler(response, res_data);
         }
       } else {
-        expect(response.body).to.have.property("error");
-        expect(res_data.body.error).to.deep.equal(response.body.error);
+        defaultErrorhandler(response, res_data);
       }
     });
   }
@@ -501,10 +494,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
       }
     }
     else{
-      expect(response.body).to.have.property("error");
-      for(const key in res_data.body.error) {
-        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-      }
+      defaultErrorhandler(response, res_data);
     }
   });
 });
@@ -593,10 +583,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, req_data, res_data, amount
       }
     }
     else{
-      expect(response.body).to.have.property("error");
-      for(const key in res_data.body.error) {
-        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-      }
+      defaultErrorhandler(response, res_data);
     }
   });
 });
@@ -623,10 +610,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, req_data, res_data, globalSta
       }
     }
     else{
-      expect(response.body).to.have.property("error");
-      for(const key in res_data.body.error) {
-        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-      }
+      defaultErrorhandler(response, res_data);
     }
   });
 });
@@ -677,10 +661,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, req_data, res_data, refund_
       expect(response.body.payment_id).to.equal(payment_id);
     }
     else{
-      expect(response.body).to.have.property("error");
-      for(const key in res_data.body.error) {
-        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-      }
+      defaultErrorhandler(response, res_data);
     }
     
   });
@@ -762,10 +743,7 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
       }
     }
     else{
-      expect(response.body).to.have.property("error");
-      for(const key in res_data.body.error) {
-        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-      }
+      defaultErrorhandler(response, res_data);
     }
   });
 });
