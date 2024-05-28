@@ -5,7 +5,7 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, storage::enums},
 };
@@ -36,7 +36,7 @@ impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for Klarna
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KlarnaConnectorMetadataObject {
-    pub region_based_endpoint: Option<KlarnaEndpoint>,
+    pub klarna_region: Option<KlarnaEndpoint>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -46,13 +46,13 @@ pub enum KlarnaEndpoint {
     Oceania,
 }
 
-impl From<KlarnaEndpoint> for &'static str {
+impl From<KlarnaEndpoint> for String {
     fn from(endpoint: KlarnaEndpoint) -> Self {
-        match endpoint {
+        String::from(match endpoint {
             KlarnaEndpoint::Europe => "",
             KlarnaEndpoint::NorthAmerica => "-na",
             KlarnaEndpoint::Oceania => "-oc",
-        }
+        })
     }
 }
 
@@ -68,12 +68,20 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
 }
 
 #[derive(Default, Debug, Serialize)]
+pub struct KlarnaMerchantUrls {
+    notification: Option<String>,
+    push: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize)]
 pub struct KlarnaPaymentsRequest {
+    auto_capture: bool,
     order_lines: Vec<OrderLines>,
     order_amount: i64,
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
     merchant_reference1: Option<String>,
+    merchant_urls: KlarnaMerchantUrls,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -97,20 +105,22 @@ pub struct KlarnaSessionResponse {
     pub session_id: Secret<String>,
 }
 
-impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
+impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
-        let request = &item.request;
+    fn try_from(
+        item: &KlarnaRouterData<&types::PaymentsSessionRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
                 intent: KlarnaSessionIntent::Buy,
                 purchase_country: request.country.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "purchase_country",
+                        field_name: "billing.address.country",
                     },
                 )?,
                 purchase_currency: request.currency,
-                order_amount: request.amount,
+                order_amount: item.amount,
                 order_lines: order_details
                     .iter()
                     .map(|data| OrderLines {
@@ -122,7 +132,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                     .collect(),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "product_name",
+                field_name: "order_details",
             })),
         }
     }
@@ -161,7 +171,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
             Some(order_details) => Ok(Self {
                 purchase_country: item.router_data.get_billing_country()?,
                 purchase_currency: request.currency,
-                order_amount: request.amount,
+                order_amount: item.amount,
                 order_lines: order_details
                     .iter()
                     .map(|data| OrderLines {
@@ -172,9 +182,14 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     })
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
+                auto_capture: request.is_auto_capture()?,
+                merchant_urls: KlarnaMerchantUrls {
+                    notification: request.webhook_url.clone(),
+                    push: request.webhook_url.clone(),
+                },
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "product_name"
+                field_name: "order_details"
             })),
         }
     }
@@ -200,7 +215,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            status: item.response.fraud_status.into(),
+            status: enums::AttemptStatus::from(item.response.fraud_status),
             ..item.data
         })
     }
@@ -224,15 +239,17 @@ pub enum KlarnaSessionIntent {
 }
 
 pub struct KlarnaAuthType {
-    pub basic_token: Secret<String>,
+    pub username: Secret<String>,
+    pub password: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                basic_token: api_key.to_owned(),
+                username: key1.to_owned(),
+                password: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

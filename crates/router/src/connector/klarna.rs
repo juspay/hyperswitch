@@ -1,8 +1,10 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+use base64::Engine;
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
+use masking::PeekInterface;
 use transformers as klarna;
 
 use crate::{
@@ -51,9 +53,14 @@ impl ConnectorCommon for Klarna {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = klarna::KlarnaAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
+            "{}:{}",
+            auth.username.peek(),
+            auth.password.peek()
+        ));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.basic_token.into_masked(),
+            format!("Basic {encoded_api_key}").into_masked(),
         )])
     }
 
@@ -74,11 +81,13 @@ impl ConnectorCommon for Klarna {
         let reason = response
             .error_messages
             .map(|messages| messages.join(" & "))
-            .or(response.error_message);
+            .or(response.error_message.clone());
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: consts::NO_ERROR_MESSAGE.to_string(),
+            message: response
+                .error_message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
             connector_transaction_id: None,
@@ -125,16 +134,13 @@ fn build_region_specific_endpoint(
     let klarna_metadata_object =
         transformers::KlarnaConnectorMetadataObject::try_from(connector_metadata)?;
     let region_based_endpoint = klarna_metadata_object
-        .region_based_endpoint
+        .klarna_region
         .ok_or(errors::ConnectorError::InvalidConnectorConfig {
-            config: "metadata.region_based_endpoint",
+            config: "merchant_connector_account.metadata.region_based_endpoint",
         })
-        .map(|endpoint| {
-            let endpoint_str: &'static str = endpoint.into();
-            endpoint_str
-        })?;
+        .map(|endpoint| String::from(endpoint))?;
 
-    Ok(base_url.replace("{{region_based_endpoint}}", region_based_endpoint))
+    Ok(base_url.replace("{{region_based_endpoint}}", &region_based_endpoint))
 }
 
 impl
@@ -180,7 +186,14 @@ impl
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
+        let connector_router_data = klarna::KlarnaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+
+        let connector_req = klarna::KlarnaSessionRequest::try_from(&connector_router_data)?;
         // encode only for for urlencoded things.
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -448,9 +461,13 @@ impl
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
-                errors::ConnectorError::MismatchedPaymentData
-            )),
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(report!(errors::ConnectorError::NotImplemented(
+                    connector_utils::get_unimplemented_payment_method_error_message(
+                        req.connector.as_str(),
+                    ),
+                )))
+            }
         }
     }
 
