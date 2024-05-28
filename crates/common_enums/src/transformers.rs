@@ -1854,6 +1854,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Trustly => Self::BankRedirect,
             PaymentMethodType::Twint => Self::Wallet,
             PaymentMethodType::UpiCollect => Self::Upi,
+            PaymentMethodType::UpiIntent => Self::Upi,
             PaymentMethodType::Vipps => Self::Wallet,
             PaymentMethodType::Venmo => Self::Wallet,
             PaymentMethodType::Walley => Self::PayLater,
