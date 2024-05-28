@@ -146,9 +146,11 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNRouterData>>
             acct_number: router_data.request.card_holder_account_number.clone(),
             card_scheme: None,
             challenge_window_size: Some(gpayments_types::ChallengeWindowSize::FullScreen),
+            // This is a required field but we don't listen to event callbacks
             event_callback_url: "https://webhook.site/55e3db24-7c4e-4432-9941-d806f68d210b"
                 .to_string(),
             merchant_id: metadata.merchant_id,
+            // Since this feature is not in our favour, hard coded it to true
             skip_auto_browser_info_collect: Some(true),
             // should auto generate this id.
             three_ds_requestor_trans_id: uuid::Uuid::new_v4().hyphenated().to_string(),
@@ -192,7 +194,11 @@ impl
                     })
             })
             .transpose()?;
-
+        let connector_metadata = Some(serde_json::json!(
+            gpayments_types::GpaymentsConnectorMetaData {
+                authentication_url: threeds_method_response.auth_url
+            }
+        ));
         let response: Result<
             types::authentication::AuthenticationResponseData,
             types::ErrorResponse,
@@ -203,7 +209,7 @@ impl
                     .clone(),
                 three_ds_method_data,
                 three_ds_method_url: threeds_method_response.three_ds_method_url,
-                authentication_url: Some(threeds_method_response.auth_url),
+                connector_metadata,
             },
         );
         Ok(Self {

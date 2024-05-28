@@ -18,7 +18,7 @@ pub enum AuthenticationResponseData {
         threeds_server_transaction_id: String,
         three_ds_method_data: Option<String>,
         three_ds_method_url: Option<String>,
-        authentication_url: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
     },
     PreAuthNResponse {
         threeds_server_transaction_id: String,

@@ -121,12 +121,12 @@ pub async fn update_trackers<F: Clone, Req>(
                 threeds_server_transaction_id,
                 three_ds_method_data,
                 three_ds_method_url,
-                authentication_url,
+                connector_metadata,
             } => storage::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
                 threeds_server_transaction_id,
                 three_ds_method_data,
                 three_ds_method_url,
-                authentication_url,
+                connector_metadata,
                 acquirer_bin: acquirer_details
                     .as_ref()
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
@@ -206,7 +206,6 @@ pub async fn create_new_authentication(
         payment_id,
         merchant_connector_id,
         three_ds_requestor_trans_id: None,
-        authentication_url: None,
         directory_server_id: None,
     };
     state
