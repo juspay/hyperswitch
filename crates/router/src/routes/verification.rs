@@ -1,4 +1,3 @@
-
 use actix_web::{web, HttpRequest, Responder};
 use api_models::verifications;
 use router_env::{instrument, tracing, Flow};

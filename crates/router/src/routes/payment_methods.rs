@@ -1,4 +1,3 @@
-
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
 use diesel_models::enums::IntentStatus;

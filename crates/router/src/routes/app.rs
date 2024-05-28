@@ -5,6 +5,7 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+#[cfg(feature = "partial-auth")]
 use common_utils::crypto::{Blake3, VerifySignature};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
@@ -133,6 +134,7 @@ impl AppStateInfo for AppState {
         self.api_client.get_request_id()
     }
 
+    #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> (impl VerifySignature, &[u8]) {
         (Blake3("TEST".to_string()), b"TEST")
     }
