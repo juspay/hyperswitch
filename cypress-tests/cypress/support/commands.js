@@ -37,7 +37,7 @@ function logRequestId(xRequestId) {
   }
 }
 
-function defaultErrorhandler(response, response_data) {
+function defaultErrorHandler(response, response_data) {
   expect(response.body).to.have.property("error");
   for (const key in response_data.body.error) {
     expect(response_data.body.error[key]).to.equal(response.body.error[key]);
@@ -180,7 +180,7 @@ Cypress.Commands.add("createPaymentIntentTest", (request, req_data, res_data, au
       expect(request.amount).to.equal(response.body.amount_capturable);
     }
     else {
-      defaultErrorhandler(response, res_data);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
@@ -239,7 +239,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
             expect(res_data.body[key]).to.equal(response.body[key]);
           }
         } else {
-          defaultErrorhandler(response, res_data);
+          defaultErrorHandler(response, res_data);
         }
       } else if (response.body.capture_method === "manual") {
         if (response.body.authentication_type === "three_ds") {
@@ -257,7 +257,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, req_data, res_data, confir
       }
     }
     else {
-      defaultErrorhandler(response, res_data);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
@@ -427,7 +427,7 @@ Cypress.Commands.add(
             defaultErrorHandler(response, res_data);
         }
       } else {
-        defaultErrorhandler(response, res_data);
+        defaultErrorHandler(response, res_data);
       }
     });
   }
@@ -494,7 +494,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, req_
       }
     }
     else{
-      defaultErrorhandler(response, res_data);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
@@ -583,7 +583,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, req_data, res_data, amount
       }
     }
     else{
-      defaultErrorhandler(response, res_data);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
@@ -610,7 +610,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, req_data, res_data, globalSta
       }
     }
     else{
-      defaultErrorhandler(response, res_data);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
@@ -661,7 +661,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, req_data, res_data, refund_
       expect(response.body.payment_id).to.equal(payment_id);
     }
     else{
-      defaultErrorhandler(response, res_data);
+      defaultErrorHandler(response, res_data);
     }
     
   });
@@ -743,7 +743,7 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, req_data, res_data,
       }
     }
     else{
-      defaultErrorhandler(response, res_data);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
