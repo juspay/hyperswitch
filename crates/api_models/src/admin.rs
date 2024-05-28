@@ -635,6 +635,9 @@ pub struct MerchantConnectorResponse {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
+
+    #[schema(value_type = Option<Object>)]
+    pub connector_wallets_details: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
