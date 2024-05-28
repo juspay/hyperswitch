@@ -238,14 +238,14 @@ pub trait AmountConvertor: Send {
     /// helps in conversion of connector required amount type
     fn convert(
         &self,
-        i: MinorUnit,
+        amount: MinorUnit,
         currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>>;
 
     /// helps in converting back connector required amount type to core minor unit
     fn convert_back(
         &self,
-        i: Self::Output,
+        amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
 }
@@ -258,18 +258,18 @@ impl AmountConvertor for StringMinorUnitForConnector {
     type Output = StringMinorUnit;
     fn convert(
         &self,
-        i: MinorUnit,
+        amount: MinorUnit,
         _currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        i.to_minor_unit_as_string()
+        amount.to_minor_unit_as_string()
     }
 
     fn convert_back(
         &self,
-        i: Self::Output,
+        amount: Self::Output,
         _currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        i.to_minor_unit_as_i64()
+        amount.to_minor_unit_as_i64()
     }
 }
 
@@ -281,18 +281,18 @@ impl AmountConvertor for StringMajorUnitForConnector {
     type Output = StringMajorUnit;
     fn convert(
         &self,
-        i: MinorUnit,
+        amount: MinorUnit,
         currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        i.to_major_unit_as_string(currency)
+        amount.to_major_unit_as_string(currency)
     }
 
     fn convert_back(
         &self,
-        i: StringMajorUnit,
+        amount: StringMajorUnit,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        i.to_minor_unit_as_i64(currency)
+        amount.to_minor_unit_as_i64(currency)
     }
 }
 
@@ -304,17 +304,17 @@ impl AmountConvertor for FloatMajorUnitForConnector {
     type Output = FloatMajorUnit;
     fn convert(
         &self,
-        i: MinorUnit,
+        amount: MinorUnit,
         currency: enums::Currency,
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        i.to_major_unit_as_f64(currency)
+        amount.to_major_unit_as_f64(currency)
     }
     fn convert_back(
         &self,
-        i: FloatMajorUnit,
+        amount: FloatMajorUnit,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        i.to_minor_unit_as_i64(currency)
+        amount.to_minor_unit_as_i64(currency)
     }
 }
 /// This Unit struct represents MinorUnit in which core amount works
@@ -550,6 +550,7 @@ impl StringMajorUnit {
 
 #[cfg(test)]
 mod amount_conversion_tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
     #[test]
     fn amount_conversion_to_float_major_unit() {
