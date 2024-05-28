@@ -1,11 +1,11 @@
-use common_utils::{date_time, ext_traits::ValueExt};
-use diesel_models::enums as storage_enums;
+use common_utils::ext_traits::ValueExt;
 // use router_env::logger;
-use error_stack::ResultExt;
-use scheduler::workflows::ProcessTrackerWorkflow;
+use scheduler::{
+    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+};
 
 use crate::{
-    consts, errors,
+    errors,
     logger::error,
     routes::{metrics, AppState},
     types::storage::{self, PaymentMethodStatusTrackingData},
@@ -26,7 +26,6 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             .clone()
             .parse_value("PaymentMethodStatusTrackingData")?;
 
-        let task_id = process.id.clone();
         let retry_count = process.retry_count;
         let pm_id = tracking_data.payment_method_id;
         let prev_pm_status = tracking_data.prev_status;
@@ -50,14 +49,14 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             .await?;
 
         if payment_method.status != prev_pm_status {
-            db.as_scheduler()
+            return db
+                .as_scheduler()
                 .finish_process_with_business_status(
                     process,
                     "PROCESS_ALREADY_COMPLETED".to_string(),
                 )
-                .await?;
-
-            return Ok(());
+                .await
+                .map_err(Into::<errors::ProcessTrackerError>::into);
         }
 
         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
@@ -73,26 +72,28 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
             db.as_scheduler()
                 .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                 .await?;
-        } else if retry_count + 1 == 5 {
-            db.as_scheduler()
-                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
-                .await?;
         } else {
-            let updated_schedule_time = date_time::now()
-                .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
-            let updated_process_tracker_data = storage::ProcessTrackerUpdate::Update {
-                name: None,
-                retry_count: Some(retry_count + 1),
-                schedule_time: Some(updated_schedule_time),
-                tracking_data: None,
-                business_status: None,
-                status: Some(storage_enums::ProcessTrackerStatus::New),
-                updated_at: Some(date_time::now()),
+            let mapping = process_data::PaymentMethodsPTMapping::default();
+            let time_delta = if retry_count == 0 {
+                Some(mapping.default_mapping.start_after)
+            } else {
+                pt_utils::get_delay(retry_count + 1, &mapping.default_mapping.frequencies)
             };
 
-            let task_ids = vec![task_id];
-            db.process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
-                .await?;
+            let schedule_time = pt_utils::get_time_from_delta(time_delta);
+
+            match schedule_time {
+                Some(s_time) => db
+                    .as_scheduler()
+                    .retry_process(process, s_time)
+                    .await
+                    .map_err(Into::<errors::ProcessTrackerError>::into)?,
+                None => db
+                    .as_scheduler()
+                    .finish_process_with_business_status(process, "RETRIES_EXCEEDED".to_string())
+                    .await
+                    .map_err(Into::<errors::ProcessTrackerError>::into)?,
+            };
         };
 
         Ok(())
