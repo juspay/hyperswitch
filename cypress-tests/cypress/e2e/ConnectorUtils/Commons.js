@@ -26,8 +26,14 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
-// Function to get default PaymentIntent object
-const getDefaultIntent = () => ({
+/*
+`getDefaultExchange` contains the default Request and Response to be considered if none provided.
+`getCustomExchange` takes in 2 optional fields named as Request and Response.
+with `getCustomExchange`, if 501 response is expected, there is no need to pass Response as it considers default values.
+*/
+
+//Function to get default PaymentExchange object
+const getDefaultExchange = () => ({
   Request: {
     currency: "EUR",
   },
@@ -43,18 +49,18 @@ const getDefaultIntent = () => ({
   },
 });
 
-// Function to get PaymentIntent with overridden properties
-export const getCustomIntent = (overrides) => {
-  const defaultIntent = getDefaultIntent();
+// Function to get PaymentExchange with overridden properties
+export const getCustomExchange = (overrides) => {
+  const defaultExchange = getDefaultExchange();
 
   return {
-    ...defaultIntent,
+    ...defaultExchange,
     Request: {
-      ...defaultIntent.Request,
+      ...defaultExchange.Request,
       ...(overrides.Request || {}),
     },
     Response: {
-      ...defaultIntent.Response,
+      ...defaultExchange.Response,
       ...(overrides.Response || {}),
     },
   };
@@ -62,7 +68,7 @@ export const getCustomIntent = (overrides) => {
 
 export const connectorDetails = {
   card_pm: {
-    PaymentIntent: getCustomIntent({
+    PaymentIntent: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -226,7 +232,7 @@ export const connectorDetails = {
         },
       },
     },
-    MandateSingleUse3DSAutoCapture: getCustomIntent({
+    MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -238,7 +244,7 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateSingleUse3DSManualCapture: getCustomIntent({
+    MandateSingleUse3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -250,7 +256,7 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateSingleUseNo3DSAutoCapture: getCustomIntent({
+    MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -262,7 +268,7 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateSingleUseNo3DSManualCapture: getCustomIntent({
+    MandateSingleUseNo3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -274,7 +280,7 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateMultiUseNo3DSAutoCapture: getCustomIntent({
+    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -286,7 +292,7 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateMultiUseNo3DSManualCapture: getCustomIntent({
+    MandateMultiUseNo3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -298,7 +304,7 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateMultiUse3DSAutoCapture: getCustomIntent({
+    MandateMultiUse3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -310,7 +316,7 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateMultiUse3DSManualCapture: getCustomIntent({
+    MandateMultiUse3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -322,7 +328,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ZeroAuthMandate: getCustomIntent({
+    ZeroAuthMandate: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -334,7 +340,7 @@ export const connectorDetails = {
         },
       },
     }),
-    SaveCardUseNo3DSAutoCapture: getCustomIntent({
+    SaveCardUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -349,7 +355,7 @@ export const connectorDetails = {
         },
       },
     }),
-    SaveCardUseNo3DSManualCapture: getCustomIntent({
+    SaveCardUseNo3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -366,7 +372,7 @@ export const connectorDetails = {
     }),
   },
   bank_transfer_pm: {
-    PaymentIntent: getCustomIntent({
+    PaymentIntent: getCustomExchange({
       Request: {
         currency: "BRL",
       },
@@ -377,7 +383,7 @@ export const connectorDetails = {
         },
       },
     }),
-    Pix: getCustomIntent({
+    Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix",
@@ -389,7 +395,7 @@ export const connectorDetails = {
     }),
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomIntent({
+    PaymentIntent: getCustomExchange({
       Request: {
         currency: "EUR",
       },
@@ -400,7 +406,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: getCustomIntent({
+    ideal: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -412,7 +418,7 @@ export const connectorDetails = {
         },
       },
     }),
-    giropay: getCustomIntent({
+    giropay: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -427,7 +433,7 @@ export const connectorDetails = {
         },
       },
     }),
-    sofort: getCustomIntent({
+    sofort: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -439,7 +445,7 @@ export const connectorDetails = {
         },
       },
     }),
-    eps: getCustomIntent({
+    eps: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -450,7 +456,7 @@ export const connectorDetails = {
         },
       },
     }),
-    blikPaymentIntent: getCustomIntent({
+    blikPaymentIntent: getCustomExchange({
       Request: {
         currency: "PLN",
       },
@@ -461,7 +467,7 @@ export const connectorDetails = {
         },
       },
     }),
-    blik: getCustomIntent({
+    blik: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",

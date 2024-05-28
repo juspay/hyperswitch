@@ -1,4 +1,4 @@
-import { getCustomIntent } from "./Commons";
+import { getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "371449635398431",
@@ -131,9 +131,17 @@ export const connectorDetails = {
         currency: "USD",
       },
       Response: {
-        status: 200,
-        body: {
-          status: "pending",
+        primary: {
+          status: 200,
+          body: {
+            status: "pending",
+          },
+        },
+        alternate: {
+          status: 200,
+          body: {
+            status: "pending",
+          },
         },
       },
     },
@@ -394,7 +402,7 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomIntent({
+    PaymentIntent: getCustomExchange({
       Request: {
         currency: "EUR",
       },
