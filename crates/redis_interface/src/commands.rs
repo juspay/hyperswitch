@@ -546,7 +546,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetLengthFailed)
     }
 
-    pub fn get_tenant_keys<K>(&self, keys: K) -> MultipleKeys
+    pub fn get_keys_with_prefix<K>(&self, keys: K) -> MultipleKeys
     where
         K: Into<MultipleKeys> + Debug + Send + Sync,
     {
@@ -572,7 +572,7 @@ impl super::RedisConnectionPool {
         K: Into<MultipleKeys> + Debug + Send + Sync,
         Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
-        let strms = self.get_tenant_keys(streams);
+        let strms = self.get_keys_with_prefix(streams);
         self.pool
             .xread_map(
                 Some(read_count.unwrap_or(self.config.default_stream_read_count)),
@@ -611,14 +611,14 @@ impl super::RedisConnectionPool {
                         count,
                         block,
                         false,
-                        self.get_tenant_keys(streams),
+                        self.get_keys_with_prefix(streams),
                         ids,
                     )
                     .await
             }
             None => {
                 self.pool
-                    .xread_map(count, block, self.get_tenant_keys(streams), ids)
+                    .xread_map(count, block, self.get_keys_with_prefix(streams), ids)
                     .await
             }
         }
