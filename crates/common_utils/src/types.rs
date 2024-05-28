@@ -475,7 +475,9 @@ impl StringMinorUnit {
     pub fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let amount_string = &self.0;
         let amount_decimal = Decimal::from_str(amount_string)
-            .map_err(|_| ParsingError::StringToDecimalConversionFailure)?;
+            .map_err(|e| ParsingError::StringToDecimalConversionFailure{
+                error : e.to_string()
+            })?;
         let amount_i64 = amount_decimal
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
@@ -532,7 +534,9 @@ impl StringMajorUnit {
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let amount_decimal = Decimal::from_str(&self.0)
-            .map_err(|_| ParsingError::StringToDecimalConversionFailure)?;
+            .map_err(|e| ParsingError::StringToDecimalConversionFailure{
+                error : e.to_string()
+            })?;
 
         let amount = if currency.is_zero_decimal_currency() {
             amount_decimal
