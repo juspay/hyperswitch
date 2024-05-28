@@ -5,6 +5,7 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+use common_utils::crypto::{Blake3, VerifySignature};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -98,6 +99,8 @@ pub trait AppStateInfo {
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
+    #[cfg(feature = "partial-auth")]
+    fn get_detached_auth(&self) -> (impl VerifySignature, &[u8]);
 }
 
 impl AppStateInfo for AppState {
@@ -128,6 +131,10 @@ impl AppStateInfo for AppState {
     }
     fn get_request_id(&self) -> Option<String> {
         self.api_client.get_request_id()
+    }
+
+    fn get_detached_auth(&self) -> (impl VerifySignature, &[u8]) {
+        (Blake3("TEST".to_string()), b"TEST")
     }
 }
 

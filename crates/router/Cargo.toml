@@ -31,6 +31,11 @@ payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
 
+# Partial Auth
+# The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
+# This is named as partial-auth because the router will still try to authenticate if the `x-merchant-id` header is not present.
+partial-auth = []
+
 [dependencies]
 actix-cors = "0.6.5"
 actix-multipart = "0.6.1"

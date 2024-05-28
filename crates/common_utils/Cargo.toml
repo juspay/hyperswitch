@@ -14,6 +14,7 @@ logs = ["dep:router_env"]
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
+blake3 = "1.5.1"
 bytes = "1.6.0"
 diesel = "2.1.5"
 error-stack = "0.4.1"
@@ -30,6 +31,7 @@ regex = "1.10.4"
 reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = { version = "0.17.8", features = ["std", "wasm32_unknown_unknown_js"] }
 rustc-hash = "1.1.0"
+semver = { version = "1.0.22", features = ["serde"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 serde_urlencoded = "0.7.1"
@@ -38,7 +40,6 @@ strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional = true }
-semver = { version = "1.0.22", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 uuid = { version = "1.8.0", features = ["v7"] }
 

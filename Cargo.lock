@@ -1945,6 +1945,7 @@ name = "common_utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "bytes 1.6.0",
  "common_enums",
  "diesel",
