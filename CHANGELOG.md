@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## v1.108.2
+
+### Build System / Dependencies
+
+- Build(docker): add web client and control center services to docker compose setup ([#4788](https://github.com/juspay/hyperswitch/pull/4788)) ([`aa69c55`](https://github.com/juspay/hyperswitch/commit/aa69c5580478c40c8bea557b04831db46dc658eb))
+
+**Full Changelog:** [`v1.108.1...v1.108.2`](https://github.com/juspay/hyperswitch/compare/v1.108.1...v1.108.2)
+
+- - -
+
 ## v1.108.1
 
 ### Bug Fixes
