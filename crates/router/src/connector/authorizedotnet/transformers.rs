@@ -179,7 +179,7 @@ struct PaymentProfileDetails {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomerDetails {
-    id: String,
+    id: id_type::CustomerId,
 }
 
 #[derive(Debug, Serialize)]
