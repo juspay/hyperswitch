@@ -138,7 +138,7 @@ fn build_region_specific_endpoint(
         .ok_or(errors::ConnectorError::InvalidConnectorConfig {
             config: "merchant_connector_account.metadata.region_based_endpoint",
         })
-        .map(|endpoint| String::from(endpoint))?;
+        .map(String::from)?;
 
     Ok(base_url.replace("{{region_based_endpoint}}", &region_based_endpoint))
 }

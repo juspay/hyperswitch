@@ -48,7 +48,7 @@ pub enum KlarnaEndpoint {
 
 impl From<KlarnaEndpoint> for String {
     fn from(endpoint: KlarnaEndpoint) -> Self {
-        String::from(match endpoint {
+        Self::from(match endpoint {
             KlarnaEndpoint::Europe => "",
             KlarnaEndpoint::NorthAmerica => "-na",
             KlarnaEndpoint::Oceania => "-oc",
