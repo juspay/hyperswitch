@@ -34,6 +34,7 @@ pub enum AuthenticationResponseData {
         authn_flow_type: AuthNFlowType,
         authentication_value: Option<String>,
         trans_status: common_enums::TransactionStatus,
+        connector_metadata: Option<serde_json::Value>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,

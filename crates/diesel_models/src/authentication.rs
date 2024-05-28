@@ -42,7 +42,6 @@ pub struct Authentication {
     pub profile_id: String,
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
-    pub three_ds_requestor_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
 }
 
@@ -88,7 +87,6 @@ pub struct AuthenticationNew {
     pub profile_id: String,
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
-    pub three_ds_requestor_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
 }
 
@@ -128,6 +126,7 @@ pub enum AuthenticationUpdate {
         acs_reference_number: Option<String>,
         acs_trans_id: Option<String>,
         acs_signed_content: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
         authentication_status: common_enums::AuthenticationStatus,
     },
     PostAuthenticationUpdate {
@@ -176,7 +175,6 @@ pub struct AuthenticationUpdateInternal {
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
-    pub three_ds_requestor_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
 }
 
@@ -208,7 +206,6 @@ impl Default for AuthenticationUpdateInternal {
             acs_reference_number: Default::default(),
             acs_trans_id: Default::default(),
             acs_signed_content: Default::default(),
-            three_ds_requestor_trans_id: Default::default(),
             directory_server_id: Default::default(),
         }
     }
@@ -242,7 +239,6 @@ impl AuthenticationUpdateInternal {
             acs_reference_number,
             acs_trans_id,
             acs_signed_content,
-            three_ds_requestor_trans_id,
             directory_server_id,
         } = self;
         Authentication {
@@ -275,8 +271,6 @@ impl AuthenticationUpdateInternal {
             acs_reference_number: acs_reference_number.or(source.acs_reference_number),
             acs_trans_id: acs_trans_id.or(source.acs_trans_id),
             acs_signed_content: acs_signed_content.or(source.acs_signed_content),
-            three_ds_requestor_trans_id: three_ds_requestor_trans_id
-                .or(source.three_ds_requestor_trans_id),
             directory_server_id: directory_server_id.or(source.directory_server_id),
             ..source
         }
@@ -353,6 +347,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acs_reference_number,
                 acs_trans_id,
                 acs_signed_content,
+                connector_metadata,
                 authentication_status,
             } => Self {
                 cavv: authentication_value,
@@ -363,6 +358,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acs_reference_number,
                 acs_trans_id,
                 acs_signed_content,
+                connector_metadata,
                 authentication_status: Some(authentication_status),
                 ..Default::default()
             },

@@ -196,7 +196,8 @@ impl
             .transpose()?;
         let connector_metadata = Some(serde_json::json!(
             gpayments_types::GpaymentsConnectorMetaData {
-                authentication_url: threeds_method_response.auth_url
+                authentication_url: threeds_method_response.auth_url,
+                three_ds_requestor_trans_id: None,
             }
         ));
         let response: Result<

@@ -147,7 +147,6 @@ impl AuthenticationInterface for MockDb {
             profile_id: authentication.profile_id,
             payment_id: authentication.payment_id,
             merchant_connector_id: authentication.merchant_connector_id,
-            three_ds_requestor_trans_id: authentication.three_ds_requestor_trans_id,
             directory_server_id: authentication.directory_server_id,
         };
         authentications.push(authentication.clone());

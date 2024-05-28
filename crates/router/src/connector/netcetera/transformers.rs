@@ -167,6 +167,7 @@ impl
                         authn_flow_type,
                         authentication_value: response.authentication_value,
                         trans_status: response.trans_status,
+                        connector_metadata: None,
                     },
                 )
             }

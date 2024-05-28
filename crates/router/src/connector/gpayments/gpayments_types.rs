@@ -5,6 +5,7 @@ use masking::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GpaymentsConnectorMetaData {
     pub authentication_url: String,
+    pub three_ds_requestor_trans_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
