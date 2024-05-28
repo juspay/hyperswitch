@@ -12,13 +12,13 @@ use rdkafka::{
 pub mod payout;
 use crate::events::EventType;
 mod dispute;
-mod payment_attempt;
-mod payment_intent;
-mod refund;
-mod payment_attempt_event;
-mod payment_intent_event;
-mod refund_event;
 mod dispute_event;
+mod payment_attempt;
+mod payment_attempt_event;
+mod payment_intent;
+mod payment_intent_event;
+mod refund;
+mod refund_event;
 use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
@@ -27,9 +27,10 @@ use time::{OffsetDateTime, PrimitiveDateTime};
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
 use self::{
-    dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
-    payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
-    payment_attempt_event::KafkaPaymentAttemptEvent, payment_intent_event::KafkaPaymentIntentEvent, refund_event::KafkaRefundEvent, dispute_event::KafkaDisputeEvent
+    dispute::KafkaDispute, dispute_event::KafkaDisputeEvent, payment_attempt::KafkaPaymentAttempt,
+    payment_attempt_event::KafkaPaymentAttemptEvent, payment_intent::KafkaPaymentIntent,
+    payment_intent_event::KafkaPaymentIntentEvent, refund::KafkaRefund,
+    refund_event::KafkaRefundEvent,
 };
 use crate::types::storage::Dispute;
 
@@ -110,11 +111,8 @@ struct KafkaConsolidatedEvent<'a, T: KafkaMessage> {
 impl<'a, T: KafkaMessage> KafkaConsolidatedEvent<'a, T> {
     fn new(event: &'a T, tenant_id: TenantID) -> Self {
         Self {
-            log: KafkaConsolidatedLog {
-                event,
-                tenant_id
-            },
-            log_type: event.event_type()
+            log: KafkaConsolidatedLog { event, tenant_id },
+            log_type: event.event_type(),
         }
     }
 }
