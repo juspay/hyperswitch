@@ -6,7 +6,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
     pii::{self, Email},
     request::RequestContent,
-    types::MinorUnit
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::AcceptanceType;
@@ -2417,7 +2417,10 @@ impl<F, T>
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
             response,
-            amount_captured: item.response.amount_received.map(|amount| amount.get_amount_as_i64()),
+            amount_captured: item
+                .response
+                .amount_received
+                .map(|amount| amount.get_amount_as_i64()),
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2599,7 +2602,10 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
-            amount_captured: item.response.amount_received.map(|amount| amount.get_amount_as_i64()),
+            amount_captured: item
+                .response
+                .amount_received
+                .map(|amount| amount.get_amount_as_i64()),
             connector_response: connector_response_data,
             ..item.data
         })
