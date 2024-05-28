@@ -8,10 +8,7 @@ use transformers as klarna;
 
 use crate::{
     configs::settings,
-    connector::{
-        utils as connector_utils,
-        utils:: RefundsRequestData,
-    },
+    connector::{utils as connector_utils, utils::RefundsRequestData},
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -807,7 +804,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
-            let formatted_string = format!(
+        let formatted_string = format!(
             "{}{}{}{}{}",
             endpoint, "ordermanagement/v1/orders/", order_id, "/refunds/", refund_id
         );
