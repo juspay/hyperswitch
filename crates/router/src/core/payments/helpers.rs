@@ -2338,7 +2338,7 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::UpiCollect
+            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent
         ),
         api_enums::PaymentMethod::Voucher => matches!(
             payment_method_type,
@@ -4252,9 +4252,9 @@ pub fn get_key_params_for_surcharge_details(
         )),
         api_models::payments::PaymentMethodData::MandatePayment => None,
         api_models::payments::PaymentMethodData::Reward => None,
-        api_models::payments::PaymentMethodData::Upi(_) => Some((
+        api_models::payments::PaymentMethodData::Upi(upi_data) => Some((
             common_enums::PaymentMethod::Upi,
-            common_enums::PaymentMethodType::UpiCollect,
+            upi_data.get_payment_method_type(),
             None,
         )),
         api_models::payments::PaymentMethodData::Voucher(voucher) => Some((
