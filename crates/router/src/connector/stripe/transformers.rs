@@ -6,6 +6,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
     pii::{self, Email},
     request::RequestContent,
+    types::MinorUnit
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::AcceptanceType;
@@ -127,7 +128,7 @@ pub struct StripeBrowserInformation {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentIntentRequest {
-    pub amount: i64, //amount in cents, hence passed as integer
+    pub amount: MinorUnit, //amount in cents, hence passed as integer
     pub currency: String,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
@@ -163,7 +164,7 @@ pub struct PaymentIntentRequest {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct IntentCharges {
-    pub application_fee_amount: i64,
+    pub application_fee_amount: MinorUnit,
     #[serde(
         rename = "transfer_data[destination]",
         skip_serializing_if = "Option::is_none"
@@ -443,7 +444,7 @@ pub struct MultibancoCreditTransferSourceRequest {
     #[serde(flatten)]
     pub payment_method_data: MultibancoTransferData,
     pub currency: enums::Currency,
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     #[serde(rename = "redirect[return_url]")]
     pub return_url: Option<String>,
 }
@@ -1844,11 +1845,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 let charges = match &charges.charge_type {
                     api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         api_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: charges.fees,
+                            application_fee_amount: MinorUnit::new(charges.fees),
                             destination_account_id: None,
                         }),
                         api_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: charges.fees,
+                            application_fee_amount: MinorUnit::new(charges.fees),
                             destination_account_id: Some(charges.transfer_account_id.clone()),
                         }),
                     },
@@ -1859,7 +1860,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         Ok(Self {
-            amount: item.request.amount, //hopefully we don't loose some cents here
+            amount: MinorUnit::new(item.request.amount), //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
@@ -2036,9 +2037,9 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
-    pub amount: i64,
-    pub amount_received: Option<i64>,
-    pub amount_capturable: Option<i64>,
+    pub amount: MinorUnit,
+    pub amount_received: Option<MinorUnit>,
+    pub amount_capturable: Option<MinorUnit>,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<Secret<String>>,
@@ -2083,8 +2084,8 @@ pub struct MultibancoCreditTansferResponse {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct AchReceiverDetails {
-    pub amount_received: i64,
-    pub amount_charged: i64,
+    pub amount_received: MinorUnit,
+    pub amount_charged: MinorUnit,
 }
 
 #[serde_with::skip_serializing_none]
@@ -2099,13 +2100,13 @@ pub struct SepaAndBacsBankTransferInstructions {
 #[derive(Clone, Debug, Serialize)]
 pub struct QrCodeNextInstructions {
     pub image_data_url: Url,
-    pub display_to_timestamp: Option<i64>,
+    pub display_to_timestamp: Option<MinorUnit>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SepaAndBacsReceiver {
-    pub amount_received: i64,
-    pub amount_remaining: i64,
+    pub amount_received: MinorUnit,
+    pub amount_remaining: MinorUnit,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
@@ -2416,7 +2417,7 @@ impl<F, T>
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
             response,
-            amount_captured: item.response.amount_received,
+            amount_captured: item.response.amount_received.map(|amount| amount.get_amount_as_i64()),
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2425,7 +2426,7 @@ impl<F, T>
 
 pub fn get_connector_metadata(
     next_action: Option<&StripeNextActionResponse>,
-    amount: i64,
+    amount: MinorUnit,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
@@ -2598,7 +2599,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
-            amount_captured: item.response.amount_received,
+            amount_captured: item.response.amount_received.map(|amount| amount.get_amount_as_i64()),
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2795,7 +2796,7 @@ pub struct StripeVerifyWithMicroDepositsResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeBankTransferDetails {
-    pub amount_remaining: i64,
+    pub amount_remaining: MinorUnit,
     pub currency: String,
     pub financial_addresses: Vec<StripeFinancialInformation>,
     pub hosted_instructions_url: Option<String>,
@@ -2813,7 +2814,7 @@ pub struct StripeCashappQrResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct QrCodeResponse {
-    pub expires_at: Option<i64>,
+    pub expires_at: Option<MinorUnit>,
     pub image_url_png: Url,
     pub image_url_svg: Url,
 }
@@ -2847,7 +2848,7 @@ pub struct BacsFinancialDetails {
 
 #[derive(Debug, Serialize)]
 pub struct RefundRequest {
-    pub amount: Option<i64>, //amount in cents, hence passed as integer
+    pub amount: Option<MinorUnit>, //amount in cents, hence passed as integer
     pub payment_intent: String,
     #[serde(flatten)]
     pub meta_data: StripeMetadata,
@@ -2859,7 +2860,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         let amount = item.request.refund_amount;
         let payment_intent = item.request.connector_transaction_id.clone();
         Ok(Self {
-            amount: Some(amount),
+            amount: Some(MinorUnit::new(amount)),
             payment_intent,
             meta_data: StripeMetadata {
                 order_id: Some(item.request.refund_id.clone()),
@@ -2874,7 +2875,7 @@ pub struct ChargeRefundRequest {
     pub charge: String,
     pub refund_application_fee: Option<bool>,
     pub reverse_transfer: Option<bool>,
-    pub amount: Option<i64>, //amount in cents, hence passed as integer
+    pub amount: Option<MinorUnit>, //amount in cents, hence passed as integer
     #[serde(flatten)]
     pub meta_data: StripeMetadata,
 }
@@ -2902,7 +2903,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
                     charge: charges.charge_id.clone(),
                     refund_application_fee,
                     reverse_transfer,
-                    amount: Some(amount),
+                    amount: Some(MinorUnit::new(amount)),
                     meta_data: StripeMetadata {
                         order_id: Some(item.request.refund_id.clone()),
                         is_refund_id_as_reference: Some("true".to_string()),
@@ -2940,7 +2941,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     pub id: String,
     pub object: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub metadata: StripeMetadata,
     pub payment_intent: String,
@@ -3170,14 +3171,14 @@ pub struct StripeMandateOptions {
 #[derive(Debug, Serialize, Clone, Copy)]
 pub struct CaptureRequest {
     /// If amount_to_capture is None stripe captures the amount in the payment intent.
-    amount_to_capture: Option<i64>,
+    amount_to_capture: Option<MinorUnit>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount_to_capture: Some(item.request.amount_to_capture),
+            amount_to_capture: Some(MinorUnit::new(item.request.amount_to_capture)),
         })
     }
 }
@@ -3186,6 +3187,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let currency = item.request.get_currency()?;
+        let amount = item.request.get_amount()?;
 
         match &item.request.payment_method_data {
             Some(domain::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
@@ -3197,7 +3199,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                             payment_method_data: MultibancoTransferData {
                                 email: item.request.get_email()?,
                             },
-                            amount: Some(item.request.get_amount()?),
+                            amount: Some(MinorUnit::new(amount)),
                             return_url: Some(item.get_return_url()?),
                         }),
                     ),
