@@ -7317,6 +7317,29 @@
       "CashappQr": {
         "type": "object"
       },
+      "ChargeRefunds": {
+        "type": "object",
+        "description": "Charge object for refunds",
+        "required": [
+          "charge_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment"
+          },
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
+            "nullable": true
+          },
+          "revert_transfer": {
+            "type": "boolean",
+            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
+            "nullable": true
+          }
+        }
+      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
@@ -11637,7 +11660,8 @@
         "type": "string",
         "enum": [
           "confirm",
-          "sync"
+          "sync",
+          "complete_authorize"
         ]
       },
       "NextActionData": {
@@ -11790,6 +11814,24 @@
                 "type": "string",
                 "enum": [
                   "three_ds_invoke"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "next_action_data",
+              "type"
+            ],
+            "properties": {
+              "next_action_data": {
+                "$ref": "#/components/schemas/SdkNextActionData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_sdk_client"
                 ]
               }
             }
@@ -12528,6 +12570,70 @@
             "nullable": true
           }
         }
+      },
+      "PaymentChargeRequest": {
+        "type": "object",
+        "required": [
+          "charge_type",
+          "fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees to be collected on the payment"
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account to send the funds to"
+          }
+        }
+      },
+      "PaymentChargeResponse": {
+        "type": "object",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment",
+            "nullable": true
+          },
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees collected on the payment"
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account where the funds were transferred"
+          }
+        }
+      },
+      "PaymentChargeType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Stripe"
+            ],
+            "properties": {
+              "Stripe": {
+                "$ref": "#/components/schemas/StripeChargeType"
+              }
+            }
+          }
+        ]
       },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
@@ -13954,6 +14060,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14324,6 +14438,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
               }
             ],
             "nullable": true
@@ -14831,6 +14953,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
               }
             ],
             "nullable": true
@@ -15359,6 +15489,14 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeResponse"
+              }
+            ],
+            "nullable": true
+          },
           "frm_metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
@@ -15844,6 +15982,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
               }
             ],
             "nullable": true
@@ -16653,12 +16799,21 @@
       "PaypalSessionTokenResponse": {
         "type": "object",
         "required": [
-          "session_token"
+          "connector",
+          "session_token",
+          "sdk_next_action"
         ],
         "properties": {
+          "connector": {
+            "type": "string",
+            "description": "Name of the connector"
+          },
           "session_token": {
             "type": "string",
             "description": "The session token for PayPal"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
@@ -17096,6 +17251,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRefunds"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17176,6 +17339,14 @@
           "merchant_connector_id": {
             "type": "string",
             "description": "The merchant_connector_id of the processor through which this payment went through",
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRefunds"
+              }
+            ],
             "nullable": true
           }
         }
@@ -17887,6 +18058,17 @@
           }
         }
       },
+      "SdkNextActionData": {
+        "type": "object",
+        "required": [
+          "next_action"
+        ],
+        "properties": {
+          "next_action": {
+            "$ref": "#/components/schemas/NextActionCall"
+          }
+        }
+      },
       "SecretInfoToInitiateSdk": {
         "type": "object",
         "required": [
@@ -18197,6 +18379,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StripeChargeType": {
+        "type": "string",
+        "enum": [
+          "direct",
+          "destination"
+        ]
       },
       "SurchargeDetailsResponse": {
         "type": "object",
