@@ -49,7 +49,7 @@ pub struct PaymentMethodCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
     /// The card network
@@ -194,7 +194,7 @@ pub struct PaymentMethodResponse {
     pub merchant_id: String,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
     /// The unique identifier of the Payment method
@@ -846,7 +846,7 @@ pub struct CustomerDefaultPaymentMethodResponse {
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub default_payment_method_id: Option<String>,
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: id_type::CustomerId,
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -866,7 +866,7 @@ pub struct CustomerPaymentMethod {
     pub payment_method_id: String,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: id_type::CustomerId,
 
     /// The type of payment method use for the payment.
@@ -952,6 +952,7 @@ pub struct PaymentMethodId {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct DefaultPaymentMethod {
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: id_type::CustomerId,
     pub payment_method_id: String,
 }
