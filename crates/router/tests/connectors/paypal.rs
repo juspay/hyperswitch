@@ -143,6 +143,7 @@ async fn should_sync_authorized_payment() {
                 connector_meta,
                 payment_method_type: None,
                 currency: enums::Currency::USD,
+                payment_experience: None,
             }),
             get_default_payment_info(),
         )
@@ -341,6 +342,7 @@ async fn should_sync_auto_captured_payment() {
                 connector_meta,
                 payment_method_type: None,
                 currency: enums::Currency::USD,
+                payment_experience: None,
             }),
             get_default_payment_info(),
         )
