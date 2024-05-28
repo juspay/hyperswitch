@@ -8195,12 +8195,20 @@ impl Default for super::settings::RequiredFields {
                                                             "TRX".to_string(),
                                                             "DOGE".to_string(),
                                                             "BNB".to_string(),
-                                                            "BUSD".to_string(),
                                                             "USDT".to_string(),
                                                             "USDC".to_string(),
                                                             "DAI".to_string(),
                                                         ]
                                                     },
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.crypto.network".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.crypto.network".to_string(),
+                                                    display_name: "network".to_string(),
+                                                    field_type: enums::FieldType::Text,
                                                     value: None,
                                                 }
                                             ),
