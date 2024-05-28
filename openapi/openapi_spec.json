@@ -7319,7 +7319,7 @@
       },
       "ChargeRefunds": {
         "type": "object",
-        "description": "Charges structs\nCharge object for refunds",
+        "description": "Charge object for refunds",
         "required": [
           "charge_id"
         ],

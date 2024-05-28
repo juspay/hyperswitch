@@ -633,7 +633,7 @@ mod amount_conversion_tests {
     }
 }
 
-/// Charges structs
+// Charges structs
 #[derive(
     Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
