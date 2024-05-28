@@ -913,7 +913,6 @@ impl Default for CCardType {
 impl Default for PaymentAuthorizeType {
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
-            test_amount: None,
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             currency: enums::Currency::USD,

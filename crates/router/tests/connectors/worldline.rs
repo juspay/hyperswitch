@@ -70,7 +70,6 @@ impl WorldlineTest {
         capture_method: enums::CaptureMethod,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
-            test_amount: None,
             amount: 3500,
             currency: enums::Currency::USD,
             payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {

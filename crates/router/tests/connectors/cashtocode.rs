@@ -42,7 +42,6 @@ impl CashtocodeTest {
         payment_method_data: domain::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
-            test_amount: None,
             amount: 1000,
             currency: enums::Currency::EUR,
             payment_method_data,

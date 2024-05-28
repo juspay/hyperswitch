@@ -66,7 +66,6 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        test_amount: None,
         amount: 1,
         currency: enums::Currency::USD,
         payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
