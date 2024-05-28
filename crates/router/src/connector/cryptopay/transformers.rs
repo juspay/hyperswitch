@@ -42,6 +42,8 @@ pub struct CryptopayPaymentsRequest {
     price_amount: String,
     price_currency: enums::Currency,
     pay_currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    network: Option<String>,
     success_redirect_url: Option<String>,
     unsuccess_redirect_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -63,6 +65,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     price_amount: item.amount.to_owned(),
                     price_currency: item.router_data.request.currency,
                     pay_currency,
+                    network: cryptodata.network.to_owned(),
                     success_redirect_url: item.router_data.request.router_return_url.clone(),
                     unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
                     //Cryptopay only accepts metadata as Object. If any other type, payment will fail with error.

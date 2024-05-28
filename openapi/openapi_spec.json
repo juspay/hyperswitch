@@ -7907,6 +7907,10 @@
           "pay_currency": {
             "type": "string",
             "nullable": true
+          },
+          "network": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

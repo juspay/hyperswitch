@@ -285,6 +285,7 @@ pub enum BankRedirectData {
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {
     pub pay_currency: Option<String>,
+    pub network: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -693,8 +694,14 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
 
 impl From<api_models::payments::CryptoData> for CryptoData {
     fn from(value: api_models::payments::CryptoData) -> Self {
-        let api_models::payments::CryptoData { pay_currency } = value;
-        Self { pay_currency }
+        let api_models::payments::CryptoData {
+            pay_currency,
+            network,
+        } = value;
+        Self {
+            pay_currency,
+            network,
+        }
     }
 }
 
