@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutVendorAccountDetails};
@@ -10,7 +10,9 @@ use base64::Engine;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
+    ext_traits::StringExt,
     pii::{self, Email, IpAddress},
+    types::MinorUnit,
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -22,17 +24,19 @@ use serde::Serializer;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
-use crate::types::{fraud_check, storage::enums as storage_enums};
+use crate::types::fraud_check;
 use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::{types::AuthenticationData, PaymentData, RecurringMandatePaymentData},
+        payments::{types::AuthenticationData, PaymentData},
     },
     pii::PeekInterface,
     types::{
-        self, api, domain, transformers::ForeignTryFrom, ApplePayPredecryptData,
-        BrowserInformation, PaymentsCancelData, ResponseId,
+        self, api, domain,
+        storage::enums as storage_enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
+        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -86,7 +90,9 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
@@ -131,7 +137,7 @@ where
     {
         match self.status {
             enums::AttemptStatus::Voided => {
-                if payment_data.payment_intent.amount_captured > Some(0) {
+                if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
                     enums::AttemptStatus::PartialCharged
                 } else {
                     self.status
@@ -141,7 +147,7 @@ where
                 let captured_amount =
                     types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                if Some(total_capturable_amount) == captured_amount {
+                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged
@@ -411,7 +417,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
-    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error> {
+    fn get_recurring_mandate_payment_data(
+        &self,
+    ) -> Result<types::RecurringMandatePaymentData, Error> {
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
@@ -635,7 +643,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             })
     }
     fn is_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            }))
             || self
                 .mandate_id
                 .as_ref()
@@ -682,27 +693,34 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_original_amount(&self) -> i64 {
         self.surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.original_amount)
+            .map(|surcharge_details| surcharge_details.original_amount.get_amount_as_i64())
             .unwrap_or(self.amount)
     }
     fn get_surcharge_amount(&self) -> Option<i64> {
         self.surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount)
+            .map(|surcharge_details| surcharge_details.surcharge_amount.get_amount_as_i64())
     }
     fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
+        self.surcharge_details.as_ref().map(|surcharge_details| {
+            surcharge_details
+                .tax_on_surcharge_amount
+                .get_amount_as_i64()
+        })
     }
     fn get_total_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+        self.surcharge_details.as_ref().map(|surcharge_details| {
+            surcharge_details
+                .get_total_surcharge_amount()
+                .get_amount_as_i64()
+        })
     }
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            })
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
@@ -1502,18 +1520,6 @@ impl AddressDetailsData for api::AddressDetails {
     }
 }
 
-pub trait BankRedirectBillingData {
-    fn get_billing_name(&self) -> Result<Secret<String>, Error>;
-}
-
-impl BankRedirectBillingData for domain::BankRedirectBilling {
-    fn get_billing_name(&self) -> Result<Secret<String>, Error> {
-        self.billing_name
-            .clone()
-            .ok_or_else(missing_field_err("billing_details.billing_name"))
-    }
-}
-
 pub trait MandateData {
     fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error>;
@@ -1539,7 +1545,7 @@ pub trait RecurringMandateData {
     fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
 }
 
-impl RecurringMandateData for RecurringMandatePaymentData {
+impl RecurringMandateData for types::RecurringMandatePaymentData {
     fn get_original_payment_amount(&self) -> Result<i64, Error> {
         self.original_payment_authorized_amount
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
@@ -1789,72 +1795,80 @@ pub fn get_webhook_merchant_secret_key(connector_label: &str, merchant_id: &str)
 impl ForeignTryFrom<String> for UsStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let binding = value.as_str().to_lowercase();
-        let state = binding.as_str();
-        match state {
-            "alabama" => Ok(Self::AL),
-            "alaska" => Ok(Self::AK),
-            "american samoa" => Ok(Self::AS),
-            "arizona" => Ok(Self::AZ),
-            "arkansas" => Ok(Self::AR),
-            "california" => Ok(Self::CA),
-            "colorado" => Ok(Self::CO),
-            "connecticut" => Ok(Self::CT),
-            "delaware" => Ok(Self::DE),
-            "district of columbia" | "columbia" => Ok(Self::DC),
-            "federated states of micronesia" | "micronesia" => Ok(Self::FM),
-            "florida" => Ok(Self::FL),
-            "georgia" => Ok(Self::GA),
-            "guam" => Ok(Self::GU),
-            "hawaii" => Ok(Self::HI),
-            "idaho" => Ok(Self::ID),
-            "illinois" => Ok(Self::IL),
-            "indiana" => Ok(Self::IN),
-            "iowa" => Ok(Self::IA),
-            "kansas" => Ok(Self::KS),
-            "kentucky" => Ok(Self::KY),
-            "louisiana" => Ok(Self::LA),
-            "maine" => Ok(Self::ME),
-            "marshall islands" => Ok(Self::MH),
-            "maryland" => Ok(Self::MD),
-            "massachusetts" => Ok(Self::MA),
-            "michigan" => Ok(Self::MI),
-            "minnesota" => Ok(Self::MN),
-            "mississippi" => Ok(Self::MS),
-            "missouri" => Ok(Self::MO),
-            "montana" => Ok(Self::MT),
-            "nebraska" => Ok(Self::NE),
-            "nevada" => Ok(Self::NV),
-            "new hampshire" => Ok(Self::NH),
-            "new jersey" => Ok(Self::NJ),
-            "new mexico" => Ok(Self::NM),
-            "new york" => Ok(Self::NY),
-            "north carolina" => Ok(Self::NC),
-            "north dakota" => Ok(Self::ND),
-            "northern mariana islands" => Ok(Self::MP),
-            "ohio" => Ok(Self::OH),
-            "oklahoma" => Ok(Self::OK),
-            "oregon" => Ok(Self::OR),
-            "palau" => Ok(Self::PW),
-            "pennsylvania" => Ok(Self::PA),
-            "puerto rico" => Ok(Self::PR),
-            "rhode island" => Ok(Self::RI),
-            "south carolina" => Ok(Self::SC),
-            "south dakota" => Ok(Self::SD),
-            "tennessee" => Ok(Self::TN),
-            "texas" => Ok(Self::TX),
-            "utah" => Ok(Self::UT),
-            "vermont" => Ok(Self::VT),
-            "virgin islands" => Ok(Self::VI),
-            "virginia" => Ok(Self::VA),
-            "washington" => Ok(Self::WA),
-            "west virginia" => Ok(Self::WV),
-            "wisconsin" => Ok(Self::WI),
-            "wyoming" => Ok(Self::WY),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "UsStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alabama" => Ok(Self::AL),
+                    "alaska" => Ok(Self::AK),
+                    "american samoa" => Ok(Self::AS),
+                    "arizona" => Ok(Self::AZ),
+                    "arkansas" => Ok(Self::AR),
+                    "california" => Ok(Self::CA),
+                    "colorado" => Ok(Self::CO),
+                    "connecticut" => Ok(Self::CT),
+                    "delaware" => Ok(Self::DE),
+                    "district of columbia" | "columbia" => Ok(Self::DC),
+                    "federated states of micronesia" | "micronesia" => Ok(Self::FM),
+                    "florida" => Ok(Self::FL),
+                    "georgia" => Ok(Self::GA),
+                    "guam" => Ok(Self::GU),
+                    "hawaii" => Ok(Self::HI),
+                    "idaho" => Ok(Self::ID),
+                    "illinois" => Ok(Self::IL),
+                    "indiana" => Ok(Self::IN),
+                    "iowa" => Ok(Self::IA),
+                    "kansas" => Ok(Self::KS),
+                    "kentucky" => Ok(Self::KY),
+                    "louisiana" => Ok(Self::LA),
+                    "maine" => Ok(Self::ME),
+                    "marshall islands" => Ok(Self::MH),
+                    "maryland" => Ok(Self::MD),
+                    "massachusetts" => Ok(Self::MA),
+                    "michigan" => Ok(Self::MI),
+                    "minnesota" => Ok(Self::MN),
+                    "mississippi" => Ok(Self::MS),
+                    "missouri" => Ok(Self::MO),
+                    "montana" => Ok(Self::MT),
+                    "nebraska" => Ok(Self::NE),
+                    "nevada" => Ok(Self::NV),
+                    "new hampshire" => Ok(Self::NH),
+                    "new jersey" => Ok(Self::NJ),
+                    "new mexico" => Ok(Self::NM),
+                    "new york" => Ok(Self::NY),
+                    "north carolina" => Ok(Self::NC),
+                    "north dakota" => Ok(Self::ND),
+                    "northern mariana islands" => Ok(Self::MP),
+                    "ohio" => Ok(Self::OH),
+                    "oklahoma" => Ok(Self::OK),
+                    "oregon" => Ok(Self::OR),
+                    "palau" => Ok(Self::PW),
+                    "pennsylvania" => Ok(Self::PA),
+                    "puerto rico" => Ok(Self::PR),
+                    "rhode island" => Ok(Self::RI),
+                    "south carolina" => Ok(Self::SC),
+                    "south dakota" => Ok(Self::SD),
+                    "tennessee" => Ok(Self::TN),
+                    "texas" => Ok(Self::TX),
+                    "utah" => Ok(Self::UT),
+                    "vermont" => Ok(Self::VT),
+                    "virgin islands" => Ok(Self::VI),
+                    "virginia" => Ok(Self::VA),
+                    "washington" => Ok(Self::WA),
+                    "west virginia" => Ok(Self::WV),
+                    "wisconsin" => Ok(Self::WI),
+                    "wyoming" => Ok(Self::WY),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
             }
-            .into()),
         }
     }
 }
@@ -1862,26 +1876,33 @@ impl ForeignTryFrom<String> for UsStatesAbbreviation {
 impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let binding = value.as_str().to_lowercase();
-        let state = binding.as_str();
-        match state {
-            "alberta" => Ok(Self::AB),
-            "british columbia" => Ok(Self::BC),
-            "manitoba" => Ok(Self::MB),
-            "new brunswick" => Ok(Self::NB),
-            "newfoundland and labrador" | "newfoundland & labrador" => Ok(Self::NL),
-            "northwest territories" => Ok(Self::NT),
-            "nova scotia" => Ok(Self::NS),
-            "nunavut" => Ok(Self::NU),
-            "ontario" => Ok(Self::ON),
-            "prince edward island" => Ok(Self::PE),
-            "quebec" => Ok(Self::QC),
-            "saskatchewan" => Ok(Self::SK),
-            "yukon" => Ok(Self::YT),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "CanadaStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alberta" => Ok(Self::AB),
+                    "british columbia" => Ok(Self::BC),
+                    "manitoba" => Ok(Self::MB),
+                    "new brunswick" => Ok(Self::NB),
+                    "newfoundland and labrador" | "newfoundland & labrador" => Ok(Self::NL),
+                    "northwest territories" => Ok(Self::NT),
+                    "nova scotia" => Ok(Self::NS),
+                    "nunavut" => Ok(Self::NU),
+                    "ontario" => Ok(Self::ON),
+                    "prince edward island" => Ok(Self::PE),
+                    "quebec" => Ok(Self::QC),
+                    "saskatchewan" => Ok(Self::SK),
+                    "yukon" => Ok(Self::YT),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
             }
-            .into()),
         }
     }
 }
@@ -1964,7 +1985,9 @@ where
                         status: capture_sync_response.get_capture_attempt_status(),
                         connector_response_reference_id: capture_sync_response
                             .get_connector_reference_id(),
-                        amount: capture_sync_response.get_amount_captured(),
+                        amount: capture_sync_response
+                            .get_amount_captured()
+                            .map(MinorUnit::new),
                     },
                 );
             }
@@ -2175,7 +2198,7 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
 }
 
 impl
-    From<(
+    ForeignFrom<(
         Option<String>,
         Option<String>,
         Option<String>,
@@ -2184,7 +2207,7 @@ impl
         Option<String>,
     )> for types::ErrorResponse
 {
-    fn from(
+    fn foreign_from(
         (code, message, reason, http_code, attempt_status, connector_transaction_id): (
             Option<String>,
             Option<String>,
@@ -2297,5 +2320,300 @@ mod error_code_error_message_tests {
             })
         );
         assert_eq!(error_code_error_message_none, None);
+    }
+}
+
+pub fn is_mandate_supported(
+    selected_pmd: domain::payments::PaymentMethodData,
+    payment_method_type: Option<types::storage::enums::PaymentMethodType>,
+    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
+    connector: &'static str,
+) -> Result<(), Error> {
+    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
+        Ok(())
+    } else {
+        match payment_method_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
+}
+
+#[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
+pub enum PaymentMethodDataType {
+    Card,
+    Knet,
+    Benefit,
+    MomoAtm,
+    CardRedirect,
+    AliPayQr,
+    AliPayRedirect,
+    AliPayHkRedirect,
+    MomoRedirect,
+    KakaoPayRedirect,
+    GoPayRedirect,
+    GcashRedirect,
+    ApplePay,
+    ApplePayRedirect,
+    ApplePayThirdPartySdk,
+    DanaRedirect,
+    GooglePay,
+    GooglePayRedirect,
+    GooglePayThirdPartySdk,
+    MbWayRedirect,
+    MobilePayRedirect,
+    PaypalRedirect,
+    PaypalSdk,
+    SamsungPay,
+    TwintRedirect,
+    VippsRedirect,
+    TouchNGoRedirect,
+    WeChatPayRedirect,
+    WeChatPayQr,
+    CashappQr,
+    SwishQr,
+    KlarnaRedirect,
+    KlarnaSdk,
+    AffirmRedirect,
+    AfterpayClearpayRedirect,
+    PayBrightRedirect,
+    WalleyRedirect,
+    AlmaRedirect,
+    AtomeRedirect,
+    BancontactCard,
+    Bizum,
+    Blik,
+    Eps,
+    Giropay,
+    Ideal,
+    Interac,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    OpenBankingUk,
+    Przelewy24,
+    Sofort,
+    Trustly,
+    OnlineBankingFpx,
+    OnlineBankingThailand,
+    AchBankDebit,
+    SepaBankDebit,
+    BecsBankDebit,
+    BacsBankDebit,
+    AchBankTransfer,
+    SepaBankTransfer,
+    BacsBankTransfer,
+    MultibancoBankTransfer,
+    PermataBankTransfer,
+    BcaBankTransfer,
+    BniVaBankTransfer,
+    BriVaBankTransfer,
+    CimbVaBankTransfer,
+    DanamonVaBankTransfer,
+    MandiriVaBankTransfer,
+    Pix,
+    Pse,
+    Crypto,
+    MandatePayment,
+    Reward,
+    Upi,
+    Boleto,
+    Efecty,
+    PagoEfectivo,
+    RedCompra,
+    RedPagos,
+    Alfamart,
+    Indomaret,
+    Oxxo,
+    SevenEleven,
+    Lawson,
+    MiniStop,
+    FamilyMart,
+    Seicomart,
+    PayEasy,
+    Givex,
+    PaySafeCar,
+    CardToken,
+    LocalBankTransfer,
+}
+
+impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
+    fn from(pm_data: domain::payments::PaymentMethodData) -> Self {
+        match pm_data {
+            domain::payments::PaymentMethodData::Card(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
+                match card_redirect_data {
+                    domain::CardRedirectData::Knet {} => Self::Knet,
+                    domain::payments::CardRedirectData::Benefit {} => Self::Benefit,
+                    domain::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm,
+                    domain::payments::CardRedirectData::CardRedirect {} => Self::CardRedirect,
+                }
+            }
+            domain::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
+                domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
+                domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                domain::payments::WalletData::MomoRedirect(_) => Self::MomoRedirect,
+                domain::payments::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
+                domain::payments::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
+                domain::payments::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                domain::payments::WalletData::ApplePay(_) => Self::ApplePay,
+                domain::payments::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
+                domain::payments::WalletData::ApplePayThirdPartySdk(_) => {
+                    Self::ApplePayThirdPartySdk
+                }
+                domain::payments::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                domain::payments::WalletData::GooglePay(_) => Self::GooglePay,
+                domain::payments::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
+                domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
+                    Self::GooglePayThirdPartySdk
+                }
+                domain::payments::WalletData::MbWayRedirect(_) => Self::MbWayRedirect,
+                domain::payments::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
+                domain::payments::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
+                domain::payments::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                domain::payments::WalletData::SamsungPay(_) => Self::SamsungPay,
+                domain::payments::WalletData::TwintRedirect {} => Self::TwintRedirect,
+                domain::payments::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                domain::payments::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
+                domain::payments::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
+                domain::payments::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
+                domain::payments::WalletData::CashappQr(_) => Self::CashappQr,
+                domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
+            },
+            domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
+                domain::payments::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
+                domain::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
+                domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    Self::AfterpayClearpayRedirect
+                }
+                domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
+                domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
+                domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+            },
+            domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                match bank_redirect_data {
+                    domain::payments::BankRedirectData::BancontactCard { .. } => {
+                        Self::BancontactCard
+                    }
+                    domain::payments::BankRedirectData::Bizum {} => Self::Bizum,
+                    domain::payments::BankRedirectData::Blik { .. } => Self::Blik,
+                    domain::payments::BankRedirectData::Eps { .. } => Self::Eps,
+                    domain::payments::BankRedirectData::Giropay { .. } => Self::Giropay,
+                    domain::payments::BankRedirectData::Ideal { .. } => Self::Ideal,
+                    domain::payments::BankRedirectData::Interac { .. } => Self::Interac,
+                    domain::payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
+                        Self::OnlineBankingCzechRepublic
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingFinland { .. } => {
+                        Self::OnlineBankingFinland
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingPoland { .. } => {
+                        Self::OnlineBankingPoland
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingSlovakia { .. } => {
+                        Self::OnlineBankingSlovakia
+                    }
+                    domain::payments::BankRedirectData::OpenBankingUk { .. } => Self::OpenBankingUk,
+                    domain::payments::BankRedirectData::Przelewy24 { .. } => Self::Przelewy24,
+                    domain::payments::BankRedirectData::Sofort { .. } => Self::Sofort,
+                    domain::payments::BankRedirectData::Trustly { .. } => Self::Trustly,
+                    domain::payments::BankRedirectData::OnlineBankingFpx { .. } => {
+                        Self::OnlineBankingFpx
+                    }
+                    domain::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                        Self::OnlineBankingThailand
+                    }
+                }
+            }
+            domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data {
+                    domain::payments::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
+                    domain::payments::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                    domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
+                    domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
+                }
+            }
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match *bank_transfer_data {
+                    domain::payments::BankTransferData::AchBankTransfer { .. } => {
+                        Self::AchBankTransfer
+                    }
+                    domain::payments::BankTransferData::SepaBankTransfer { .. } => {
+                        Self::SepaBankTransfer
+                    }
+                    domain::payments::BankTransferData::BacsBankTransfer { .. } => {
+                        Self::BacsBankTransfer
+                    }
+                    domain::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                        Self::MultibancoBankTransfer
+                    }
+                    domain::payments::BankTransferData::PermataBankTransfer { .. } => {
+                        Self::PermataBankTransfer
+                    }
+                    domain::payments::BankTransferData::BcaBankTransfer { .. } => {
+                        Self::BcaBankTransfer
+                    }
+                    domain::payments::BankTransferData::BniVaBankTransfer { .. } => {
+                        Self::BniVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::BriVaBankTransfer { .. } => {
+                        Self::BriVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::CimbVaBankTransfer { .. } => {
+                        Self::CimbVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::DanamonVaBankTransfer { .. } => {
+                        Self::DanamonVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                        Self::MandiriVaBankTransfer
+                    }
+                    domain::payments::BankTransferData::Pix {} => Self::Pix,
+                    domain::payments::BankTransferData::Pse {} => Self::Pse,
+                    domain::payments::BankTransferData::LocalBankTransfer { .. } => {
+                        Self::LocalBankTransfer
+                    }
+                }
+            }
+            domain::payments::PaymentMethodData::Crypto(_) => Self::Crypto,
+            domain::payments::PaymentMethodData::MandatePayment => Self::MandatePayment,
+            domain::payments::PaymentMethodData::Reward => Self::Reward,
+            domain::payments::PaymentMethodData::Upi(_) => Self::Upi,
+            domain::payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
+                domain::payments::VoucherData::Boleto(_) => Self::Boleto,
+                domain::payments::VoucherData::Efecty => Self::Efecty,
+                domain::payments::VoucherData::PagoEfectivo => Self::PagoEfectivo,
+                domain::payments::VoucherData::RedCompra => Self::RedCompra,
+                domain::payments::VoucherData::RedPagos => Self::RedPagos,
+                domain::payments::VoucherData::Alfamart(_) => Self::Alfamart,
+                domain::payments::VoucherData::Indomaret(_) => Self::Indomaret,
+                domain::payments::VoucherData::Oxxo => Self::Oxxo,
+                domain::payments::VoucherData::SevenEleven(_) => Self::SevenEleven,
+                domain::payments::VoucherData::Lawson(_) => Self::Lawson,
+                domain::payments::VoucherData::MiniStop(_) => Self::MiniStop,
+                domain::payments::VoucherData::FamilyMart(_) => Self::FamilyMart,
+                domain::payments::VoucherData::Seicomart(_) => Self::Seicomart,
+                domain::payments::VoucherData::PayEasy(_) => Self::PayEasy,
+            },
+            domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
+                match *gift_card_data {
+                    domain::payments::GiftCardData::Givex(_) => Self::Givex,
+                    domain::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+                }
+            }
+            domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
+        }
     }
 }

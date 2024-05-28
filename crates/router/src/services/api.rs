@@ -91,6 +91,26 @@ pub trait ConnectorValidation: ConnectorCommon {
         }
     }
 
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        _pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
+
     fn validate_psync_reference_id(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -1306,6 +1326,11 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
         #[cfg(not(feature = "detailed_errors"))]
         self
     }
+}
+
+impl EmbedError
+    for Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>
+{
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {

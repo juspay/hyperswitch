@@ -10,7 +10,7 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
   <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
-  <a href="https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md">Local Setup Guide</a> •
+  <a href="/docs/try_local_system.md">Local Setup Guide</a> •
   <a href="#-fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
   <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> •
   <a href="#-supported-features">Supported Features</a> •
@@ -75,10 +75,12 @@ The fastest and easiest way to try Hyperswitch is via our CDK scripts
 You can run Hyperswitch on your system using Docker Compose after cloning this repository:
 
 ```shell
+git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
+cd hyperswitch
 docker compose up -d
 ```
 
-This will start the payments router, the primary component within Hyperswitch.
+This will start the app server, web client and control center.
 
 Check out the [local setup guide][local-setup-guide] for a more comprehensive
 setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].

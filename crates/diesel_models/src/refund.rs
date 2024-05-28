@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{pii, types::ChargeRefunds};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -39,6 +39,7 @@ pub struct Refund {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(
@@ -81,6 +82,7 @@ pub struct RefundNew {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -275,7 +277,8 @@ mod tests {
     "refund_error_code": null,
     "profile_id": null,
     "updated_by": "admin",
-    "merchant_connector_id": null
+    "merchant_connector_id": null,
+    "charges": null
 }"#;
         let deserialized = serde_json::from_str::<super::Refund>(serialized_refund);
 

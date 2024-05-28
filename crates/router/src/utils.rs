@@ -1,7 +1,6 @@
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
-pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
 #[cfg(feature = "kv_store")]
@@ -185,7 +184,7 @@ impl QrImage {
         let image_data_source = format!(
             "{},{}",
             consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes.get_ref().get_ref())
+            consts::BASE64_ENGINE.encode(image_bytes.buffer())
         );
         Ok(Self {
             data: image_data_source,
@@ -577,7 +576,7 @@ pub trait CustomerAddress {
         customer_id: &str,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
+    ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
 }
 
 #[async_trait::async_trait]
@@ -645,9 +644,9 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         customer_id: &str,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+    ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
         async {
-            Ok(domain::Address {
+            let address = domain::Address {
                 id: None,
                 city: address_details.city,
                 country: address_details.country,
@@ -685,10 +684,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
-                payment_id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 updated_by: storage_scheme.to_string(),
@@ -698,6 +695,11 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .cloned()
                     .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
                     .await?,
+            };
+
+            Ok(domain::CustomerAddress {
+                address,
+                customer_id: customer_id.to_string(),
             })
         }
         .await

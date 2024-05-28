@@ -441,6 +441,7 @@ pub async fn update_business_profile_cascade(
             authentication_connector_details: None,
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: None,
+            collect_shipping_details_from_wallet_connector: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1244,17 +1245,6 @@ pub async fn update_payment_connector(
         }
     }
 
-    // The purpose of this merchant account update is just to update the
-    // merchant account `modified_at` field for KGraph cache invalidation
-    db.update_specific_fields_in_merchant(
-        merchant_id,
-        storage::MerchantAccountUpdate::ModifiedAtUpdate,
-        &key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("error updating the merchant account when updating payment connector")?;
-
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
@@ -1381,6 +1371,13 @@ pub async fn kv_for_merchant(
             Ok(merchant_account)
         }
         (true, MerchantStorageScheme::PostgresOnly) => {
+            if state.conf.as_ref().is_kv_soft_kill_mode() {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Kv cannot be enabled when application is in soft_kill_mode"
+                        .to_owned(),
+                })?
+            }
+
             db.update_merchant(
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
@@ -1415,6 +1412,36 @@ pub async fn kv_for_merchant(
         api_models::admin::ToggleKVResponse {
             merchant_id: updated_merchant_account.merchant_id,
             kv_enabled: kv_status,
+        },
+    ))
+}
+
+pub async fn toggle_kv_for_all_merchants(
+    state: AppState,
+    enable: bool,
+) -> RouterResponse<api_models::admin::ToggleAllKVResponse> {
+    let db = state.store.as_ref();
+    let storage_scheme = if enable {
+        MerchantStorageScheme::RedisKv
+    } else {
+        MerchantStorageScheme::PostgresOnly
+    };
+
+    let total_update = db
+        .update_all_merchant_account(storage::MerchantAccountUpdate::StorageSchemeUpdate {
+            storage_scheme,
+        })
+        .await
+        .map_err(|error| {
+            error
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to switch merchant_storage_scheme for all merchants")
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ToggleAllKVResponse {
+            total_updated: total_update,
+            kv_enabled: enable,
         },
     ))
 }
@@ -1693,6 +1720,8 @@ pub async fn update_business_profile(
             })?,
         extended_card_info_config,
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
+        collect_shipping_details_from_wallet_connector: request
+            .collect_shipping_details_from_wallet_connector,
     };
 
     let updated_business_profile = db
@@ -1794,6 +1823,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         //     mifinity::transformers::MifinityAuthType::try_from(val)?;
         //     Ok(())
         // } Added as template code for future usage
+        // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
         | api_enums::Connector::DummyConnector2
@@ -1903,6 +1933,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Gpayments => {
+        //     gpayments::transformers::GpaymentsAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
         api_enums::Connector::Helcim => {
             helcim::transformers::HelcimAuthType::try_from(val)?;
             Ok(())

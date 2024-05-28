@@ -3,12 +3,16 @@ use std::str::FromStr;
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
 use super::BoxedConnector;
 use crate::core::errors;
 
 #[derive(Debug, Clone)]
 pub struct PreAuthentication;
+
+#[derive(Debug, Clone)]
+pub struct PreAuthenticationVersionCall;
 
 #[derive(Debug, Clone)]
 pub struct Authentication;
@@ -50,7 +54,7 @@ impl TryFrom<storage::Authentication> for AuthenticationResponse {
             challenge_request: authentication.challenge_request,
             acs_reference_number: authentication.acs_reference_number,
             acs_trans_id: authentication.acs_trans_id,
-            three_dsserver_trans_id: authentication.three_ds_server_trans_id,
+            three_dsserver_trans_id: authentication.threeds_server_transaction_id,
             acs_signed_content: authentication.acs_signed_content,
         })
     }
@@ -61,12 +65,6 @@ pub struct PostAuthenticationResponse {
     pub trans_status: String,
     pub authentication_value: Option<String>,
     pub eci: Option<String>,
-}
-
-#[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
-pub enum MessageCategory {
-    Payment,
-    NonPayment,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
@@ -94,6 +92,15 @@ pub trait ConnectorPreAuthentication:
 {
 }
 
+pub trait ConnectorPreAuthenticationVersionCall:
+    services::ConnectorIntegration<
+    PreAuthenticationVersionCall,
+    types::authentication::PreAuthNRequestData,
+    types::authentication::AuthenticationResponseData,
+>
+{
+}
+
 pub trait ConnectorPostAuthentication:
     services::ConnectorIntegration<
     PostAuthentication,
@@ -107,6 +114,7 @@ pub trait ExternalAuthentication:
     super::ConnectorCommon
     + ConnectorAuthentication
     + ConnectorPreAuthentication
+    + ConnectorPreAuthenticationVersionCall
     + ConnectorPostAuthentication
 {
 }
@@ -137,6 +145,7 @@ impl AuthenticationConnectorData {
                 Ok(Box::new(&connector::Threedsecureio))
             }
             enums::AuthenticationConnectors::Netcetera => Ok(Box::new(&connector::Netcetera)),
+            enums::AuthenticationConnectors::Gpayments => Ok(Box::new(&connector::Gpayments)),
         }
     }
 }

@@ -71,6 +71,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         currency: enums::Currency::USD,
         payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: Some("XRP".to_string()),
+            network: None,
         }),
         confirm: true,
         statement_descriptor_suffix: None,
@@ -99,6 +100,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         metadata: None,
         authentication_data: None,
         customer_acceptance: None,
+        ..utils::PaymentAuthorizeType::default().0
     })
 }
 

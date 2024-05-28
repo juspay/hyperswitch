@@ -735,6 +735,7 @@ fn handle_cards_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -764,6 +765,7 @@ fn handle_bank_redirects_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -797,6 +799,7 @@ fn handle_bank_redirects_error_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -857,6 +860,7 @@ fn handle_bank_redirects_sync_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -904,6 +908,7 @@ pub fn handle_webhook_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -1223,6 +1228,8 @@ pub fn get_apple_pay_session<F, T>(
                         ),
                         total: apple_pay_init_result.total.into(),
                         merchant_identifier: None,
+                        required_billing_contact_fields: None,
+                        required_shipping_contact_fields: None,
                     }),
                     connector: "trustpay".to_string(),
                     delayed_session_token: true,
@@ -1280,6 +1287,12 @@ pub fn get_google_pay_session<F, T>(
                             .collect(),
                         transaction_info: google_pay_init_result.transaction_info.into(),
                         secrets: Some((*secrets).clone().into()),
+                        shipping_address_required: false,
+                        email_required: false,
+                        shipping_address_parameters:
+                            api_models::payments::GpayShippingAddressParameters {
+                                phone_number_required: false,
+                            },
                     },
                 ),
             ))),
@@ -1326,6 +1339,8 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
         Self {
             allowed_auth_methods: value.allowed_auth_methods,
             allowed_card_networks: value.allowed_card_networks,
+            billing_address_required: None,
+            billing_address_parameters: None,
         }
     }
 }

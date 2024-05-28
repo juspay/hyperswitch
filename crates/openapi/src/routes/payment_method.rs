@@ -138,7 +138,7 @@ pub async fn payment_method_retrieve_api() {}
 /// This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.
 #[utoipa::path(
     post,
-    path = "/payment_methods/{method_id}",
+    path = "/payment_methods/{method_id}/update",
     params (
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
@@ -149,7 +149,7 @@ pub async fn payment_method_retrieve_api() {}
     ),
     tag = "Payment Methods",
     operation_id = "Update a Payment method",
-    security(("api_key" = []))
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 pub async fn payment_method_update_api() {}
 

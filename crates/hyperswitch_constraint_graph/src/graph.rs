@@ -13,6 +13,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     ctx: &'a C,
     node: &'a Node<V>,
@@ -24,6 +25,7 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     domains: Option<&'a [DomainId]>,
 }
 
+#[derive(Debug)]
 pub struct ConstraintGraph<'a, V: ValueNode> {
     pub domain: DenseMap<DomainId, DomainInfo<'a>>,
     pub domain_identifier_map: FxHashMap<DomainIdentifier<'a>, DomainId>,
@@ -139,6 +141,7 @@ where
                 ctx,
                 domains,
             };
+
             match &node.node_type {
                 NodeType::AllAggregator => self.validate_all_aggregator(check_node_context),
 
@@ -206,6 +209,7 @@ where
         } else {
             vald.memo
                 .insert((vald.node_id, vald.relation, vald.strength), Ok(()));
+
             Ok(())
         }
     }
@@ -583,5 +587,94 @@ where
         }
 
         Ok(node_builder.build())
+    }
+}
+
+#[cfg(feature = "viz")]
+mod viz {
+    use graphviz_rust::{
+        dot_generator::*,
+        dot_structures::*,
+        printer::{DotPrinter, PrinterContext},
+    };
+
+    use crate::{dense_map::EntityId, types, ConstraintGraph, NodeViz, ValueNode};
+
+    fn get_node_id(node_id: types::NodeId) -> String {
+        format!("N{}", node_id.get_id())
+    }
+
+    impl<'a, V> ConstraintGraph<'a, V>
+    where
+        V: ValueNode + NodeViz,
+        <V as ValueNode>::Key: NodeViz,
+    {
+        fn get_node_label(node: &types::Node<V>) -> String {
+            let label = match &node.node_type {
+                types::NodeType::Value(types::NodeValue::Key(key)) => format!("any {}", key.viz()),
+                types::NodeType::Value(types::NodeValue::Value(val)) => {
+                    format!("{} = {}", val.get_key().viz(), val.viz())
+                }
+                types::NodeType::AllAggregator => "&&".to_string(),
+                types::NodeType::AnyAggregator => "| |".to_string(),
+                types::NodeType::InAggregator(agg) => {
+                    let key = if let Some(val) = agg.iter().next() {
+                        val.get_key().viz()
+                    } else {
+                        return "empty in".to_string();
+                    };
+
+                    let nodes = agg.iter().map(NodeViz::viz).collect::<Vec<_>>();
+                    format!("{key} in [{}]", nodes.join(", "))
+                }
+            };
+
+            format!("\"{label}\"")
+        }
+
+        fn build_node(cg_node_id: types::NodeId, cg_node: &types::Node<V>) -> Node {
+            let viz_node_id = get_node_id(cg_node_id);
+            let viz_node_label = Self::get_node_label(cg_node);
+
+            node!(viz_node_id; attr!("label", viz_node_label))
+        }
+
+        fn build_edge(cg_edge: &types::Edge) -> Edge {
+            let pred_vertex = get_node_id(cg_edge.pred);
+            let succ_vertex = get_node_id(cg_edge.succ);
+            let arrowhead = match cg_edge.strength {
+                types::Strength::Weak => "onormal",
+                types::Strength::Normal => "normal",
+                types::Strength::Strong => "normalnormal",
+            };
+            let color = match cg_edge.relation {
+                types::Relation::Positive => "blue",
+                types::Relation::Negative => "red",
+            };
+
+            edge!(
+                node_id!(pred_vertex) => node_id!(succ_vertex);
+                attr!("arrowhead", arrowhead),
+                attr!("color", color)
+            )
+        }
+
+        pub fn get_viz_digraph(&self) -> Graph {
+            graph!(
+                strict di id!("constraint_graph"),
+                self.nodes
+                    .iter()
+                    .map(|(node_id, node)| Self::build_node(node_id, node))
+                    .map(Stmt::Node)
+                    .chain(self.edges.values().map(Self::build_edge).map(Stmt::Edge))
+                    .collect::<Vec<_>>()
+            )
+        }
+
+        pub fn get_viz_digraph_string(&self) -> String {
+            let mut ctx = PrinterContext::default();
+            let digraph = self.get_viz_digraph();
+            digraph.print(&mut ctx)
+        }
     }
 }

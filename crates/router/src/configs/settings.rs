@@ -18,7 +18,7 @@ use external_services::{
     },
 };
 use hyperswitch_interfaces::secrets_interface::secret_state::{
-    SecretState, SecretStateContainer, SecuredSecret,
+    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
 };
 use masking::Secret;
 use redis_interface::RedisSettings;
@@ -138,6 +138,7 @@ pub struct Frm {
 #[derive(Debug, Deserialize, Clone)]
 pub struct KvConfig {
     pub ttl: u32,
+    pub soft_kill: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -394,6 +395,7 @@ pub struct Secrets {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
     pub password_validity_in_days: u16,
+    pub two_factor_auth_expiry_in_secs: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -518,6 +520,7 @@ pub struct Connectors {
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
     pub gocardless: ConnectorParams,
+    pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
@@ -533,6 +536,7 @@ pub struct Connectors {
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
     pub payme: ConnectorParams,
+    pub payone: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub placetopay: ConnectorParams,
@@ -754,6 +758,18 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         Ok(())
+    }
+}
+
+impl Settings<RawSecret> {
+    #[cfg(feature = "kv_store")]
+    pub fn is_kv_soft_kill_mode(&self) -> bool {
+        self.kv_config.soft_kill.unwrap_or(false)
+    }
+
+    #[cfg(not(feature = "kv_store"))]
+    pub fn is_kv_soft_kill_mode(&self) -> bool {
+        false
     }
 }
 
