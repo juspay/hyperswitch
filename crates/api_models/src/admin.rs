@@ -714,6 +714,7 @@ pub struct MerchantConnectorUpdate {
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
 
+    #[schema(value_type = Option<Object>)]
     pub connector_wallets_details: Option<pii::SecretSerdeValue>,
 }
 
