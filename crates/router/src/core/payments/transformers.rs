@@ -1,13 +1,16 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::{FrmMessage, GetAddressFromPaymentMethodData, RequestSurchargeDetails};
+use api_models::payments::{
+    FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
+    RequestSurchargeDetails,
+};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::{Maskable, Secret};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
@@ -86,6 +89,7 @@ where
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -535,6 +539,11 @@ where
 
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
+        let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
+
+        let next_action_containing_fetch_qr_code_url =
+            fetch_qr_code_url_next_steps_check(payment_attempt.clone())?;
+
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
@@ -543,6 +552,8 @@ where
             || next_action_voucher.is_some()
             || next_action_containing_qr_code_url.is_some()
             || next_action_containing_wait_screen.is_some()
+            || papal_sdk_next_action.is_some()
+            || next_action_containing_fetch_qr_code_url.is_some()
             || payment_data.authentication.is_some()
         {
             next_action_response = bank_transfer_next_steps
@@ -558,6 +569,16 @@ where
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
                             api_models::payments::NextActionData::foreign_from(qr_code_data)
+                        }))
+                        .or(next_action_containing_fetch_qr_code_url.map(|fetch_qr_code_data| {
+                            api_models::payments::NextActionData::FetchQrCodeInformation {
+                                qr_code_fetch_url: fetch_qr_code_data.qr_code_fetch_url
+                            }
+                        }))
+                        .or(papal_sdk_next_action.map(|paypal_next_action_data| {
+                            api_models::payments::NextActionData::InvokeSdkClient{
+                                next_action_data: paypal_next_action_data
+                            }
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
@@ -636,6 +657,28 @@ where
                 connector_name,
             )
         });
+
+        let charges_response = match payment_intent.charges {
+            None => None,
+            Some(charges) => {
+                let payment_charges: PaymentChargeRequest = charges
+                    .peek()
+                    .clone()
+                    .parse_value("PaymentChargeRequest")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!(
+                        "Failed to parse PaymentChargeRequest for payment_intent {}",
+                        payment_intent.payment_id
+                    ))?;
+
+                Some(PaymentChargeResponse {
+                    charge_id: payment_attempt.charge_id,
+                    charge_type: payment_charges.charge_type,
+                    application_fees: payment_charges.fees,
+                    transfer_account_id: payment_charges.transfer_account_id,
+                })
+            }
+        };
 
         services::ApplicationResponse::JsonWithHeaders((
             response
@@ -788,6 +831,7 @@ where
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))
+                .set_charges(charges_response)
                 .set_frm_metadata(payment_intent.frm_metadata)
                 .to_owned(),
             headers,
@@ -847,6 +891,33 @@ pub fn qr_code_next_steps_check(
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
+}
+pub fn paypal_sdk_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::SdkNextActionData>> {
+    let paypal_connector_metadata: Option<Result<api_models::payments::SdkNextActionData, _>> =
+        payment_attempt.connector_metadata.map(|metadata| {
+            metadata.parse_value("SdkNextActionData").map_err(|_| {
+                crate::logger::warn!(
+                    "SdkNextActionData parsing failed for paypal_connector_metadata"
+                )
+            })
+        });
+
+    let paypal_next_steps = paypal_connector_metadata.transpose().ok().flatten();
+    Ok(paypal_next_steps)
+}
+
+pub fn fetch_qr_code_url_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::FetchQrCodeInformation>> {
+    let qr_code_steps: Option<Result<api_models::payments::FetchQrCodeInformation, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("FetchQrCodeInformation"));
+
+    let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
+    Ok(qr_code_fetch_url)
 }
 
 pub fn wait_screen_next_steps_check(
@@ -1058,8 +1129,8 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 display_to_timestamp,
             } => Self::QrCodeInformation {
                 qr_code_url: Some(qr_code_url),
-                display_to_timestamp,
                 image_data_url: None,
+                display_to_timestamp,
             },
         }
     }
@@ -1166,6 +1237,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .map(|customer| customer.clone().into_inner())
             });
 
+        let charges = match payment_data.payment_intent.charges {
+            Some(charges) => charges
+                .peek()
+                .clone()
+                .parse_value("PaymentCharges")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse charges in to PaymentCharges")?,
+            None => None,
+        };
+
         Ok(Self {
             payment_method_data: From::from(
                 payment_method_data.get_required_value("payment_method_data")?,
@@ -1209,6 +1290,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(AuthenticationData::foreign_try_from)
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
+            charges,
         })
     }
 }
@@ -1237,6 +1319,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
+            payment_experience: payment_data.payment_attempt.payment_experience,
         })
     }
 }

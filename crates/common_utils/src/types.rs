@@ -22,7 +22,7 @@ use rust_decimal::{
     Decimal,
 };
 use semver::Version;
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
@@ -30,7 +30,7 @@ use crate::{
     errors::{CustomResult, ParsingError, PercentageError},
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
-#[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize)]
 pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
@@ -165,7 +165,7 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
 }
 
 /// represents surcharge type and value
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
@@ -177,7 +177,7 @@ pub enum Surcharge {
 /// This struct lets us represent a semantic version type
 #[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
 #[diesel(sql_type = Jsonb)]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, serde::Deserialize)]
 pub struct SemanticVersion(#[serde(with = "Version")] Version);
 
 impl SemanticVersion {
@@ -317,7 +317,6 @@ impl AmountConvertor for FloatMajorUnitForConnector {
         i.to_minor_unit_as_i64(currency)
     }
 }
-
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
     Default,
@@ -368,17 +367,18 @@ impl MinorUnit {
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
         let amount_decimal =
             Decimal::from_i64(self.0).ok_or(ParsingError::I64ToDecimalConversionFailure)?;
-        let amount_f64 = amount_decimal
+
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal / Decimal::from(1000)
+        } else {
+            amount_decimal / Decimal::from(100)
+        };
+        let amount_f64 = amount
             .to_f64()
             .ok_or(ParsingError::FloatToDecimalConversionFailure)?;
-        let amount = if currency.is_zero_decimal_currency() {
-            amount_f64
-        } else if currency.is_three_decimal_currency() {
-            amount_f64 / 1000.00
-        } else {
-            amount_f64 / 100.00
-        };
-        Ok(FloatMajorUnit::new(amount))
+        Ok(FloatMajorUnit::new(amount_f64))
     }
 
     ///Convert the higher decimal amount to its major absolute units
@@ -471,13 +471,12 @@ impl StringMinorUnit {
         Self(value)
     }
 
-    /// converts to i64 from minor unit string value
+    /// converts to minor unit i64 from minor unit string value
     pub fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let amount_string = &self.0;
         let amount_decimal = Decimal::from_str(amount_string)
             .map_err(|_| ParsingError::StringToDecimalConversionFailure)?;
-        let amount_decimal_scaled = amount_decimal.round();
-        let amount_i64 = amount_decimal_scaled
+        let amount_i64 = amount_decimal
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
@@ -499,19 +498,18 @@ impl FloatMajorUnit {
         &self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        let amount_f64 = self.0;
+        let amount_decimal =
+            Decimal::from_f64(self.0).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+
         let amount = if currency.is_zero_decimal_currency() {
-            amount_f64
+            amount_decimal
         } else if currency.is_three_decimal_currency() {
-            amount_f64 * 1000.00
+            amount_decimal * Decimal::from(1000)
         } else {
-            amount_f64 * 100.00
+            amount_decimal * Decimal::from(100)
         };
 
-        let amount_decimal =
-            Decimal::from_f64(amount).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
-        let amount_decimal_scaled = amount_decimal.round();
-        let amount_i64 = amount_decimal_scaled
+        let amount_i64 = amount
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
@@ -533,22 +531,17 @@ impl StringMajorUnit {
         &self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        let amount_f64 = self
-            .0
-            .parse::<f64>()
-            .change_context(ParsingError::StringToFloatConversionFailure)?;
-        let amount = if currency.is_zero_decimal_currency() {
-            amount_f64
-        } else if currency.is_three_decimal_currency() {
-            amount_f64 * 1000.00
-        } else {
-            amount_f64 * 100.00
-        };
+        let amount_decimal = Decimal::from_str(&self.0)
+            .map_err(|_| ParsingError::StringToDecimalConversionFailure)?;
 
-        let amount_decimal =
-            Decimal::from_f64(amount).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
-        let amount_decimal_scaled = amount_decimal.round();
-        let amount_i64 = amount_decimal_scaled
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal * Decimal::from(1000)
+        } else {
+            amount_decimal * Decimal::from(100)
+        };
+        let amount_i64 = amount
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
@@ -636,5 +629,48 @@ mod amount_conversion_tests {
             .convert_back(converted_amount, currency)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
+    }
+}
+
+/// Charges structs
+#[derive(
+    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+/// Charge object for refunds
+pub struct ChargeRefunds {
+    /// Identifier for charge created for the payment
+    pub charge_id: String,
+
+    /// Toggle for reverting the application fee that was collected for the payment.
+    /// If set to false, the funds are pulled from the destination account.
+    pub revert_platform_fee: Option<bool>,
+
+    /// Toggle for reverting the transfer that was made during the charge.
+    /// If set to false, the funds are pulled from the main platform's account.
+    pub revert_transfer: Option<bool>,
+}
+
+impl<DB: Backend> FromSql<Jsonb, DB> for ChargeRefunds
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for ChargeRefunds
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
     }
 }

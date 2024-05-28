@@ -148,7 +148,6 @@ pub trait ConnectorCommon {
             connector_transaction_id: None,
         })
     }
-
 }
 
 /// Extended trait for connector common to allow functions with generic type
@@ -216,6 +215,7 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 pub enum GetToken {
     GpayMetadata,
     ApplePayMetadata,
+    PaypalSdkMetadata,
     Connector,
 }
 

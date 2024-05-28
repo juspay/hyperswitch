@@ -100,6 +100,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         metadata: None,
         authentication_data: None,
         customer_acceptance: None,
+        ..utils::PaymentAuthorizeType::default().0
     })
 }
 

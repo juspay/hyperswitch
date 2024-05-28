@@ -105,7 +105,6 @@ impl ConnectorCommon for Nmi {
             connector_transaction_id: Some(response.transactionid),
         })
     }
-
 }
 
 impl ConnectorValidation for Nmi {
