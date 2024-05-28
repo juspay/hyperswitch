@@ -9,7 +9,7 @@ use crate::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
         wrap,
     },
-    core::{api_locking, payment_methods::Oss, payments},
+    core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
     types::api as api_types,
@@ -58,8 +58,7 @@ pub async fn setup_intents_create(
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _,
-                Oss,
+                _
             >(
                 state,
                 req_state,
@@ -120,7 +119,7 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -191,8 +190,7 @@ pub async fn setup_intents_update(
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _,
-                Oss,
+                _
             >(
                 state,
                 req_state,
@@ -265,8 +263,7 @@ pub async fn setup_intents_confirm(
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _,
-                Oss,
+                _
             >(
                 state,
                 req_state,

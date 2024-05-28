@@ -43,7 +43,7 @@ where
     };
     match redis_val {
         Err(err) => match err.current_context() {
-            errors::RedisError::NotFound | errors::RedisError::JsonDeserializationFailed => {
+            RedisError::NotFound | RedisError::JsonDeserializationFailed => {
                 get_data_set_redis().await
             }
             _ => Err(err
@@ -88,7 +88,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let data = fun().await?;
-    in_memory.async_map(|cache| cache.invalidate(key)).await;
+    in_memory.async_map(|cache| cache.remove(key)).await;
 
     let redis_conn = store
         .get_redis_conn()

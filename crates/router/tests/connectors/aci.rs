@@ -46,7 +46,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -75,6 +75,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::new(
@@ -92,6 +93,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 }),
                 email: None,
             }),
+            None,
         ),
         connector_meta_data: None,
         amount_captured: None,
@@ -151,6 +153,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             reason: None,
             connector_refund_id: None,
             browser_info: None,
+            ..utils::PaymentRefundType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
@@ -263,7 +266,7 @@ async fn payments_create_failure() {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
             });
 
         let response = services::api::execute_connector_processing_step(

@@ -1,8 +1,7 @@
 use std::{collections::HashMap, num::TryFromIntError};
 
-use api_models::{payment_methods::SurchargeDetailsResponse, payments::RequestSurchargeDetails};
+use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
-    consts,
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
     types as common_types,
@@ -10,6 +9,7 @@ use common_utils::{
 use diesel_models::business_profile::BusinessProfile;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+pub use hyperswitch_domain_models::router_request_types::{AuthenticationData, SurchargeDetails};
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 
@@ -80,27 +80,31 @@ impl MultipleCaptureData {
                 .and_modify(|capture| *capture = updated_capture.clone());
         }
     }
-    pub fn get_total_blocked_amount(&self) -> i64 {
-        self.all_captures.iter().fold(0, |accumulator, capture| {
-            accumulator
-                + match capture.1.status {
-                    storage_enums::CaptureStatus::Charged
-                    | storage_enums::CaptureStatus::Pending => capture.1.amount,
-                    storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => 0,
-                }
-        })
+    pub fn get_total_blocked_amount(&self) -> common_types::MinorUnit {
+        self.all_captures
+            .iter()
+            .fold(common_types::MinorUnit::new(0), |accumulator, capture| {
+                accumulator
+                    + match capture.1.status {
+                        storage_enums::CaptureStatus::Charged
+                        | storage_enums::CaptureStatus::Pending => capture.1.amount,
+                        storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
+                    }
+            })
     }
-    pub fn get_total_charged_amount(&self) -> i64 {
-        self.all_captures.iter().fold(0, |accumulator, capture| {
-            accumulator
-                + match capture.1.status {
-                    storage_enums::CaptureStatus::Charged => capture.1.amount,
-                    storage_enums::CaptureStatus::Pending
-                    | storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => 0,
-                }
-        })
+    pub fn get_total_charged_amount(&self) -> common_types::MinorUnit {
+        self.all_captures
+            .iter()
+            .fold(common_types::MinorUnit::new(0), |accumulator, capture| {
+                accumulator
+                    + match capture.1.status {
+                        storage_enums::CaptureStatus::Charged => capture.1.amount,
+                        storage_enums::CaptureStatus::Pending
+                        | storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
+                    }
+            })
     }
     pub fn get_captures_count(&self) -> RouterResult<i16> {
         i16::try_from(self.all_captures.len())
@@ -123,7 +127,10 @@ impl MultipleCaptureData {
                 accumulator
             })
     }
-    pub fn get_attempt_status(&self, authorized_amount: i64) -> storage_enums::AttemptStatus {
+    pub fn get_attempt_status(
+        &self,
+        authorized_amount: common_types::MinorUnit,
+    ) -> storage_enums::AttemptStatus {
         let total_captured_amount = self.get_total_charged_amount();
         if authorized_amount == total_captured_amount {
             return storage_enums::AttemptStatus::Charged;
@@ -179,54 +186,24 @@ impl MultipleCaptureData {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct SurchargeDetails {
-    /// original_amount
-    pub original_amount: i64,
-    /// surcharge value
-    pub surcharge: common_types::Surcharge,
-    /// tax on surcharge value
-    pub tax_on_surcharge:
-        Option<common_types::Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>>,
-    /// surcharge amount for this payment
-    pub surcharge_amount: i64,
-    /// tax on surcharge amount for this payment
-    pub tax_on_surcharge_amount: i64,
-    /// sum of original amount,
-    pub final_amount: i64,
-}
-
-impl From<(&RequestSurchargeDetails, &PaymentAttempt)> for SurchargeDetails {
-    fn from(
-        (request_surcharge_details, payment_attempt): (&RequestSurchargeDetails, &PaymentAttempt),
-    ) -> Self {
-        let surcharge_amount = request_surcharge_details.surcharge_amount;
-        let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or(0);
-        Self {
-            original_amount: payment_attempt.amount,
-            surcharge: common_types::Surcharge::Fixed(request_surcharge_details.surcharge_amount),
-            tax_on_surcharge: None,
-            surcharge_amount,
-            tax_on_surcharge_amount,
-            final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
-        }
-    }
-}
-
 impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
     type Error = TryFromIntError;
     fn foreign_try_from(
         (surcharge_details, payment_attempt): (&SurchargeDetails, &PaymentAttempt),
     ) -> Result<Self, Self::Error> {
         let currency = payment_attempt.currency.unwrap_or_default();
-        let display_surcharge_amount =
-            currency.to_currency_base_unit_asf64(surcharge_details.surcharge_amount)?;
-        let display_tax_on_surcharge_amount =
-            currency.to_currency_base_unit_asf64(surcharge_details.tax_on_surcharge_amount)?;
-        let display_final_amount =
-            currency.to_currency_base_unit_asf64(surcharge_details.final_amount)?;
+        let display_surcharge_amount = currency
+            .to_currency_base_unit_asf64(surcharge_details.surcharge_amount.get_amount_as_i64())?;
+        let display_tax_on_surcharge_amount = currency.to_currency_base_unit_asf64(
+            surcharge_details
+                .tax_on_surcharge_amount
+                .get_amount_as_i64(),
+        )?;
+        let display_final_amount = currency
+            .to_currency_base_unit_asf64(surcharge_details.final_amount.get_amount_as_i64())?;
         let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
-            surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount,
+            (surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount)
+                .get_amount_as_i64(),
         )?;
         Ok(Self {
             surcharge: surcharge_details.surcharge.clone().into(),
@@ -236,19 +213,6 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             display_total_surcharge_amount,
             display_final_amount,
         })
-    }
-}
-
-impl SurchargeDetails {
-    pub fn is_request_surcharge_matching(
-        &self,
-        request_surcharge_details: RequestSurchargeDetails,
-    ) -> bool {
-        request_surcharge_details.surcharge_amount == self.surcharge_amount
-            && request_surcharge_details.tax_amount.unwrap_or(0) == self.tax_on_surcharge_amount
-    }
-    pub fn get_total_surcharge_amount(&self) -> i64 {
-        self.surcharge_amount + self.tax_on_surcharge_amount
     }
 }
 
@@ -375,14 +339,6 @@ impl SurchargeMetadata {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct AuthenticationData {
-    pub eci: Option<String>,
-    pub cavv: String,
-    pub threeds_server_transaction_id: String,
-    pub message_version: String,
-}
-
 impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
@@ -417,4 +373,11 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())
         }
     }
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct PaymentCharges {
+    pub charge_type: api_models::enums::PaymentChargeType,
+    pub fees: i64,
+    pub transfer_account_id: String,
 }

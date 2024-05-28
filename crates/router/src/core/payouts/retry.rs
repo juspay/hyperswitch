@@ -81,7 +81,7 @@ pub async fn do_gsm_multiple_connector_actions(
             }
             api_models::gsm::GsmDecision::Requeue => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                    message: errors::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
                 }))?
@@ -114,7 +114,7 @@ pub async fn do_gsm_single_connector_actions(
         if let Ordering::Equal = gsm.cmp(&previous_gsm) {
             break;
         }
-        previous_gsm = gsm.clone();
+        previous_gsm.clone_from(&gsm);
 
         match get_gsm_decision(gsm) {
             api_models::gsm::GsmDecision::Retry => {
@@ -145,7 +145,7 @@ pub async fn do_gsm_single_connector_actions(
             }
             api_models::gsm::GsmDecision::Requeue => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                    message: errors::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
                 }))?

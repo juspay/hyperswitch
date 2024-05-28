@@ -1,3 +1,4 @@
+use common_enums::MerchantStorageScheme;
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
@@ -32,6 +33,7 @@ pub struct Mandate {
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
     pub original_payment_id: Option<String>,
     pub merchant_connector_id: Option<String>,
+    pub updated_by: Option<String>,
 }
 
 #[derive(
@@ -69,6 +71,13 @@ pub struct MandateNew {
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
     pub original_payment_id: Option<String>,
     pub merchant_connector_id: Option<String>,
+    pub updated_by: Option<String>,
+}
+
+impl MandateNew {
+    pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme) {
+        self.updated_by = Some(storage_scheme.to_string());
+    }
 }
 
 #[derive(Debug)]
@@ -88,6 +97,17 @@ pub enum MandateUpdate {
         payment_method_id: String,
         original_payment_id: Option<String>,
     },
+}
+
+impl MandateUpdate {
+    pub fn convert_to_mandate_update(
+        self,
+        storage_scheme: MerchantStorageScheme,
+    ) -> MandateUpdateInternal {
+        let mut updated_object = MandateUpdateInternal::from(self);
+        updated_object.updated_by = Some(storage_scheme.to_string());
+        updated_object
+    }
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -113,6 +133,7 @@ pub struct MandateUpdateInternal {
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
     original_payment_id: Option<String>,
+    updated_by: Option<String>,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
@@ -125,6 +146,7 @@ impl From<MandateUpdate> for MandateUpdateInternal {
                 connector_mandate_id: None,
                 payment_method_id: None,
                 original_payment_id: None,
+                updated_by: None,
             },
             MandateUpdate::CaptureAmountUpdate { amount_captured } => Self {
                 mandate_status: None,
@@ -133,6 +155,7 @@ impl From<MandateUpdate> for MandateUpdateInternal {
                 connector_mandate_id: None,
                 payment_method_id: None,
                 original_payment_id: None,
+                updated_by: None,
             },
             MandateUpdate::ConnectorReferenceUpdate {
                 connector_mandate_ids,
@@ -165,6 +188,7 @@ impl MandateUpdateInternal {
             connector_mandate_id,
             payment_method_id,
             original_payment_id,
+            updated_by,
         } = self;
 
         Mandate {
@@ -174,6 +198,7 @@ impl MandateUpdateInternal {
             connector_mandate_id: connector_mandate_id.map_or(source.connector_mandate_id, Some),
             payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
             original_payment_id: original_payment_id.map_or(source.original_payment_id, Some),
+            updated_by: updated_by.map_or(source.updated_by, Some),
             ..source
         }
     }
@@ -208,6 +233,7 @@ impl From<&MandateNew> for Mandate {
             connector_mandate_ids: mandate_new.connector_mandate_ids.clone(),
             original_payment_id: mandate_new.original_payment_id.clone(),
             merchant_connector_id: mandate_new.merchant_connector_id.clone(),
+            updated_by: mandate_new.updated_by.clone(),
         }
     }
 }

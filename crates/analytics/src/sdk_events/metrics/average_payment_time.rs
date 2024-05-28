@@ -44,16 +44,10 @@ where
         }
 
         query_builder
-            .add_select_column(Aggregate::Count {
-                field: None,
-                alias: Some("count"),
-            })
-            .switch()?;
-
-        query_builder
-            .add_select_column(Aggregate::Sum {
+            .add_select_column(Aggregate::Percentile {
                 field: "latency",
-                alias: Some("total"),
+                alias: Some("count"),
+                percentile: Some(&50),
             })
             .switch()?;
 

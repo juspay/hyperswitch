@@ -91,6 +91,11 @@ pub struct ResetPasswordRequest {
     pub password: Secret<String>,
 }
 
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct RotatePasswordRequest {
+    pub password: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct InviteUserRequest {
     pub email: pii::Email,
@@ -220,6 +225,11 @@ pub struct TokenOnlyQueryParam {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkipTwoFactorAuthQueryParam {
+    pub skip_two_factor_auth: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TokenResponse {
     pub token: Secret<String>,
     pub token_type: TokenPurpose,
@@ -227,7 +237,38 @@ pub struct TokenResponse {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum SignInWithTokenResponse {
+pub enum TokenOrPayloadResponse<T> {
     Token(TokenResponse),
-    SignInResponse(SignInResponse),
+    Payload(T),
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserFromEmailRequest {
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct BeginTotpResponse {
+    pub secret: Option<TotpSecret>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TotpSecret {
+    pub secret: Secret<String>,
+    pub totp_url: Secret<String>,
+    pub recovery_codes: Vec<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyTotpRequest {
+    pub totp: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyRecoveryCodeRequest {
+    pub recovery_code: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RecoveryCodes {
+    pub recovery_codes: Vec<Secret<String>>,
 }

@@ -254,7 +254,7 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
+pub async fn consumer_operation_handler<E, T>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
@@ -263,7 +263,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
-    T: SchedulerAppState,
+    T: SchedulerAppState + Send + Sync + 'static,
 {
     consumer_operation_counter.fetch_add(1, atomic::Ordering::SeqCst);
     let start_time = std_time::Instant::now();

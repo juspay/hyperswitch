@@ -14,20 +14,13 @@ pub struct KlarnaRouterData<T> {
     router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for KlarnaRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for KlarnaRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, _currency, amount, router_data): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -168,6 +161,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: item.response.fraud_status.into(),
             ..item.data

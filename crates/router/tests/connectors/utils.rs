@@ -8,7 +8,7 @@ use masking::Secret;
 use router::core::utils as core_utils;
 use router::{
     configs::settings::Settings,
-    core::{errors, errors::ConnectorError, payments},
+    core::{errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
     types::{self, storage::enums, AccessToken, PaymentAddress, RouterData},
@@ -57,7 +57,7 @@ pub struct PaymentInfo {
 impl PaymentInfo {
     pub fn with_default_billing_name() -> Self {
         Self {
-            address: Some(types::PaymentAddress::new(
+            address: Some(PaymentAddress::new(
                 None,
                 None,
                 Some(types::api::Address {
@@ -69,6 +69,7 @@ impl PaymentInfo {
                     phone: None,
                     email: None,
                 }),
+                None,
             )),
             ..Default::default()
         }
@@ -215,7 +216,7 @@ pub trait ConnectorActions: Connector {
             }
             tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
         }
-        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
+        Err(ConnectorError::ProcessingStepFailed(None).into())
     }
 
     async fn capture_payment(
@@ -422,6 +423,7 @@ pub trait ConnectorActions: Connector {
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
+                charges: None,
             }),
             payment_info,
         );
@@ -453,7 +455,7 @@ pub trait ConnectorActions: Connector {
             }
             tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
         }
-        Err(errors::ConnectorError::ProcessingStepFailed(None).into())
+        Err(ConnectorError::ProcessingStepFailed(None).into())
     }
 
     #[cfg(feature = "payouts")]
@@ -523,14 +525,15 @@ pub trait ConnectorActions: Connector {
                 .unwrap(),
             connector_meta_data: info
                 .clone()
-                .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
+                .and_then(|a| a.connector_meta_data.map(Secret::new)),
             amount_captured: None,
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: info
-                .clone()
-                .and_then(|a| a.payment_method_token.map(types::PaymentMethodToken::Token)),
+            payment_method_token: info.clone().and_then(|a| {
+                a.payment_method_token
+                    .map(|token| types::PaymentMethodToken::Token(Secret::new(token)))
+            }),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
 
@@ -902,7 +905,7 @@ impl Default for CCardType {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: Some(masking::Secret::new("nick_name".into())),
+            nick_name: Some(Secret::new("nick_name".into())),
         })
     }
 }
@@ -940,6 +943,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1016,6 +1020,7 @@ impl Default for PaymentRefundType {
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1079,6 +1084,7 @@ pub fn get_connector_metadata(
             network_txn_id: _,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
+            charge_id: _,
         }) => connector_metadata,
         _ => None,
     }

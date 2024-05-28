@@ -37,22 +37,10 @@ pub struct IatapayRouterData<T> {
     amount: f64,
     router_data: T,
 }
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for IatapayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for IatapayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
@@ -114,7 +102,7 @@ impl
     TryFrom<
         &IatapayRouterData<
             &types::RouterData<
-                types::api::payments::Authorize,
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             >,
@@ -126,7 +114,7 @@ impl
     fn try_from(
         item: &IatapayRouterData<
             &types::RouterData<
-                types::api::payments::Authorize,
+                api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             >,
@@ -312,6 +300,7 @@ fn get_iatpay_response(
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
+            charge_id: None,
         },
         |checkout_methods| types::PaymentsResponseData::TransactionResponse {
             resource_id: id,
@@ -325,6 +314,7 @@ fn get_iatpay_response(
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
+            charge_id: None,
         },
     );
     Ok((status, error, payment_response_data))
@@ -515,7 +505,7 @@ pub struct IatapayErrorResponse {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
-    pub path: String,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

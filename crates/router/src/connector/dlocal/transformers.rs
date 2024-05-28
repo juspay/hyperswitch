@@ -57,20 +57,13 @@ pub struct DlocalRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for DlocalRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for DlocalRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, _currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -337,6 +330,7 @@ impl<F, T>
             network_txn_id: None,
             connector_response_reference_id: item.response.order_id.clone(),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -377,6 +371,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -414,6 +409,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -451,6 +447,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

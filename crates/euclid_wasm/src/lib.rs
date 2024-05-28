@@ -91,8 +91,12 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .collect::<Result<_, _>>()
         .map_err(|_| "invalid connector name received")
         .err_to_js()?;
-
-    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas).err_to_js()?;
+    let pm_filter = kgraph_utils::types::PaymentMethodFilters(HashMap::new());
+    let config = kgraph_utils::types::CountryCurrencyFilter {
+        connector_configs: HashMap::new(),
+        default_configs: Some(pm_filter),
+    };
+    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas, &config).err_to_js()?;
     let analysis_graph =
         hyperswitch_constraint_graph::ConstraintGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH)
             .err_to_js()?;
@@ -193,9 +197,7 @@ pub fn run_program(program: JsValue, input: JsValue) -> JsResult {
 
 #[wasm_bindgen(js_name = getAllConnectors)]
 pub fn get_all_connectors() -> JsResult {
-    Ok(serde_wasm_bindgen::to_value(
-        common_enums::RoutableConnectors::VARIANTS,
-    )?)
+    Ok(serde_wasm_bindgen::to_value(RoutableConnectors::VARIANTS)?)
 }
 
 #[wasm_bindgen(js_name = getAllKeys)]

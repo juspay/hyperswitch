@@ -63,7 +63,7 @@ fn customer_details() -> Option<types::ConnectorCustomerData> {
 
 fn token_details() -> Option<types::PaymentMethodTokenizationData> {
     Some(types::PaymentMethodTokenizationData {
-        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
             card_exp_month: Secret::new("04".to_string()),
             card_exp_year: Secret::new("2027".to_string()),
@@ -167,7 +167,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -344,7 +344,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -473,7 +473,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let token_response = CONNECTOR
         .create_connector_pm_token(
             Some(types::PaymentMethodTokenizationData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("11".to_string()),
                     card_exp_year: Secret::new("2027".to_string()),
@@ -511,7 +511,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let token_response = CONNECTOR
         .create_connector_pm_token(
             Some(types::PaymentMethodTokenizationData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("20".to_string()),
                     card_exp_year: Secret::new("2027".to_string()),
@@ -549,7 +549,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let token_response = CONNECTOR
         .create_connector_pm_token(
             Some(types::PaymentMethodTokenizationData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("04".to_string()),
                     card_exp_year: Secret::new("2000".to_string()),

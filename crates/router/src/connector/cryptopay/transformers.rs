@@ -10,7 +10,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, domain, storage::enums},
+    types::{self, domain, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -19,19 +19,12 @@ pub struct CryptopayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for CryptopayRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for CryptopayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -148,13 +141,13 @@ pub struct CryptopayPaymentsResponse {
 }
 
 impl<F, T>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
         diesel_models::enums::Currency,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn foreign_try_from(
         (item, currency): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
             diesel_models::enums::Currency,
@@ -197,6 +190,7 @@ impl<F, T>
                     .custom_id
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         };
 
