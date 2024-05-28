@@ -149,7 +149,6 @@ pub trait ConnectorCommon {
         })
     }
 
-    // fn amount_convertor(&self) -> impl AmountConvertor;
 }
 
 /// Extended trait for connector common to allow functions with generic type

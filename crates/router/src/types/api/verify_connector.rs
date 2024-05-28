@@ -1,7 +1,5 @@
 pub mod paypal;
 pub mod stripe;
-
-use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 
 use crate::{
@@ -27,7 +25,6 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
-            test_amount: Some(MinorUnit::new(1000)),
             confirm: true,
             currency: storage_enums::Currency::USD,
             metadata: None,

@@ -63,11 +63,9 @@ pub struct NmiRouterData<T> {
 }
 
 impl<T> From<(FloatMajorUnit, T)> for NmiRouterData<T> {
-    // type Error = Report<errors::ConnectorError>;
 
     fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
         Self {
-            // amount: utils::to_currency_base_unit_asf64(amount, currency)?,
             amount,
             router_data,
         }

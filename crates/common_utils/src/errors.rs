@@ -34,19 +34,19 @@ pub enum ParsingError {
     /// Failed to parse phone number
     #[error("Failed to parse phone number")]
     PhoneNumberParsingError,
-    /// Failed to convert amount value to Decimal value
+    /// Failed to parse Float value for converting to decimal points
     #[error("Failed to parse Float value for converting to decimal points")]
     FloatToDecimalConversionFailure,
-    /// Failed to convert Float value to Decimal value
+    /// Failed to parse Decimal value for i64 value conversion
     #[error("Failed to parse Decimal value for i64 value conversion")]
     DecimalToI64ConversionFailure,
-    /// Failed to convert String value to Float value
+    /// Failed to parse string value for f64 value conversion
     #[error("Failed to parse string value for f64 value conversion")]
     StringToFloatConversionFailure,
-    /// Failed to convert String value to Float value
+    /// Failed to parse i64 value for f64 value conversion
     #[error("Failed to parse i64 value for f64 value conversion")]
     I64ToDecimalConversionFailure,
-    /// Failed to convert String value to Float value
+    /// Failed to parse String value to Decimal value conversion
     #[error("Failed to parse String value to Decimal value conversion")]
     StringToDecimalConversionFailure,
 }

@@ -106,9 +106,6 @@ impl ConnectorCommon for Nmi {
         })
     }
 
-    // fn amount_convertor(&self) -> impl AmountConvertor<Output = FloatMajorUnit> {
-    //     FloatMajorUnitForConnector
-    // }
 }
 
 impl ConnectorValidation for Nmi {
@@ -344,9 +341,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request
-                .test_amount
-                .unwrap_or(MinorUnit::new(req.request.amount)),
+            MinorUnit::new(req.request.amount),
             req.request.currency,
         )?;
         let connector_router_data = nmi::NmiRouterData::from((amount, req));
