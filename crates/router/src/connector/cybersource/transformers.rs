@@ -262,31 +262,13 @@ pub struct CybersourceConsumerAuthInformation {
     directory_server_transaction_id: Option<Secret<String>>,
     specification_version: Option<String>,
     /// This field specifies the 3ds version
-    pa_specification_version: Option<PaSpecificationVersion>,
+    pa_specification_version: Option<SemanticVersion>,
     /// Verification response enrollment status.
     ///
     /// This field is supported only on Asia, Middle East, and Africa Gateway.
     ///
     /// For external authentication, this field will always be "Y"
     veres_enrolled: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub enum PaSpecificationVersion {
-    #[serde(rename = "1")]
-    ThreeDs1,
-    #[serde(rename = "2")]
-    ThreeDs2,
-}
-
-impl From<SemanticVersion> for PaSpecificationVersion {
-    fn from(value: SemanticVersion) -> Self {
-        if value.get_major() == 2 {
-            Self::ThreeDs2
-        } else {
-            Self::ThreeDs1
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -683,18 +665,54 @@ impl
             (None, None, None)
         };
         // this logic is for external authenticated card
+        let card_network_lower_case = network
+            .as_ref()
+            .map(|card_network| card_network.to_lowercase());
         let commerce_indicator_for_external_authentication = item
             .router_data
             .request
             .authentication_data
             .as_ref()
             .and_then(|authn_data| {
-                dbg!(&authn_data);
                 authn_data.eci.as_ref().map(|eci| {
                     match eci.as_str() {
-                        "05" => "vbv",
-                        "06" => "vbv_attempted",
-                        "07" => "vbv_failure",
+                        "00" | "01" | "02" => {
+                            if matches!(
+                                card_network_lower_case.as_deref(),
+                                Some("mastercard") | Some("maestro")
+                            ) {
+                                "spa"
+                            } else {
+                                "internet"
+                            }
+                        }
+                        "05" => match card_network_lower_case.as_deref() {
+                            Some("amex") => "aesk",
+                            Some("discover") => "dipb",
+                            Some("mastercard") => "spa",
+                            Some("visa") => "vbv",
+                            Some("diners") => "pb",
+                            Some("upi") => "up3ds",
+                            _ => "internet",
+                        },
+                        "06" => match card_network_lower_case.as_deref() {
+                            Some("amex") => "aesk_attempted",
+                            Some("discover") => "dipb_attempted",
+                            Some("mastercard") => "spa",
+                            Some("visa") => "vbv_attempted",
+                            Some("diners") => "pb_attempted",
+                            Some("upi") => "up3ds_attempted",
+                            _ => "internet",
+                        },
+                        "07" => match card_network_lower_case.as_deref() {
+                            Some("amex") => "internet",
+                            Some("discover") => "internet",
+                            Some("mastercard") => "spa",
+                            Some("visa") => "vbv_failure",
+                            Some("diners") => "internet",
+                            Some("upi") => "up3ds_failure",
+                            _ => "internet",
+                        },
                         _ => "vbv_failure",
                     }
                     .to_string()
@@ -916,15 +934,12 @@ impl
                     cavv,
                     ucaf_authentication_data,
                     xid: Some(authn_data.threeds_server_transaction_id.clone()),
-                    // xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
                     specification_version: None,
-                    pa_specification_version: Some(PaSpecificationVersion::from(
-                        authn_data.message_version.clone(),
-                    )),
+                    pa_specification_version: Some(authn_data.message_version.clone()),
                     veres_enrolled: Some("Y".to_string()),
                 }
             });
