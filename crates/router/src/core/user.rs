@@ -1707,6 +1707,8 @@ pub async fn update_totp(
         return Err(UserErrors::InvalidTotp.into());
     }
 
+    tfa_utils::insert_totp_in_redis(&state, &user_token.user_id).await?;
+
     let key_store = user_from_db.get_or_create_key_store(&state).await?;
 
     state
@@ -1732,8 +1734,9 @@ pub async fn update_totp(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    tfa_utils::delete_totp_secret_from_redis(&state, user_from_db.get_user_id()).await?;
-    tfa_utils::insert_totp_in_redis(&state, &user_token.user_id).await?;
+    let _ = tfa_utils::delete_totp_secret_from_redis(&state, &user_token.user_id)
+        .await
+        .map_err(|e| logger::error!(?e));
 
     Ok(ApplicationResponse::StatusOk)
 }
