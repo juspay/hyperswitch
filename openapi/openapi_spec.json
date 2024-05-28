@@ -8203,7 +8203,11 @@
         ],
         "properties": {
           "id": {
-            "$ref": "#/components/schemas/id_type.CustomerId"
+            "type": "string",
+            "description": "The identifier for the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
           },
           "name": {
             "type": "string",
