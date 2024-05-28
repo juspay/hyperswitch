@@ -961,6 +961,13 @@ pub async fn create_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
         status: connector_status,
+        connector_wallets_details: req.connector_wallets_details.async_map(|wallets_details| async { domain_types::encrypt(
+            wallets_details,
+            key_store.key.peek(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt connector wallets details")}).await.transpose()?
     };
 
     let transaction_type = match req.connector_type {
@@ -1275,6 +1282,14 @@ pub async fn update_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
         status: Some(connector_status),
+        connector_wallets_details: req
+            .connector_wallets_details
+            .async_lift(|inner| {
+                domain_types::encrypt_optional(inner, key_store.key.get_inner().peek())
+            })
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while encrypting data")?,
     };
 
     // Profile id should always be present

@@ -298,6 +298,8 @@ pub enum Flow {
     GsmRuleRetrieve,
     /// Gsm Rule Update flow
     GsmRuleUpdate,
+    /// Apple pay certificates migration
+    ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// User Sign Up

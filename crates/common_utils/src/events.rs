@@ -48,6 +48,7 @@ pub enum ApiEventsType {
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
     RustLocker,
+    ApplePayCertificatesMigration,
     FraudCheck,
     Recon,
     Dispute {

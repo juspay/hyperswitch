@@ -161,6 +161,7 @@ pub async fn update_mca(
         frm_configs: None,
         connector_webhook_details: None,
         pm_auth_config: None,
+        connector_wallets_details: None,
     };
     let mca_response =
         admin::update_payment_connector(state.clone(), &merchant_id, &connector_id, request)

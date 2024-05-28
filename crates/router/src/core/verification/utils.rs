@@ -61,6 +61,7 @@ pub async fn check_existence_and_add_domain_to_db(
         pm_auth_config: None,
         connector_label: None,
         status: None,
+        connector_wallets_details: None,
     };
     state
         .store

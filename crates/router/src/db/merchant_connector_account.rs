@@ -1,4 +1,5 @@
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
+use diesel_models::encryption::Encryption;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
@@ -664,6 +665,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             applepay_verified_domains: t.applepay_verified_domains,
             pm_auth_config: t.pm_auth_config,
             status: t.status,
+            connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
         };
         accounts.push(account.clone());
         account
@@ -862,6 +864,14 @@ mod merchant_connector_account_cache_tests {
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
+            connector_wallets_details: Some(
+                domain::types::encrypt(
+                    serde_json::Value::default().into(),
+                    merchant_key.key.get_inner().peek(),
+                )
+                .await
+                .unwrap(),
+            ),
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)

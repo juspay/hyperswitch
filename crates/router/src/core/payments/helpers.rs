@@ -3899,7 +3899,7 @@ pub fn is_apple_pay_simplified_flow(
     let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
         .map_err(|error| {
             logger::info!(
-                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
+                "Apple pay metadata parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
                 connector_name,
                 error
             )

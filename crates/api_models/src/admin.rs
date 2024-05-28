@@ -478,6 +478,10 @@ pub struct MerchantConnectorCreate {
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
+
+    /// An object containing the required details/credentials for a Connector Wallets.
+    #[schema(value_type = Option<Object>)]
+    pub connector_wallets_details: Option<pii::SecretSerdeValue>,
 }
 
 // Different patterns of authentication.
@@ -709,6 +713,8 @@ pub struct MerchantConnectorUpdate {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
+
+    pub connector_wallets_details: Option<pii::SecretSerdeValue>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
