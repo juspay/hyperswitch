@@ -45,13 +45,16 @@ use super::{pm_auth, poll::retrieve_poll_status};
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
-use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
+use crate::{
+    configs::secrets_transformers,
+    db::{kafka_store::TenantID, KafkaStore},
+};
 pub use crate::{
     configs::settings,
     core::routing,
@@ -147,7 +150,6 @@ impl scheduler::SchedulerAppState for AppState {
 }
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
-    // fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
@@ -254,7 +256,7 @@ impl AppState {
                 let store: Box<dyn StorageInterface> = match storage_impl {
                     StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                         EventsHandler::Kafka(kafka_client) => Box::new(
-                            crate::db::KafkaStore::new(
+                            KafkaStore::new(
                                 #[allow(clippy::expect_used)]
                                 get_store(
                                     &conf.clone(),
@@ -265,7 +267,7 @@ impl AppState {
                                 .await
                                 .expect("Failed to create store"),
                                 kafka_client.clone(),
-                                crate::db::kafka_store::TenantID(tenant.clone()),
+                                TenantID(tenant.clone()),
                             )
                             .await,
                         ),
@@ -335,11 +337,7 @@ impl AppState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
     }
-    pub fn get_session_state<E, F>(
-        self: Arc<Self>,
-        tenant: &str,
-        err: F,
-    ) -> Result<SessionState, E>
+    pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
     where
         F: FnOnce() -> E + Copy,
     {

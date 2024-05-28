@@ -1022,12 +1022,7 @@ where
         incoming_request_header
             .get("x-tenant-id")
             .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| {
-                errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Missing tenant Id".to_string(),
-                }
-                .switch()
-            })
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
             .map(|req_tenant_id| {
                 if !tenants.contains(req_tenant_id) {
                     Err(errors::ApiErrorResponse::InvalidTenant {

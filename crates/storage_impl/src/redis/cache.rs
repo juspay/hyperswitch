@@ -129,6 +129,7 @@ pub struct Cache {
 #[derive(Debug, Clone)]
 pub struct CacheKey {
     pub key: String,
+    // #TODO: make it usage specific enum Eg: CacheKind { Tenant(String), NoTenant, Partition(String) }
     pub prefix: String,
 }
 
