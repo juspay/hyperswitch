@@ -870,6 +870,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     connector_metadata,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
+                    charge_id,
                     ..
                 } => {
                     payment_data
@@ -959,6 +960,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 authentication_data,
                                 encoded_data,
                                 payment_method_data: additional_payment_method_data,
+                                charge_id,
                             }),
                         ),
                     };
@@ -1312,7 +1314,10 @@ fn response_to_capture_update(
         let capture =
             multiple_capture_data.get_capture_by_connector_capture_id(connector_capture_id);
         if let Some(capture) = capture {
-            capture_update_list.push((capture.clone(), capture_sync_response.try_into()?))
+            capture_update_list.push((
+                capture.clone(),
+                storage::CaptureUpdate::foreign_try_from(capture_sync_response)?,
+            ))
         } else {
             // connector_capture_id may not be populated in the captures table in some case
             // if so, we try to map the unmapped capture response and captures in DB.
@@ -1348,7 +1353,7 @@ fn get_capture_update_for_unmapped_capture_responses(
         {
             result.push((
                 capture.clone(),
-                storage::CaptureUpdate::try_from(capture_sync_response)?,
+                storage::CaptureUpdate::foreign_try_from(capture_sync_response)?,
             ))
         }
     }
