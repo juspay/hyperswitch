@@ -68,12 +68,6 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
 }
 
 #[derive(Default, Debug, Serialize)]
-pub struct KlarnaMerchantUrls {
-    notification: Option<String>,
-    push: Option<String>,
-}
-
-#[derive(Default, Debug, Serialize)]
 pub struct KlarnaPaymentsRequest {
     auto_capture: bool,
     order_lines: Vec<OrderLines>,
