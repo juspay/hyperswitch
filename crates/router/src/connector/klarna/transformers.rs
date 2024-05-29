@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -68,12 +68,6 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
 }
 
 #[derive(Default, Debug, Serialize)]
-pub struct KlarnaMerchantUrls {
-    notification: Option<String>,
-    push: Option<String>,
-}
-
-#[derive(Default, Debug, Serialize)]
 pub struct KlarnaPaymentsRequest {
     auto_capture: bool,
     order_lines: Vec<OrderLines>,
@@ -81,7 +75,6 @@ pub struct KlarnaPaymentsRequest {
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
     merchant_reference1: Option<String>,
-    merchant_urls: KlarnaMerchantUrls,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -102,7 +95,7 @@ pub struct KlarnaSessionRequest {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaSessionResponse {
     pub client_token: Secret<String>,
-    pub session_id: Secret<String>,
+    pub session_id: String,
 }
 
 impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSessionRequest {
@@ -151,7 +144,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
                 session_token: api::SessionToken::Klarna(Box::new(
                     payments::KlarnaSessionTokenResponse {
                         session_token: response.client_token.clone().expose(),
-                        session_id: response.session_id.clone().expose(),
+                        session_id: response.session_id.clone(),
                     },
                 )),
             }),
@@ -183,10 +176,6 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
                 auto_capture: request.is_auto_capture()?,
-                merchant_urls: KlarnaMerchantUrls {
-                    notification: Some("https://542a-219-65-110-2.ngrok-free.app".to_string()),
-                    push: Some("https://542a-219-65-110-2.ngrok-free.app".to_string()),
-                },
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details"
@@ -215,7 +204,10 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            status: enums::AttemptStatus::from(item.response.fraud_status),
+            status: enums::AttemptStatus::foreign_from((
+                item.response.fraud_status,
+                item.data.request.is_auto_capture()?,
+            )),
             ..item.data
         })
     }
@@ -262,13 +254,21 @@ impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
 pub enum KlarnaFraudStatus {
     Accepted,
     Pending,
+    Rejected,
 }
 
-impl From<KlarnaFraudStatus> for enums::AttemptStatus {
-    fn from(item: KlarnaFraudStatus) -> Self {
-        match item {
-            KlarnaFraudStatus::Accepted => Self::Authorized,
+impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
+    fn foreign_from((klarna_status, is_auto_capture): (KlarnaFraudStatus, bool)) -> Self {
+        match klarna_status {
+            KlarnaFraudStatus::Accepted => {
+                if is_auto_capture {
+                    Self::Charged
+                } else {
+                    Self::Authorized
+                }
+            }
             KlarnaFraudStatus::Pending => Self::Authorizing,
+            KlarnaFraudStatus::Rejected => Self::Failure,
         }
     }
 }

@@ -1,9 +1,9 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+use api_models::enums;
 use base64::Engine;
 use common_utils::request::RequestContent;
-use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::logger;
@@ -83,11 +83,13 @@ impl ConnectorCommon for Klarna {
         let reason = response
             .error_messages
             .map(|messages| messages.join(" & "))
-            .or(response.error_message);
+            .or(response.error_message.clone());
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: consts::NO_ERROR_MESSAGE.to_string(),
+            message: response
+                .error_message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
             connector_transaction_id: None,
