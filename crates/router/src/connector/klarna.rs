@@ -6,6 +6,7 @@ use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
+use router_env::logger;
 use transformers as klarna;
 
 use crate::{
@@ -664,6 +665,81 @@ impl
         types::PaymentsResponseData,
     > for Klarna
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let order_id = req.request.connector_transaction_id.clone();
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+
+        Ok(format!(
+            "{}{}{}{}",
+            endpoint, "ordermanagement/v1/orders/", order_id, "/cancel"
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        logger::debug!("Expected zero bytes response, skipped parsing of the response");
+
+        let status = if res.status_code == 204 {
+            enums::AttemptStatus::Voided
+        } else {
+            enums::AttemptStatus::VoidFailed
+        };
+        Ok(types::PaymentsCancelRouterData {
+            status,
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl api::Refund for Klarna {}

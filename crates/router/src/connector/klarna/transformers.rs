@@ -184,8 +184,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
                 auto_capture: request.is_auto_capture()?,
                 merchant_urls: KlarnaMerchantUrls {
-                    notification: request.webhook_url.clone(),
-                    push: request.webhook_url.clone(),
+                    notification: Some("https://542a-219-65-110-2.ngrok-free.app".to_string()),
+                    push: Some("https://542a-219-65-110-2.ngrok-free.app".to_string()),
                 },
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
