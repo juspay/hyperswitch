@@ -369,7 +369,8 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
                 eci: authentication.eci.clone(),
                 cavv,
                 threeds_server_transaction_id,
-                message_version: message_version.to_string(),
+                message_version,
+                ds_trans_id: authentication.ds_trans_id.clone(),
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())

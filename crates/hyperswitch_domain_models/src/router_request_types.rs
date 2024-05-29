@@ -1,7 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
-use common_utils::{consts, errors, ext_traits::OptionExt, pii};
+use common_utils::{consts, errors, ext_traits::OptionExt, pii, types as common_types};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -447,7 +447,8 @@ pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: String,
     pub threeds_server_transaction_id: String,
-    pub message_version: String,
+    pub message_version: common_types::SemanticVersion,
+    pub ds_trans_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

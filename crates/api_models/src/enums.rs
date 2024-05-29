@@ -244,10 +244,9 @@ impl Connector {
             | Self::Riskified
             | Self::Threedsecureio
             | Self::Netcetera
-            | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi => true,
+            Self::Checkout | Self::Nmi| Self::Cybersource => true,
         }
     }
 }

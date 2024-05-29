@@ -168,6 +168,7 @@ impl
                         authentication_value: response.authentication_value,
                         trans_status: response.trans_status,
                         connector_metadata: None,
+                        ds_trans_id: response.authentication_response.ds_trans_id,
                     },
                 )
             }
@@ -647,6 +648,8 @@ pub struct AuthenticationResponse {
     pub acs_reference_number: Option<String>,
     #[serde(rename = "acsTransID")]
     pub acs_trans_id: Option<String>,
+    #[serde(rename = "dsTransID")]
+    pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
 }
 

@@ -85,6 +85,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 authentication_value,
                 trans_status,
                 connector_metadata,
+                ds_trans_id,
             } => {
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
@@ -99,6 +100,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_type: authn_flow_type.get_decoupled_authentication_type(),
                     authentication_status,
                     connector_metadata,
+                    ds_trans_id,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -207,6 +209,7 @@ pub async fn create_new_authentication(
         profile_id,
         payment_id,
         merchant_connector_id,
+        ds_trans_id: None,
         directory_server_id: None,
     };
     state
