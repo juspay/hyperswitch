@@ -226,7 +226,7 @@ CREATE MATERIALIZED VIEW sdk_active_payments_mv TO sdk_active_payments (
 SELECT
     payment_id,
     merchant_id,
-    toDateTime(timestamp) AS created_at,
+    toDateTime(timestamp) AS created_at
 FROM 
     sdk_events_queue
 WHERE length(_error) = 0;
