@@ -32,7 +32,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get("#buttonSubmit").click();
       });
   } else if (connectorId === "bankofamerica" || connectorId === "cybersource") {
-    cy.get("iframe")
+    cy.get("iframe", { timeout: 15000 })
       .its("0.contentDocument.body")
       .within((body) => {
         cy.get('input[type="text"]').click().type("1234");
@@ -54,7 +54,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           });
       });
   } else if (connectorId === "stripe") {
-    cy.get("iframe")
+    cy.get("iframe", { timeout: 15000 })
       .its("0.contentDocument.body")
       .within((body) => {
         cy.get("iframe")

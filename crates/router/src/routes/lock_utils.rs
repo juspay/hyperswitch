@@ -215,7 +215,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateUserAccountDetails
             | Flow::TotpBegin
             | Flow::TotpVerify
-            | Flow::GenerateRecoveryCodes => Self::User,
+            | Flow::TotpUpdate
+            | Flow::RecoveryCodeVerify
+            | Flow::RecoveryCodesGenerate
+            | Flow::TerminateTwoFactorAuth => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole

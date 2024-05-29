@@ -223,6 +223,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
+    charges: Option<types::ChargeRefunds>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let profile_id = get_profile_id_from_business_details(
         payment_intent.business_country,
@@ -330,6 +331,7 @@ pub async fn construct_refund_router_data<'a, F>(
             reason: refund.refund_reason.clone(),
             connector_refund_id: refund.connector_refund_id.clone(),
             browser_info,
+            charges,
         },
 
         response: Ok(types::RefundsResponseData {

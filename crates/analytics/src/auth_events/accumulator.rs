@@ -11,6 +11,7 @@ pub struct AuthEventMetricsAccumulator {
     pub challenge_attempt_count: CountAccumulator,
     pub challenge_success_count: CountAccumulator,
     pub frictionless_flow_count: CountAccumulator,
+    pub frictionless_success_count: CountAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -53,6 +54,7 @@ impl AuthEventMetricsAccumulator {
             challenge_attempt_count: self.challenge_attempt_count.collect(),
             challenge_success_count: self.challenge_success_count.collect(),
             frictionless_flow_count: self.frictionless_flow_count.collect(),
+            frictionless_success_count: self.frictionless_success_count.collect(),
         }
     }
 }

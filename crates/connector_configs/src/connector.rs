@@ -10,7 +10,7 @@ use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
-use crate::common_config::{CardProvider, GooglePayData, Provider, ZenApplePay};
+use crate::common_config::{CardProvider, GooglePayData, PaypalSdkData, Provider, ZenApplePay};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Classic {
@@ -72,6 +72,15 @@ pub enum ApplePayTomlConfig {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+
+pub enum KlarnaEndpoint {
+    Europe,
+    NorthAmerica,
+    Oceania,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<String>,
@@ -79,6 +88,7 @@ pub struct ConfigMetadata {
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,
     pub google_pay: Option<GooglePayData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub merchant_id: Option<String>,
     pub endpoint_prefix: Option<String>,
@@ -90,6 +100,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<KlarnaEndpoint>,
 }
 
 #[serde_with::skip_serializing_none]

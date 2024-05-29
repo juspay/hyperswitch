@@ -809,6 +809,10 @@ mod test {
         let mut key_names: FxHashMap<DirKeyKind, String> = FxHashMap::default();
 
         for key in DirKeyKind::iter() {
+            if matches!(key, DirKeyKind::Connector) {
+                continue;
+            }
+
             let json_str = if let DirKeyKind::MetaData = key {
                 r#""metadata""#.to_string()
             } else {

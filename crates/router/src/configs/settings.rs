@@ -395,6 +395,7 @@ pub struct Secrets {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
     pub password_validity_in_days: u16,
+    pub two_factor_auth_expiry_in_secs: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -406,6 +407,7 @@ pub struct Locker {
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
+    pub ttl_for_storage_in_secs: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -225,6 +225,11 @@ pub struct TokenOnlyQueryParam {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkipTwoFactorAuthQueryParam {
+    pub skip_two_factor_auth: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TokenResponse {
     pub token: Secret<String>,
     pub token_type: TokenPurpose,
@@ -250,12 +255,16 @@ pub struct BeginTotpResponse {
 pub struct TotpSecret {
     pub secret: Secret<String>,
     pub totp_url: Secret<String>,
-    pub recovery_codes: Vec<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VerifyTotpRequest {
-    pub totp: Option<Secret<String>>,
+    pub totp: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyRecoveryCodeRequest {
+    pub recovery_code: Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

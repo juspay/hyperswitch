@@ -34,7 +34,7 @@ where
         pool: &T,
     ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::ConnectorEventsAnalytics);
+            QueryBuilder::new(AnalyticsCollection::ApiEventsAnalytics);
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -54,11 +54,11 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("flow", AuthEventFlows::PostAuthentication)
+            .add_filter_clause("api_flow", AuthEventFlows::IncomingWebhookReceive)
             .switch()?;
 
         query_builder
-            .add_filter_clause("visitParamExtractRaw(response, 'transStatus')", "\"Y\"")
+            .add_filter_clause("visitParamExtractRaw(request, 'transStatus')", "\"Y\"")
             .switch()?;
 
         time_range

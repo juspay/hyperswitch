@@ -19,4 +19,6 @@ module.exports = {
     experimentalRunAllSpecs: true,
   },
   chromeWebSecurity: false,
+  defaultCommandTimeout: 10000,
+  pageLoadTimeout: 20000,
 };

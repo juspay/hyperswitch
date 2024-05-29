@@ -52,6 +52,7 @@ impl VerifyConnectorData {
             request_incremental_authorization: false,
             authentication_data: None,
             customer_acceptance: None,
+            charges: None,
         }
     }
 
