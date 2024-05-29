@@ -42,6 +42,7 @@ pub struct Authentication {
     pub profile_id: String,
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
+    pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
 }
 
@@ -87,6 +88,7 @@ pub struct AuthenticationNew {
     pub profile_id: String,
     pub payment_id: Option<String>,
     pub merchant_connector_id: String,
+    pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
 }
 
@@ -115,6 +117,7 @@ pub enum AuthenticationUpdate {
         acs_trans_id: Option<String>,
         acs_signed_content: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
+        ds_trans_id: Option<String>,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -162,6 +165,7 @@ pub struct AuthenticationUpdateInternal {
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+    pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
 }
 
@@ -193,6 +197,7 @@ impl Default for AuthenticationUpdateInternal {
             acs_reference_number: Default::default(),
             acs_trans_id: Default::default(),
             acs_signed_content: Default::default(),
+            ds_trans_id: Default::default(),
             directory_server_id: Default::default(),
         }
     }
@@ -226,6 +231,7 @@ impl AuthenticationUpdateInternal {
             acs_reference_number,
             acs_trans_id,
             acs_signed_content,
+            ds_trans_id,
             directory_server_id,
         } = self;
         Authentication {
@@ -258,6 +264,7 @@ impl AuthenticationUpdateInternal {
             acs_reference_number: acs_reference_number.or(source.acs_reference_number),
             acs_trans_id: acs_trans_id.or(source.acs_trans_id),
             acs_signed_content: acs_signed_content.or(source.acs_signed_content),
+            ds_trans_id: ds_trans_id.or(source.ds_trans_id),
             directory_server_id: directory_server_id.or(source.directory_server_id),
             ..source
         }
@@ -336,6 +343,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acs_trans_id,
                 acs_signed_content,
                 authentication_status,
+                ds_trans_id,
             } => Self {
                 cavv: authentication_value,
                 trans_status: Some(trans_status),
@@ -346,6 +354,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acs_trans_id,
                 acs_signed_content,
                 authentication_status: Some(authentication_status),
+                ds_trans_id,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthenticationUpdate {

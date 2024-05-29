@@ -1617,10 +1617,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
     }
 }
 
-impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
+impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(capture_sync_response: types::CaptureSyncResponse) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        capture_sync_response: types::CaptureSyncResponse,
+    ) -> Result<Self, Self::Error> {
         match capture_sync_response {
             types::CaptureSyncResponse::Success {
                 resource_id,

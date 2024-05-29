@@ -78,6 +78,8 @@ pub enum UserErrors {
     TwoFactorAuthRequired,
     #[error("TwoFactorAuthNotSetup")]
     TwoFactorAuthNotSetup,
+    #[error("TOTP secret not found")]
+    TotpSecretNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -199,6 +201,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::TwoFactorAuthNotSetup => {
                 AER::BadRequest(ApiError::new(sub_code, 41, self.get_error_message(), None))
             }
+            Self::TotpSecretNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 42, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -241,6 +246,7 @@ impl UserErrors {
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
+            Self::TotpSecretNotFound => "TOTP secret not found",
         }
     }
 }
