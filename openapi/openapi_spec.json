@@ -11133,11 +11133,6 @@
               }
             ],
             "nullable": true
-          },
-          "connector_wallets_details": {
-            "type": "object",
-            "description": "An object containing the required details/credentials for a Connector Wallets.",
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11372,10 +11367,6 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
-          },
-          "connector_wallets_details": {
-            "type": "object",
-            "nullable": true
           }
         },
         "additionalProperties": false
