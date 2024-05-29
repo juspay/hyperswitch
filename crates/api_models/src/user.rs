@@ -235,6 +235,12 @@ pub struct TokenResponse {
     pub token_type: TokenPurpose,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthStatusResponse {
+    pub totp: bool,
+    pub recovery_code: bool,
+}
+
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum TokenOrPayloadResponse<T> {

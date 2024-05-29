@@ -735,3 +735,20 @@ pub async fn terminate_two_factor_auth(
     ))
     .await
 }
+
+pub async fn check_two_factor_auth_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::TwoFactorAuthStatus;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::check_two_factor_auth_status(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
