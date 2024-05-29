@@ -79,8 +79,7 @@ pub async fn refund_create_core(
     amount = req
         .amount
         .or(payment_intent
-            .amount_captured
-            .map(|capture_amount| capture_amount))
+            .amount_captured)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("amount captured is none in a successful payment")?;
 

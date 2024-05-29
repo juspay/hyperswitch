@@ -350,13 +350,14 @@ impl MinorUnit {
     /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
     /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
     fn to_major_unit_as_string(
-        &self,
+        self,
         currency: enums::Currency,
     ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
         let amount_f64 = self.to_major_unit_as_f64(currency)?;
-        let amount_string = if currency.is_zero_decimal_currency() {
+        let amount_string = if currency.is_zero_decimal_currency(){
             amount_f64.0.to_string()
-        } else if currency.is_three_decimal_currency() {
+        }
+        else if currency.is_three_decimal_currency() {
             format!("{:.3}", amount_f64.0)
         } else {
             format!("{:.2}", amount_f64.0)
@@ -366,7 +367,7 @@ impl MinorUnit {
 
     /// Convert the amount to its major denomination based on Currency and return f64
     fn to_major_unit_as_f64(
-        &self,
+        self,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
         let amount_decimal =
@@ -387,10 +388,11 @@ impl MinorUnit {
 
     ///Convert minor unit to string minor unit
     fn to_minor_unit_as_string(
-        &self,
+        self,
     ) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
         Ok(StringMinorUnit::new(self.0.to_string()))
     }
+
 }
 
 impl Display for MinorUnit {
@@ -483,13 +485,13 @@ impl FloatMajorUnit {
     }
 
     /// forms a new major unit with zero amount
-    pub fn zero() -> Self {
+    pub fn zero() -> Self{
         Self(0.0)
     }
 
     /// converts to minor unit as i64 from FloatMajorUnit
     fn to_minor_unit_as_i64(
-        &self,
+        self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let amount_decimal =
@@ -581,12 +583,13 @@ mod amount_conversion_tests {
         let converted_amount = required_conversion
             .convert(request_amount, ZERO_DECIMAL_CURRENCY)
             .unwrap();
-        assert_eq!(converted_amount.0, 999999999.0);
+            assert_eq!(converted_amount.0, 999999999.0);
 
         let converted_back_amount = required_conversion
             .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
+
     }
 
     #[test]
@@ -627,7 +630,7 @@ mod amount_conversion_tests {
         let converted_amount = required_conversion
             .convert(request_amount, ZERO_DECIMAL_CURRENCY)
             .unwrap();
-        assert_eq!(converted_amount.0, "999999999".to_string());
+            assert_eq!(converted_amount.0, "999999999".to_string());
 
         let converted_back_amount = required_conversion
             .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)

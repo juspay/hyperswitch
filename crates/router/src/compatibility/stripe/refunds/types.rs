@@ -48,7 +48,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
             refund_id: req.refund_id,
             amount: req
                 .amount
-                .map(|amount| common_utils::types::MinorUnit::new(amount)),
+                .map(common_utils::types::MinorUnit::new),
             payment_id: req.payment_intent,
             reason: req.reason,
             refund_type: Some(refunds::RefundType::Instant),
