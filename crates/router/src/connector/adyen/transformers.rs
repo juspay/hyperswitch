@@ -4094,9 +4094,13 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    #[cfg(feature = "payouts")]
     PayoutThirdparty,
+    #[cfg(feature = "payouts")]
     PayoutDecline,
+    #[cfg(feature = "payouts")]
     PayoutExpire,
+    #[cfg(feature = "payouts")]
     PayoutReversed,
     #[serde(other)]
     Unknown,
@@ -4137,6 +4141,7 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
     )
 }
 
+#[cfg(feature = "payouts")]
 pub fn is_payout_event(event_code: &WebhookEventCode) -> bool {
     matches!(
         event_code,
@@ -4287,6 +4292,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::CaptureFailed
                     }
                 }
+                #[cfg(feature = "payouts")]
                 WebhookEventCode::PayoutThirdparty => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Authorised
@@ -4294,10 +4300,13 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::AuthorisationFailed
                     }
                 }
+                #[cfg(feature = "payouts")]
                 WebhookEventCode::PayoutDecline => AdyenWebhookStatus::Cancelled,
-                WebhookEventCode::CaptureFailed => AdyenWebhookStatus::CaptureFailed,
+                #[cfg(feature = "payouts")]
                 WebhookEventCode::PayoutExpire => AdyenWebhookStatus::AuthorisationFailed,
+                #[cfg(feature = "payouts")]
                 WebhookEventCode::PayoutReversed => AdyenWebhookStatus::Reversed,
+                WebhookEventCode::CaptureFailed => AdyenWebhookStatus::CaptureFailed,
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
                 | WebhookEventCode::RefundFailed
