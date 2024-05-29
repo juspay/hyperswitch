@@ -1209,17 +1209,33 @@ impl User {
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            )
-            .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
-            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
-            .service(
-                web::resource("/2fa/terminate").route(web::get().to(terminate_two_factor_auth)),
             );
 
+        // Two factor auth routes
         route = route.service(
-            web::scope("/recovery_code")
-                .service(web::resource("/verify").route(web::post().to(verify_recovery_code)))
-                .service(web::resource("/generate").route(web::post().to(generate_recovery_codes))),
+            web::scope("/2fa")
+                .service(
+                    web::scope("/totp")
+                        .service(web::resource("/begin").route(web::get().to(totp_begin)))
+                        .service(
+                            web::resource("/verify")
+                                .route(web::post().to(totp_verify))
+                                .route(web::put().to(totp_update)),
+                        ),
+                )
+                .service(
+                    web::scope("/recovery_code")
+                        .service(
+                            web::resource("/verify").route(web::post().to(verify_recovery_code)),
+                        )
+                        .service(
+                            web::resource("/generate")
+                                .route(web::get().to(generate_recovery_codes)),
+                        ),
+                )
+                .service(
+                    web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
+                ),
         );
 
         #[cfg(feature = "email")]
