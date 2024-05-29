@@ -182,50 +182,45 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let payment_method_billing_address = payment_method_billing_address.cloned();
 
             logger::info!("Call to save_payment_method in locker");
-            let _task_handle = tokio::spawn(
-                async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        connector_name,
-                        merchant_connector_id,
-                        save_payment_data,
-                        customer_id,
-                        &merchant_account,
-                        payment_method_type,
-                        &key_store,
-                        Some(amount),
-                        Some(currency),
-                        billing_name,
-                        payment_method_billing_address.as_ref(),
-                        &business_profile,
-                    ))
-                    .await;
+            let result = Box::pin(tokenization::save_payment_method(
+                &state,
+                connector_name,
+                merchant_connector_id,
+                save_payment_data,
+                customer_id,
+                &merchant_account,
+                payment_method_type,
+                &key_store,
+                Some(amount),
+                Some(currency),
+                billing_name,
+                payment_method_billing_address.as_ref(),
+                &business_profile,
+            ))
+            .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok((payment_method_id, _pm_status)) = result {
-                        let payment_attempt_update =
-                            storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                                payment_method_id,
-                                updated_by: storage_scheme.clone().to_string(),
-                            };
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                payment_attempt,
-                                payment_attempt_update,
-                                storage_scheme,
-                            )
-                            .await;
-                        if let Err(err) = respond {
-                            logger::error!("Error updating payment attempt: {:?}", err);
-                        };
-                    }
-                }
-                .in_current_span(),
-            );
+            if let Err(err) = result {
+                logger::error!("saving card in locker failed : {:?}", err);
+            } else if let Ok((payment_method_id, _pm_status)) = result {
+                let payment_attempt_update =
+                    storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                        payment_method_id,
+                        updated_by: storage_scheme.clone().to_string(),
+                    };
+                state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        payment_attempt,
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .map_or_else(
+                        |err| logger::error!("Error updating payment attempt: {:?}", err),
+                        |updated_attempt_data| payment_data.payment_attempt = updated_attempt_data
+                    );
+            };
             Ok(())
         }
     }
