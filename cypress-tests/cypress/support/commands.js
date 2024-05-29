@@ -714,7 +714,7 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
       })
   }
   else if (globalState.get("connectorId") === "cybersource" || globalState.get("connectorId") === "bankofamerica") {
-    cy.get('iframe', { timeout: 150000 })
+    cy.get('iframe', { timeout: 15000 })
       .its('0.contentDocument.body')
       .within((body) => {
         cy.get('input[type="text"]').click().type("1234");
