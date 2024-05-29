@@ -381,7 +381,7 @@ impl
         match res.headers {
             Some(headers) => {
                 let capture_id = connector_utils::get_http_header("Capture-Id", &headers)
-                    .attach_printable("Missing refund id in headers")
+                    .attach_printable("Missing capture id in headers")
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                 let response = klarna::KlarnaCaptureResponse {
                     capture_id: Some(capture_id.to_owned()),
