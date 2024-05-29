@@ -53,7 +53,7 @@ CREATE TABLE sdk_events (
     INDEX sourceIndex source TYPE bloom_filter GRANULARITY 1,
     INDEX componentIndex component TYPE bloom_filter GRANULARITY 1,
     INDEX firstEventIndex first_event TYPE bloom_filter GRANULARITY 1
-) ENGINE = MergeTree PARTITION BY toStartOfDay(created_at)
+) ENGINE = MergeTree
 PARTITION BY 
     toStartOfDay(created_at) 
 ORDER BY 
@@ -85,7 +85,7 @@ CREATE MATERIALIZED VIEW sdk_events_mv TO sdk_events (
     `created_at` DateTime64(3),
     `created_at_precise` DateTime64(3)
 ) AS 
-SELECT 
+SELECT
     payment_id,
     merchant_id,
     remote_ip,
@@ -132,8 +132,8 @@ CREATE TABLE sdk_events_audit (
 ) ENGINE = MergeTree PARTITION BY merchant_id
 ORDER BY
     (merchant_id, payment_id)
-    TTL inserted_at TO VOLUME 'external_s3', inserted_at + toIntervalMonth(18)
-SETTINGS index_granularity = 8192, storage_policy = 's3_cold';
+    TTL inserted_at + toIntervalMonth(18)
+SETTINGS index_granularity = 8192;
 
 CREATE MATERIALIZED VIEW sdk_events_parse_errors (
     `topic` String,
@@ -175,7 +175,7 @@ CREATE MATERIALIZED VIEW sdk_events_audit_mv TO sdk_events_audit (
     `payment_experience` LowCardinality(Nullable(String)),
     `created_at` DateTime64(3),
     `created_at_precise` DateTime64(3),
-    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4)
 ) AS
 SELECT
     payment_id,
@@ -196,10 +196,37 @@ SELECT
     payment_method,
     payment_experience,
     toDateTime64(timestamp, 3) AS created_at,
-    toDateTime64(timestamp, 3) AS created_at_precise ,
+    toDateTime64(timestamp, 3) AS created_at_precise,
     now() AS inserted_at
 FROM
     sdk_events_queue
 WHERE
     (length(_error) = 0)
     AND (payment_id IS NOT NULL);
+
+CREATE TABLE sdk_active_payments ( 
+    `payment_id` Nullable(String),
+    `merchant_id` String,
+    `created_at` DateTime,
+    INDEX merchantIndex merchant_id TYPE bloom_filter GRANULARITY 1
+) ENGINE = ReplacingMergeTree
+PARTITION BY toStartOfSecond(created_at)
+ORDER BY 
+    (created_at, merchant_id) 
+TTL 
+    toDateTime(created_at) + INTERVAL 60 SECOND
+SETTINGS 
+    index_granularity = 8192;
+
+CREATE MATERIALIZED VIEW sdk_active_payments_mv TO sdk_active_payments ( 
+    `payment_id` Nullable(String),
+    `merchant_id` String,
+    `created_at` DateTime
+) AS 
+SELECT
+    payment_id,
+    merchant_id,
+    toDateTime(timestamp) AS created_at,
+FROM 
+    sdk_events_queue
+WHERE length(_error) = 0;
