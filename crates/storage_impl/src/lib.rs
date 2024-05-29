@@ -95,7 +95,7 @@ impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
 impl<T: DatabaseStore> RouterStore<T> {
     pub async fn from_config(
         db_conf: T::Config,
-        tenant_config: &dyn TenantConfig,
+        tenant_config: &dyn config::TenantConfig,
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
@@ -143,7 +143,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` is not set
     pub async fn test_store(
         db_conf: T::Config,
-        tenant_config: &dyn TenantConfig,
+        tenant_config: &dyn config::TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
     ) -> StorageResult<Self> {
@@ -181,7 +181,7 @@ where
     type Config = (RouterStore<T>, String, u8, u32, Option<bool>);
     async fn new(
         config: Self::Config,
-        tenant_config: &dyn TenantConfig,
+        tenant_config: &dyn config::TenantConfig,
         _test_transaction: bool,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
