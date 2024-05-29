@@ -3160,10 +3160,7 @@ impl MerchantConnectorAccountType {
 
     pub fn get_connector_wallets_details(&self) -> Option<masking::Secret<serde_json::Value>> {
         match self {
-            Self::DbVal(val) => val
-                .connector_wallets_details
-                .as_ref()
-                .map(|wallets_details| masking::Secret::new(wallets_details.peek().to_owned())),
+            Self::DbVal(val) => val.connector_wallets_details.as_deref().cloned(),
             Self::CacheVal(_) => None,
         }
     }
@@ -3905,17 +3902,32 @@ pub fn validate_customer_access(
 
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
+    connector_wallets_details: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
-    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
-        .map_err(|error| {
-            logger::info!(
+    let connector_apple_pay_wallet_details =
+        get_applepay_metadata(connector_wallets_details)
+            .map_err(|error| {
+                logger::info!(
+                    "Apple pay connector wallets details parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
+                    connector_name,
+                    error
+                )
+            })
+            .ok();
+
+    let option_apple_pay_metadata = match connector_apple_pay_wallet_details {
+        Some(apple_pay_wallet_details) => Some(apple_pay_wallet_details),
+        None => get_applepay_metadata(connector_metadata)
+            .map_err(|error| {
+                logger::info!(
                 "Apple pay metadata parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
                 connector_name,
                 error
             )
-        })
-        .ok();
+            })
+            .ok(),
+    };
 
     // return true only if the apple flow type is simplified
     Ok(matches!(
@@ -3991,6 +4003,7 @@ where
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
+        merchant_connector_account_type.get_connector_wallets_details(),
         merchant_connector_account_type
             .get_connector_name()
             .as_ref(),
@@ -4010,6 +4023,10 @@ where
         for merchant_connector_account in merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata,
+                merchant_connector_account
+                    .connector_wallets_details
+                    .as_deref()
+                    .cloned(),
                 Some(&merchant_connector_account.connector_name),
             )? {
                 let connector_data = api::ConnectorData::get_connector_by_name(
