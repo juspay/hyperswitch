@@ -393,7 +393,6 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            amount_captured: item.request.
             status,
             ..item.data
         })
