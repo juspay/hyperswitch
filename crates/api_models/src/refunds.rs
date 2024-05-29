@@ -115,7 +115,7 @@ pub struct RefundResponse {
     /// The payment id against which refund is initiated
     pub payment_id: String,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
-    #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
+    #[schema(value_type = i64 , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
     /// The three-letter ISO currency code
     pub currency: String,

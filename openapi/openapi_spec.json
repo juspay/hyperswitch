@@ -17310,6 +17310,7 @@
         "required": [
           "refund_id",
           "payment_id",
+          "amount",
           "currency",
           "status",
           "connector"
@@ -17328,7 +17329,6 @@
             "format": "int64",
             "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
             "example": 6540,
-            "nullable": true,
             "minimum": 100
           },
           "currency": {
