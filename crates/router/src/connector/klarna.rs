@@ -408,6 +408,84 @@ impl
     for Klarna
 {
     // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let order_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+
+        Ok(format!(
+            "{}{}{}",
+            endpoint, "ordermanagement/v1/orders/", order_id,
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: klarna::KlarnaPsyncResponse = res
+            .response
+            .parse_struct("klarna KlarnaPsyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl

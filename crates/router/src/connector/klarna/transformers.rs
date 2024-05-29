@@ -273,6 +273,63 @@ impl From<KlarnaFraudStatus> for enums::AttemptStatus {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KlarnaPsyncResponse {
+    pub order_id: String,
+    pub status: KlarnaPaymentStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KlarnaPaymentStatus {
+    Authorized,
+    PartCaptured,
+    Captured,
+    Cancelled,
+    Expired,
+    Closed,
+}
+
+impl From<KlarnaPaymentStatus> for enums::AttemptStatus {
+    fn from(item: KlarnaPaymentStatus) -> Self {
+        match item {
+            KlarnaPaymentStatus::Authorized => Self::Authorized,
+            KlarnaPaymentStatus::PartCaptured => Self::PartialCharged,
+            KlarnaPaymentStatus::Captured => Self::Charged,
+            KlarnaPaymentStatus::Cancelled => Self::Voided,
+            KlarnaPaymentStatus::Expired => Self::Failure,
+            KlarnaPaymentStatus::Closed => Self::Failure,
+        }
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, KlarnaPsyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, KlarnaPsyncResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.order_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.order_id),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct KlarnaCaptureRequest {
     captured_amount: i64,
@@ -375,10 +432,17 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, KlarnaRefundResponse
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, KlarnaRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        // https://docs.klarna.com/api/ordermanagement/#operation/refundOrder
+        // If 201 status code, then Refund is Successful, other status codes are handled by the error handler
+        let status = if item.http_code == 201 {
+            enums::RefundStatus::Pending
+        } else {
+            enums::RefundStatus::Failure
+        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.refund_id,
-                refund_status: enums::RefundStatus::Pending,
+                refund_status: status,
             }),
             ..item.data
         })
@@ -397,10 +461,17 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, KlarnaRefundSyncRespon
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, KlarnaRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        // https://docs.klarna.com/api/ordermanagement/#operation/get
+        // If 200 status code, then Refund is Successful, other status codes are handled by the error handler
+        let status = if item.http_code == 200 {
+            enums::RefundStatus::Success
+        } else {
+            enums::RefundStatus::Failure
+        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.refund_id,
-                refund_status: enums::RefundStatus::Success,
+                refund_status: status,
             }),
             ..item.data
         })
