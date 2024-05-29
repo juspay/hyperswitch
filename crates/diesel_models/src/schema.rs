@@ -276,6 +276,31 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    connector_ps_identifiers (merchant_id, mca_id, connect_account_id, customer_ps_id, pm_ps_id) {
+        id -> Int4,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        mca_id -> Varchar,
+        #[max_length = 64]
+        connect_account_id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        #[max_length = 64]
+        pm_id -> Varchar,
+        #[max_length = 64]
+        customer_ps_id -> Varchar,
+        #[max_length = 64]
+        pm_ps_id -> Varchar,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     customers (customer_id, merchant_id) {
         id -> Int4,
         #[max_length = 64]
@@ -1240,6 +1265,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     captures,
     cards_info,
     configs,
+    connector_ps_identifiers,
     customers,
     dashboard_metadata,
     dispute,
