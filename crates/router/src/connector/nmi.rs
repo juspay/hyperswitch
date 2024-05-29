@@ -4,7 +4,7 @@ use common_utils::{
     crypto,
     ext_traits::ByteSliceExt,
     request::RequestContent,
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -340,7 +340,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            MinorUnit::new(req.request.amount),
+            req.request.minor_amount,
             req.request.currency,
         )?;
         let connector_router_data = nmi::NmiRouterData::from((amount, req));
@@ -428,7 +428,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            MinorUnit::new(req.request.amount),
+            req.request.minor_amount,
             req.request.currency,
         )?;
         let connector_router_data = nmi::NmiRouterData::from((amount, req));
@@ -580,7 +580,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            MinorUnit::new(req.request.amount_to_capture),
+            req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
         let connector_router_data = nmi::NmiRouterData::from((amount, req));
@@ -728,7 +728,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let refund_amount = connector_utils::convert_amount(
             self.amount_converter,
-            MinorUnit::new(req.request.refund_amount),
+            req.request.minor_refund_amount,
             req.request.currency,
         )?;
 

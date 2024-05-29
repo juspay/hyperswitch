@@ -54,7 +54,7 @@ pub fn validate_refund_amount(
             if refund.refund_status != enums::RefundStatus::Failure
                 && refund.refund_status != enums::RefundStatus::TransactionFailure
             {
-                Some(refund.refund_amount)
+                Some(refund.refund_amount.get_amount_as_i64())
             } else {
                 None
             }

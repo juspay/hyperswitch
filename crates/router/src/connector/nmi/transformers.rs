@@ -667,7 +667,7 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
         Ok(Self {
             transaction_type: TransactionType::Validate,
             security_key: auth_type.api_key,
-            amount: FloatMajorUnit::new(0.0),
+            amount: FloatMajorUnit::zero(),
             currency: item.request.currency,
             payment_method,
             merchant_defined_field: None,

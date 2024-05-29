@@ -1,7 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
-use common_utils::{consts, errors, ext_traits::OptionExt, pii};
+use common_utils::{consts, errors, ext_traits::OptionExt, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -57,6 +57,9 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub authentication_data: Option<AuthenticationData>,
     pub charges: Option<PaymentCharges>,
+
+    // New amount for amount frame work
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -77,6 +80,10 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<pii::SecretSerdeValue>,
     // This metadata is used to store the metadata shared during the payment intent request.
+
+    // New amount for amount frame work
+    pub minor_payment_amount: MinorUnit,
+    pub minor_amount_to_capture: MinorUnit,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -296,6 +303,9 @@ pub struct CompleteAuthorizeData {
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    // New amount for amount frame work
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone)]
@@ -387,18 +397,18 @@ impl ResponseId {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SurchargeDetails {
     /// original_amount
-    pub original_amount: common_utils::types::MinorUnit,
+    pub original_amount: MinorUnit,
     /// surcharge value
     pub surcharge: common_utils::types::Surcharge,
     /// tax on surcharge value
     pub tax_on_surcharge:
         Option<common_utils::types::Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>>,
     /// surcharge amount for this payment
-    pub surcharge_amount: common_utils::types::MinorUnit,
+    pub surcharge_amount: MinorUnit,
     /// tax on surcharge amount for this payment
-    pub tax_on_surcharge_amount: common_utils::types::MinorUnit,
+    pub tax_on_surcharge_amount: MinorUnit,
     /// sum of original amount,
-    pub final_amount: common_utils::types::MinorUnit,
+    pub final_amount: MinorUnit,
 }
 
 impl SurchargeDetails {
@@ -410,7 +420,7 @@ impl SurchargeDetails {
             && request_surcharge_details.tax_amount.unwrap_or_default()
                 == self.tax_on_surcharge_amount
     }
-    pub fn get_total_surcharge_amount(&self) -> common_utils::types::MinorUnit {
+    pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_on_surcharge_amount
     }
 }
@@ -459,6 +469,7 @@ pub struct RefundsData {
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub payment_amount: i64,
+
     pub reason: Option<String>,
     pub webhook_url: Option<String>,
     /// Amount to be refunded
@@ -468,6 +479,10 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub charges: Option<ChargeRefunds>,
+
+    // New amount for amount frame work
+    pub minor_payment_amount: MinorUnit,
+    pub minor_refund_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

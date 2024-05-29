@@ -251,7 +251,7 @@ pub trait AmountConvertor: Send {
 }
 
 /// Connector required amount type
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct StringMinorUnitForConnector;
 
 impl AmountConvertor for StringMinorUnitForConnector {
@@ -347,12 +347,16 @@ impl MinorUnit {
     }
 
     /// Convert the amount to its major denomination based on Currency and return String
-    pub fn to_major_unit_as_string(
+    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+    fn to_major_unit_as_string(
         &self,
         currency: enums::Currency,
     ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
         let amount_f64 = self.to_major_unit_as_f64(currency)?;
-        let amount_string = if currency.is_three_decimal_currency() {
+        let amount_string = if currency.is_zero_decimal_currency() {
+            amount_f64.0.to_string()
+        } else if currency.is_three_decimal_currency() {
             format!("{:.3}", amount_f64.0)
         } else {
             format!("{:.2}", amount_f64.0)
@@ -361,7 +365,7 @@ impl MinorUnit {
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
-    pub fn to_major_unit_as_f64(
+    fn to_major_unit_as_f64(
         &self,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
@@ -381,29 +385,11 @@ impl MinorUnit {
         Ok(FloatMajorUnit::new(amount_f64))
     }
 
-    ///Convert the higher decimal amount to its major absolute units
-    pub fn to_minor_unit_as_string(
+    ///Convert minor unit to string minor unit
+    fn to_minor_unit_as_string(
         &self,
     ) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
-        let amount_decimal =
-            Decimal::from_i64(self.0).ok_or(ParsingError::I64ToDecimalConversionFailure)?;
-        Ok(StringMinorUnit::new(amount_decimal.to_string()))
-    }
-
-    /// Convert the amount to its major denomination based on Currency and check for zero decimal currency and return String
-    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
-    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
-    pub fn to_major_unit_as_string_with_zero_decimal_check(
-        &self,
-        currency: enums::Currency,
-    ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
-        let amount_f64 = self.to_major_unit_as_f64(currency)?;
-        if currency.is_zero_decimal_currency() {
-            Ok(StringMajorUnit::new(amount_f64.0.to_string()))
-        } else {
-            let amount_string = format!("{:.2}", amount_f64.0);
-            Ok(StringMajorUnit::new(amount_string))
-        }
+        Ok(StringMinorUnit::new(self.0.to_string()))
     }
 }
 
@@ -467,12 +453,12 @@ pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
     /// forms a new minor unit in string from amount
-    pub fn new(value: String) -> Self {
+    fn new(value: String) -> Self {
         Self(value)
     }
 
     /// converts to minor unit i64 from minor unit string value
-    pub fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+    fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let amount_string = &self.0;
         let amount_decimal = Decimal::from_str(amount_string).map_err(|e| {
             ParsingError::StringToDecimalConversionFailure {
@@ -492,12 +478,17 @@ pub struct FloatMajorUnit(f64);
 
 impl FloatMajorUnit {
     /// forms a new major unit from amount
-    pub fn new(value: f64) -> Self {
+    fn new(value: f64) -> Self {
         Self(value)
     }
 
+    /// forms a new major unit with zero amount
+    pub fn zero() -> Self {
+        Self(0.0)
+    }
+
     /// converts to minor unit as i64 from FloatMajorUnit
-    pub fn to_minor_unit_as_i64(
+    fn to_minor_unit_as_i64(
         &self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
@@ -525,12 +516,12 @@ pub struct StringMajorUnit(String);
 
 impl StringMajorUnit {
     /// forms a new major unit from amount
-    pub fn new(value: String) -> Self {
+    fn new(value: String) -> Self {
         Self(value)
     }
 
     /// Converts to minor unit as i64 from StringMajorUnit
-    pub fn to_minor_unit_as_i64(
+    fn to_minor_unit_as_i64(
         &self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
@@ -558,30 +549,42 @@ impl StringMajorUnit {
 mod amount_conversion_tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
+    const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
+    const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
+    const ZERO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::JPY;
     #[test]
     fn amount_conversion_to_float_major_unit() {
         let request_amount = MinorUnit::new(999999999);
-        let two_decimal_currency = enums::Currency::USD;
-        let three_decimal_currency = enums::Currency::BHD;
         let required_conversion = FloatMajorUnitForConnector;
 
         // Two decimal currency conversions
         let converted_amount = required_conversion
-            .convert(request_amount, two_decimal_currency)
+            .convert(request_amount, TWO_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(converted_amount.0, 9999999.99);
         let converted_back_amount = required_conversion
-            .convert_back(converted_amount, two_decimal_currency)
+            .convert_back(converted_amount, TWO_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
 
         // Three decimal currency conversions
         let converted_amount = required_conversion
-            .convert(request_amount, three_decimal_currency)
+            .convert(request_amount, THREE_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(converted_amount.0, 999999.999);
         let converted_back_amount = required_conversion
-            .convert_back(converted_amount, three_decimal_currency)
+            .convert_back(converted_amount, THREE_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Zero decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, 999999999.0);
+
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
     }
@@ -589,26 +592,24 @@ mod amount_conversion_tests {
     #[test]
     fn amount_conversion_to_string_major_unit() {
         let request_amount = MinorUnit::new(999999999);
-        let two_decimal_currency = enums::Currency::USD;
-        let three_decimal_currency = enums::Currency::BHD;
         let required_conversion = StringMajorUnitForConnector;
 
         // Two decimal currency conversions
         let converted_amount_two_decimal_currency = required_conversion
-            .convert(request_amount, two_decimal_currency)
+            .convert(request_amount, TWO_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(
             converted_amount_two_decimal_currency.0,
             "9999999.99".to_string()
         );
         let converted_back_amount = required_conversion
-            .convert_back(converted_amount_two_decimal_currency, two_decimal_currency)
+            .convert_back(converted_amount_two_decimal_currency, TWO_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
 
         // Three decimal currency conversions
         let converted_amount_three_decimal_currency = required_conversion
-            .convert(request_amount, three_decimal_currency)
+            .convert(request_amount, THREE_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(
             converted_amount_three_decimal_currency.0,
@@ -617,8 +618,19 @@ mod amount_conversion_tests {
         let converted_back_amount = required_conversion
             .convert_back(
                 converted_amount_three_decimal_currency,
-                three_decimal_currency,
+                THREE_DECIMAL_CURRENCY,
             )
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Zero decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, "999999999".to_string());
+
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
     }
@@ -626,7 +638,7 @@ mod amount_conversion_tests {
     #[test]
     fn amount_conversion_to_string_minor_unit() {
         let request_amount = MinorUnit::new(999999999);
-        let currency = enums::Currency::USD;
+        let currency = TWO_DECIMAL_CURRENCY;
         let required_conversion = StringMinorUnitForConnector;
         let converted_amount = required_conversion
             .convert(request_amount, currency)
