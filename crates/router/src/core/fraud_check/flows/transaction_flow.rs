@@ -74,7 +74,7 @@ impl
             connector_meta_data: None,
             amount_captured: None,
             request: FraudCheckTransactionData {
-                amount: self.payment_attempt.amount,
+                amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency,
                 payment_method,
@@ -109,7 +109,7 @@ impl
             connector_api_version: None,
             payment_method_status: None,
             apple_pay_flow: None,
-            frm_metadata: None,
+            frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
             connector_response: None,

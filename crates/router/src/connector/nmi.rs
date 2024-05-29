@@ -8,7 +8,7 @@ use error_stack::{report, ResultExt};
 use regex::Regex;
 use transformers as nmi;
 
-use super::utils::{self as connector_utils};
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::{

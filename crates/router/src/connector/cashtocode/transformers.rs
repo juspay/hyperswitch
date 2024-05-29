@@ -203,13 +203,13 @@ fn get_redirect_form_data(
         enums::PaymentMethodType::ClassicReward => Ok(services::RedirectForm::Form {
             //redirect form is manually constructed because the connector for this pm type expects query params in the url
             endpoint: response_data.pay_url.to_string(),
-            method: services::Method::Post,
+            method: Method::Post,
             form_fields: Default::default(),
         }),
         enums::PaymentMethodType::Evoucher => Ok(services::RedirectForm::from((
             //here the pay url gets parsed, and query params are sent as formfields as the connector expects
             response_data.pay_url,
-            services::Method::Get,
+            Method::Get,
         ))),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("CashToCode"),
@@ -268,6 +268,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                 )
             }
@@ -312,6 +313,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

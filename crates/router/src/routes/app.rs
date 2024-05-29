@@ -198,6 +198,7 @@ impl AppState {
                                 .await
                                 .expect("Failed to create store"),
                             kafka_client.clone(),
+                            crate::db::kafka_store::TenantID("default".to_string()),
                         )
                         .await,
                     ),
@@ -332,7 +333,7 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
-                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
+                .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -385,7 +386,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments_complete_authorize))
+                        .route(web::get().to(payments_complete_authorize_redirect))
+                        .route(web::post().to(payments_complete_authorize_redirect)),
+                )
+                .service(
+                    web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments_complete_authorize)),
                 )
                 .service(
@@ -465,10 +470,6 @@ impl Routing {
                             &TransactionType::Payment,
                         )
                     })),
-            )
-            .service(
-                web::resource("/business_profile/{business_profile_id}/configs/pg_agnostic_mit")
-                    .route(web::post().to(cloud_routing::upsert_connector_agnostic_mandate_config)),
             )
             .service(
                 web::resource("/default")
@@ -719,7 +720,8 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
-                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)));
+                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
+                .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)));
         }
         #[cfg(feature = "oltp")]
         {
@@ -868,6 +870,7 @@ impl MerchantAccount {
                     .route(web::post().to(merchant_account_toggle_kv))
                     .route(web::get().to(merchant_account_kv_status)),
             )
+            .service(web::resource("/kv").route(web::post().to(merchant_account_toggle_all_kv)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
@@ -1131,6 +1134,10 @@ impl BusinessProfile {
                     .service(
                         web::resource("/toggle_extended_card_info")
                             .route(web::post().to(toggle_extended_card_info)),
+                    )
+                    .service(
+                        web::resource("/toggle_connector_agnostic_mit")
+                            .route(web::post().to(toggle_connector_agnostic_mit)),
                     ),
             )
     }
@@ -1180,6 +1187,7 @@ impl User {
             .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
+            .service(web::resource("/rotate_password").route(web::post().to(rotate_password)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
@@ -1190,13 +1198,29 @@ impl User {
             // TODO: Remove this endpoint once migration to /merchants/list is done
             .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
+            // The route is utilized to select an invitation from a list of merchants in an intermediate state
+            .service(
+                web::resource("/merchants_select/list")
+                    .route(web::get().to(list_merchants_for_user_with_spt)),
+            )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
+            )
+            .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
+            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
+            .service(
+                web::resource("/2fa/terminate").route(web::get().to(terminate_two_factor_auth)),
             );
+
+        route = route.service(
+            web::scope("/recovery_code")
+                .service(web::resource("/verify").route(web::post().to(verify_recovery_code)))
+                .service(web::resource("/generate").route(web::post().to(generate_recovery_codes))),
+        );
 
         #[cfg(feature = "email")]
         {
@@ -1237,7 +1261,11 @@ impl User {
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
-                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(
+                    web::resource("/invite/accept")
+                        .route(web::post().to(merchant_select))
+                        .route(web::put().to(accept_invitation)),
+                )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
                 .service(
                     web::resource("/transfer_ownership")

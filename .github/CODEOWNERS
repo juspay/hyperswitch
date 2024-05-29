@@ -20,6 +20,7 @@ crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
 openapi/ @juspay/hyperswitch-framework
 postman/ @juspay/hyperswitch-framework
+cypress-tests/ @juspay/hyperswitch-framework @juspay/hyperswitch-qa
 Cargo.toml @juspay/hyperswitch-framework
 Cargo.lock @juspay/hyperswitch-framework
 
@@ -45,6 +46,7 @@ crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 crates/router/src/core/ @juspay/hyperswitch-core
 
 crates/api_models/src/routing.rs @juspay/hyperswitch-routing
+crates/hyperswitch_constraint_graph @juspay/hyperswitch-routing
 crates/euclid @juspay/hyperswitch-routing
 crates/euclid_macros @juspay/hyperswitch-routing
 crates/euclid_wasm @juspay/hyperswitch-routing

@@ -10,7 +10,7 @@ use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
-use crate::common_config::{CardProvider, GooglePayData, Provider, ZenApplePay};
+use crate::common_config::{CardProvider, GooglePayData, PaypalSdkData, Provider, ZenApplePay};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Classic {
@@ -79,6 +79,7 @@ pub struct ConfigMetadata {
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,
     pub google_pay: Option<GooglePayData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub merchant_id: Option<String>,
     pub endpoint_prefix: Option<String>,
@@ -133,6 +134,8 @@ pub struct ConnectorConfig {
     pub coinbase: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
     pub cybersource: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
@@ -143,6 +146,7 @@ pub struct ConnectorConfig {
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
+    pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
@@ -223,6 +227,7 @@ impl ConnectorConfig {
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
         }
     }
 
@@ -233,6 +238,7 @@ impl ConnectorConfig {
         match connector {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
+            AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
         }
     }
 
@@ -266,6 +272,7 @@ impl ConnectorConfig {
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
+            // Connector::Gpayments => Ok(connector_data.gpayments),  Added as template code for future usage
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mollie => Ok(connector_data.mollie),

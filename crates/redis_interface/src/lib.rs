@@ -26,7 +26,6 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 pub use fred::interfaces::PubsubInterface;
 use fred::{interfaces::ClientLike, prelude::EventInterface};
-use router_env::logger;
 
 pub use self::types::*;
 
@@ -189,10 +188,10 @@ impl RedisConnectionPool {
         let mut error_rx = futures::stream::select_all(error_rxs);
         loop {
             if let Some(Ok(error)) = error_rx.next().await {
-                logger::error!(?error, "Redis protocol or connection error");
+                tracing::error!(?error, "Redis protocol or connection error");
                 if self.pool.state() == fred::types::ClientState::Disconnected {
                     if tx.send(()).is_err() {
-                        logger::error!("The redis shutdown signal sender failed to signal");
+                        tracing::error!("The redis shutdown signal sender failed to signal");
                     }
                     self.is_redis_available
                         .store(false, atomic::Ordering::SeqCst);
@@ -205,7 +204,7 @@ impl RedisConnectionPool {
     pub async fn on_unresponsive(&self) {
         let _ = self.pool.clients().iter().map(|client| {
             client.on_unresponsive(|server| {
-                logger::warn!(redis_server =?server.host, "Redis server is unresponsive");
+                tracing::warn!(redis_server =?server.host, "Redis server is unresponsive");
                 Ok(())
             })
         });
