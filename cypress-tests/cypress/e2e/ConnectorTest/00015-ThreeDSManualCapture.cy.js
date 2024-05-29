@@ -19,7 +19,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       })
   
     })
-  
+
     afterEach("flush global state", () => {
       console.log("flushing globalState -> " + JSON.stringify(globalState));
       cy.task('setGlobalState', globalState.data);

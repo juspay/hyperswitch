@@ -704,7 +704,7 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
   let expected_url = new URL(expected_redirection);
   let redirection_url = new URL(globalState.get("nextActionUrl"));
   cy.visit(redirection_url.href);
-    if (globalState.get("connectorId") == "adyen") {
+  if (globalState.get("connectorId") == "adyen") {
     cy.get('iframe')
       .its('0.contentDocument.body')
       .within((body) => {

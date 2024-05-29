@@ -15,10 +15,10 @@ let globalState;
 describe("Card - Refund flow test", () => {
 
     before("seed global state", () => {
-  
+
         cy.task('getGlobalState').then((state) => {
-          globalState = new State(state);
-          console.log("seeding globalState -> " + JSON.stringify(globalState));
+           globalState = new State(state);
+           console.log("seeding globalState -> " + JSON.stringify(globalState));
         })
     
       })
@@ -26,7 +26,7 @@ describe("Card - Refund flow test", () => {
       afterEach("flush global state", () => {
         console.log("flushing globalState -> " + JSON.stringify(globalState));
         cy.task('setGlobalState', globalState.data);
-      })
+    })
 
     context("Card - Full Refund flow test for No-3DS", () => {
         let should_continue = true; // variable that will be used to skip tests if a previous test fails
