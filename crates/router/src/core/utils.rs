@@ -5,8 +5,8 @@ use api_models::enums::{DisputeStage, DisputeStatus};
 use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
-use common_utils::{crypto::Encryptable, pii::Email, types::MinorUnit};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::{crypto::Encryptable, pii::Email};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
 #[cfg(feature = "payouts")]

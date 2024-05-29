@@ -1,6 +1,6 @@
 #[cfg(feature = "olap")]
 use std::collections::HashSet;
-
+#[cfg(feature = "olap")]
 use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 use error_stack::ResultExt;
