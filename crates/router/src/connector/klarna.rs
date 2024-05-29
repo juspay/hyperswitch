@@ -414,7 +414,6 @@ impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Klarna
 {
-    // Not Implemented (R)
     fn get_headers(
         &self,
         req: &types::PaymentsSyncRouterData,

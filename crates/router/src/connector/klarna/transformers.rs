@@ -277,6 +277,7 @@ impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
 pub struct KlarnaPsyncResponse {
     pub order_id: String,
     pub status: KlarnaPaymentStatus,
+    pub klarna_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -297,8 +298,7 @@ impl From<KlarnaPaymentStatus> for enums::AttemptStatus {
             KlarnaPaymentStatus::PartCaptured => Self::PartialCharged,
             KlarnaPaymentStatus::Captured => Self::Charged,
             KlarnaPaymentStatus::Cancelled => Self::Voided,
-            KlarnaPaymentStatus::Expired => Self::Failure,
-            KlarnaPaymentStatus::Closed => Self::Failure,
+            KlarnaPaymentStatus::Expired | KlarnaPaymentStatus::Closed => Self::Failure,
         }
     }
 }
@@ -321,7 +321,10 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.order_id),
+                connector_response_reference_id: item
+                    .response
+                    .klarna_reference
+                    .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
@@ -341,12 +344,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsCaptureRouterData>> for KlarnaCap
     fn try_from(
         item: &KlarnaRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let reference = Some(
-            item.router_data
-                .request
-                .connector_transaction_id
-                .to_string(),
-        );
+        let reference = Some(item.router_data.connector_request_reference_id.clone());
         Ok(Self {
             reference,
             captured_amount: item.amount.to_owned(),
