@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-pub use common_utils::{request::RequestContent, pii, pii::Email, types::MinorUnit};
+pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::router_request_types::PayoutsData;
 #[cfg(feature = "payouts")]
