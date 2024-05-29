@@ -55,6 +55,12 @@ pub enum GooglePayData {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaypalSdkData {
+    pub client_id: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum GoogleApiModelData {
@@ -79,6 +85,7 @@ pub struct ApiModelMetaData {
     pub terminal_id: Option<String>,
     pub merchant_id: Option<String>,
     pub google_pay: Option<GoogleApiModelData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
     pub endpoint_prefix: Option<String>,
@@ -180,6 +187,7 @@ pub struct DashboardMetaData {
     pub terminal_id: Option<String>,
     pub merchant_id: Option<String>,
     pub google_pay: Option<GooglePayData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
     pub endpoint_prefix: Option<String>,
