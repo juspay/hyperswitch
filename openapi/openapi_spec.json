@@ -17258,12 +17258,12 @@
             "maxLength": 255
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 100
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           },
           "reason": {
             "type": "string",
@@ -17325,9 +17325,7 @@
             "description": "The payment id against which refund is initiated"
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "currency": {
             "type": "string",
