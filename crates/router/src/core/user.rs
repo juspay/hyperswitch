@@ -1878,9 +1878,9 @@ pub async fn terminate_two_factor_auth(
 pub async fn check_two_factor_auth_status(
     state: AppState,
     user_token: auth::UserFromToken,
-) -> UserResponse<user_api::CheckTwoFactorAuthStatusResponse> {
+) -> UserResponse<user_api::TwoFactorAuthStatusResponse> {
     Ok(ApplicationResponse::Json(
-        user_api::CheckTwoFactorAuthStatusResponse {
+        user_api::TwoFactorAuthStatusResponse {
             totp: tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?,
             recovery_code: tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id)
                 .await?,

@@ -236,7 +236,7 @@ pub struct TokenResponse {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct CheckTwoFactorAuthStatusResponse {
+pub struct TwoFactorAuthStatusResponse {
     pub totp: bool,
     pub recovery_code: bool,
 }

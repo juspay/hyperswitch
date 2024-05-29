@@ -1236,9 +1236,6 @@ impl User {
                 )
                 .service(
                     web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
-                )
-                .service(
-                    web::resource("/check").route(web::get().to(check_two_factor_auth_status)),
                 ),
         );
 
