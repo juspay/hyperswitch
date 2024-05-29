@@ -78,8 +78,7 @@ pub async fn refund_create_core(
     // Amount is not passed in request refer from payment intent.
     amount = req
         .amount
-        .or(payment_intent
-            .amount_captured)
+        .or(payment_intent.amount_captured)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("amount captured is none in a successful payment")?;
 
