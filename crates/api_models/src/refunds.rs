@@ -36,7 +36,7 @@ pub struct RefundRequest {
     pub merchant_id: Option<String>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
-    #[schema(minimum = 100, example = 6540)]
+    #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
     pub amount: Option<MinorUnit>,
 
     /// Reason for the refund. Often useful for displaying to users and your customer support executive. In case the payment went through Stripe, this field needs to be passed with one of these enums: `duplicate`, `fraudulent`, or `requested_by_customer`
@@ -115,6 +115,7 @@ pub struct RefundResponse {
     /// The payment id against which refund is initiated
     pub payment_id: String,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
+    #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
     /// The three-letter ISO currency code
     pub currency: String,
