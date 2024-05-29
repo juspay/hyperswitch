@@ -665,58 +665,16 @@ impl
             (None, None, None)
         };
         // this logic is for external authenticated card
-        let card_network_lower_case = network
-            .as_ref()
-            .map(|card_network| card_network.to_lowercase());
         let commerce_indicator_for_external_authentication = item
             .router_data
             .request
             .authentication_data
             .as_ref()
             .and_then(|authn_data| {
-                authn_data.eci.as_ref().map(|eci| {
-                    match eci.as_str() {
-                        "00" | "01" | "02" => {
-                            if matches!(
-                                card_network_lower_case.as_deref(),
-                                Some("mastercard") | Some("maestro")
-                            ) {
-                                "spa"
-                            } else {
-                                "internet"
-                            }
-                        }
-                        "05" => match card_network_lower_case.as_deref() {
-                            Some("amex") => "aesk",
-                            Some("discover") => "dipb",
-                            Some("mastercard") => "spa",
-                            Some("visa") => "vbv",
-                            Some("diners") => "pb",
-                            Some("upi") => "up3ds",
-                            _ => "internet",
-                        },
-                        "06" => match card_network_lower_case.as_deref() {
-                            Some("amex") => "aesk_attempted",
-                            Some("discover") => "dipb_attempted",
-                            Some("mastercard") => "spa",
-                            Some("visa") => "vbv_attempted",
-                            Some("diners") => "pb_attempted",
-                            Some("upi") => "up3ds_attempted",
-                            _ => "internet",
-                        },
-                        "07" => match card_network_lower_case.as_deref() {
-                            Some("amex") => "internet",
-                            Some("discover") => "internet",
-                            Some("mastercard") => "spa",
-                            Some("visa") => "vbv_failure",
-                            Some("diners") => "internet",
-                            Some("upi") => "up3ds_failure",
-                            _ => "internet",
-                        },
-                        _ => "vbv_failure",
-                    }
-                    .to_string()
-                })
+                authn_data
+                    .eci
+                    .clone()
+                    .map(|eci| get_commerce_indicator_for_external_authentication(network, eci))
             });
 
         Ok(Self {
@@ -733,6 +691,56 @@ impl
                 .unwrap_or(commerce_indicator),
         })
     }
+}
+
+fn get_commerce_indicator_for_external_authentication(
+    card_network: Option<String>,
+    eci: String,
+) -> String {
+    let card_network_lower_case = card_network
+        .as_ref()
+        .map(|card_network| card_network.to_lowercase());
+    match eci.as_str() {
+        "00" | "01" | "02" => {
+            if matches!(
+                card_network_lower_case.as_deref(),
+                Some("mastercard") | Some("maestro")
+            ) {
+                "spa"
+            } else {
+                "internet"
+            }
+        }
+        "05" => match card_network_lower_case.as_deref() {
+            Some("amex") => "aesk",
+            Some("discover") => "dipb",
+            Some("mastercard") => "spa",
+            Some("visa") => "vbv",
+            Some("diners") => "pb",
+            Some("upi") => "up3ds",
+            _ => "internet",
+        },
+        "06" => match card_network_lower_case.as_deref() {
+            Some("amex") => "aesk_attempted",
+            Some("discover") => "dipb_attempted",
+            Some("mastercard") => "spa",
+            Some("visa") => "vbv_attempted",
+            Some("diners") => "pb_attempted",
+            Some("upi") => "up3ds_attempted",
+            _ => "internet",
+        },
+        "07" => match card_network_lower_case.as_deref() {
+            Some("amex") => "internet",
+            Some("discover") => "internet",
+            Some("mastercard") => "spa",
+            Some("visa") => "vbv_failure",
+            Some("diners") => "internet",
+            Some("upi") => "up3ds_failure",
+            _ => "internet",
+        },
+        _ => "vbv_failure",
+    }
+    .to_string()
 }
 
 impl
