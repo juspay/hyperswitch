@@ -1214,6 +1214,7 @@ impl User {
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")
+                .service(web::resource("").route(web::get().to(check_two_factor_auth_status)))
                 .service(
                     web::scope("/totp")
                         .service(web::resource("/begin").route(web::get().to(totp_begin)))
@@ -1238,7 +1239,7 @@ impl User {
                 )
                 .service(
                     web::resource("/check").route(web::get().to(check_two_factor_auth_status)),
-                )
+                ),
         );
 
         #[cfg(feature = "email")]

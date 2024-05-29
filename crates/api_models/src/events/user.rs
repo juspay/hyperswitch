@@ -11,13 +11,14 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
-    ConnectAccountRequest, CreateInternalUserRequest, DashboardEntryResponse,
-    ForgotPasswordRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
-    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
-    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
-    TokenOrPayloadResponse, TokenResponse, CheckTwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest, UserFromEmailRequest,
-    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    CheckTwoFactorAuthStatusResponse, ConnectAccountRequest, CreateInternalUserRequest,
+    DashboardEntryResponse, ForgotPasswordRequest, GetUserDetailsResponse,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse,
+    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
+    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
+    SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
+    VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
