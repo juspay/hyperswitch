@@ -127,6 +127,7 @@ async fn should_sync_authorized_payment() {
                 payment_method_type: None,
                 currency: enums::Currency::EUR,
                 payment_experience: None,
+                ..Default::default()
             }),
             None,
         )

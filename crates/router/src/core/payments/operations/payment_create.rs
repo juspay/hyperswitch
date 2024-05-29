@@ -70,6 +70,32 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
+        // Validate charged fees on payment
+        request
+            .charges
+            .as_ref()
+            .map(|charges| match amount {
+                api::payments::Amount::Zero => {
+                    if charges.fees != 0 {
+                        Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "charges.fees",
+                        })
+                    } else {
+                        Ok(charges)
+                    }
+                }
+                api::payments::Amount::Value(amount) => {
+                    if charges.fees > amount.into() {
+                        Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "charges.fees",
+                        })
+                    } else {
+                        Ok(charges)
+                    }
+                }
+            })
+            .transpose()?;
+
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
