@@ -6949,6 +6949,14 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "nullable": true
+          },
+          "extended_card_info_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExtendedCardInfoConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7905,6 +7913,10 @@
         "type": "object",
         "properties": {
           "pay_currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "network": {
             "type": "string",
             "nullable": true
           }
@@ -12586,6 +12598,16 @@
           "unified_message": {
             "type": "string",
             "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "client_source": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-SOURCE header during payments confirm request by the client",
+            "nullable": true
+          },
+          "client_version": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
           }
         }
