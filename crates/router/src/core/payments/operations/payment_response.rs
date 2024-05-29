@@ -183,7 +183,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
             logger::info!("Call to save_payment_method in locker");
 
-            let result = Box::pin(tokenization::save_payment_method(
+            let result = tokenization::save_payment_method(
                 &state,
                 connector_name,
                 merchant_connector_id,
@@ -197,7 +197,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 billing_name,
                 payment_method_billing_address.as_ref(),
                 &business_profile,
-            ))
+            )
             .await;
 
             if let Err(err) = result {
