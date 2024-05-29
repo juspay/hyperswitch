@@ -218,7 +218,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     .await
                     .map_or_else(
                         |err| logger::error!("Error updating payment attempt: {:?}", err),
-                        |updated_attempt_data| payment_data.payment_attempt = updated_attempt_data
+                        |updated_attempt_data| payment_data.payment_attempt = updated_attempt_data,
                     );
             };
             Ok(())
