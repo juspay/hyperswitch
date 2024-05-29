@@ -740,7 +740,7 @@ pub async fn check_two_factor_auth_status(
     state: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {
-    let flow = Flow::CheckTwoFactorAuthStatus;
+    let flow = Flow::TwoFactorAuthStatus;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),

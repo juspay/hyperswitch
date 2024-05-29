@@ -415,7 +415,7 @@ pub enum Flow {
     // Terminate two factor authentication
     TerminateTwoFactorAuth,
     // Check 2FA status
-    CheckTwoFactorAuthStatus,
+    TwoFactorAuthStatus,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
