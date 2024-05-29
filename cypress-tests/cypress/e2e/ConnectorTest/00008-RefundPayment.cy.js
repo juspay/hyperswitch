@@ -17,8 +17,8 @@ describe("Card - Refund flow test", () => {
     before("seed global state", () => {
 
         cy.task('getGlobalState').then((state) => {
-           globalState = new State(state);
-           console.log("seeding globalState -> " + JSON.stringify(globalState));
+          globalState = new State(state);
+          console.log("seeding globalState -> " + JSON.stringify(globalState));
         })
     
       })
