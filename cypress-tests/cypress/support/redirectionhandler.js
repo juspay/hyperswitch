@@ -1,3 +1,5 @@
+import jsQR from "jsqr";
+
 export function handleRedirection(
   redirection_type,
   urls,
@@ -16,9 +18,44 @@ export function handleRedirection(
         payment_method_type
       );
       break;
+    case "bank_transfer":
+      bankTransferRedirection(
+        urls.redirection_url,
+        urls.expected_url,
+        connectorId,
+        payment_method_type
+      );
+      break;
     default:
       throw new Error(`Redirection known: ${redirection_type}`);
   }
+}
+
+function bankTransferRedirection(
+  redirection_url,
+  expected_url,
+  connectorId,
+  payment_method_type
+) {
+  cy.request(redirection_url.href).then((response) => {
+    switch (connectorId) {
+      case "adyen":
+        switch (payment_method_type) {
+          case "pix":
+            expect(response.status).to.eq(200);
+            fetchAndParseQRCode(redirection_url.href).then((qrCodeData) => {
+              expect(qrCodeData).to.eq("TestQRCodeEMVToken");
+            });
+            break;
+          default:
+            verifyReturnUrl(redirection_url, expected_url, true);
+          // expected_redirection can be used here to handle other payment methods
+        }
+        break;
+      default:
+        verifyReturnUrl(redirection_url, expected_url, true);
+    }
+  });
 }
 
 function threeDsRedirection(redirection_url, expected_url, connectorId) {
@@ -85,7 +122,6 @@ function bankRedirectRedirection(
   payment_method_type
 ) {
   let verifyUrl = false;
-
   cy.visit(redirection_url.href);
 
   switch (connectorId) {
@@ -241,4 +277,43 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
       );
     }
   }
+}
+
+async function fetchAndParseQRCode(url) {
+  const response = await fetch(url, { encoding: "binary" });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch QR code image: ${response.statusText}`);
+  }
+  const blob = await response.blob();
+  const reader = new FileReader();
+  return await new Promise((resolve, reject) => {
+    reader.onload = () => {
+      const base64Image = reader.result.split(",")[1]; // Remove data URI prefix
+      const image = new Image();
+      image.src = base64Image;
+
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const qrCodeData = jsQR(
+          imageData.data,
+          imageData.width,
+          imageData.height
+        );
+
+        if (qrCodeData) {
+          resolve(qrCodeData.data);
+        } else {
+          reject(new Error("Failed to decode QR code"));
+        }
+      };
+      image.onerror = reject; // Handle image loading errors
+    };
+    reader.readAsDataURL(blob);
+  });
 }

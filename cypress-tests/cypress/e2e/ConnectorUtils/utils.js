@@ -29,7 +29,6 @@ function mergeDetails(connectorId) {
   const connectorData = getValueByKey(connectorDetails, connectorId);
   const fallbackData = getValueByKey(connectorDetails, "commons");
   // Merge data, prioritizing connectorData and filling missing data from fallbackData
-  // const mergedDetails = { ...fallbackData, ...connectorData };
   const mergedDetails = mergeConnectorDetails(connectorData, fallbackData);
   return mergedDetails;
 }

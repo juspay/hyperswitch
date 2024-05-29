@@ -25,7 +25,6 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import jsQR from "jsqr";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
@@ -266,9 +265,10 @@ Cypress.Commands.add(
   "confirmBankRedirectCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentId = globalState.get("paymentID");
-    confirmBody.payment_method = req_data.payment_method;
-    confirmBody.payment_method_type = req_data.payment_method_type;
-    confirmBody.payment_method_data.bank_redirect = req_data.bank_redirect;
+    const connectorId = globalState.get("connectorId");
+    for (const key in req_data) {
+      confirmBody[key] = req_data[key];
+    }
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
 
@@ -294,7 +294,7 @@ Cypress.Commands.add(
             response.body.capture_method === "manual"
           ) {
             if (response.body.status !== "failed") { // we get many statuses here, hence this verification
-              if (response.body.payment_method_type === "blik") {
+              if (connectorId === "adyen" && response.body.payment_method_type === "blik") {
                 expect(response.body)
                   .to.have.property("next_action")
                   .to.have.property("type")
@@ -342,10 +342,9 @@ Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    confirmBody.currency = req_data.currency;
-    confirmBody.payment_method = req_data.payment_method;
-    confirmBody.payment_method_type = req_data.payment_method_type;
-    confirmBody.payment_method_data.bank_transfer = req_data.bank_transfer;
+    for (const key in req_data) {
+      confirmBody[key] = req_data[key];
+    }
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
 
@@ -364,67 +363,32 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       globalState.set("paymentID", paymentIntentID);
       if (response.status === 200) {
-        switch (response.body.authentication_type) {
-          case "three_ds":
-            if (
-              response.body.capture_method === "automatic" ||
-              response.body.capture_method === "manual"
-            ) {
-              switch (response.body.payment_method_type) {
-                case "pix":
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("qr_code_url");
-                  globalState.set(
-                    "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
-                    response.body.next_action.qr_code_url
-                  );
-                  break;
-                default:
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
-                  globalState.set(
-                    "nextActionUrl",
-                    response.body.next_action.redirect_to_url
-                  );
-                  break;
-              }
-            } else {
-              defaultErrorHandler(response, res_data);
-            }
-            break;
-          case "no_three_ds":
-            if (
-              response.body.capture_method === "automatic" ||
-              response.body.capture_method === "manual"
-            ) {
-              switch (response.body.payment_method_type) {
-                case "pix":
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("qr_code_url");
-                  globalState.set(
-                    "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
-                    response.body.next_action.qr_code_url
-                  );
-                  break;
-                default:
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
-                  globalState.set(
-                    "nextActionUrl",
-                    response.body.next_action.redirect_to_url
-                  );
-                  break;
-              }
-            } else {
-              defaultErrorHandler(response, res_data);
-            }
-            break;
-          default:
-            defaultErrorHandler(response, res_data);
+        if (
+          response.body.capture_method === "automatic" ||
+          response.body.capture_method === "manual"
+        ) {
+          switch (response.body.payment_method_type) {
+            case "pix":
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("qr_code_url");
+              globalState.set(
+                "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                response.body.next_action.qr_code_url
+              );
+              break;
+            default:
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              break;
+          }
+        } else {
+          defaultErrorHandler(response, res_data);
         }
       } else {
         defaultErrorHandler(response, res_data);
@@ -843,45 +807,6 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add("fetchAndParseQRCode", (url) => {
-  cy.request({
-    url: url,
-    encoding: "binary",
-  }).then((response) => {
-    expect(response.headers["content-type"]).to.include("image/png");
-    const base64Image = Cypress.Buffer.from(response.body, "binary").toString(
-      "base64"
-    );
-    const image = new Image();
-    image.src = `data:image/png;base64,${base64Image}`;
-
-    // Create a canvas to draw the image onto
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    return new Cypress.Promise((resolve, reject) => {
-      image.onload = () => {
-        canvas.width = image.width;
-        canvas.height = image.height;
-        ctx.drawImage(image, 0, 0, image.width, image.height);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const qrCodeData = jsQR(
-          imageData.data,
-          imageData.width,
-          imageData.height
-        );
-
-        if (qrCodeData) {
-          resolve(qrCodeData.data);
-        } else {
-          reject(new Error("Failed to decode QR code"));
-        }
-      };
-    });
-  });
-});
-
 Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) => {
   let connectorId = globalState.get("connectorId");
   let expected_url = new URL(expected_redirection);
@@ -917,29 +842,13 @@ Cypress.Commands.add(
   "handleBankTransferRedirection",
   (globalState, payment_method_type, expected_redirection) => {
     let connectorId = globalState.get("connectorId");
-    switch (connectorId) {
-      case "adyen":
-        switch (payment_method_type) {
-          case "pix":
-            let redirection_url = new URL(globalState.get("nextActionUrl"));
-            cy.request(redirection_url.href).then((response) => {
-              expect(response.status).to.eq(200);
-              cy.fetchAndParseQRCode(redirection_url.href).then(
-                (qrCodeData) => {
-                  cy.log(qrCodeData);
-                  expect(qrCodeData).to.eq("TestQRCodeEMVToken");
-                }
-              );
-            });
-            break;
-          default:
-            defaultErrorHandler(response, res_data);
-            // expected_redirection can be used here to handle other payment methods
-        }
-        break;
-      default:
-        defaultErrorHandler(response, res_data);
-    }
+    let redirection_url = new URL(globalState.get("nextActionUrl"));
+    handleRedirection(
+      "bank_transfer",
+      { redirection_url, expected_redirection },
+      connectorId,
+      payment_method_type
+    );
   }
 );
 

@@ -32,7 +32,7 @@ const successfulThreeDSTestCardDetails = {
 with `getCustomExchange`, if 501 response is expected, there is no need to pass Response as it considers default values.
 */
 
-//Function to get default PaymentExchange object
+// Const to get default PaymentExchange object
 const getDefaultExchange = () => ({
   Request: {
     currency: "EUR",
@@ -49,7 +49,7 @@ const getDefaultExchange = () => ({
   },
 });
 
-// Function to get PaymentExchange with overridden properties
+// Const to get PaymentExchange with overridden properties
 export const getCustomExchange = (overrides) => {
   const defaultExchange = getDefaultExchange();
 
@@ -387,10 +387,12 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix",
-        bank_transfer: {
-          pix: {},
+        payment_method_data: {
+          bank_transfer: {
+            pix: {},
+          },
         },
-        currency: "USD",
+        currency: "BRL",
       },
     }),
   },
@@ -410,10 +412,12 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
-        bank_redirect: {
-          ideal: {
-            bank_name: "ing",
-            country: "NL",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+              country: "NL",
+            },
           },
         },
       },
@@ -422,13 +426,15 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
-        bank_redirect: {
-          giropay: {
-            bank_name: "",
-            bank_account_bic: "",
-            bank_account_iban: "",
-            preferred_language: "en",
-            country: "DE",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              bank_name: "",
+              bank_account_bic: "",
+              bank_account_iban: "",
+              preferred_language: "en",
+              country: "DE",
+            },
           },
         },
       },
@@ -437,10 +443,12 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
-        bank_redirect: {
-          sofort: {
-            country: "DE",
-            preferred_language: "en",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
           },
         },
       },
@@ -449,9 +457,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
-        bank_redirect: {
-          eps: {
-            bank_name: "ing",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
           },
         },
       },
@@ -471,15 +481,24 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
-        bank_redirect: {
-          blik: {
-            name: "John Doe",
-            email: "example@email.com",
+        payment_method_data: {
+          bank_redirect: {
+            blik: {
+              blik_code: "777987",
+            },
           },
         },
         billing: {
           address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
             country: "PL",
+            first_name: "john",
+            last_name: "doe",
           },
         },
       },

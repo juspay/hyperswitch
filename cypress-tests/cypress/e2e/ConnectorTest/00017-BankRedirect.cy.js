@@ -6,7 +6,6 @@ import getConnectorDetails, * as utils from "../ConnectorUtils/utils";
 let globalState;
 
 describe("Bank Redirect tests", () => {
-  console.log(utils);
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
