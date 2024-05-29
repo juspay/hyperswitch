@@ -74,10 +74,10 @@ impl DashboardRequestPayload {
 
         let mut payment_method_types = Vec::new();
 
-        for experience in &payment_experiences {
+        for experience in payment_experiences {
             for provider in &providers {
                 let data = payment_methods::RequestPaymentMethodTypes {
-                    payment_method_type: provider.payment_method_type.clone(),
+                    payment_method_type: provider.payment_method_type,
                     card_networks: None,
                     minimum_amount: Some(0),
                     maximum_amount: Some(68607706),
@@ -85,7 +85,7 @@ impl DashboardRequestPayload {
                     installment_payment_enabled: false,
                     accepted_currencies: provider.accepted_currencies.clone(),
                     accepted_countries: provider.accepted_countries.clone(),
-                    payment_experience: Some(experience.clone()),
+                    payment_experience: Some(experience),
                 };
                 payment_method_types.push(data);
             }
