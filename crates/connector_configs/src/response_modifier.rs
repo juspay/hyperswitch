@@ -322,7 +322,7 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             three_ds_requestor_id: api_model.three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled: api_model
                 .pull_mechanism_for_external_3ds_enabled,
-            region_based_endpoint: api_model.region_based_endpoint,
+            klarna_region: api_model.klarna_region,
         }
     }
 }

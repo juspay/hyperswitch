@@ -1137,8 +1137,11 @@ merchant_secret="Source verification key"
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
-[klarna.connector_auth.HeaderKey]
-api_key="Klarna API Key"
+[klarna.connector_auth.BodyKey]
+key1="Klarna Merchant Username"
+api_key="Klarna Merchant ID Password"
+[klarna.metadata]
+klarna_region="Region of your Klarna Merchant Account"
 [klarna.connector_webhook_details]
 merchant_secret="Source verification key"
 

@@ -461,7 +461,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
-            api_enums::PaymentMethodType::UpiCollect => Self::Upi,
+            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent => {
+                Self::Upi
+            }
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
@@ -931,6 +933,8 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             reference_id: payment_attempt.connector_response_reference_id,
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            client_source: payment_attempt.client_source,
+            client_version: payment_attempt.client_version,
         }
     }
 }

@@ -6949,6 +6949,14 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "nullable": true
+          },
+          "extended_card_info_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExtendedCardInfoConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7905,6 +7913,10 @@
         "type": "object",
         "properties": {
           "pay_currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "network": {
             "type": "string",
             "nullable": true
           }
@@ -11759,6 +11771,25 @@
           },
           {
             "type": "object",
+            "description": "Contains url to fetch Qr code data",
+            "required": [
+              "qr_code_fetch_url",
+              "type"
+            ],
+            "properties": {
+              "qr_code_fetch_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fetch_qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Contains the download url and the reference number for transaction",
             "required": [
               "voucher_details",
@@ -12567,6 +12598,16 @@
           "unified_message": {
             "type": "string",
             "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "client_source": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-SOURCE header during payments confirm request by the client",
+            "nullable": true
+          },
+          "client_version": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
           }
         }
@@ -13529,6 +13570,7 @@
           "trustly",
           "twint",
           "upi_collect",
+          "upi_intent",
           "vipps",
           "venmo",
           "walley",
@@ -18692,7 +18734,7 @@
         },
         "additionalProperties": false
       },
-      "UpiData": {
+      "UpiCollectData": {
         "type": "object",
         "properties": {
           "vpa_id": {
@@ -18701,6 +18743,35 @@
             "nullable": true
           }
         }
+      },
+      "UpiData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi_collect"
+            ],
+            "properties": {
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_intent"
+            ],
+            "properties": {
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
+              }
+            }
+          }
+        ]
+      },
+      "UpiIntentData": {
+        "type": "object"
       },
       "ValueType": {
         "oneOf": [

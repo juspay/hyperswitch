@@ -134,25 +134,6 @@ impl
     // Not Implemented (R)
 }
 
-fn build_region_specific_endpoint(
-    base_url: &str,
-    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
-) -> CustomResult<String, errors::ConnectorError> {
-    let klarna_metadata_object =
-        transformers::KlarnaConnectorMetadataObject::try_from(connector_metadata)?;
-    let region_based_endpoint = klarna_metadata_object
-        .region_based_endpoint
-        .ok_or(errors::ConnectorError::InvalidConnectorConfig {
-            config: "metadata.region_based_endpoint",
-        })
-        .map(|endpoint| {
-            let endpoint_str: &'static str = endpoint.into();
-            endpoint_str
-        })?;
-
-    Ok(base_url.replace("{{region_based_endpoint}}", region_based_endpoint))
-}
-
 impl
     services::ConnectorIntegration<
         api::Session,
@@ -182,13 +163,14 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        _req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let endpoint =
-            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-
-        Ok(format!("{}{}", endpoint, "payments/v1/sessions"))
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "payments/v1/sessions"
+        ))
     }
 
     fn get_request_body(
@@ -449,8 +431,6 @@ impl
             .payment_method_type
             .as_ref()
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
-        let endpoint =
-            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
@@ -460,7 +440,8 @@ impl
                         common_enums::PaymentMethodType::Klarna,
                     ) => Ok(format!(
                         "{}payments/v1/authorizations/{}/order",
-                        endpoint, token
+                        self.base_url(connectors),
+                        token
                     )),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
@@ -544,6 +525,7 @@ impl
                         | common_enums::PaymentMethodType::Trustly
                         | common_enums::PaymentMethodType::Twint
                         | common_enums::PaymentMethodType::UpiCollect
+                        | common_enums::PaymentMethodType::UpiIntent
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
