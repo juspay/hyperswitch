@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.29.0
+
+### Features
+
+- **connector:**
+  - [Iatapay] add upi qr support ([#4728](https://github.com/juspay/hyperswitch/pull/4728)) ([`c9fa94f`](https://github.com/juspay/hyperswitch/commit/c9fa94febe7a1fcd24e8d723d14b78f8a73da0e3))
+  - [CRYPTOPAY] Pass network details in payment request ([#4779](https://github.com/juspay/hyperswitch/pull/4779)) ([`84e032e`](https://github.com/juspay/hyperswitch/commit/84e032e6c28afc410c82e73e51deb629b0c4a81a))
+
+### Bug Fixes
+
+- **docker-compose:** Fix docker compose syntax ([#4782](https://github.com/juspay/hyperswitch/pull/4782)) ([`7645edf`](https://github.com/juspay/hyperswitch/commit/7645edfa2e00500da3f8f117cc1a485fe1f41ab5))
+- Include client columns in payment attempts response struct ([#4761](https://github.com/juspay/hyperswitch/pull/4761)) ([`d686ec7`](https://github.com/juspay/hyperswitch/commit/d686ec7acda6ce852fac8d7413f9ba903adcee1d))
+
+### Refactors
+
+- **payment_methods:** Add support for passing ttl to locker entries ([#4690](https://github.com/juspay/hyperswitch/pull/4690)) ([`7ca9c6e`](https://github.com/juspay/hyperswitch/commit/7ca9c6e81313199589444a431a73fbcdf712a9ee))
+- Retrieve extended card info config during business profile get call ([#4784](https://github.com/juspay/hyperswitch/pull/4784)) ([`c362fd0`](https://github.com/juspay/hyperswitch/commit/c362fd05325743bb3d173e335124734f1c23b9fa))
+
+### Documentation
+
+- **analytics:** Add documentation for setting up data services and enabling data features in control center ([#4741](https://github.com/juspay/hyperswitch/pull/4741)) ([`d15cb31`](https://github.com/juspay/hyperswitch/commit/d15cb31814390bc631f9eb4195ca114e43ab4cd2))
+
+**Full Changelog:** [`2024.05.28.0...2024.05.29.0`](https://github.com/juspay/hyperswitch/compare/2024.05.28.0...2024.05.29.0)
+
+- - -
+
 ## 2024.05.28.0
 
 ### Features
