@@ -141,10 +141,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             _ => Ok((None, true)),
         }
     }
-    fn validate_request_for_flow(
-        &self,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<()> {
+    fn validate_request_for_flow(&self, _state: &AppState) -> RouterResult<()> {
         if self
             .request
             .customer_acceptance
