@@ -32,8 +32,8 @@ pub async fn perform_decision_management<F: Clone>(
         return Ok(ConditionalConfigs::default());
     };
     let key = format!("dsl_{merchant_id}");
-    let find_key_from_db = || async { state.store.find_config_by_key(&algorithm_id).await };
     let db = &*state.store;
+    let find_key_from_db = || async { db.find_config_by_key(&algorithm_id).await };
     let config = cache::get_or_populate_in_memory(db, &key, find_key_from_db, &ROUTING_CACHE)
         .await
         .change_context(ConfigError::DslCachePoisoned)?;
