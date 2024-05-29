@@ -286,7 +286,7 @@ pub async fn get_client_secret_or_add_payment_method(
     let condition = req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some();
 
     if condition {
-        add_payment_method(state, req, merchant_account, key_store).await
+        Box::pin(add_payment_method(state, req, merchant_account, key_store)).await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
@@ -393,14 +393,14 @@ pub async fn add_payment_method_data(
     match pmd {
         api_models::payment_methods::PaymentMethodCreateData::Card(card) => {
             helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
-            let resp = add_card_to_locker(
+            let resp = Box::pin(add_card_to_locker(
                 &state,
                 req.clone(),
                 &card,
                 &customer_id,
                 &merchant_account,
                 None,
-            )
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError);
 
@@ -555,14 +555,14 @@ pub async fn add_payment_method(
         api_enums::PaymentMethod::Card => match req.card.clone() {
             Some(card) => {
                 helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
-                add_card_to_locker(
+                Box::pin(add_card_to_locker(
                     &state,
                     req.clone(),
                     &card,
                     &customer_id,
                     merchant_account,
                     None,
-                )
+                ))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add Card Failed")
@@ -888,14 +888,14 @@ pub async fn update_customer_payment_method(
             .await?;
 
             // Add the updated payment method data to locker
-            let (mut add_card_resp, _) = add_card_to_locker(
+            let (mut add_card_resp, _) = Box::pin(add_card_to_locker(
                 &state,
                 new_pm.clone(),
                 &updated_card_details,
                 &pm.customer_id,
                 &merchant_account,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
-            )
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add updated payment method to locker")?;
