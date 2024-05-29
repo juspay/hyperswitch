@@ -927,18 +927,14 @@ pub async fn create_payment_connector(
         })
         .ok();
 
-    let merged_connector_wallets_details = match (
-        req.connector_wallets_details.clone(),
-        apple_pay_metadata.clone(),
-    ) {
-        (None, None) => None,
-        (None, Some(connector_apple_pay_metadata)) => Some(Secret::new(
-            serde_json::to_value(connector_apple_pay_metadata)
+    let connector_apple_pay_details = apple_pay_metadata
+        .map(|metadata| {
+            serde_json::to_value(metadata)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize apple pay metadata as JSON")?,
-        )),
-        (Some(_), _) => req.connector_wallets_details,
-    };
+                .attach_printable("Failed to serialize apple pay metadata as JSON")
+        })
+        .transpose()?
+        .map(masking::Secret::new);
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -983,7 +979,7 @@ pub async fn create_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
         status: connector_status,
-        connector_wallets_details: merged_connector_wallets_details.async_map(|wallets_details| async { domain_types::encrypt(
+        connector_wallets_details: connector_apple_pay_details.async_map(|wallets_details| async { domain_types::encrypt(
             wallets_details,
             key_store.key.peek(),
         )
@@ -1229,6 +1225,25 @@ pub async fn update_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
     let metadata = req.metadata.clone().or(mca.metadata.clone());
+
+    let apple_pay_metadata = helpers::get_applepay_metadata(metadata.clone())
+        .map_err(|error| {
+            logger::info!(
+                "Apple pay metadata parsing failed for while update merchant connector account in update_payment_connector {:?}",
+                error
+            )
+        })
+        .ok();
+
+    let connector_apple_pay_details = apple_pay_metadata
+        .map(|metadata| {
+            serde_json::to_value(metadata)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize apple pay metadata as JSON")
+        })
+        .transpose()?
+        .map(masking::Secret::new);
+
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1304,14 +1319,13 @@ pub async fn update_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
         status: Some(connector_status),
-        connector_wallets_details: req
-            .connector_wallets_details
-            .async_lift(|inner| {
-                domain_types::encrypt_optional(inner, key_store.key.get_inner().peek())
+        connector_wallets_details: connector_apple_pay_details
+            .async_lift(|wallets_details| {
+                domain_types::encrypt_optional(wallets_details, key_store.key.get_inner().peek())
             })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while encrypting data")?,
+            .attach_printable("Failed while encrypting connector wallets details")?,
     };
 
     // Profile id should always be present

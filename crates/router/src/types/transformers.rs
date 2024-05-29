@@ -906,9 +906,6 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
             status: item.status,
-            connector_wallets_details: item
-                .connector_wallets_details
-                .map(|wallets_details| wallets_details.into_inner()),
         })
     }
 }
