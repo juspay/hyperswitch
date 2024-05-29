@@ -163,6 +163,10 @@ validity = 1
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
+checksum_auth_context = "TEST"
+checksum_auth_key = "54455354"
+
+
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"

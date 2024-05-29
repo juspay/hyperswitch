@@ -632,6 +632,11 @@ pub struct ApiKeys {
     // Specifies the number of days before API key expiry when email reminders should be sent
     #[cfg(feature = "email")]
     pub expiry_reminder_days: Vec<u8>,
+
+    #[cfg(feature = "partial-auth")]
+    pub checksum_auth_context: Secret<String>,
+    #[cfg(feature = "partial-auth")]
+    pub checksum_auth_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

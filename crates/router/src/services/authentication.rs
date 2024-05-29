@@ -385,7 +385,7 @@ where
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = ExtractedPayload::from_headers(request_headers)
             .and_then(|value| {
-                let (algo, secret) = state.get_detached_auth();
+                let (algo, secret) = state.get_detached_auth()?;
 
                 value
                     .verify_checksum(request_headers, algo, secret)
@@ -394,8 +394,6 @@ where
             .and_then(|inner_payload| {
                 (inner_payload.payload_type == self.0.get_auth_type()).then_some(inner_payload)
             });
-
-        logger::info!(?payload, "Header Auth Log");
 
         match payload {
             Some(data) => match data {

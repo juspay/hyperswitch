@@ -101,8 +101,13 @@ pub trait AppStateInfo {
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
     #[cfg(feature = "partial-auth")]
-    fn get_detached_auth(&self) -> (impl VerifySignature, &[u8]);
+    fn get_detached_auth(&self) -> Option<(impl VerifySignature, &[u8])>;
 }
+
+static CHECKSUM_KEY: once_cell::sync::OnceCell<(
+    masking::StrongSecret<String>,
+    masking::StrongSecret<Vec<u8>>,
+)> = once_cell::sync::OnceCell::new();
 
 impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings<RawSecret> {
@@ -135,8 +140,34 @@ impl AppStateInfo for AppState {
     }
 
     #[cfg(feature = "partial-auth")]
-    fn get_detached_auth(&self) -> (impl VerifySignature, &[u8]) {
-        (Blake3("TEST".to_string()), b"TEST")
+    fn get_detached_auth(&self) -> Option<(impl VerifySignature, &[u8])> {
+        use masking::prelude::PeekInterface as _;
+        use router_env::logger;
+
+        let output = CHECKSUM_KEY.get_or_try_init(|| {
+            let conf = self.conf();
+            let context = conf
+                .api_keys
+                .get_inner()
+                .checksum_auth_context
+                .peek()
+                .clone();
+            let key = conf.api_keys.get_inner().checksum_auth_key.peek();
+            hex::decode(key).map(|key| {
+                (
+                    masking::StrongSecret::new(context),
+                    masking::StrongSecret::new(key),
+                )
+            })
+        });
+
+        match output {
+            Ok((context, key)) => Some((Blake3(context.peek().clone()), key.peek())),
+            Err(_) => {
+                logger::error!("Failed to get checksum key");
+                None
+            }
+        }
     }
 }
 

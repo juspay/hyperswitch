@@ -81,6 +81,14 @@ where
     {
         f(self.inner_secret).into()
     }
+
+    /// Convert to [`StrongSecret`]
+    pub fn into_strong(self) -> crate::StrongSecret<SecretValue, MaskingStrategy>
+    where
+        SecretValue: zeroize::DefaultIsZeroes,
+    {
+        crate::StrongSecret::new(self.inner_secret)
+    }
 }
 
 impl<SecretValue, MaskingStrategy> PeekInterface<SecretValue>
