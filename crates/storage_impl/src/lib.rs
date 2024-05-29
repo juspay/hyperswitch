@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use config::TenantConfig;
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
@@ -58,7 +57,7 @@ where
     );
     async fn new(
         config: Self::Config,
-        tenant_config: &dyn TenantConfig,
+        tenant_config: &dyn config::TenantConfig,
         test_transaction: bool,
     ) -> StorageResult<Self> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
