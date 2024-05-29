@@ -17258,12 +17258,12 @@
             "maxLength": 255
           },
           "amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 100
           },
           "reason": {
             "type": "string",
