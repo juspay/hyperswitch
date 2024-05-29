@@ -1,9 +1,11 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
+use masking::PeekInterface;
 use transformers as klarna;
 
 use crate::{
@@ -52,9 +54,14 @@ impl ConnectorCommon for Klarna {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = klarna::KlarnaAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
+            "{}:{}",
+            auth.username.peek(),
+            auth.password.peek()
+        ));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.basic_token.into_masked(),
+            format!("Basic {encoded_api_key}").into_masked(),
         )])
     }
 
@@ -63,7 +70,6 @@ impl ConnectorCommon for Klarna {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("12345error = {:?}", res.response);
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -134,6 +140,22 @@ impl
     // Not Implemented (R)
 }
 
+fn build_region_specific_endpoint(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let klarna_metadata_object =
+        transformers::KlarnaConnectorMetadataObject::try_from(connector_metadata)?;
+    let region_based_endpoint = klarna_metadata_object
+        .klarna_region
+        .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+            config: "merchant_connector_account.metadata.region_based_endpoint",
+        })
+        .map(String::from)?;
+
+    Ok(base_url.replace("{{region_based_endpoint}}", &region_based_endpoint))
+}
+
 impl
     services::ConnectorIntegration<
         api::Session,
@@ -163,14 +185,13 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "payments/v1/sessions"
-        ))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+
+        Ok(format!("{}{}", endpoint, "payments/v1/sessions"))
     }
 
     fn get_request_body(
@@ -178,8 +199,14 @@ impl
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        println!("1234session_request{:?}", req);
-        let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
+        let connector_router_data = klarna::KlarnaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+
+        let connector_req = klarna::KlarnaSessionRequest::try_from(&connector_router_data)?;
         // encode only for for urlencoded things.
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -210,7 +237,6 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
-        println!("1234session_response{:?}", res.response);
         let response: klarna::KlarnaSessionResponse = res
             .response
             .parse_struct("KlarnaSessionResponse")
@@ -297,11 +323,6 @@ impl
         let order_id = req.request.connector_transaction_id.clone();
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        let formatted_string = format!(
-            "{}{}{}{}",
-            endpoint, "ordermanagement/v1/orders/", order_id, "/captures"
-        );
-        println!("1234_captureurl = {}", formatted_string);
 
         Ok(format!(
             "{}{}{}{}",
@@ -431,6 +452,8 @@ impl
             .payment_method_type
             .as_ref()
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
@@ -440,8 +463,7 @@ impl
                         common_enums::PaymentMethodType::Klarna,
                     ) => Ok(format!(
                         "{}payments/v1/authorizations/{}/order",
-                        self.base_url(connectors),
-                        token
+                        endpoint, token
                     )),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
@@ -557,9 +579,13 @@ impl
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
-                errors::ConnectorError::MismatchedPaymentData
-            )),
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(report!(errors::ConnectorError::NotImplemented(
+                    connector_utils::get_unimplemented_payment_method_error_message(
+                        req.connector.as_str(),
+                    ),
+                )))
+            }
         }
     }
 
@@ -786,11 +812,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
-        let formatted_string = format!(
-            "{}{}{}{}{}",
-            endpoint, "ordermanagement/v1/orders/", order_id, "/refunds/", refund_id
-        );
-        println!("1234_rsyncurl = {}", formatted_string);
         Ok(format!(
             "{}{}{}{}{}",
             endpoint, "ordermanagement/v1/orders/", order_id, "/refunds/", refund_id
@@ -817,7 +838,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        println!("12345rsyncresponse = {:?}", res.response);
         let response: klarna::KlarnaRefundSyncResponse = res
             .response
             .parse_struct("klarna KlarnaRefundSyncResponse")
