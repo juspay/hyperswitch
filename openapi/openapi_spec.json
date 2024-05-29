@@ -11372,6 +11372,10 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "connector_wallets_details": {
+            "type": "object",
+            "nullable": true
           }
         },
         "additionalProperties": false
