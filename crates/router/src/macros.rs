@@ -6,6 +6,6 @@ macro_rules! get_formatted_date_time {
         let format = time::macros::format_description!($date_format);
         time::OffsetDateTime::now_utc()
             .format(&format)
-            .change_context(crate::core::errors::ConnectorError::InvalidDateFormat)
+            .change_context(errors::ConnectorError::InvalidDateFormat)
     }};
 }
