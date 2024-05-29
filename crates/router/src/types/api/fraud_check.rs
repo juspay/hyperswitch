@@ -3,6 +3,9 @@ use std::str::FromStr;
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_flow_types::fraud_check::{
+    Checkout, Fulfillment, RecordReturn, Sale, Transaction,
+};
 
 use super::{BoxedConnector, ConnectorData, SessionConnectorData};
 use crate::{
@@ -15,40 +18,25 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
-pub struct Sale;
-
 pub trait FraudCheckSale:
     api::ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>
 {
 }
-
-#[derive(Debug, Clone)]
-pub struct Checkout;
 
 pub trait FraudCheckCheckout:
     api::ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
 {
 }
 
-#[derive(Debug, Clone)]
-pub struct Transaction;
-
 pub trait FraudCheckTransaction:
     api::ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
 {
 }
 
-#[derive(Debug, Clone)]
-pub struct Fulfillment;
-
 pub trait FraudCheckFulfillment:
     api::ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
 {
 }
-
-#[derive(Debug, Clone)]
-pub struct RecordReturn;
 
 pub trait FraudCheckRecordReturn:
     api::ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
