@@ -21,6 +21,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub connector_wallets_details: Option<common_utils::pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,

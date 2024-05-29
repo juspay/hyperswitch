@@ -65,6 +65,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
+            connector_wallets_details: None,
             amount_captured: None,
             request: FraudCheckRecordReturnData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),

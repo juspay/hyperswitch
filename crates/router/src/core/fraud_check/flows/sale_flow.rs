@@ -62,6 +62,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
+            connector_wallets_details: None,
             amount_captured: None,
             request: FraudCheckSaleData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),

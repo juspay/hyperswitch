@@ -85,6 +85,7 @@ impl VerifyConnectorData {
             connector_customer: None,
             connector_auth_type: self.connector_auth.clone(),
             connector_meta_data: None,
+            connector_wallets_details: None,
             payment_method_token: None,
             connector_api_version: None,
             recurring_mandate_payment_data: None,

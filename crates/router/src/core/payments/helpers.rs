@@ -3158,6 +3158,16 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    pub fn get_connector_wallets_details(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::DbVal(val) => val
+                .connector_wallets_details
+                .as_ref()
+                .map(|wallets_details| masking::Secret::new(wallets_details.peek().to_owned())),
+            Self::CacheVal(_) => None,
+        }
+    }
+
     pub fn is_disabled(&self) -> bool {
         match self {
             Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
@@ -3357,6 +3367,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
+        connector_wallets_details: router_data.connector_wallets_details,
     }
 }
 
