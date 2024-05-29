@@ -407,6 +407,7 @@ pub struct Locker {
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
+    pub ttl_for_storage_in_secs: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]

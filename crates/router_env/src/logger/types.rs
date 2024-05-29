@@ -406,6 +406,8 @@ pub enum Flow {
     TotpBegin,
     /// Verify TOTP
     TotpVerify,
+    /// Update TOTP secret
+    TotpUpdate,
     /// Verify Access Code
     RecoveryCodeVerify,
     /// Generate or Regenerate recovery codes
