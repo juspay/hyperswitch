@@ -471,6 +471,7 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
         match value {
             api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
+            api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
             _ => Self::Connector,
         }
     }
