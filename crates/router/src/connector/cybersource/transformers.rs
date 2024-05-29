@@ -76,7 +76,10 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
         };
         let (action_list, action_token_types, authorization_options) = (
             Some(vec![CybersourceActionsList::TokenCreate]),
-            Some(vec![CybersourceActionsTokenType::PaymentInstrument, CybersourceActionsTokenType::Customer]),
+            Some(vec![
+                CybersourceActionsTokenType::PaymentInstrument,
+                CybersourceActionsTokenType::Customer,
+            ]),
             Some(CybersourceAuthorizationOptions {
                 initiator: Some(CybersourcePaymentInitiator {
                     initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
@@ -120,17 +123,20 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 let expiration_month = decrypt_data.get_expiry_month()?;
                                 let expiration_year = decrypt_data.get_four_digit_expiry_year()?;
                                 (
-                                    PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
-                                        tokenized_card: TokenizedCard {
-                                            number: decrypt_data.application_primary_account_number,
-                                            cryptogram: decrypt_data
-                                                .payment_data
-                                                .online_payment_cryptogram,
-                                            transaction_type: TransactionType::ApplePay,
-                                            expiration_year,
-                                            expiration_month,
+                                    PaymentInformation::ApplePay(Box::new(
+                                        ApplePayPaymentInformation {
+                                            tokenized_card: TokenizedCard {
+                                                number: decrypt_data
+                                                    .application_primary_account_number,
+                                                cryptogram: decrypt_data
+                                                    .payment_data
+                                                    .online_payment_cryptogram,
+                                                transaction_type: TransactionType::ApplePay,
+                                                expiration_year,
+                                                expiration_month,
+                                            },
                                         },
-                                    })),
+                                    )),
                                     Some(PaymentSolution::ApplePay),
                                 )
                             }
@@ -139,15 +145,17 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             )?,
                         },
                         None => (
-                            PaymentInformation::ApplePayToken(Box::new(ApplePayTokenPaymentInformation {
-                                fluid_data: FluidData {
-                                    value: Secret::from(apple_pay_data.payment_data),
-                                    descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                            PaymentInformation::ApplePayToken(Box::new(
+                                ApplePayTokenPaymentInformation {
+                                    fluid_data: FluidData {
+                                        value: Secret::from(apple_pay_data.payment_data),
+                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                    },
+                                    tokenized_card: ApplePayTokenizedCard {
+                                        transaction_type: TransactionType::ApplePay,
+                                    },
                                 },
-                                tokenized_card: ApplePayTokenizedCard {
-                                    transaction_type: TransactionType::ApplePay,
-                                },
-                            })),
+                            )),
                             Some(PaymentSolution::ApplePay),
                         ),
                     }
@@ -541,7 +549,10 @@ impl
                     })) {
             (
                 Some(vec![CybersourceActionsList::TokenCreate]),
-                Some(vec![CybersourceActionsTokenType::PaymentInstrument, CybersourceActionsTokenType::Customer]),
+                Some(vec![
+                    CybersourceActionsTokenType::PaymentInstrument,
+                    CybersourceActionsTokenType::Customer,
+                ]),
                 Some(CybersourceAuthorizationOptions {
                     initiator: Some(CybersourcePaymentInitiator {
                         initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
@@ -696,7 +707,10 @@ impl
         {
             (
                 Some(vec![CybersourceActionsList::TokenCreate]),
-                Some(vec![CybersourceActionsTokenType::PaymentInstrument, CybersourceActionsTokenType::Customer]),
+                Some(vec![
+                    CybersourceActionsTokenType::PaymentInstrument,
+                    CybersourceActionsTokenType::Customer,
+                ]),
                 Some(CybersourceAuthorizationOptions {
                     initiator: Some(CybersourcePaymentInitiator {
                         initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
@@ -967,15 +981,16 @@ impl
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
-        let payment_information = PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
-            tokenized_card: TokenizedCard {
-                number: apple_pay_data.application_primary_account_number,
-                cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
-                transaction_type: TransactionType::ApplePay,
-                expiration_year,
-                expiration_month,
-            },
-        }));
+        let payment_information =
+            PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
+                tokenized_card: TokenizedCard {
+                    number: apple_pay_data.application_primary_account_number,
+                    cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
+                    transaction_type: TransactionType::ApplePay,
+                    expiration_year,
+                    expiration_month,
+                },
+            }));
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
                 Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
@@ -1024,14 +1039,15 @@ impl
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let payment_information = PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
-            fluid_data: FluidData {
-                value: Secret::from(
-                    consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
-                ),
-                descriptor: None,
-            },
-        }));
+        let payment_information =
+            PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
+                fluid_data: FluidData {
+                    value: Secret::from(
+                        consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
+                    ),
+                    descriptor: None,
+                },
+            }));
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -1101,8 +1117,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                             tokenized_card: ApplePayTokenizedCard {
                                                 transaction_type: TransactionType::ApplePay,
                                             },
-                                        },
-                                    ));
+                                        }),
+                                    );
                                     let merchant_defined_information =
                                         item.router_data.request.metadata.clone().map(|metadata| {
                                             Vec::<MerchantDefinedInformation>::foreign_from(
@@ -1225,7 +1241,9 @@ impl
         };
         let order_information = OrderInformationWithBill::from((item, None));
         let payment_information =
-            PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation { payment_instrument }));
+            PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
+                payment_instrument,
+            }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -1263,15 +1281,16 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     Ok(issuer) => Some(String::from(issuer)),
                     Err(_) => None,
                 };
-                let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
-                    card: Card {
-                        number: ccard.card_number,
-                        expiration_month: ccard.card_exp_month,
-                        expiration_year: ccard.card_exp_year,
-                        security_code: Some(ccard.card_cvc),
-                        card_type,
-                    },
-                }));
+                let payment_information =
+                    PaymentInformation::Cards(Box::new(CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: Some(ccard.card_cvc),
+                            card_type,
+                        },
+                    }));
                 let client_reference_information = ClientReferenceInformation::from(item);
                 Ok(Self {
                     payment_information,
@@ -1988,15 +2007,17 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     Ok(issuer) => Some(String::from(issuer)),
                     Err(_) => None,
                 };
-                Ok(PaymentInformation::Cards(Box::new(CardPaymentInformation {
-                    card: Card {
-                        number: ccard.card_number,
-                        expiration_month: ccard.card_exp_month,
-                        expiration_year: ccard.card_exp_year,
-                        security_code: Some(ccard.card_cvc),
-                        card_type,
+                Ok(PaymentInformation::Cards(Box::new(
+                    CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: Some(ccard.card_cvc),
+                            card_type,
+                        },
                     },
-                })))
+                )))
             }
             domain::PaymentMethodData::Wallet(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -2049,16 +2070,21 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     amount_details,
                     bill_to: Some(bill_to),
                 };
-                Ok(Self::AuthEnrollment(Box::new(CybersourceAuthEnrollmentRequest {
-                    payment_information,
-                    client_reference_information,
-                    consumer_authentication_information:
-                        CybersourceConsumerAuthInformationRequest {
-                            return_url: item.router_data.request.get_complete_authorize_url()?,
-                            reference_id,
-                        },
-                    order_information,
-                })))
+                Ok(Self::AuthEnrollment(Box::new(
+                    CybersourceAuthEnrollmentRequest {
+                        payment_information,
+                        client_reference_information,
+                        consumer_authentication_information:
+                            CybersourceConsumerAuthInformationRequest {
+                                return_url: item
+                                    .router_data
+                                    .request
+                                    .get_complete_authorize_url()?,
+                                reference_id,
+                            },
+                        order_information,
+                    },
+                )))
             }
             Some(_) | None => {
                 let redirect_payload: CybersourceRedirectionAuthResponse = redirect_response
@@ -2071,15 +2097,17 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     .parse_value("CybersourceRedirectionAuthResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 let order_information = OrderInformation { amount_details };
-                Ok(Self::AuthValidate(Box::new(CybersourceAuthValidateRequest {
-                    payment_information,
-                    client_reference_information,
-                    consumer_authentication_information:
-                        CybersourceConsumerAuthInformationValidateRequest {
-                            authentication_transaction_id: redirect_payload.transaction_id,
-                        },
-                    order_information,
-                })))
+                Ok(Self::AuthValidate(Box::new(
+                    CybersourceAuthValidateRequest {
+                        payment_information,
+                        client_reference_information,
+                        consumer_authentication_information:
+                            CybersourceConsumerAuthInformationValidateRequest {
+                                authentication_transaction_id: redirect_payload.transaction_id,
+                            },
+                        order_information,
+                    },
+                )))
             }
         }
     }
@@ -2589,15 +2617,14 @@ impl<F, T>
         let item = data.0;
         Ok(Self {
             response: match item.response.error_information {
-                Some(error) => {
-                    Ok(
+                Some(error) => Ok(
                     types::PaymentsResponseData::IncrementalAuthorizationResponse {
                         status: common_enums::AuthorizationStatus::Failure,
                         error_code: error.reason,
                         error_message: error.message,
                         connector_authorization_id: None,
                     },
-                )},
+                ),
                 _ => Ok(
                     types::PaymentsResponseData::IncrementalAuthorizationResponse {
                         status: item.response.status.into(),
@@ -2611,7 +2638,6 @@ impl<F, T>
         })
     }
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -2679,7 +2705,8 @@ impl<F>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
-                            connector_response_reference_id: item.response
+                            connector_response_reference_id: item
+                                .response
                                 .client_reference_information
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
