@@ -15,7 +15,9 @@ use crate::{
     types::{
         self as auth_types,
         api::{
-            auth_service::{self, BankAccountCredentials, ExchangeToken, LinkToken},
+            auth_service::{
+                self, BankAccountCredentials, ExchangeToken, LinkToken, RecipientCreate,
+            },
             ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         },
     },
@@ -89,6 +91,8 @@ impl ConnectorCommon for Plaid {
 }
 
 impl auth_service::AuthService for Plaid {}
+impl auth_service::PaymentInitiationRecipientCreate for Plaid {}
+impl auth_service::PaymentInitiation for Plaid {}
 impl auth_service::AuthServiceLinkToken for Plaid {}
 
 impl ConnectorIntegration<LinkToken, auth_types::LinkTokenRequest, auth_types::LinkTokenResponse>
@@ -326,6 +330,92 @@ impl
             .parse_struct("PlaidBankAccountCredentialsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         <auth_types::BankDetailsRouterData>::try_from(auth_types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+    fn get_error_response(
+        &self,
+        res: auth_types::Response,
+    ) -> errors::CustomResult<auth_types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        RecipientCreate,
+        auth_types::RecipientCreateRequest,
+        auth_types::RecipientCreateResponse,
+    > for Plaid
+{
+    fn get_headers(
+        &self,
+        req: &auth_types::RecipientCreateRouterData,
+        connectors: &auth_types::PaymentMethodAuthConnectors,
+    ) -> errors::CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &auth_types::RecipientCreateRouterData,
+        connectors: &auth_types::PaymentMethodAuthConnectors,
+    ) -> errors::CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "/payment_initiation/recipient/create"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &auth_types::RecipientCreateRouterData,
+    ) -> errors::CustomResult<RequestContent, errors::ConnectorError> {
+        let req_obj = plaid::PlaidRecipientCreateRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &auth_types::RecipientCreateRouterData,
+        connectors: &auth_types::PaymentMethodAuthConnectors,
+    ) -> errors::CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&auth_types::PaymentInitiationRecipientCreateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(
+                    auth_types::PaymentInitiationRecipientCreateType::get_headers(
+                        self, req, connectors,
+                    )?,
+                )
+                .set_body(
+                    auth_types::PaymentInitiationRecipientCreateType::get_request_body(self, req)?,
+                )
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &auth_types::RecipientCreateRouterData,
+        res: auth_types::Response,
+    ) -> errors::CustomResult<auth_types::RecipientCreateRouterData, errors::ConnectorError> {
+        let response: plaid::PlaidRecipientCreateResponse = res
+            .response
+            .parse_struct("PlaidRecipientCreateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        <auth_types::RecipientCreateRouterData>::try_from(auth_types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

@@ -169,6 +169,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+    Plaid,
     Zsl,
 }
 

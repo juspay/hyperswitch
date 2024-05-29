@@ -121,6 +121,7 @@ pub struct Settings<S: SecretState> {
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
     pub saved_payment_methods: EligiblePaymentMethods,
+    pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -653,6 +654,13 @@ pub struct ApplePayDecryptConifg {
     pub apple_pay_ppc_key: Secret<String>,
     pub apple_pay_merchant_cert: Secret<String>,
     pub apple_pay_merchant_cert_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct LockerBasedRecipientConnectorList {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

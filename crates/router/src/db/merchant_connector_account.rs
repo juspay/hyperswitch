@@ -664,6 +664,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             applepay_verified_domains: t.applepay_verified_domains,
             pm_auth_config: t.pm_auth_config,
             status: t.status,
+            additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
         };
         accounts.push(account.clone());
         account
@@ -862,6 +863,7 @@ mod merchant_connector_account_cache_tests {
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
+            additional_merchant_data: None,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)

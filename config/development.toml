@@ -89,8 +89,7 @@ vault_private_key = ""
 tunnel_private_key = ""
 
 [connectors.supported]
-wallets = ["klarna",
-    "mifinity", "braintree", "applepay", "adyen"]
+wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
@@ -630,3 +629,6 @@ disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
+
+[locker_based_open_banking_connectors]
+connector_list = ""
