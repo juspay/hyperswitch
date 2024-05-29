@@ -1686,16 +1686,16 @@ pub async fn update_totp(
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<()> {
-    let new_totp_secret = tfa_utils::get_totp_secret_from_redis(&state, &user_token.user_id)
-        .await?
-        .ok_or(UserErrors::TotpSecretNotFound)?;
-
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
+
+    let new_totp_secret = tfa_utils::get_totp_secret_from_redis(&state, &user_token.user_id)
+        .await?
+        .ok_or(UserErrors::TotpSecretNotFound)?;
 
     let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), Some(new_totp_secret))?;
 
@@ -1706,8 +1706,6 @@ pub async fn update_totp(
     {
         return Err(UserErrors::InvalidTotp.into());
     }
-
-    tfa_utils::insert_totp_in_redis(&state, &user_token.user_id).await?;
 
     let key_store = user_from_db.get_or_create_key_store(&state).await?;
 
@@ -1735,6 +1733,13 @@ pub async fn update_totp(
         .change_context(UserErrors::InternalServerError)?;
 
     let _ = tfa_utils::delete_totp_secret_from_redis(&state, &user_token.user_id)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    // This is not the main task of this API, so we don't throw error if this fails.
+    // Any following API which requires TOTP will throw error if TOTP is not set in redis
+    // and FE will ask user to enter TOTP again
+    let _ = tfa_utils::insert_totp_in_redis(&state, &user_token.user_id)
         .await
         .map_err(|e| logger::error!(?e));
 
