@@ -8225,8 +8225,10 @@ impl Default for super::settings::ApiKeys {
             expiry_reminder_days: vec![7, 3, 1],
 
             // Hex-encoded key used for calculating checksum for partial auth
+            #[cfg(feature = "partial-auth")]
             checksum_auth_key: String::new().into(),
             // context used for blake3
+            #[cfg(feature = "partial-auth")]
             checksum_auth_context: String::new().into(),
         }
     }

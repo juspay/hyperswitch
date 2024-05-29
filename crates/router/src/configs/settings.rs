@@ -635,6 +635,7 @@ pub struct ApiKeys {
 
     #[cfg(feature = "partial-auth")]
     pub checksum_auth_context: Secret<String>,
+
     #[cfg(feature = "partial-auth")]
     pub checksum_auth_key: Secret<String>,
 }

@@ -104,6 +104,7 @@ pub trait AppStateInfo {
     fn get_detached_auth(&self) -> Option<(impl VerifySignature, &[u8])>;
 }
 
+#[cfg(feature = "partial-auth")]
 static CHECKSUM_KEY: once_cell::sync::OnceCell<(
     masking::StrongSecret<String>,
     masking::StrongSecret<Vec<u8>>,
