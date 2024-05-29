@@ -3,6 +3,7 @@ use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;
 
+#[serde_with::skip_serializing_none]
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPaymentIntentEvent<'a> {
     pub payment_id: &'a String,

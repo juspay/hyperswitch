@@ -4,6 +4,7 @@ use time::OffsetDateTime;
 
 use crate::types::storage::dispute::Dispute;
 
+#[serde_with::skip_serializing_none]
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaDisputeEvent<'a> {
     pub dispute_id: &'a String,

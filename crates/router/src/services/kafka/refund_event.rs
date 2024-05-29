@@ -1,6 +1,7 @@
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
+#[serde_with::skip_serializing_none]
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaRefundEvent<'a> {
     pub internal_reference_id: &'a String,

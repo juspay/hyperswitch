@@ -6,6 +6,7 @@ use hyperswitch_domain_models::{
 };
 use time::OffsetDateTime;
 
+#[serde_with::skip_serializing_none]
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPaymentAttemptEvent<'a> {
     pub payment_id: &'a String,
