@@ -8,6 +8,7 @@ use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
 use router_env::{instrument, tracing};
+use storage_impl::redis::cache::ROUTING_CACHE;
 
 use super::routing::make_dsl_input;
 use crate::{
@@ -15,8 +16,6 @@ use crate::{
     db::cache,
     routes,
 };
-
-use storage_impl::redis::cache::ROUTING_CACHE;
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
 #[instrument(skip_all)]
