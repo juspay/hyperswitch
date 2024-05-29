@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use config::TenantConfig;
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
@@ -57,19 +58,19 @@ where
     );
     async fn new(
         config: Self::Config,
-        schema: &str,
+        tenant_config: &dyn TenantConfig,
         test_transaction: bool,
     ) -> StorageResult<Self> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
         if test_transaction {
-            Self::test_store(db_conf, schema, &cache_conf, encryption_key)
+            Self::test_store(db_conf, tenant_config, &cache_conf, encryption_key)
                 .await
                 .attach_printable("failed to create test router store")
         } else {
             Self::from_config(
                 db_conf,
-                schema,
+                tenant_config,
                 encryption_key,
                 Self::cache_store(&cache_conf, cache_error_signal).await?,
                 inmemory_cache_stream,
@@ -95,15 +96,18 @@ impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
 impl<T: DatabaseStore> RouterStore<T> {
     pub async fn from_config(
         db_conf: T::Config,
-        schema: &str,
+        tenant_config: &dyn TenantConfig,
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
     ) -> StorageResult<Self> {
-        let db_store = T::new(db_conf, schema, false).await?;
+        let db_store = T::new(db_conf, tenant_config, false).await?;
         let redis_conn = cache_store.redis_conn.clone();
         let cache_store = Arc::new(RedisStore {
-            redis_conn: Arc::new(RedisConnectionPool::clone(&redis_conn, schema)),
+            redis_conn: Arc::new(RedisConnectionPool::clone(
+                &redis_conn,
+                tenant_config.get_redis_key_prefix(),
+            )),
         });
         cache_store
             .subscribe_to_channel(inmemory_cache_stream)
@@ -140,12 +144,12 @@ impl<T: DatabaseStore> RouterStore<T> {
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` is not set
     pub async fn test_store(
         db_conf: T::Config,
-        schema: &str,
+        tenant_config: &dyn TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
     ) -> StorageResult<Self> {
         // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, schema, true).await?;
+        let db_store = T::new(db_conf, tenant_config, true).await?;
         let cache_store = RedisStore::new(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
@@ -178,11 +182,11 @@ where
     type Config = (RouterStore<T>, String, u8, u32, Option<bool>);
     async fn new(
         config: Self::Config,
-        schema: &str,
+        tenant_config: &dyn TenantConfig,
         _test_transaction: bool,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
-        let drainer_stream_name = format!("{}_{}", schema, config.1);
+        let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);
         Ok(Self::from_store(
             router_store,
             drainer_stream_name,

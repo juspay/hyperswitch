@@ -634,4 +634,4 @@ sdk_eligible_payment_methods = "card"
 enabled = false
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080"}
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = ""}

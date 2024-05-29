@@ -141,6 +141,8 @@ pub struct TenantConfig(pub HashMap<String, Tenant>);
 pub struct Tenant {
     pub name: String,
     pub base_url: String,
+    pub schema: String,
+    pub redis_key_prefix: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

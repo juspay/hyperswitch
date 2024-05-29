@@ -150,6 +150,17 @@ pub struct TenantConfig(pub HashMap<String, Tenant>);
 pub struct Tenant {
     pub name: String,
     pub base_url: String,
+    pub schema: String,
+    pub redis_key_prefix: String,
+}
+
+impl storage_impl::config::TenantConfig for Tenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

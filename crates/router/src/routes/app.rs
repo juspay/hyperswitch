@@ -14,7 +14,7 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::MockDb;
+use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 #[cfg(feature = "olap")]
@@ -51,10 +51,6 @@ use crate::routes::fraud_check as frm_routes;
 use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
-use crate::{
-    configs::secrets_transformers,
-    db::{kafka_store::TenantID, KafkaStore},
-};
 pub use crate::{
     configs::settings,
     core::routing,
@@ -62,6 +58,10 @@ pub use crate::{
     events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
+};
+use crate::{
+    configs::{secrets_transformers, Settings},
+    db::kafka_store::{KafkaStore, TenantID},
 };
 
 #[derive(Clone)]
@@ -252,45 +252,23 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            for tenant in conf.clone().multitenancy.get_tenant_names() {
-                let store: Box<dyn StorageInterface> = match storage_impl {
-                    StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
-                        EventsHandler::Kafka(kafka_client) => Box::new(
-                            KafkaStore::new(
-                                #[allow(clippy::expect_used)]
-                                get_store(
-                                    &conf.clone(),
-                                    tenant.as_str(),
-                                    Arc::clone(&cache_store),
-                                    testable,
-                                )
-                                .await
-                                .expect("Failed to create store"),
-                                kafka_client.clone(),
-                                TenantID(tenant.clone()),
-                            )
-                            .await,
-                        ),
-                        EventsHandler::Logs(_) => Box::new(
-                            #[allow(clippy::expect_used)]
-                            get_store(&conf, tenant.as_str(), Arc::clone(&cache_store), testable)
-                                .await
-                                .expect("Failed to create store"),
-                        ),
-                    },
-                    #[allow(clippy::expect_used)]
-                    StorageImpl::Mock => Box::new(
-                        MockDb::new(&conf.redis)
-                            .await
-                            .expect("Failed to create mock store"),
-                    ),
-                };
-                stores.insert(tenant.clone(), store);
+            for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
+                let store: Box<dyn StorageInterface> = Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                )
+                .await;
+                stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
                 let pool =
-                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant.as_str()).await;
+                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
+                        .await;
                 #[cfg(feature = "olap")]
-                pools.insert(tenant.clone(), pool);
+                pools.insert(tenant_name.clone(), pool);
             }
 
             #[cfg(feature = "email")]
@@ -316,6 +294,43 @@ impl AppState {
             }
         })
         .await
+    }
+
+    async fn get_store_interface(
+        storage_impl: &StorageImpl,
+        event_handler: &EventsHandler,
+        conf: &Settings,
+        tenant: &settings::Tenant,
+        cache_store: Arc<RedisStore>,
+        testable: bool,
+    ) -> Box<dyn StorageInterface> {
+        match storage_impl {
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
+                EventsHandler::Kafka(kafka_client) => Box::new(
+                    KafkaStore::new(
+                        #[allow(clippy::expect_used)]
+                        get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
+                            .await
+                            .expect("Failed to create store"),
+                        kafka_client.clone(),
+                        TenantID(tenant.get_schema().to_string()),
+                    )
+                    .await,
+                ),
+                EventsHandler::Logs(_) => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(conf, tenant, Arc::clone(&cache_store), testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
+            },
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
+        }
     }
 
     pub async fn new(
