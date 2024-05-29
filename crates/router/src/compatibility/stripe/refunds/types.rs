@@ -46,9 +46,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
     fn from(req: StripeCreateRefundRequest) -> Self {
         Self {
             refund_id: req.refund_id,
-            amount: req
-                .amount
-                .map(common_utils::types::MinorUnit::new),
+            amount: req.amount.map(common_utils::types::MinorUnit::new),
             payment_id: req.payment_intent,
             reason: req.reason,
             refund_type: Some(refunds::RefundType::Instant),
