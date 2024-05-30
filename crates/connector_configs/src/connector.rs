@@ -67,7 +67,7 @@ pub enum ConnectorAuthType {
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum ApplePayTomlConfig {
-    Standard(payments::ApplePayMetadata),
+    Standard(Box<payments::ApplePayMetadata>),
     Zen(ZenApplePay),
 }
 

@@ -4081,10 +4081,11 @@ impl ApplePayData {
 
     pub async fn decrypt(
         &self,
-        state: &AppState,
+        payment_processing_certificate: &masking::Secret<String>,
+        payment_processing_certificate_key: &masking::Secret<String>,
     ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
-        let merchant_id = self.merchant_id(state).await?;
-        let shared_secret = self.shared_secret(state).await?;
+        let merchant_id = self.merchant_id(payment_processing_certificate)?;
+        let shared_secret = self.shared_secret(payment_processing_certificate_key)?;
         let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
         let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
         let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)
@@ -4092,17 +4093,11 @@ impl ApplePayData {
         Ok(parsed_decrypted)
     }
 
-    pub async fn merchant_id(
+    pub fn merchant_id(
         &self,
-        state: &AppState,
+        payment_processing_certificate: &masking::Secret<String>,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
-        let cert_data = state
-            .conf
-            .applepay_decrypt_keys
-            .get_inner()
-            .apple_pay_ppc
-            .clone()
-            .expose();
+        let cert_data = payment_processing_certificate.clone().expose();
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -4137,9 +4132,9 @@ impl ApplePayData {
         Ok(apple_pay_m_id)
     }
 
-    pub async fn shared_secret(
+    pub fn shared_secret(
         &self,
-        state: &AppState,
+        payment_processing_certificate_key: &masking::Secret<String>,
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
@@ -4149,13 +4144,7 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        let decrypted_apple_pay_ppc_key = state
-            .conf
-            .applepay_decrypt_keys
-            .get_inner()
-            .apple_pay_ppc_key
-            .clone()
-            .expose();
+        let decrypted_apple_pay_ppc_key = payment_processing_certificate_key.clone().expose();
 
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())

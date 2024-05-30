@@ -1,3 +1,4 @@
+use api_models::payments;
 use common_utils::pii::{self, Email};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,12 @@ pub enum PaymentMethodData {
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
     CardToken(CardToken),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplePayFlow {
+    Simplified(payments::PaymentProcessingDetails),
+    Manual,
 }
 
 impl PaymentMethodData {

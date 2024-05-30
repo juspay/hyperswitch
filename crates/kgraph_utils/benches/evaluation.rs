@@ -70,7 +70,6 @@ fn build_test_data<'a>(
         applepay_verified_domains: None,
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
-        connector_wallets_details: Some(masking::Secret::new(serde_json::json!({}))),
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),
