@@ -128,7 +128,7 @@ CREATE TABLE sdk_events_audit (
     `payment_experience` LowCardinality(Nullable(String)) DEFAULT '',
     `created_at` DateTime64(3) DEFAULT now64() CODEC(T64, LZ4),
     `inserted_at`  DateTime DEFAULT now() CODEC(T64, LZ4), 
-    `latency` Nullable(UInt32) DEFAULT 0,
+    `latency` Nullable(UInt32) DEFAULT 0
 ) ENGINE = MergeTree PARTITION BY merchant_id
 ORDER BY
     (merchant_id, payment_id)
