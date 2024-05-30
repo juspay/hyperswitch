@@ -933,6 +933,8 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             reference_id: payment_attempt.connector_response_reference_id,
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            client_source: payment_attempt.client_source,
+            client_version: payment_attempt.client_version,
         }
     }
 }

@@ -406,16 +406,45 @@ impl types::transformers::ForeignFrom<String> for api_models::webhooks::Incoming
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            ZslWebhookResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            ZslWebhookResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
+        let paid_amount = item
+            .response
+            .paid_amt
+            .parse::<i64>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let txn_amount = item
+            .response
+            .txn_amt
+            .parse::<i64>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let status = if txn_amount > paid_amount {
+            enums::AttemptStatus::PartialCharged
+        } else {
+            enums::AttemptStatus::Charged
+        };
+
         if item.response.status == "0" {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status,
+                amount_captured: Some(paid_amount),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.mer_ref.clone(),

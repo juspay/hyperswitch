@@ -42,6 +42,7 @@ pub struct StoreCardReq<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requestor_card_reference: Option<String>,
     pub card: Card,
+    pub ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -50,6 +51,7 @@ pub struct StoreGenericReq<'a> {
     pub merchant_customer_id: id_type::CustomerId,
     #[serde(rename = "enc_card_data")]
     pub enc_data: String,
+    pub ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

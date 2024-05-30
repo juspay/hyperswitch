@@ -7,6 +7,7 @@ pub mod payments;
 pub mod payouts;
 pub mod router_data;
 pub mod router_request_types;
+pub mod router_response_types;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
