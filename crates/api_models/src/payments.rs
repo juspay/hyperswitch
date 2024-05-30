@@ -4177,7 +4177,7 @@ pub struct SessionTokenInfo {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(tag = "ppc_at")]
+#[serde(tag = "payment_processing_details_at")]
 pub enum PaymentProcessingDetailsAt {
     Hyperswitch(PaymentProcessingDetails),
     Connector,
