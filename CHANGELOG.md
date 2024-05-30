@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.24.1-hotfix1
+
+### Features
+
+- Feat: Soft kill kv ([#4813](https://github.com/juspay/hyperswitch/pull/4813)) ([`64d1781`](https://github.com/juspay/hyperswitch/commit/64d1781b6fa336e7e3ab1390df9771f61e72d68f))
+
+- - -
+
 ## 2024.05.24.1
 
 ### Features
