@@ -6,8 +6,8 @@ use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
 
 #[cfg(feature = "olap")]
-use super::SinglePurposeToken;
-use super::{AuthToken, SinglePurposeOrLoginToken};
+use super::{SinglePurposeToken, SinglePurposeOrLoginToken};
+use super::{AuthToken};
 #[cfg(feature = "email")]
 use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
