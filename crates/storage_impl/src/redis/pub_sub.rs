@@ -1,8 +1,10 @@
 use error_stack::ResultExt;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
-use router_env::logger;
+use router_env::{logger, tracing::Instrument};
 
-use crate::redis::cache::{CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, ROUTING_CACHE};
+use crate::redis::cache::{
+    CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE,
+};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
@@ -18,7 +20,7 @@ pub trait PubSubInterface {
 }
 
 #[async_trait::async_trait]
-impl PubSubInterface for redis_interface::RedisConnectionPool {
+impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     #[inline]
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
         // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
@@ -27,7 +29,18 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         self.subscriber
             .subscribe(channel)
             .await
-            .change_context(redis_errors::RedisError::SubscribeError)
+            .change_context(redis_errors::RedisError::SubscribeError)?;
+
+        let redis_clone = self.clone();
+        let _task_handle = tokio::spawn(
+            async move {
+                if let Err(pubsub_error) = redis_clone.on_message().await {
+                    logger::error!(?pubsub_error);
+                }
+            }
+            .in_current_span(),
+        );
+        Ok(())
     }
 
     #[inline]
@@ -71,6 +84,10 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                     CGRAPH_CACHE.remove(key.as_ref()).await;
                     key
                 }
+                CacheKind::PmFiltersCGraph(key) => {
+                    PM_FILTERS_CGRAPH_CACHE.remove(key.as_ref()).await;
+                    key
+                }
                 CacheKind::Routing(key) => {
                     ROUTING_CACHE.remove(key.as_ref()).await;
                     key
@@ -79,6 +96,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                     CONFIG_CACHE.remove(key.as_ref()).await;
                     ACCOUNTS_CACHE.remove(key.as_ref()).await;
                     CGRAPH_CACHE.remove(key.as_ref()).await;
+                    PM_FILTERS_CGRAPH_CACHE.remove(key.as_ref()).await;
                     ROUTING_CACHE.remove(key.as_ref()).await;
                     key
                 }

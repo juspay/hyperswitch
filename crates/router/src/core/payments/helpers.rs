@@ -90,6 +90,19 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
+pub fn create_certificate(
+    encoded_certificate: masking::Secret<String>,
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<errors::ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)
+}
+
 pub fn filter_mca_based_on_business_profile(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
     profile_id: Option<String>,
@@ -2338,7 +2351,7 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::UpiCollect
+            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent
         ),
         api_enums::PaymentMethod::Voucher => matches!(
             payment_method_type,
@@ -4252,9 +4265,9 @@ pub fn get_key_params_for_surcharge_details(
         )),
         api_models::payments::PaymentMethodData::MandatePayment => None,
         api_models::payments::PaymentMethodData::Reward => None,
-        api_models::payments::PaymentMethodData::Upi(_) => Some((
+        api_models::payments::PaymentMethodData::Upi(upi_data) => Some((
             common_enums::PaymentMethod::Upi,
-            common_enums::PaymentMethodType::UpiCollect,
+            upi_data.get_payment_method_type(),
             None,
         )),
         api_models::payments::PaymentMethodData::Voucher(voucher) => Some((

@@ -6949,6 +6949,14 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "nullable": true
+          },
+          "extended_card_info_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExtendedCardInfoConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7413,6 +7421,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gpayments",
           "helcim",
           "iatapay",
           "klarna",
@@ -7425,6 +7434,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",
@@ -7905,6 +7915,10 @@
         "type": "object",
         "properties": {
           "pay_currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "network": {
             "type": "string",
             "nullable": true
           }
@@ -11660,7 +11674,8 @@
         "type": "string",
         "enum": [
           "confirm",
-          "sync"
+          "sync",
+          "complete_authorize"
         ]
       },
       "NextActionData": {
@@ -11758,6 +11773,25 @@
           },
           {
             "type": "object",
+            "description": "Contains url to fetch Qr code data",
+            "required": [
+              "qr_code_fetch_url",
+              "type"
+            ],
+            "properties": {
+              "qr_code_fetch_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fetch_qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Contains the download url and the reference number for transaction",
             "required": [
               "voucher_details",
@@ -11813,6 +11847,24 @@
                 "type": "string",
                 "enum": [
                   "three_ds_invoke"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "next_action_data",
+              "type"
+            ],
+            "properties": {
+              "next_action_data": {
+                "$ref": "#/components/schemas/SdkNextActionData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_sdk_client"
                 ]
               }
             }
@@ -12548,6 +12600,16 @@
           "unified_message": {
             "type": "string",
             "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "client_source": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-SOURCE header during payments confirm request by the client",
+            "nullable": true
+          },
+          "client_version": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
           }
         }
@@ -13510,6 +13572,7 @@
           "trustly",
           "twint",
           "upi_collect",
+          "upi_intent",
           "vipps",
           "venmo",
           "walley",
@@ -16078,10 +16141,11 @@
         "enum": [
           "adyen",
           "stripe",
-          "wise",
+          "payone",
           "paypal",
           "ebanx",
-          "cybersource"
+          "cybersource",
+          "wise"
         ]
       },
       "PayoutCreateRequest": {
@@ -16780,12 +16844,21 @@
       "PaypalSessionTokenResponse": {
         "type": "object",
         "required": [
-          "session_token"
+          "connector",
+          "session_token",
+          "sdk_next_action"
         ],
         "properties": {
+          "connector": {
+            "type": "string",
+            "description": "Name of the connector"
+          },
           "session_token": {
             "type": "string",
             "description": "The session token for PayPal"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
@@ -18030,6 +18103,17 @@
           }
         }
       },
+      "SdkNextActionData": {
+        "type": "object",
+        "required": [
+          "next_action"
+        ],
+        "properties": {
+          "next_action": {
+            "$ref": "#/components/schemas/NextActionCall"
+          }
+        }
+      },
       "SecretInfoToInitiateSdk": {
         "type": "object",
         "required": [
@@ -18653,7 +18737,7 @@
         },
         "additionalProperties": false
       },
-      "UpiData": {
+      "UpiCollectData": {
         "type": "object",
         "properties": {
           "vpa_id": {
@@ -18662,6 +18746,35 @@
             "nullable": true
           }
         }
+      },
+      "UpiData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi_collect"
+            ],
+            "properties": {
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_intent"
+            ],
+            "properties": {
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
+              }
+            }
+          }
+        ]
+      },
+      "UpiIntentData": {
+        "type": "object"
       },
       "ValueType": {
         "oneOf": [
