@@ -41,3 +41,9 @@ pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
     PreAuthNRequestData,
     AuthenticationResponseData,
 >;
+
+pub type ConnectorPreAuthenticationVersionCallType = dyn services::ConnectorIntegration<
+    api::PreAuthenticationVersionCall,
+    PreAuthNRequestData,
+    AuthenticationResponseData,
+>;

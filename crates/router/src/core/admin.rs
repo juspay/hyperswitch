@@ -1933,10 +1933,11 @@ pub(crate) fn validate_auth_and_metadata_type(
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Gpayments => {
-        //     gpayments::transformers::GpaymentsAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Gpayments => {
+            gpayments::transformers::GpaymentsAuthType::try_from(val)?;
+            gpayments::transformers::GpaymentsMetaData::try_from(connector_meta_data)?;
+            Ok(())
+        }
         api_enums::Connector::Helcim => {
             helcim::transformers::HelcimAuthType::try_from(val)?;
             Ok(())
