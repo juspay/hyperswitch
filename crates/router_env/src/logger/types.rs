@@ -404,6 +404,8 @@ pub enum Flow {
     UserFromEmail,
     /// Begin TOTP
     TotpBegin,
+    // Reset TOTP
+    TotpReset,
     /// Verify TOTP
     TotpVerify,
     /// Update TOTP secret
