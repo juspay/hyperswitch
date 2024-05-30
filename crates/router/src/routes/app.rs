@@ -55,7 +55,7 @@ use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     core::routing,
-    db::{StorageImpl, StorageInterface, GlobalStorageInterface, CommonStorageInterface},
+    db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
@@ -272,7 +272,8 @@ impl AppState {
                 Arc::clone(&cache_store),
                 testable,
             )
-            .await.get_global_storage_interface();
+            .await
+            .get_global_storage_interface();
             for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
                 let store: Box<dyn StorageInterface> = Self::get_store_interface(
                     &storage_impl,
@@ -282,7 +283,8 @@ impl AppState {
                     Arc::clone(&cache_store),
                     testable,
                 )
-                .await.get_storage_interface();
+                .await
+                .get_storage_interface();
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
                 let pool =

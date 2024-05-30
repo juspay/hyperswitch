@@ -20,7 +20,7 @@ use hyperswitch_domain_models::errors::StorageResult;
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
-use storage_impl::{redis::RedisStore, RouterStore, config::TenantConfig};
+use storage_impl::{config::TenantConfig, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
