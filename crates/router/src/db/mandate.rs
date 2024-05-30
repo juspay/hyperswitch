@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use error_stack::ResultExt;
 
 use super::MockDb;
@@ -25,7 +26,7 @@ pub trait MandateInterface {
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
     async fn update_mandate_by_merchant_id_mandate_id(
@@ -52,7 +53,7 @@ pub trait MandateInterface {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::fallback_reverse_lookup_not_found;
+    use common_utils::{fallback_reverse_lookup_not_found, id_type};
     use diesel_models::kv;
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
@@ -175,7 +176,7 @@ mod storage {
         async fn find_mandate_by_merchant_id_customer_id(
             &self,
             merchant_id: &str,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
@@ -363,6 +364,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use common_utils::id_type;
     use error_stack::report;
     use router_env::{instrument, tracing};
 
@@ -410,7 +412,7 @@ mod storage {
         async fn find_mandate_by_merchant_id_customer_id(
             &self,
             merchant_id: &str,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
@@ -505,7 +507,7 @@ impl MandateInterface for MockDb {
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         return Ok(self
             .mandates
@@ -513,7 +515,7 @@ impl MandateInterface for MockDb {
             .await
             .iter()
             .filter(|mandate| {
-                mandate.merchant_id == merchant_id && mandate.customer_id == customer_id
+                mandate.merchant_id == merchant_id && &mandate.customer_id == customer_id
             })
             .cloned()
             .collect());

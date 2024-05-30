@@ -91,10 +91,15 @@ pub(super) fn create_client(
             let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
 
             let identity = payments::helpers::create_identity_from_certificate_and_key(
-                encoded_certificate,
+                encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
-
+            let certificate_list = payments::helpers::create_certificate(encoded_certificate)?;
+            let client_builder = certificate_list
+                .into_iter()
+                .fold(client_builder, |client_builder, certificate| {
+                    client_builder.add_root_certificate(certificate)
+                });
             client_builder
                 .identity(identity)
                 .build()

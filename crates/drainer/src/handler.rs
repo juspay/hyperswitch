@@ -121,10 +121,11 @@ impl Handler {
 
     pub fn spawn_error_handlers(&self, tx: mpsc::Sender<()>) -> errors::DrainerResult<()> {
         let (redis_error_tx, redis_error_rx) = oneshot::channel();
-        let mut redis_conn_clone = None;
-        for store in self.stores.values() {
-            redis_conn_clone = Some(store.redis_conn.clone());
-        }
+        let redis_conn_clone = self
+            .stores
+            .values()
+            .next()
+            .map(|store| store.redis_conn.clone());
         match redis_conn_clone {
             None => {
                 logger::error!("No redis connection found");

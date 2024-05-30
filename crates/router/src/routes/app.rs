@@ -15,7 +15,7 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::{redis::RedisStore, MockDb};
+use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 #[cfg(feature = "olap")]
@@ -46,7 +46,6 @@ use super::{pm_auth, poll::retrieve_poll_status};
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
-use crate::configs::{secrets_transformers, Settings};
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -60,6 +59,10 @@ pub use crate::{
     events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
+};
+use crate::{
+    configs::{secrets_transformers, Settings},
+    db::kafka_store::{KafkaStore, TenantID},
 };
 
 #[derive(Clone)]
@@ -151,7 +154,6 @@ impl scheduler::SchedulerAppState for AppState {
 }
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
-    // fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
@@ -273,17 +275,18 @@ impl AppState {
                     &storage_impl,
                     &event_handler,
                     &conf,
-                    tenant.as_str(),
+                    tenant,
                     Arc::clone(&cache_store),
                     testable,
                 )
                 .await;
-                stores.insert(tenant.clone(), store);
+                stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
                 let pool =
-                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant.as_str()).await;
+                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
+                        .await;
                 #[cfg(feature = "olap")]
-                pools.insert(tenant.clone(), pool);
+                pools.insert(tenant_name.clone(), pool);
             }
 
             #[cfg(feature = "email")]
@@ -316,20 +319,20 @@ impl AppState {
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
-        tenant: &str,
+        tenant: &settings::Tenant,
         cache_store: Arc<RedisStore>,
         testable: bool,
     ) -> Box<dyn StorageInterface> {
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
-                    crate::db::KafkaStore::new(
+                    KafkaStore::new(
                         #[allow(clippy::expect_used)]
                         get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
                             .await
                             .expect("Failed to create store"),
                         kafka_client.clone(),
-                        crate::db::kafka_store::TenantID(tenant.to_string()),
+                        TenantID(tenant.get_schema().to_string()),
                     )
                     .await,
                 ),
@@ -1341,17 +1344,35 @@ impl User {
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            )
-            .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
-            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)))
-            .service(
-                web::resource("/2fa/terminate").route(web::get().to(terminate_two_factor_auth)),
             );
 
+        // Two factor auth routes
         route = route.service(
-            web::scope("/recovery_code")
-                .service(web::resource("/verify").route(web::post().to(verify_recovery_code)))
-                .service(web::resource("/generate").route(web::post().to(generate_recovery_codes))),
+            web::scope("/2fa")
+                .service(web::resource("").route(web::get().to(check_two_factor_auth_status)))
+                .service(
+                    web::scope("/totp")
+                        .service(web::resource("/begin").route(web::get().to(totp_begin)))
+                        .service(web::resource("/reset").route(web::get().to(totp_reset)))
+                        .service(
+                            web::resource("/verify")
+                                .route(web::post().to(totp_verify))
+                                .route(web::put().to(totp_update)),
+                        ),
+                )
+                .service(
+                    web::scope("/recovery_code")
+                        .service(
+                            web::resource("/verify").route(web::post().to(verify_recovery_code)),
+                        )
+                        .service(
+                            web::resource("/generate")
+                                .route(web::get().to(generate_recovery_codes)),
+                        ),
+                )
+                .service(
+                    web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
+                ),
         );
 
         #[cfg(feature = "email")]

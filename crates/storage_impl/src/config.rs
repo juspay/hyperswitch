@@ -33,6 +33,11 @@ impl DbConnectionParams for Database {
     }
 }
 
+pub trait TenantConfig: Send + Sync {
+    fn get_schema(&self) -> &str;
+    fn get_redis_key_prefix(&self) -> &str;
+}
+
 #[derive(Debug, serde::Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "PascalCase")]
 pub enum QueueStrategy {

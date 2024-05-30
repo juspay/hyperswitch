@@ -648,7 +648,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::InvalidWalletToken { wallet_name }
             }
             errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
-            errors::ApiErrorResponse::InvalidTenant { tenant_id: _ } => Self::InvalidTenant,
+            errors::ApiErrorResponse::InvalidTenant { tenant_id: _ }
+            | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
         }
     }
 }
@@ -721,7 +722,6 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InvalidConnectorConfiguration { .. }
             | Self::CurrencyConversionFailed
             | Self::PaymentMethodDeleteFailed
-            | Self::InvalidTenant
             | Self::ExtendedCardInfoNotFound => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
@@ -729,7 +729,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
-            | Self::WebhookProcessingError => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::WebhookProcessingError
+            | Self::InvalidTenant => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)

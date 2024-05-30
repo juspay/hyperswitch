@@ -5,7 +5,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::date_time;
+use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -425,7 +425,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct EphemeralKeyAuth(pub String);
+pub struct EphemeralKeyAuth(pub id_type::CustomerId);
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
@@ -445,7 +445,7 @@ where
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-        if ephemeral_key.customer_id.ne(self.0.as_str()) {
+        if ephemeral_key.customer_id.ne(&self.0) {
             return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
         }
         MerchantIdAuth(ephemeral_key.merchant_id)
@@ -1064,7 +1064,7 @@ where
 
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync>(
     headers: &HeaderMap,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
 

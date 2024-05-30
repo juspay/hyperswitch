@@ -89,3 +89,9 @@ pub const DEFAULT_TENANT: &str = "public";
 
 /// Global tenant to be used when multitenancy is enabled
 pub const GLOBAL_TENANT: &str = "global";
+
+/// Max Length for MerchantReferenceId
+pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
+
+/// Minimum allowed length for MerchantReferenceId
+pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;

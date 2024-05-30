@@ -271,7 +271,9 @@ pub enum ApiErrorResponse {
     InvalidCookie,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_28", message = "Invalid tenant id: {tenant_id}")]
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Missing tenant id")]
+    MissingTenantId,
+    #[error(error_type = ErrorType::ProcessingError, code = "HE_06", message = "Invalid tenant id: {tenant_id}")]
     InvalidTenant { tenant_id: String },
 }
 
@@ -605,8 +607,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ExtendedCardInfoNotFound => {
                 AER::NotFound(ApiError::new("IR", 27, "Extended card info does not exist", None))
             }
-            Self::InvalidTenant { tenant_id } => {
-                AER::BadRequest(ApiError::new("IR", 28, format!("Invalid Tenant {tenant_id}"), None))
+            Self::MissingTenantId => {
+                AER::InternalServerError(ApiError::new("HE", 6, "Missing Tenant ID in the request".to_string(), None))
+            }
+            Self::InvalidTenant { tenant_id }  => {
+                AER::InternalServerError(ApiError::new("HE", 6, format!("Invalid Tenant {tenant_id}"), None))
             }
         }
     }

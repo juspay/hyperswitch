@@ -20,9 +20,9 @@ async fn main() -> DrainerResult<()> {
     let state = settings::AppState::new(conf.clone()).await;
 
     let mut stores = HashMap::new();
-    for tenant in conf.multitenancy.get_tenant_names() {
-        let store = std::sync::Arc::new(services::Store::new(&state.conf, false, &tenant).await);
-        stores.insert(tenant.clone(), store);
+    for (tenant_name, tenant) in conf.multitenancy.get_tenants() {
+        let store = std::sync::Arc::new(services::Store::new(&state.conf, false, tenant).await);
+        stores.insert(tenant_name.clone(), store);
     }
 
     #[cfg(feature = "vergen")]

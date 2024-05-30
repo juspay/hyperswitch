@@ -24,7 +24,7 @@ use storage_impl::{redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::Settings, consts, core::errors};
+use crate::{configs::Settings, core::errors};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
@@ -42,7 +42,7 @@ pub type Store = KVRouterStore<StoreType>;
 #[allow(clippy::expect_used)]
 pub async fn get_store(
     config: &Settings,
-    schema: &str,
+    tenant: &crate::configs::settings::Tenant,
     cache_store: Arc<RedisStore>,
     test_transaction: bool,
 ) -> StorageResult<Store> {
@@ -64,14 +64,14 @@ pub async fn get_store(
     let conf = (master_config.into(), replica_config.into());
 
     let store: RouterStore<StoreType> = if test_transaction {
-        RouterStore::test_store(conf, schema, &config.redis, master_enc_key).await?
+        RouterStore::test_store(conf, tenant, &config.redis, master_enc_key).await?
     } else {
         RouterStore::from_config(
             conf,
-            schema,
+            tenant,
             master_enc_key,
             cache_store,
-            consts::PUB_SUB_CHANNEL,
+            storage_impl::redis::cache::PUB_SUB_CHANNEL,
         )
         .await?
     };
