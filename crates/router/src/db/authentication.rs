@@ -143,11 +143,12 @@ impl AuthenticationInterface for MockDb {
             challenge_request: authentication.challenge_request,
             acs_reference_number: authentication.acs_reference_number,
             acs_trans_id: authentication.acs_trans_id,
-            three_ds_server_trans_id: authentication.three_dsserver_trans_id,
             acs_signed_content: authentication.acs_signed_content,
             profile_id: authentication.profile_id,
             payment_id: authentication.payment_id,
             merchant_connector_id: authentication.merchant_connector_id,
+            ds_trans_id: authentication.ds_trans_id,
+            directory_server_id: authentication.directory_server_id,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

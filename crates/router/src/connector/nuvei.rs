@@ -12,7 +12,7 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 use transformers as nuvei;
 
-use super::utils::{self, RouterData};
+use super::utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData};
 use crate::{
     configs::settings,
     core::{
@@ -26,6 +26,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, InitPayment},
         storage::enums,
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::ByteSliceExt,
@@ -85,6 +86,15 @@ impl ConnectorValidation for Nuvei {
                 utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -527,9 +537,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
-            types::AuthorizeSessionTokenData::from(&router_data),
+            types::AuthorizeSessionTokenData::foreign_from(&router_data),
         ));
         let resp = services::execute_connector_processing_step(
             app_state,
@@ -555,7 +565,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                               + Sync
                               + 'static),
                     > = Box::new(&Self);
-                    let init_data = &types::PaymentsInitRouterData::from((
+                    let init_data = &types::PaymentsInitRouterData::foreign_from((
                         &router_data.to_owned(),
                         router_data.request.clone(),
                     ));

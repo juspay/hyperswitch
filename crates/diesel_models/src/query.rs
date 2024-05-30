@@ -36,4 +36,5 @@ pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_key_store;
 pub mod user_role;

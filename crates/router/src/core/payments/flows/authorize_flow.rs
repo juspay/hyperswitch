@@ -1,11 +1,10 @@
 use async_trait::async_trait;
-use error_stack;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
@@ -14,7 +13,7 @@ use crate::{
     logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -63,6 +62,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
+        _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -154,6 +154,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         self.request.payment_method_type,
                     )
                     .to_payment_failed_response()?;
+
+                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+                    &self.request,
+                ) {
+                    connector
+                        .connector
+                        .validate_mandate_payment(
+                            self.request.payment_method_type,
+                            self.request.payment_method_data.clone(),
+                        )
+                        .to_payment_failed_response()?;
+                }
+
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
@@ -198,7 +211,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     }
 }
 
-impl types::PaymentsAuthorizeRouterData {
+pub trait RouterDataAuthorize {
+    fn decide_authentication_type(&mut self);
+
+    /// to decide if we need to proceed with authorize or not, Eg: If any of the pretask returns `redirection_response` then we should not proceed with authorize call
+    fn should_proceed_with_authorize(&self) -> bool;
+}
+
+impl RouterDataAuthorize for types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
         if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
@@ -312,85 +332,5 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         Ok(authorize_router_data)
     } else {
         Ok(router_data.clone())
-    }
-}
-
-impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
-    for types::ConnectorCustomerData
-{
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(
-        data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            email: data.request.email.clone(),
-            payment_method_data: data.request.payment_method_data.clone(),
-            description: None,
-            phone: None,
-            name: data.request.customer_name.clone(),
-            preprocessing_id: data.preprocessing_id.clone(),
-        })
-    }
-}
-
-impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: data.payment_method_data,
-            browser_info: data.browser_info,
-            currency: data.currency,
-            amount: Some(data.amount),
-        })
-    }
-}
-
-impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: Some(data.payment_method_data),
-            amount: Some(data.amount),
-            email: data.email,
-            currency: Some(data.currency),
-            payment_method_type: data.payment_method_type,
-            setup_mandate_details: data.setup_mandate_details,
-            capture_method: data.capture_method,
-            order_details: data.order_details,
-            router_return_url: data.router_return_url,
-            webhook_url: data.webhook_url,
-            complete_authorize_url: data.complete_authorize_url,
-            browser_info: data.browser_info,
-            surcharge_details: data.surcharge_details,
-            connector_transaction_id: None,
-            redirect_response: None,
-        })
-    }
-}
-
-impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: data.payment_method_data,
-            amount: Some(data.amount),
-            email: data.email,
-            currency: Some(data.currency),
-            payment_method_type: None,
-            setup_mandate_details: data.setup_mandate_details,
-            capture_method: data.capture_method,
-            order_details: None,
-            router_return_url: None,
-            webhook_url: None,
-            complete_authorize_url: data.complete_authorize_url,
-            browser_info: data.browser_info,
-            surcharge_details: None,
-            connector_transaction_id: data.connector_transaction_id,
-            redirect_response: data.redirect_response,
-        })
     }
 }

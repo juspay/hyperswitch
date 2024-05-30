@@ -39,6 +39,20 @@
         "new_customer": "true",
         "login_date": "2019-09-10T10:11:12Z"
       },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "HarrisonStreet",
+          "line3": "HarrisonStreet",
+          "city": "SanFransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "Swangi",
+          "last_name": "Kumari"
+        },
+        "email": "guest@example.com"
+      },
       "routing": {
         "type": "single",
         "data": "stripe"

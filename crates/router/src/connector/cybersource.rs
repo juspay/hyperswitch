@@ -15,7 +15,10 @@ use url::Url;
 use super::utils::{PaymentsAuthorizeRequestData, RouterData};
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils::RefundsRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{PaymentMethodDataType, RefundsRequestData},
+    },
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -28,6 +31,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignTryFrom,
     },
     utils::BytesExt,
 };
@@ -222,6 +226,18 @@ impl ConnectorValidation for Cybersource {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::GooglePay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -832,6 +848,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if req.is_three_ds()
             && req.request.is_card()
             && req.request.connector_mandate_id().is_none()
+            && req.request.authentication_data.is_none()
         {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
@@ -859,6 +876,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if req.is_three_ds()
             && req.request.is_card()
             && req.request.connector_mandate_id().is_none()
+            && req.request.authentication_data.is_none()
         {
             let connector_req =
                 cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
@@ -899,6 +917,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if data.is_three_ds()
             && data.request.is_card()
             && data.request.connector_mandate_id().is_none()
+            && data.request.authentication_data.is_none()
         {
             let response: cybersource::CybersourceAuthSetupResponse = res
                 .response
@@ -1585,7 +1604,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),

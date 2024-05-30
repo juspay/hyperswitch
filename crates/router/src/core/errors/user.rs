@@ -66,6 +66,20 @@ pub enum UserErrors {
     RoleNameParsingError,
     #[error("RoleNameAlreadyExists")]
     RoleNameAlreadyExists,
+    #[error("TotpNotSetup")]
+    TotpNotSetup,
+    #[error("InvalidTotp")]
+    InvalidTotp,
+    #[error("TotpRequired")]
+    TotpRequired,
+    #[error("InvalidRecoveryCode")]
+    InvalidRecoveryCode,
+    #[error("TwoFactorAuthRequired")]
+    TwoFactorAuthRequired,
+    #[error("TwoFactorAuthNotSetup")]
+    TwoFactorAuthNotSetup,
+    #[error("TOTP secret not found")]
+    TotpSecretNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -169,6 +183,27 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::RoleNameAlreadyExists => {
                 AER::BadRequest(ApiError::new(sub_code, 35, self.get_error_message(), None))
             }
+            Self::TotpNotSetup => {
+                AER::BadRequest(ApiError::new(sub_code, 36, self.get_error_message(), None))
+            }
+            Self::InvalidTotp => {
+                AER::BadRequest(ApiError::new(sub_code, 37, self.get_error_message(), None))
+            }
+            Self::TotpRequired => {
+                AER::BadRequest(ApiError::new(sub_code, 38, self.get_error_message(), None))
+            }
+            Self::InvalidRecoveryCode => {
+                AER::BadRequest(ApiError::new(sub_code, 39, self.get_error_message(), None))
+            }
+            Self::TwoFactorAuthRequired => {
+                AER::BadRequest(ApiError::new(sub_code, 40, self.get_error_message(), None))
+            }
+            Self::TwoFactorAuthNotSetup => {
+                AER::BadRequest(ApiError::new(sub_code, 41, self.get_error_message(), None))
+            }
+            Self::TotpSecretNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 42, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -205,6 +240,13 @@ impl UserErrors {
             Self::InvalidRoleOperationWithMessage(error_message) => error_message,
             Self::RoleNameParsingError => "Invalid Role Name",
             Self::RoleNameAlreadyExists => "Role name already exists",
+            Self::TotpNotSetup => "TOTP not setup",
+            Self::InvalidTotp => "Invalid TOTP",
+            Self::TotpRequired => "TOTP required",
+            Self::InvalidRecoveryCode => "Invalid Recovery Code",
+            Self::TwoFactorAuthRequired => "Two factor auth required",
+            Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
+            Self::TotpSecretNotFound => "TOTP secret not found",
         }
     }
 }

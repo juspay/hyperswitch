@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
@@ -11,7 +11,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -55,6 +55,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
+        _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -142,20 +143,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     }
 }
 
-impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            email: data.email,
-            payment_method_data: data.payment_method_data,
-            description: None,
-            phone: None,
-            name: None,
-            preprocessing_id: None,
-        })
-    }
-}
-
 impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     fn get_amount(&self) -> i64 {
         0
@@ -184,18 +171,5 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     }
     fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
         self.customer_acceptance.clone().map(From::from)
-    }
-}
-
-impl TryFrom<types::SetupMandateRequestData> for types::PaymentMethodTokenizationData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: data.payment_method_data,
-            browser_info: None,
-            currency: data.currency,
-            amount: data.amount,
-        })
     }
 }

@@ -43,7 +43,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -55,6 +55,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         new: PaymentIntentNew,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let merchant_id = new.merchant_id.clone();
+        let payment_id = new.payment_id.clone();
+        let field = format!("pi_{}", new.payment_id);
+        let key = PartitionKey::MerchantIdPaymentId {
+            merchant_id: &merchant_id,
+            payment_id: &payment_id,
+        };
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Insert).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -63,14 +72,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let merchant_id = new.merchant_id.clone();
-                let payment_id = new.payment_id.clone();
-                let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: &merchant_id,
-                    payment_id: &payment_id,
-                };
                 let key_str = key.to_string();
-                let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
                     payment_id: new.payment_id.clone(),
@@ -83,6 +85,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     description: new.description.clone(),
                     return_url: new.return_url.clone(),
                     metadata: new.metadata.clone(),
+                    frm_metadata: new.frm_metadata.clone(),
                     connector_id: new.connector_id.clone(),
                     shipping_address_id: new.shipping_address_id.clone(),
                     billing_address_id: new.billing_address_id.clone(),
@@ -115,6 +118,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     session_expiry: new.session_expiry,
                     request_external_three_ds_authentication: new
                         .request_external_three_ds_authentication,
+                    charges: new.charges.clone(),
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -154,6 +158,19 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         payment_intent_update: PaymentIntentUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let merchant_id = this.merchant_id.clone();
+        let payment_id = this.payment_id.clone();
+        let key = PartitionKey::MerchantIdPaymentId {
+            merchant_id: &merchant_id,
+            payment_id: &payment_id,
+        };
+        let field = format!("pi_{}", this.payment_id);
+        let storage_scheme = decide_storage_scheme::<_, DieselPaymentIntent>(
+            self,
+            storage_scheme,
+            Op::Update(key.clone(), &field, Some(&this.updated_by)),
+        )
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -161,14 +178,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let merchant_id = this.merchant_id.clone();
-                let payment_id = this.payment_id.clone();
-                let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: &merchant_id,
-                    payment_id: &payment_id,
-                };
                 let key_str = key.to_string();
-                let field = format!("pi_{}", this.payment_id);
 
                 let diesel_intent_update = payment_intent_update.to_storage_model();
                 let origin_diesel_intent = this.to_storage_model();
@@ -224,6 +234,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
@@ -806,6 +818,7 @@ impl DataModelExt for PaymentIntentNew {
             description: self.description,
             return_url: self.return_url,
             metadata: self.metadata,
+            frm_metadata: self.frm_metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
             billing_address_id: self.billing_address_id,
@@ -837,6 +850,7 @@ impl DataModelExt for PaymentIntentNew {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
         }
     }
 
@@ -852,6 +866,7 @@ impl DataModelExt for PaymentIntentNew {
             description: storage_model.description,
             return_url: storage_model.return_url,
             metadata: storage_model.metadata,
+            frm_metadata: storage_model.frm_metadata,
             connector_id: storage_model.connector_id,
             shipping_address_id: storage_model.shipping_address_id,
             billing_address_id: storage_model.billing_address_id,
@@ -884,6 +899,7 @@ impl DataModelExt for PaymentIntentNew {
             session_expiry: storage_model.session_expiry,
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
+            charges: storage_model.charges,
         }
     }
 }
@@ -935,6 +951,8 @@ impl DataModelExt for PaymentIntent {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
+            frm_metadata: self.frm_metadata,
         }
     }
 
@@ -983,6 +1001,8 @@ impl DataModelExt for PaymentIntent {
             session_expiry: storage_model.session_expiry,
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
+            charges: storage_model.charges,
+            frm_metadata: storage_model.frm_metadata,
         }
     }
 }
@@ -1070,6 +1090,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -1091,6 +1112,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 fingerprint_id,
                 session_expiry,
                 request_external_three_ds_authentication,
+                frm_metadata,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1144,6 +1166,11 @@ impl DataModelExt for PaymentIntentUpdate {
                 authorization_count,
             } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
+            },
+            Self::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => DieselPaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
             },
         }
     }

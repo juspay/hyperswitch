@@ -10,6 +10,7 @@
       "order_category": "applepay"
     }
   },
+
   "metadata": {
     "udf1": "value1",
     "new_customer": "true",

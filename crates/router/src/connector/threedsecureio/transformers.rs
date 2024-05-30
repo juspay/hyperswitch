@@ -108,6 +108,7 @@ impl
                         )
                         .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_metadata: Some(connector_metadata),
+                        directory_server_id: None,
                     },
                 )
             }
@@ -186,6 +187,7 @@ impl
                             types::authentication::AuthNFlowType::Frictionless
                         },
                         authentication_value: response.authentication_value,
+                        ds_trans_id: Some(response.ds_trans_id),
                     },
                 )
             }

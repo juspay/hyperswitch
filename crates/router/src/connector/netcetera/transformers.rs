@@ -96,6 +96,9 @@ impl
                         three_ds_method_url,
                         message_version: maximum_supported_3ds_version,
                         connector_metadata: None,
+                        directory_server_id: card_range
+                            .as_ref()
+                            .and_then(|card_range| card_range.directory_server_id.clone()),
                     },
                 )
             }
@@ -164,6 +167,7 @@ impl
                         authn_flow_type,
                         authentication_value: response.authentication_value,
                         trans_status: response.trans_status,
+                        ds_trans_id: response.authentication_response.ds_trans_id,
                     },
                 )
             }
@@ -547,7 +551,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             seller_info: None,
             results_response_notification_url: Some(request.webhook_url),
         };
-        let browser_information = request.browser_details.map(netcetera_types::Browser::from);
+        let browser_information = match request.device_channel {
+            api_models::payments::DeviceChannel::Browser => {
+                request.browser_details.map(netcetera_types::Browser::from)
+            }
+            api_models::payments::DeviceChannel::App => None,
+        };
         let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
         let device_render_options = match request.device_channel {
             api_models::payments::DeviceChannel::App => {
@@ -638,6 +647,8 @@ pub struct AuthenticationResponse {
     pub acs_reference_number: Option<String>,
     #[serde(rename = "acsTransID")]
     pub acs_trans_id: Option<String>,
+    #[serde(rename = "dsTransID")]
+    pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
 }
 

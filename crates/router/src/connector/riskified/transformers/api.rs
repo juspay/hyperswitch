@@ -11,7 +11,7 @@ use crate::{
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
+        self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
     },
 };
@@ -142,8 +142,9 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 field_name: "frm_metadata",
             })?
             .parse_value("Riskified Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "frm_metadata",
+            })?;
         let billing_address = payment_data.get_billing()?;
         let shipping_address = payment_data.get_shipping_address_with_phone_number()?;
         let address = payment_data.get_billing_address()?;
@@ -604,5 +605,27 @@ fn get_fulfillment_status(
         core_types::FulfillmentStatus::COMPLETE => Some(FulfillmentRequestStatus::Success),
         core_types::FulfillmentStatus::CANCELED => Some(FulfillmentRequestStatus::Cancelled),
         core_types::FulfillmentStatus::PARTIAL | core_types::FulfillmentStatus::REPLACEMENT => None,
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+
+pub struct RiskifiedWebhookBody {
+    pub id: String,
+    pub status: RiskifiedWebhookStatus,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum RiskifiedWebhookStatus {
+    Approved,
+    Declined,
+}
+
+impl From<RiskifiedWebhookStatus> for api::IncomingWebhookEvent {
+    fn from(value: RiskifiedWebhookStatus) -> Self {
+        match value {
+            RiskifiedWebhookStatus::Declined => Self::FrmRejected,
+            RiskifiedWebhookStatus::Approved => Self::FrmApproved,
+        }
     }
 }
