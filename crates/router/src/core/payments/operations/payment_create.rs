@@ -727,11 +727,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                &request
+                request
                     .customer
-                    .clone()
-                    .map(|customer| customer.id)
-                    .or(request.customer_id.clone()),
+                    .as_ref()
+                    .map(|customer| &customer.id)
+                    .or(request.customer_id.as_ref()),
             )?;
         }
 

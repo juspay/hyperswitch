@@ -24,7 +24,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     consts,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
-    generate_id,
+    generate_id, id_type,
 };
 use diesel_models::{business_profile::BusinessProfile, encryption::Encryption, payment_method};
 use domain::CustomerUpdate;
@@ -85,7 +85,7 @@ use crate::{
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::PaymentMethodCreate,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     payment_method_id: &str,
     locker_id: Option<String>,
     merchant_id: &str,
@@ -119,7 +119,7 @@ pub async fn create_payment_method(
     let response = db
         .insert_payment_method(
             storage::PaymentMethodNew {
-                customer_id: customer_id.to_string(),
+                customer_id: customer_id.to_owned(),
                 merchant_id: merchant_id.to_string(),
                 payment_method_id: payment_method_id.to_string(),
                 locker_id,
@@ -173,7 +173,7 @@ pub async fn create_payment_method(
 
 pub fn store_default_payment_method(
     req: &api::PaymentMethodCreate,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &String,
 ) -> (
     api::PaymentMethodResponse,
@@ -206,7 +206,7 @@ pub async fn get_or_insert_payment_method(
     req: api::PaymentMethodCreate,
     resp: &mut api::PaymentMethodResponse,
     merchant_account: &domain::MerchantAccount,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
     let mut payment_method_id = resp.payment_method_id.clone();
@@ -293,7 +293,7 @@ pub async fn get_client_secret_or_add_payment_method(
         let res = create_payment_method(
             db,
             &req,
-            customer_id.as_str(),
+            &customer_id,
             payment_method_id.as_str(),
             None,
             merchant_id.as_str(),
@@ -375,7 +375,7 @@ pub async fn add_payment_method_data(
     let customer_id = payment_method.customer_id.clone();
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            customer_id.as_str(),
+            &customer_id,
             &merchant_account.merchant_id,
             &key_store,
             merchant_account.storage_scheme,
@@ -487,7 +487,7 @@ pub async fn add_payment_method_data(
                                 db,
                                 merchant_account.merchant_id.clone(),
                                 key_store.clone(),
-                                customer_id.as_str(),
+                                &customer_id,
                                pm_id,
                                merchant_account.storage_scheme,
                             )
@@ -626,7 +626,7 @@ pub async fn add_payment_method(
                         &state,
                         req.clone(),
                         &card,
-                        customer_id.clone(),
+                        &customer_id,
                         merchant_account,
                         api::enums::LockerChoice::HyperswitchCardVault,
                         Some(
@@ -733,7 +733,7 @@ pub async fn insert_payment_method(
     req: api::PaymentMethodCreate,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &str,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     pm_metadata: Option<serde_json::Value>,
     customer_acceptance: Option<serde_json::Value>,
     locker_id: Option<String>,
@@ -1030,7 +1030,7 @@ pub async fn add_bank_to_locker(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     bank: &api::BankPayout,
-    customer_id: &String,
+    customer_id: &id_type::CustomerId,
 ) -> errors::CustomResult<
     (
         api::PaymentMethodResponse,
@@ -1093,7 +1093,7 @@ pub async fn add_card_to_locker(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
     card: &api::CardDetail,
-    customer_id: &String,
+    customer_id: &id_type::CustomerId,
     merchant_account: &domain::MerchantAccount,
     card_reference: Option<&str>,
 ) -> errors::CustomResult<
@@ -1110,7 +1110,7 @@ pub async fn add_card_to_locker(
                 state,
                 req.clone(),
                 card,
-                customer_id.to_string(),
+                customer_id,
                 merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
                 card_reference,
@@ -1139,7 +1139,7 @@ pub async fn add_card_to_locker(
 
 pub async fn get_card_from_locker(
     state: &routes::AppState,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     card_reference: &str,
 ) -> errors::RouterResult<Card> {
@@ -1180,7 +1180,7 @@ pub async fn get_card_from_locker(
 
 pub async fn delete_card_from_locker(
     state: &routes::AppState,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     card_reference: &str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
@@ -1206,7 +1206,7 @@ pub async fn add_card_hs(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
     card: &api::CardDetail,
-    customer_id: String,
+    customer_id: &id_type::CustomerId,
     merchant_account: &domain::MerchantAccount,
     locker_choice: api_enums::LockerChoice,
     card_reference: Option<&str>,
@@ -1233,8 +1233,7 @@ pub async fn add_card_hs(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_card_payload =
-        call_to_locker_hs(state, &payload, &customer_id, locker_choice).await?;
+    let store_card_payload = call_to_locker_hs(state, &payload, customer_id, locker_choice).await?;
 
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
         card.clone(),
@@ -1270,7 +1269,7 @@ pub async fn decode_and_decrypt_locker_data(
 pub async fn get_payment_method_from_hs_locker<'a>(
     state: &'a routes::AppState,
     key_store: &domain::MerchantKeyStore,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     payment_method_reference: &'a str,
     locker_choice: Option<api_enums::LockerChoice>,
@@ -1332,7 +1331,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
 pub async fn call_to_locker_hs<'a>(
     state: &routes::AppState,
     payload: &payment_methods::StoreLockerReq<'a>,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
@@ -1404,7 +1403,7 @@ pub async fn update_payment_method_connector_mandate_details(
 #[instrument(skip_all)]
 pub async fn get_card_from_hs_locker<'a>(
     state: &'a routes::AppState,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     card_reference: &'a str,
     locker_choice: api_enums::LockerChoice,
@@ -1457,7 +1456,7 @@ pub async fn get_card_from_hs_locker<'a>(
 #[instrument(skip_all)]
 pub async fn delete_card_from_hs_locker<'a>(
     state: &routes::AppState,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     card_reference: &'a str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
@@ -1508,7 +1507,7 @@ pub async fn mock_call_to_locker_hs<'a>(
     payload: &payment_methods::StoreLockerReq<'a>,
     card_cvc: Option<String>,
     payment_method_id: Option<String>,
-    customer_id: Option<&str>,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> errors::CustomResult<payment_methods::StoreCardResp, errors::VaultError> {
     let mut locker_mock_up = storage::LockerMockUpNew {
         card_id: card_id.to_string(),
@@ -1521,7 +1520,7 @@ pub async fn mock_call_to_locker_hs<'a>(
         card_exp_month: "12".to_string(),
         card_cvc,
         payment_method_id,
-        customer_id: customer_id.map(str::to_string),
+        customer_id: customer_id.map(ToOwned::to_owned),
         name_on_card: None,
         nickname: None,
         enc_card_data: None,
@@ -1808,7 +1807,7 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .async_and_then(|cust| async {
                     db.find_customer_by_customer_id_merchant_id(
-                        cust.as_str(),
+                        cust,
                         &pi.merchant_id,
                         &key_store,
                         merchant_account.storage_scheme,
@@ -3088,7 +3087,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: Option<api::PaymentMethodListRequest>,
-    customer_id: Option<&str>,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = state.store.as_ref();
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
@@ -3144,7 +3143,7 @@ pub async fn list_customer_payment_method(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payment_intent: Option<storage::PaymentIntent>,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     limit: Option<i64>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
@@ -3701,11 +3700,12 @@ pub async fn set_default_payment_method(
     db: &dyn db::StorageInterface,
     merchant_id: String,
     key_store: domain::MerchantKeyStore,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     payment_method_id: String,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
-    //check for the customer
+    // check for the customer
+    // TODO: customer need not be checked again here, this function can take an optional customer and check for existence of customer based on the optional value
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             customer_id,
@@ -3725,7 +3725,7 @@ pub async fn set_default_payment_method(
         .get_required_value("payment_method")?;
 
     utils::when(
-        payment_method.customer_id != customer_id || payment_method.merchant_id != merchant_id,
+        &payment_method.customer_id != customer_id || payment_method.merchant_id != merchant_id,
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "The payment_method_id is not valid".to_string(),
@@ -3799,7 +3799,7 @@ pub async fn get_bank_from_hs_locker(
     state: &routes::AppState,
     key_store: &domain::MerchantKeyStore,
     temp_token: &str,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
@@ -3886,7 +3886,7 @@ impl TempLockerCardSupport {
             None,
             None,
             None,
-            Some(pm.customer_id.to_string()),
+            Some(pm.customer_id.clone()),
             Some(pm.payment_method_id.to_string()),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
