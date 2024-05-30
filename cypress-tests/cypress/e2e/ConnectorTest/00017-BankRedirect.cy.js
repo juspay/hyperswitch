@@ -128,6 +128,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Handle bank redirect redirection", () => {
+      // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
       let expected_redirection = confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
@@ -189,6 +190,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Handle bank redirect redirection", () => {
+      // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
       let expected_redirection = confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
@@ -249,6 +251,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Handle bank redirect redirection", () => {
+      // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
       let expected_redirection = confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
@@ -309,6 +312,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Handle bank redirect redirection", () => {
+      // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
       let expected_redirection = confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
