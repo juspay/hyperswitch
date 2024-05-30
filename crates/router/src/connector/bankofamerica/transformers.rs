@@ -2826,6 +2826,7 @@ pub struct Details {
 pub struct ErrorInformation {
     pub message: String,
     pub reason: String,
+    pub details: Option<Vec<Details>>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
