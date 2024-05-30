@@ -286,6 +286,7 @@ Cypress.Commands.add(
       expect(res_data.status).to.equal(response.status);
       expect(response.headers["content-type"]).to.include("application/json");
       globalState.set("paymentID", paymentIntentId);
+      globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
       switch (response.body.authentication_type) {
         case "three_ds":
@@ -843,6 +844,7 @@ Cypress.Commands.add(
   (globalState, payment_method_type, expected_redirection) => {
     let connectorId = globalState.get("connectorId");
     let redirection_url = new URL(globalState.get("nextActionUrl"));
+    cy.log(payment_method_type);
     handleRedirection(
       "bank_transfer",
       { redirection_url, expected_redirection },
