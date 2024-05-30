@@ -95,7 +95,7 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
-    // Gpayments, Added as template code for future usage
+    Gpayments,
     Helcim,
     Iatapay,
     Klarna,
@@ -210,7 +210,7 @@ impl Connector {
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
-            // | Self::Gpayments  Added as template code for future usage
+            | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
             | Self::Klarna
@@ -244,10 +244,9 @@ impl Connector {
             | Self::Riskified
             | Self::Threedsecureio
             | Self::Netcetera
-            | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi => true,
+            Self::Checkout | Self::Nmi| Self::Cybersource => true,
         }
     }
 }
