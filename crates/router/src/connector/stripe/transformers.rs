@@ -271,8 +271,8 @@ pub struct ChargesRequest {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ChargesResponse {
     pub id: String,
-    pub amount: u64,
-    pub amount_captured: u64,
+    pub amount: MinorUnit,
+    pub amount_captured: MinorUnit,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub source: StripeSourceResponse,
@@ -2417,10 +2417,10 @@ impl<F, T>
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
             response,
-            amount_captured: item
+            amount_captured : item.response.amount_received.map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item
                 .response
-                .amount_received
-                .map(|amount| amount.get_amount_as_i64()),
+                .amount_received,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2606,6 +2606,9 @@ impl<F, T>
                 .response
                 .amount_received
                 .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured : item
+                .response
+                .amount_received,
             connector_response: connector_response_data,
             ..item.data
         })

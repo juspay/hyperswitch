@@ -66,6 +66,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
             amount_captured: None,
+            minor_amount_captured:None,
             request: FraudCheckRecordReturnData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),
                 refund_method: RefundMethod::OriginalPaymentInstrument, //we dont consume this data now in payments...hence hardcoded

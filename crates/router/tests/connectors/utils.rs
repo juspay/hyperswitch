@@ -529,6 +529,7 @@ pub trait ConnectorActions: Connector {
                 .clone()
                 .and_then(|a| a.connector_meta_data.map(Secret::new)),
             amount_captured: None,
+            minor_amount_captured: None,
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
