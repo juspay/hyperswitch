@@ -1010,6 +1010,9 @@ pub struct BusinessProfileResponse {
 
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// Merchant's config to support extended card info feature
+    pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

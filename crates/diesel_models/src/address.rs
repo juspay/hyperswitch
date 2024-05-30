@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -19,7 +20,7 @@ pub struct AddressNew {
     pub last_name: Option<Encryption>,
     pub phone_number: Option<Encryption>,
     pub country_code: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: String,
     pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
@@ -46,7 +47,7 @@ pub struct Address {
     pub country_code: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: String,
     pub payment_id: Option<String>,
     pub updated_by: String,

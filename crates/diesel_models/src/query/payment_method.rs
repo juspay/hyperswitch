@@ -1,4 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_utils::id_type;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     QueryDsl, Table,
@@ -85,7 +86,7 @@ impl PaymentMethod {
 
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
@@ -103,7 +104,7 @@ impl PaymentMethod {
 
     pub async fn get_count_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
@@ -130,7 +131,7 @@ impl PaymentMethod {
 
     pub async fn find_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         status: storage_enums::PaymentMethodStatus,
         limit: Option<i64>,

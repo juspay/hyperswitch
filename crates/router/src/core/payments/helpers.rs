@@ -7,10 +7,10 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, pii,
+    fp_utils, generate_id, id_type, pii,
     types::MinorUnit,
 };
-use diesel_models::enums;
+use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -90,6 +90,19 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
+pub fn create_certificate(
+    encoded_certificate: masking::Secret<String>,
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<errors::ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)
+}
+
 pub fn filter_mca_based_on_business_profile(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
     profile_id: Option<String>,
@@ -111,7 +124,7 @@ pub async fn create_or_update_address_for_payment_by_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: Option<&String>,
+    customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -273,7 +286,7 @@ pub async fn create_or_find_address_for_payment_by_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: Option<&String>,
+    customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -998,7 +1011,7 @@ fn validate_new_mandate_request(
 
 pub fn validate_customer_id_mandatory_cases(
     has_setup_future_usage: bool,
-    customer_id: &Option<String>,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<()> {
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -1149,8 +1162,8 @@ pub fn verify_mandate_details(
 pub fn verify_mandate_details_for_recurring_payments(
     mandate_merchant_id: &str,
     merchant_id: &str,
-    mandate_customer_id: &str,
-    customer_id: &str,
+    mandate_customer_id: &id_type::CustomerId,
+    customer_id: &id_type::CustomerId,
 ) -> RouterResult<()> {
     if mandate_merchant_id != merchant_id {
         Err(report!(errors::ApiErrorResponse::MandateNotFound))?
@@ -1253,7 +1266,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<masking::Secret<String>>,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method_data {
@@ -1327,7 +1340,7 @@ pub(crate) async fn get_payment_method_create_request(
 
 pub async fn get_customer_from_details<F: Clone>(
     db: &dyn StorageInterface,
-    customer_id: Option<String>,
+    customer_id: Option<id_type::CustomerId>,
     merchant_id: &str,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1335,10 +1348,10 @@ pub async fn get_customer_from_details<F: Clone>(
 ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
-        Some(c_id) => {
+        Some(customer_id) => {
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    &c_id,
+                    &customer_id,
                     merchant_id,
                     merchant_key_store,
                     storage_scheme,
@@ -1443,8 +1456,9 @@ pub fn get_customer_details_from_request(
     let customer_id = request
         .customer
         .as_ref()
-        .map(|customer_details| customer_details.id.clone())
-        .or(request.customer_id.clone());
+        .map(|customer_details| &customer_details.id)
+        .or(request.customer_id.as_ref())
+        .map(ToOwned::to_owned);
 
     let customer_name = request
         .customer
@@ -1582,7 +1596,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         let key = key_store.key.get_inner().peek();
                         Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                             domain::Customer {
-                                customer_id: customer_id.to_string(),
+                                customer_id,
                                 merchant_id: merchant_id.to_string(),
                                 name: request_customer_details
                                     .name
@@ -2338,7 +2352,7 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::UpiCollect
+            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent
         ),
         api_enums::PaymentMethod::Voucher => matches!(
             payment_method_type,
@@ -2528,7 +2542,7 @@ pub fn make_merchant_url_with_response(
 
 pub async fn make_ephemeral_key(
     state: AppState,
-    customer_id: String,
+    customer_id: id_type::CustomerId,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
@@ -2656,7 +2670,7 @@ pub fn generate_mandate(
     payment_id: String,
     connector: String,
     setup_mandate_details: Option<MandateData>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
@@ -4252,9 +4266,9 @@ pub fn get_key_params_for_surcharge_details(
         )),
         api_models::payments::PaymentMethodData::MandatePayment => None,
         api_models::payments::PaymentMethodData::Reward => None,
-        api_models::payments::PaymentMethodData::Upi(_) => Some((
+        api_models::payments::PaymentMethodData::Upi(upi_data) => Some((
             common_enums::PaymentMethod::Upi,
-            common_enums::PaymentMethodType::UpiCollect,
+            upi_data.get_payment_method_type(),
             None,
         )),
         api_models::payments::PaymentMethodData::Voucher(voucher) => Some((
