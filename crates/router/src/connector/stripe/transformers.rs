@@ -260,7 +260,7 @@ pub struct StripeCustomerResponse {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ChargesRequest {
-    pub amount: String,
+    pub amount: MinorUnit,
     pub currency: String,
     pub customer: Secret<String>,
     pub source: Secret<String>,
@@ -3308,7 +3308,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
                 order_id,
             ));
             Ok(Self {
-                amount: value.request.amount.to_string(),
+                amount: value.request.minor_amount,
                 currency: value.request.currency.to_string(),
                 customer: Secret::new(value.get_connector_customer_id()?),
                 source: Secret::new(value.get_preprocessing_id()?),
