@@ -1,6 +1,6 @@
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::ext_traits::Encode;
+use common_utils::ext_traits::{AsyncExt, Encode};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "olap")]
@@ -93,7 +93,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::Payouts(new.to_storage_model()),
+                        insertable: kv::Insertable::Payouts(new.to_storage_model().await),
                     },
                 };
 
@@ -101,7 +101,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     self,
                     KvOperation::<DieselPayouts>::HSetNx(
                         &field,
-                        &created_payout.clone().to_storage_model(),
+                        &created_payout.clone().to_storage_model().await,
                         redis_entry,
                     ),
                     key,
@@ -150,8 +150,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let diesel_payout_update = payout_update.to_storage_model();
-                let origin_diesel_payout = this.clone().to_storage_model();
+                let diesel_payout_update = payout_update.to_storage_model().await;
+                let origin_diesel_payout = this.clone().to_storage_model().await;
 
                 let diesel_payout = diesel_payout_update
                     .clone()
@@ -181,7 +181,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                Ok(Payouts::from_storage_model(diesel_payout))
+                Ok(Payouts::from_storage_model(diesel_payout).await)
             }
         }
     }
@@ -204,7 +204,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         };
         let storage_scheme =
             decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
-        match storage_scheme {
+        let payout = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPayoutId {
@@ -226,8 +226,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 ))
                 .await
             }
-        }
-        .map(Payouts::from_storage_model)
+        }?;
+        Ok(Payouts::from_storage_model(payout).await)
     }
 
     #[instrument(skip_all)]
@@ -248,7 +248,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         };
         let storage_scheme =
             decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
-        match storage_scheme {
+        let payout = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 let maybe_payouts = database_call().await?;
                 Ok(maybe_payouts.and_then(|payout| {
@@ -280,8 +280,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 ))
                 .await
             }
-        }
-        .map(|payout| payout.map(Payouts::from_storage_model))
+        }?;
+        Ok(payout
+            .async_map(|pa| async { Payouts::from_storage_model(pa).await })
+            .await)
     }
 
     #[cfg(feature = "olap")]
@@ -335,13 +337,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;
         new.to_storage_model()
+            .await
             .insert(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(Payouts::from_storage_model)
+            .async_map(|pa| async { Payouts::from_storage_model(pa).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -355,13 +359,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         this.clone()
             .to_storage_model()
-            .update(&conn, payout.to_storage_model())
+            .await
+            .update(&conn, payout.to_storage_model().await)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(Payouts::from_storage_model)
+            .async_map(|pa| async { Payouts::from_storage_model(pa).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -374,11 +380,12 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
             .await
-            .map(Payouts::from_storage_model)
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
+            .async_map(|pa| async { Payouts::from_storage_model(pa).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -389,13 +396,16 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
-            .await
-            .map(|x| x.map(Payouts::from_storage_model))
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
-                er.change_context(new_err)
-            })
+        Ok(
+            DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
+                .await
+                .map_err(|er| {
+                    let new_err = diesel_error_to_data_error(er.current_context());
+                    er.change_context(new_err)
+                })?
+                .async_map(|pa| async { Payouts::from_storage_model(pa).await })
+                .await,
+        )
     }
 
     #[cfg(feature = "olap")]
@@ -407,6 +417,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
+        use futures::future::join_all;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
@@ -499,12 +510,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .map(|payouts| {
-            payouts
+        .async_map(|payouts| async {
+            join_all(payouts
                 .into_iter()
-                .map(Payouts::from_storage_model)
-                .collect::<Vec<Payouts>>()
-        })
+                .map(|pa| async{let res = Payouts::from_storage_model(pa).await; res})).await
+        }).await
         .map_err(|er| {
             StorageError::DatabaseError(
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
@@ -523,6 +533,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
+        use futures::future::join_all;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
@@ -627,18 +638,18 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         query
             .get_results_async::<(DieselPayouts, DieselPayoutAttempt, DieselCustomer)>(conn)
             .await
-            .map(|results| {
-                results
-                    .into_iter()
-                    .map(|(pi, pa, c)| {
-                        (
-                            Payouts::from_storage_model(pi),
-                            PayoutAttempt::from_storage_model(pa),
-                            c,
-                        )
-                    })
-                    .collect()
+            .async_map(|results| async {
+                join_all(results.into_iter().map(|(pi, pa, c)| async {
+                    let res = (
+                        Payouts::from_storage_model(pi).await,
+                        PayoutAttempt::from_storage_model(pa).await,
+                        c,
+                    );
+                    res
+                }))
+                .await
             })
+            .await
             .map_err(|er| {
                 StorageError::DatabaseError(
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
@@ -662,10 +673,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for Payouts {
     type StorageModel = DieselPayouts;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselPayouts {
             payout_id: self.payout_id,
             merchant_id: self.merchant_id,
@@ -691,7 +703,7 @@ impl DataModelExt for Payouts {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             payout_id: storage_model.payout_id,
             merchant_id: storage_model.merchant_id,
@@ -717,10 +729,12 @@ impl DataModelExt for Payouts {
         }
     }
 }
+
+#[async_trait::async_trait]
 impl DataModelExt for PayoutsNew {
     type StorageModel = DieselPayoutsNew;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselPayoutsNew {
             payout_id: self.payout_id,
             merchant_id: self.merchant_id,
@@ -746,7 +760,7 @@ impl DataModelExt for PayoutsNew {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             payout_id: storage_model.payout_id,
             merchant_id: storage_model.merchant_id,
@@ -772,9 +786,10 @@ impl DataModelExt for PayoutsNew {
         }
     }
 }
+#[async_trait::async_trait]
 impl DataModelExt for PayoutsUpdate {
     type StorageModel = DieselPayoutsUpdate;
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         match self {
             Self::Update {
                 amount,
@@ -817,7 +832,7 @@ impl DataModelExt for PayoutsUpdate {
     }
 
     #[allow(clippy::todo)]
-    fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
         todo!("Reverse map should no longer be needed")
     }
 }

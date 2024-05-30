@@ -182,8 +182,10 @@ impl PaymentAttemptInterface for MockDb {
         *item = PaymentAttempt::from_storage_model(
             payment_attempt
                 .to_storage_model()
-                .apply_changeset(this.to_storage_model()),
-        );
+                .await
+                .apply_changeset(this.to_storage_model().await),
+        )
+        .await;
 
         Ok(item.clone())
     }

@@ -61,4 +61,5 @@ pub struct PaymentIntent {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_data: Option<serde_json::Value>,
 }

@@ -1,5 +1,7 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
-use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult, ext_traits::AsyncExt, fallback_reverse_lookup_not_found, types::MinorUnit,
+};
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
@@ -13,6 +15,7 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 use error_stack::ResultExt;
+use futures::future::join_all;
 use hyperswitch_domain_models::{
     errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
@@ -47,13 +50,15 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         payment_attempt
             .to_storage_model()
+            .await
             .insert(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(PaymentAttempt::from_storage_model)
+            .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -65,13 +70,15 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
         this.to_storage_model()
-            .update_with_attempt_id(&conn, payment_attempt.to_storage_model())
+            .await
+            .update_with_attempt_id(&conn, payment_attempt.to_storage_model().await)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(PaymentAttempt::from_storage_model)
+            .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -94,7 +101,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
-        .map(PaymentAttempt::from_storage_model)
+        .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -115,7 +123,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
-        .map(PaymentAttempt::from_storage_model)
+        .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -135,8 +144,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map_err(|er| {
             let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
-        })
-        .map(PaymentAttempt::from_storage_model)
+        }).async_map(|attempt| async{PaymentAttempt::from_storage_model(attempt).await}).await
     }
 
     #[instrument(skip_all)]
@@ -157,7 +165,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
-        .map(PaymentAttempt::from_storage_model)
+        .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -181,7 +190,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
-        .map(PaymentAttempt::from_storage_model)
+        .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -192,11 +202,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        let intents = pi
-            .iter()
-            .cloned()
-            .map(|pi| pi.to_storage_model())
-            .collect::<Vec<diesel_models::PaymentIntent>>();
+        let intent_futures = pi.iter().cloned().map(|pi| pi.to_storage_model());
+
+        let intents = join_all(intent_futures).await;
+
         DieselPaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
             .await
             .map_err(|er| {
@@ -241,7 +250,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
-        .map(PaymentAttempt::from_storage_model)
+        .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -258,11 +268,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(|a| {
-                a.into_iter()
-                    .map(PaymentAttempt::from_storage_model)
-                    .collect()
-            })
+            .async_map(|a| async {
+                join_all(a.into_iter()
+                    .map(|pa| async { let res = PaymentAttempt::from_storage_model(pa).await; res})).await
+            }).await
     }
 
     #[instrument(skip_all)]
@@ -280,7 +289,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(PaymentAttempt::from_storage_model)
+            .async_map(|attempt| async { PaymentAttempt::from_storage_model(attempt).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -422,7 +432,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
                         insertable: kv::Insertable::PaymentAttempt(
-                            payment_attempt.to_storage_model(),
+                            payment_attempt.to_storage_model().await,
                         ),
                     },
                 };
@@ -445,7 +455,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     self,
                     KvOperation::HSetNx(
                         &field,
-                        &created_attempt.clone().to_storage_model(),
+                        &created_attempt.clone().to_storage_model().await,
                         redis_entry,
                     ),
                     key,
@@ -498,8 +508,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     payment_attempt
                         .clone()
                         .to_storage_model()
-                        .apply_changeset(this.clone().to_storage_model()),
-                );
+                        .await
+                        .apply_changeset(this.clone().to_storage_model().await),
+                )
+                .await;
                 // Check for database presence as well Maybe use a read replica here ?
                 let redis_value = serde_json::to_string(&updated_attempt)
                     .change_context(errors::StorageError::KVError)?;
@@ -508,8 +520,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     op: kv::DBOperation::Update {
                         updatable: kv::Updateable::PaymentAttemptUpdate(
                             kv::PaymentAttemptUpdateMems {
-                                orig: this.clone().to_storage_model(),
-                                update_data: payment_attempt.to_storage_model(),
+                                orig: this.clone().to_storage_model().await,
+                                update_data: payment_attempt.to_storage_model().await,
                             },
                         ),
                     },
@@ -1068,10 +1080,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for MandateAmountData {
     type StorageModel = DieselMandateAmountData;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselMandateAmountData {
             amount: self.amount.get_amount_as_i64(),
             currency: self.currency,
@@ -1081,7 +1094,7 @@ impl DataModelExt for MandateAmountData {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             amount: MinorUnit::new(storage_model.amount),
             currency: storage_model.currency,
@@ -1091,50 +1104,54 @@ impl DataModelExt for MandateAmountData {
         }
     }
 }
+
+#[async_trait::async_trait]
 impl DataModelExt for MandateDetails {
     type StorageModel = DieselMandateDetails;
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselMandateDetails {
             update_mandate_id: self.update_mandate_id,
         }
     }
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             update_mandate_id: storage_model.update_mandate_id,
         }
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for MandateDataType {
     type StorageModel = DieselMandateType;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         match self {
-            Self::SingleUse(data) => DieselMandateType::SingleUse(data.to_storage_model()),
+            Self::SingleUse(data) => DieselMandateType::SingleUse(data.to_storage_model().await),
             Self::MultiUse(None) => DieselMandateType::MultiUse(None),
             Self::MultiUse(Some(data)) => {
-                DieselMandateType::MultiUse(Some(data.to_storage_model()))
+                DieselMandateType::MultiUse(Some(data.to_storage_model().await))
             }
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         match storage_model {
             DieselMandateType::SingleUse(data) => {
-                Self::SingleUse(MandateAmountData::from_storage_model(data))
+                Self::SingleUse(MandateAmountData::from_storage_model(data).await)
             }
             DieselMandateType::MultiUse(Some(data)) => {
-                Self::MultiUse(Some(MandateAmountData::from_storage_model(data)))
+                Self::MultiUse(Some(MandateAmountData::from_storage_model(data).await))
             }
             DieselMandateType::MultiUse(None) => Self::MultiUse(None),
         }
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttempt {
             id: self.id,
             payment_id: self.payment_id,
@@ -1179,7 +1196,10 @@ impl DataModelExt for PaymentAttempt {
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
             preprocessing_step_id: self.preprocessing_step_id,
-            mandate_details: self.mandate_details.map(|d| d.to_storage_model()),
+            mandate_details: self
+                .mandate_details
+                .async_map(|d| async { d.to_storage_model().await })
+                .await,
             error_reason: self.error_reason,
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
@@ -1194,7 +1214,10 @@ impl DataModelExt for PaymentAttempt {
                 .external_three_ds_authentication_attempted,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
-            mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            mandate_data: self
+                .mandate_data
+                .async_map(|d| async { d.to_storage_model().await })
+                .await,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
             client_source: self.client_source,
@@ -1202,7 +1225,7 @@ impl DataModelExt for PaymentAttempt {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
             id: storage_model.id,
@@ -1243,7 +1266,8 @@ impl DataModelExt for PaymentAttempt {
             preprocessing_step_id: storage_model.preprocessing_step_id,
             mandate_details: storage_model
                 .mandate_details
-                .map(MandateDataType::from_storage_model),
+                .async_map(|md| async { MandateDataType::from_storage_model(md).await })
+                .await,
             error_reason: storage_model.error_reason,
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
@@ -1260,7 +1284,8 @@ impl DataModelExt for PaymentAttempt {
             authentication_id: storage_model.authentication_id,
             mandate_data: storage_model
                 .mandate_data
-                .map(MandateDetails::from_storage_model),
+                .async_map(|md| async { MandateDetails::from_storage_model(md).await })
+                .await,
             payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
             client_source: storage_model.client_source,
@@ -1269,10 +1294,11 @@ impl DataModelExt for PaymentAttempt {
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for PaymentAttemptNew {
     type StorageModel = DieselPaymentAttemptNew;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
             net_amount: Some(self.net_amount.get_amount_as_i64()),
             payment_id: self.payment_id,
@@ -1315,7 +1341,10 @@ impl DataModelExt for PaymentAttemptNew {
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
             preprocessing_step_id: self.preprocessing_step_id,
-            mandate_details: self.mandate_details.map(|d| d.to_storage_model()),
+            mandate_details: self
+                .mandate_details
+                .async_map(|d| async { d.to_storage_model().await })
+                .await,
             error_reason: self.error_reason,
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
@@ -1330,7 +1359,10 @@ impl DataModelExt for PaymentAttemptNew {
                 .external_three_ds_authentication_attempted,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
-            mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            mandate_data: self
+                .mandate_data
+                .async_map(|d| async { d.to_storage_model().await })
+                .await,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
             client_source: self.client_source,
@@ -1338,7 +1370,7 @@ impl DataModelExt for PaymentAttemptNew {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
             payment_id: storage_model.payment_id,
@@ -1377,7 +1409,8 @@ impl DataModelExt for PaymentAttemptNew {
             preprocessing_step_id: storage_model.preprocessing_step_id,
             mandate_details: storage_model
                 .mandate_details
-                .map(MandateDataType::from_storage_model),
+                .async_map(|md| async { MandateDataType::from_storage_model(md).await })
+                .await,
             error_reason: storage_model.error_reason,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
@@ -1394,7 +1427,8 @@ impl DataModelExt for PaymentAttemptNew {
             authentication_id: storage_model.authentication_id,
             mandate_data: storage_model
                 .mandate_data
-                .map(MandateDetails::from_storage_model),
+                .async_map(|md| async { MandateDetails::from_storage_model(md).await })
+                .await,
             payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
             client_source: storage_model.client_source,
@@ -1403,10 +1437,11 @@ impl DataModelExt for PaymentAttemptNew {
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for PaymentAttemptUpdate {
     type StorageModel = DieselPaymentAttemptUpdate;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         match self {
             Self::Update {
                 amount,
@@ -1740,7 +1775,7 @@ impl DataModelExt for PaymentAttemptUpdate {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         match storage_model {
             DieselPaymentAttemptUpdate::Update {
                 amount,

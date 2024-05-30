@@ -116,7 +116,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
 )>
 where
     F: Send + Clone + Sync,
-    Req: Authenticate + Clone,
+    Req: Authenticate + Clone + Debug,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -133,6 +133,7 @@ where
 {
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
+    println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{:?}", req);
     tracing::Span::current().record("merchant_id", merchant_account.merchant_id.as_str());
     let (operation, validate_result) = operation
         .to_validate_request()?

@@ -4,7 +4,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_intent};
+use crate::{encryption::Encryption, enums as storage_enums, schema::payment_intent};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent)]
@@ -59,6 +59,7 @@ pub struct PaymentIntent {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_data: Option<Encryption>,
 }
 
 #[derive(
@@ -113,6 +114,7 @@ pub struct PaymentIntentNew {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_data: Option<Encryption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,6 +245,7 @@ pub struct PaymentIntentUpdateInternal {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_data: Option<Encryption>,
 }
 
 impl PaymentIntentUpdate {
@@ -279,6 +282,7 @@ impl PaymentIntentUpdate {
             fingerprint_id,
             request_external_three_ds_authentication,
             frm_metadata,
+            guest_customer_data,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -318,6 +322,7 @@ impl PaymentIntentUpdate {
                 .or(source.request_external_three_ds_authentication),
 
             frm_metadata: frm_metadata.or(source.frm_metadata),
+            guest_customer_data: guest_customer_data.or(source.guest_customer_data),
             ..source
         }
     }

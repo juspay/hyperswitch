@@ -4,7 +4,10 @@ use api_models::payments::AmountFilter;
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
 use common_utils::errors::ReportSwitchExt;
-use common_utils::{date_time, ext_traits::Encode};
+use common_utils::{
+    date_time,
+    ext_traits::{AsyncExt, Encode},
+};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
@@ -118,10 +121,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     session_expiry: new.session_expiry,
                     request_external_three_ds_authentication: new
                         .request_external_three_ds_authentication,
+                    guest_customer_data: Some(
+                        new.guest_customer_data
+                            .encode_to_value()
+                            .change_context(StorageError::CustomerRedacted)?,
+                    ),
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::PaymentIntent(new.to_storage_model()),
+                        insertable: kv::Insertable::PaymentIntent(new.to_storage_model().await),
                     },
                 };
 
@@ -129,7 +137,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
-                        &created_intent.clone().to_storage_model(),
+                        &created_intent.clone().to_storage_model().await,
                         redis_entry,
                     ),
                     key,
@@ -179,8 +187,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let diesel_intent_update = payment_intent_update.to_storage_model();
-                let origin_diesel_intent = this.to_storage_model();
+                let diesel_intent_update = payment_intent_update.to_storage_model().await;
+                let origin_diesel_intent = this.to_storage_model().await;
 
                 let diesel_intent = diesel_intent_update
                     .clone()
@@ -212,7 +220,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                Ok(PaymentIntent::from_storage_model(diesel_intent))
+                Ok(PaymentIntent::from_storage_model(diesel_intent).await)
             }
         }
     }
@@ -259,7 +267,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .await
             }
         }
-        .map(PaymentIntent::from_storage_model)
+        .async_map(|intent| async { PaymentIntent::from_storage_model(intent).await })
+        .await
     }
 
     async fn get_active_payment_attempt(
@@ -280,10 +289,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .map_err(|er| {
                     let new_err = diesel_error_to_data_error(er.current_context());
                     er.change_context(new_err)
-                })
-                .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
-                Ok(pa)
+                })?;
+                let attempt = PaymentAttempt::from_storage_model(pa).await;
+                payment.active_attempt = RemoteStorageObject::Object(attempt.clone());
+                Ok(attempt)
             }
             RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
@@ -356,13 +365,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         new.to_storage_model()
+            .await
             .insert(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(PaymentIntent::from_storage_model)
+            .async_map(|intent| async { PaymentIntent::from_storage_model(intent).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -374,13 +385,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         this.to_storage_model()
-            .update(&conn, payment_intent.to_storage_model())
+            .await
+            .update(&conn, payment_intent.to_storage_model().await)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(PaymentIntent::from_storage_model)
+            .async_map(|intent| async { PaymentIntent::from_storage_model(intent).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -393,11 +406,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
             .await
-            .map(PaymentIntent::from_storage_model)
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
+            .async_map(|intent| async { PaymentIntent::from_storage_model(intent).await })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -419,10 +433,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 .map_err(|er| {
                     let new_err = diesel_error_to_data_error(er.current_context());
                     er.change_context(new_err)
-                })
-                .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
-                Ok(pa)
+                })?;
+                let attempt = PaymentAttempt::from_storage_model(pa).await;
+                payment.active_attempt = RemoteStorageObject::Object(attempt.clone());
+                Ok(attempt)
             }
             RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
@@ -437,6 +451,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
+        use futures::future::join_all;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
@@ -527,12 +542,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .map(|payment_intents| {
-            payment_intents
+        .async_map(|payment_intents| async {
+            join_all(payment_intents
                 .into_iter()
-                .map(PaymentIntent::from_storage_model)
-                .collect::<Vec<PaymentIntent>>()
-        })
+                .map(|pi| async { 
+                        let res = PaymentIntent::from_storage_model(pi).await;
+                        res
+                    }))
+                .await
+            })
+            .await
         .map_err(|er| {
             StorageError::DatabaseError(
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
@@ -564,6 +583,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
+        use futures::future::join_all;
+
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
@@ -699,17 +720,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         query
             .get_results_async::<(DieselPaymentIntent, DieselPaymentAttempt)>(conn)
             .await
-            .map(|results| {
-                results
-                    .into_iter()
-                    .map(|(pi, pa)| {
-                        (
-                            PaymentIntent::from_storage_model(pi),
-                            PaymentAttempt::from_storage_model(pa),
-                        )
-                    })
-                    .collect()
+            .async_map(|results| async {
+                join_all(results.into_iter().map(|(pi, pa)| async {
+                    let res = (
+                        PaymentIntent::from_storage_model(pi).await,
+                        PaymentAttempt::from_storage_model(pa).await,
+                    );
+                    res
+                }))
+                .await
             })
+            .await
             .map_err(|er| {
                 StorageError::DatabaseError(
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
@@ -802,10 +823,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for PaymentIntentNew {
     type StorageModel = DieselPaymentIntentNew;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentIntentNew {
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
@@ -849,10 +871,11 @@ impl DataModelExt for PaymentIntentNew {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            guest_customer_data: self.guest_customer_data,
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
@@ -897,14 +920,16 @@ impl DataModelExt for PaymentIntentNew {
             session_expiry: storage_model.session_expiry,
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
+            guest_customer_data: storage_model.guest_customer_data,
         }
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for PaymentIntent {
     type StorageModel = DieselPaymentIntent;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentIntent {
             id: self.id,
             payment_id: self.payment_id,
@@ -949,10 +974,11 @@ impl DataModelExt for PaymentIntent {
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
             frm_metadata: self.frm_metadata,
+            guest_customer_data: self.guest_customer_data,
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             id: storage_model.id,
             payment_id: storage_model.payment_id,
@@ -998,14 +1024,16 @@ impl DataModelExt for PaymentIntent {
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
             frm_metadata: storage_model.frm_metadata,
+            guest_customer_data: storage_model.guest_customer_data,
         }
     }
 }
 
+#[async_trait::async_trait]
 impl DataModelExt for PaymentIntentUpdate {
     type StorageModel = DieselPaymentIntentUpdate;
 
-    fn to_storage_model(self) -> Self::StorageModel {
+    async fn to_storage_model(self) -> Self::StorageModel {
         match self {
             Self::ResponseUpdate {
                 status,
@@ -1171,7 +1199,7 @@ impl DataModelExt for PaymentIntentUpdate {
     }
 
     #[allow(clippy::todo)]
-    fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
+    async fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
         todo!("Reverse map should no longer be needed")
     }
 }

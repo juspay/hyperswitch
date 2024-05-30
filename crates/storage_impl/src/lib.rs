@@ -251,10 +251,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
 // TODO: This should not be used beyond this crate
 // Remove the pub modified once StorageScheme usage is completed
+#[async_trait::async_trait]
 pub trait DataModelExt {
     type StorageModel;
-    fn to_storage_model(self) -> Self::StorageModel;
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self;
+    async fn to_storage_model(self) -> Self::StorageModel;
+    async fn from_storage_model(storage_model: Self::StorageModel) -> Self;
 }
 
 pub(crate) fn diesel_error_to_data_error(

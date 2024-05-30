@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::Encode};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -109,6 +109,11 @@ impl PaymentIntentInterface for MockDb {
             session_expiry: new.session_expiry,
             request_external_three_ds_authentication: new.request_external_three_ds_authentication,
             frm_metadata: new.frm_metadata,
+            guest_customer_data: Some(
+                new.guest_customer_data
+                    .encode_to_value()
+                    .change_context(StorageError::CustomerRedacted)?,
+            ),
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
@@ -130,8 +135,10 @@ impl PaymentIntentInterface for MockDb {
         *payment_intent = PaymentIntent::from_storage_model(
             update
                 .to_storage_model()
-                .apply_changeset(this.to_storage_model()),
-        );
+                .await
+                .apply_changeset(this.to_storage_model().await),
+        )
+        .await;
         Ok(payment_intent.clone())
     }
 

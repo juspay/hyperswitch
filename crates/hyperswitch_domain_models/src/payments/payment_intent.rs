@@ -115,6 +115,7 @@ pub struct PaymentIntentNew {
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub guest_customer_data: Option<GuestCustomerDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -209,6 +210,14 @@ pub enum PaymentIntentUpdate {
     },
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, router_derive::DebugAsDisplay, Serialize, Deserialize)]
+pub struct GuestCustomerDetails {
+    name: Option<String>,
+    email: Option<String>,
+    phone: Option<String>,
+    phone_coumtry_code: Option<String>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -244,6 +253,7 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_data: Option<GuestCustomerDetails>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
