@@ -487,7 +487,8 @@ pub struct PaymentChargeRequest {
     pub charge_type: api_enums::PaymentChargeType,
 
     /// Platform fees to be collected on the payment
-    pub fees: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub fees: MinorUnit,
 
     /// Identifier for the reseller's account to send the funds to
     pub transfer_account_id: String,
@@ -3504,7 +3505,8 @@ pub struct PaymentChargeResponse {
     pub charge_type: api_enums::PaymentChargeType,
 
     /// Platform fees collected on the payment
-    pub application_fees: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub application_fees: MinorUnit,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
