@@ -119,7 +119,7 @@ pub trait ExternalAuthentication:
 {
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AuthenticationConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: enums::AuthenticationConnectors,

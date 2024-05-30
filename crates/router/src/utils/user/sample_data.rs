@@ -2,6 +2,7 @@ use api_models::{
     enums::Connector::{DummyConnector4, DummyConnector7},
     user::sample_data::SampleDataRequest,
 };
+use common_utils::types::MinorUnit;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
@@ -174,7 +175,7 @@ pub async fn generate_sample_data(
                 true => common_enums::IntentStatus::Failed,
                 _ => common_enums::IntentStatus::Succeeded,
             },
-            amount: common_utils::types::MinorUnit::new(amount * 100),
+            amount: MinorUnit::new(amount * 100),
             currency: Some(
                 *currency_vec
                     .get((num - 1) % currency_vec_len)
@@ -192,7 +193,7 @@ pub async fn generate_sample_data(
             ),
             attempt_count: 1,
             customer_id: Some("hs-dashboard-user".to_string()),
-            amount_captured: Some(common_utils::types::MinorUnit::new(amount * 100)),
+            amount_captured: Some(MinorUnit::new(amount * 100)),
             profile_id: Some(profile_id.clone()),
             return_url: Default::default(),
             metadata: Default::default(),
@@ -286,8 +287,8 @@ pub async fn generate_sample_data(
                 currency: *currency_vec
                     .get((num - 1) % currency_vec_len)
                     .unwrap_or(&common_enums::Currency::USD),
-                total_amount: amount * 100,
-                refund_amount: amount * 100,
+                total_amount: MinorUnit::new(amount * 100),
+                refund_amount: MinorUnit::new(amount * 100),
                 refund_status: common_enums::RefundStatus::Success,
                 sent_to_gateway: true,
                 refund_type: diesel_models::enums::RefundType::InstantRefund,

@@ -219,6 +219,8 @@ pub enum ConnectorError {
     },
     #[error("Invalid Configuration")]
     InvalidConnectorConfig { config: &'static str },
+    #[error("Failed to convert amount to required type")]
+    AmountConversionFailed,
 }
 
 #[derive(Debug, thiserror::Error)]

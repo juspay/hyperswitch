@@ -6949,6 +6949,14 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "nullable": true
+          },
+          "extended_card_info_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExtendedCardInfoConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7905,6 +7913,10 @@
         "type": "object",
         "properties": {
           "pay_currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "network": {
             "type": "string",
             "nullable": true
           }
@@ -17315,7 +17327,9 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc"
+            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
+            "example": 6540,
+            "minimum": 100
           },
           "currency": {
             "type": "string",

@@ -170,7 +170,6 @@ pub trait Connector:
     Send
     + Refund
     + Payment
-    + Debug
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
@@ -192,7 +191,6 @@ pub struct Pe;
 impl<
         T: Refund
             + Payment
-            + Debug
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
@@ -224,7 +222,7 @@ pub enum GetToken {
 /// Routing algorithm will output merchant connector identifier instead of connector name
 /// In order to support backwards compatibility for older routing algorithms and merchant accounts
 /// the support for connector name is retained
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
@@ -284,7 +282,7 @@ impl ConnectorData {
         let connector_name = api_enums::Connector::from_str(name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
+            .attach_printable_lazy(|| format!("unable to parse connector name {name}"))?;
         Ok(Self {
             connector,
             connector_name,
@@ -304,9 +302,7 @@ impl ConnectorData {
         let payout_connector_name = api_enums::PayoutConnectors::from_str(name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!("unable to parse payout connector name {connector:?}")
-            })?;
+            .attach_printable_lazy(|| format!("unable to parse payout connector name {name}"))?;
         let connector_name = api_enums::Connector::from(payout_connector_name);
         Ok(Self {
             connector,
@@ -364,7 +360,7 @@ impl ConnectorData {
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 // enums::Connector::Mifinity => Ok(Box::new(&connector::Mifinity)), Added as template code for future usage
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
-                enums::Connector::Nmi => Ok(Box::new(&connector::Nmi)),
+                enums::Connector::Nmi => Ok(Box::new(connector::Nmi::new())),
                 enums::Connector::Noon => Ok(Box::new(&connector::Noon)),
                 enums::Connector::Nuvei => Ok(Box::new(&connector::Nuvei)),
                 enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
