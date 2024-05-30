@@ -1,7 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
-use common_utils::{consts, errors, ext_traits::OptionExt, pii, types as common_types};
+use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -617,7 +617,7 @@ pub struct PayoutsData {
 
 #[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub name: Option<Secret<String, masking::WithType>>,
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,

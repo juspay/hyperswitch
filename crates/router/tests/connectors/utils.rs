@@ -480,7 +480,7 @@ pub trait ConnectorActions: Connector {
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
                 customer_details: Some(payments::CustomerDetails {
-                    customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
+                    customer_id: Some(common_utils::generate_customer_id_of_default_length()),
                     name: Some(Secret::new("John Doe".to_string())),
                     email: Email::from_str("john.doe@example").ok(),
                     phone: Some(Secret::new("620874518".to_string())),
@@ -500,7 +500,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
-            customer_id: Some(self.get_name()),
+            customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
