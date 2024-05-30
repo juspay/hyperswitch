@@ -287,7 +287,6 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
-            
         })
     }
 }
