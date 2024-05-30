@@ -172,10 +172,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                &payment_intent
+                payment_intent
                     .customer_id
-                    .clone()
-                    .or_else(|| customer_details.customer_id.clone()),
+                    .as_ref()
+                    .or(customer_details.customer_id.as_ref()),
             )?;
         }
 
