@@ -1877,8 +1877,7 @@ pub(crate) fn validate_auth_and_metadata_type(
             Ok(())
         }
         api_enums::Connector::Braintree => {
-            braintree::transformers::BraintreeAuthType::try_from(val)?;
-            braintree::braintree_graphql_transformers::BraintreeMeta::try_from(
+            braintree::transformers::BraintreeMeta::try_from(
                 connector_meta_data,
             )?;
             Ok(())
