@@ -9,6 +9,7 @@ use transformers as gpayments;
 
 use crate::{
     configs::settings,
+    connector::{gpayments::gpayments_types::GpaymentsConnectorMetaData, utils::to_connector_meta},
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers, services,
@@ -231,12 +232,13 @@ impl
         req: &types::authentication::ConnectorAuthenticationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        req.request
-            .authentication_url
-            .clone()
-            .ok_or(error_stack::Report::new(
-                errors::ConnectorError::FailedToObtainIntegrationUrl,
-            ))
+        let connector_metadata: GpaymentsConnectorMetaData = to_connector_meta(
+            req.request
+                .pre_authentication_data
+                .connector_metadata
+                .clone(),
+        )?;
+        Ok(connector_metadata.authentication_url)
     }
 
     fn get_request_body(

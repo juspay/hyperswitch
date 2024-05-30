@@ -3,6 +3,11 @@ use cards::CardNumber;
 use common_utils::types;
 use masking::{Deserialize, Secret, Serialize};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GpaymentsConnectorMetaData {
+    pub authentication_url: String,
+    pub three_ds_requestor_trans_id: Option<String>,
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsPreAuthVersionCallRequest {

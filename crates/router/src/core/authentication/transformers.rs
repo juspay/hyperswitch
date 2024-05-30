@@ -74,7 +74,6 @@ pub fn construct_authentication_router_data(
         three_ds_requestor_url: authentication_details.three_ds_requestor_url,
         threeds_method_comp_ind,
         webhook_url,
-        authentication_url: authentication_data.authentication_url,
     };
     construct_router_data(
         authentication_connector,

@@ -172,7 +172,6 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticatio
         item: &GpaymentsRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        // let metadata = GpaymentsMetaData::try_from(&request.pre_authentication_data.connector_metadat)?;
         let browser_details = match request.browser_details.clone() {
             Some(details) => Ok::<Option<types::BrowserInformation>, Self::Error>(Some(details)),
             None => {
@@ -302,6 +301,8 @@ impl
                             types::authentication::AuthNFlowType::Frictionless
                         },
                         authentication_value: response.authentication_value,
+                        ds_trans_id: Some(response.ds_trans_id),
+                        connector_metadata: None,
                     },
                 )
             }
@@ -353,11 +354,16 @@ impl
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing three_ds_method_data_str")
                     .map(|three_ds_method_data_string| {
-                       Engine::encode(&BASE64_ENGINE, three_ds_method_data_string)
+                        Engine::encode(&BASE64_ENGINE, three_ds_method_data_string)
                     })
             })
             .transpose()?;
-
+        let connector_metadata = Some(serde_json::json!(
+            gpayments_types::GpaymentsConnectorMetaData {
+                authentication_url: threeds_method_response.auth_url,
+                three_ds_requestor_trans_id: None,
+            }
+        ));
         let response: Result<
             types::authentication::AuthenticationResponseData,
             types::ErrorResponse,
@@ -368,7 +374,7 @@ impl
                     .clone(),
                 three_ds_method_data,
                 three_ds_method_url: threeds_method_response.three_ds_method_url,
-                authentication_url: Some(threeds_method_response.auth_url),
+                connector_metadata,
             },
         );
         Ok(Self {
