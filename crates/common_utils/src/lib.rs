@@ -3,6 +3,7 @@
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
 use masking::{PeekInterface, Secret};
+
 use crate::{
     consts::ID_LENGTH,
     id_type::{CustomerId, MerchantReferenceId},
