@@ -205,11 +205,11 @@ WHERE
     AND (payment_id IS NOT NULL);
 
 CREATE TABLE sdk_active_payments ( 
-    `payment_id` Nullable(String),
+    `payment_id` String,
     `merchant_id` String,
-    `created_at` DateTime,
+    `created_at` DateTime64,
     INDEX merchantIndex merchant_id TYPE bloom_filter GRANULARITY 1
-) ENGINE = ReplacingMergeTree
+) ENGINE = MergeTree
 PARTITION BY toStartOfSecond(created_at)
 ORDER BY 
     (created_at, merchant_id) 
@@ -221,12 +221,12 @@ SETTINGS
 CREATE MATERIALIZED VIEW sdk_active_payments_mv TO sdk_active_payments ( 
     `payment_id` Nullable(String),
     `merchant_id` String,
-    `created_at` DateTime
+    `created_at` DateTime64
 ) AS 
 SELECT
     payment_id,
     merchant_id,
-    toDateTime(timestamp) AS created_at
+    toDateTime64(timestamp, 3) AS created_at
 FROM 
     sdk_events_queue
-WHERE length(_error) = 0;
+WHERE length(_error) = 0 AND payment_id != '' AND merchant_id != '';
