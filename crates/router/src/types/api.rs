@@ -29,6 +29,9 @@ pub mod webhooks;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
+pub use hyperswitch_domain_models::router_flow_types::{
+    access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
+};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -50,10 +53,6 @@ use crate::{
     services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
     types::{self, api::enums as api_enums},
 };
-
-#[derive(Clone, Debug)]
-pub struct AccessTokenAuth;
-
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
@@ -65,9 +64,6 @@ pub enum ConnectorCallType {
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
 }
-
-#[derive(Clone, Debug)]
-pub struct VerifyWebhookSource;
 
 pub trait ConnectorVerifyWebhookSource:
     ConnectorIntegration<
