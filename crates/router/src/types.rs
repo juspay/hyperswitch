@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-pub use common_utils::request::RequestContent;
+pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::router_request_types::PayoutsData;
 #[cfg(feature = "payouts")]
@@ -761,6 +761,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             email: data.request.email.clone(),
             customer_name: data.request.customer_name.clone(),
             amount: 0,
+            minor_amount: MinorUnit::new(0),
             statement_descriptor: None,
             capture_method: None,
             webhook_url: None,
