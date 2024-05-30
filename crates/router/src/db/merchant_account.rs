@@ -517,7 +517,7 @@ async fn publish_and_redact_merchant_account_cache(
     let kgraph_key = merchant_account.default_profile.as_ref().map(|profile_id| {
         CacheKind::CGraph(
             format!(
-                "kgraph_{}_{}",
+                "cgraph_{}_{}",
                 merchant_account.merchant_id.clone(),
                 profile_id,
             )
@@ -527,7 +527,7 @@ async fn publish_and_redact_merchant_account_cache(
 
     #[cfg(not(feature = "business_profile_routing"))]
     let kgraph_key = Some(CacheKind::CGraph(
-        format!("kgraph_{}", merchant_account.merchant_id.clone()).into(),
+        format!("cgraph_{}", merchant_account.merchant_id.clone()).into(),
     ));
 
     let mut cache_keys = vec![CacheKind::Accounts(
