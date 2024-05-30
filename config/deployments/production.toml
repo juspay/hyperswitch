@@ -53,7 +53,7 @@ gocardless.base_url = "https://api.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api-na.playground.klarna.com/"
+klarna.base_url = "https://api{{region_based_endpoint}}.klarna.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
@@ -91,7 +91,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 zen.base_url = "https://api.zen.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
-zsl.base_url = "https://api.sitoffalb.net/"
+zsl.base_url = "https://api.prodoffalb.net/"
 threedsecureio.base_url = "https://service.3dsecure.io"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 
@@ -120,6 +120,7 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2aw
 
 [user]
 password_validity_in_days = 90
+two_factor_auth_expiry_in_secs = 300
 
 [frm]
 enabled = false

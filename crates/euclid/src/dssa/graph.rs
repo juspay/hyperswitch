@@ -12,6 +12,7 @@ use crate::{
 pub mod euclid_graph_prelude {
     pub use hyperswitch_constraint_graph as cgraph;
     pub use rustc_hash::{FxHashMap, FxHashSet};
+    pub use strum::EnumIter;
 
     pub use crate::{
         dssa::graph::*,
@@ -112,6 +113,7 @@ impl<V: cgraph::ValueNode> AnalysisError<V> {
     }
 }
 
+#[derive(Debug)]
 pub struct AnalysisContext {
     keywise_values: FxHashMap<dir::DirKey, FxHashSet<dir::DirValue>>,
 }

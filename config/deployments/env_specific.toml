@@ -115,6 +115,8 @@ mock_locker = true                                                    # Emulate 
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
 redis_temp_locker_encryption_key = "redis_temp_locker_encryption_key" # Encryption key for redis temp locker
+ttl_for_storage_in_secs = 220752000                                   # Time to live for storage entries in locker
+
 
 [log.console]
 enabled = true

@@ -96,6 +96,9 @@ impl
                         three_ds_method_url,
                         message_version: maximum_supported_3ds_version,
                         connector_metadata: None,
+                        directory_server_id: card_range
+                            .as_ref()
+                            .and_then(|card_range| card_range.directory_server_id.clone()),
                     },
                 )
             }
@@ -164,6 +167,8 @@ impl
                         authn_flow_type,
                         authentication_value: response.authentication_value,
                         trans_status: response.trans_status,
+                        connector_metadata: None,
+                        ds_trans_id: response.authentication_response.ds_trans_id,
                     },
                 )
             }
@@ -633,6 +638,8 @@ pub struct AuthenticationResponse {
     pub acs_reference_number: Option<String>,
     #[serde(rename = "acsTransID")]
     pub acs_trans_id: Option<String>,
+    #[serde(rename = "dsTransID")]
+    pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
 }
 

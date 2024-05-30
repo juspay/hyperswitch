@@ -3667,18 +3667,25 @@ dependencies = [
 name = "hyperswitch_domain_models"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "api_models",
  "async-trait",
+ "cards",
  "common_enums",
  "common_utils",
  "diesel_models",
  "error-stack",
  "http 0.2.12",
  "masking",
+ "mime",
+ "router_derive",
  "serde",
  "serde_json",
+ "serde_with",
  "thiserror",
  "time",
+ "url",
+ "utoipa",
 ]
 
 [[package]]
@@ -3999,6 +4006,7 @@ dependencies = [
  "masking",
  "serde",
  "serde_json",
+ "strum 0.26.2",
  "thiserror",
 ]
 
@@ -5419,11 +5427,11 @@ dependencies = [
  "error-stack",
  "fred",
  "futures 0.3.30",
- "router_env",
  "serde",
  "thiserror",
  "tokio 1.37.0",
  "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -5724,6 +5732,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_qs",
+ "serde_repr",
  "serde_urlencoded",
  "serde_with",
  "serial_test",
@@ -6051,6 +6060,7 @@ dependencies = [
  "error-stack",
  "external_services",
  "futures 0.3.30",
+ "hyperswitch_domain_models",
  "masking",
  "num_cpus",
  "once_cell",
@@ -6222,9 +6232,9 @@ dependencies = [
 
 [[package]]
 name = "serde_repr"
-version = "0.1.18"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b2e6b945e9d3df726b65d6ee24060aff8e3533d431f677a9695db04eff9dfdb"
+checksum = "6c64451ba24fc7a6a2d60fc75dd9c83c90903b19028d4eff35e88fc1e86564e9"
 dependencies = [
  "proc-macro2",
  "quote",

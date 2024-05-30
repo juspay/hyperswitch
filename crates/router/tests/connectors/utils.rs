@@ -423,6 +423,7 @@ pub trait ConnectorActions: Connector {
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
+                charges: None,
             }),
             payment_info,
         );
@@ -479,7 +480,7 @@ pub trait ConnectorActions: Connector {
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
                 customer_details: Some(payments::CustomerDetails {
-                    customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
+                    customer_id: Some(common_utils::generate_customer_id_of_default_length()),
                     name: Some(Secret::new("John Doe".to_string())),
                     email: Email::from_str("john.doe@example").ok(),
                     phone: Some(Secret::new("620874518".to_string())),
@@ -499,7 +500,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
-            customer_id: Some(self.get_name()),
+            customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -942,6 +943,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1000,6 +1002,7 @@ impl Default for PaymentSyncType {
             connector_meta: None,
             payment_method_type: None,
             currency: enums::Currency::USD,
+            payment_experience: None,
         };
         Self(data)
     }
@@ -1018,6 +1021,7 @@ impl Default for PaymentRefundType {
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1081,6 +1085,7 @@ pub fn get_connector_metadata(
             network_txn_id: _,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
+            charge_id: _,
         }) => connector_metadata,
         _ => None,
     }
