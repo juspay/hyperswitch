@@ -170,14 +170,14 @@ fn build_region_specific_endpoint(
 ) -> CustomResult<String, errors::ConnectorError> {
     let klarna_metadata_object =
         transformers::KlarnaConnectorMetadataObject::try_from(connector_metadata)?;
-    let region_based_endpoint = klarna_metadata_object
+    let klarna_region = klarna_metadata_object
         .klarna_region
         .ok_or(errors::ConnectorError::InvalidConnectorConfig {
-            config: "merchant_connector_account.metadata.region_based_endpoint",
+            config: "merchant_connector_account.metadata.klarna_region",
         })
         .map(String::from)?;
 
-    Ok(base_url.replace("{{region_based_endpoint}}", &region_based_endpoint))
+    Ok(base_url.replace("{{klarna_region}}", &klarna_region))
 }
 
 impl
@@ -207,7 +207,7 @@ impl
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
-        Ok(format!("{}{}", endpoint, "payments/v1/sessions"))
+        Ok(format!("{endpoint}payments/v1/sessions"))
     }
 
     fn get_request_body(
@@ -333,8 +333,7 @@ impl
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         Ok(format!(
-            "{}{}{}{}",
-            endpoint, "ordermanagement/v1/orders/", order_id, "/captures"
+            "{endpoint}ordermanagement/v1/orders/{order_id}/captures"
         ))
     }
 
@@ -435,10 +434,7 @@ impl
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
-        Ok(format!(
-            "{}{}{}",
-            endpoint, "ordermanagement/v1/orders/", order_id,
-        ))
+        Ok(format!("{endpoint}ordermanagement/v1/orders/{order_id}"))
     }
 
     fn build_request(
@@ -531,8 +527,7 @@ impl
                         common_enums::PaymentExperience::InvokeSdkClient,
                         common_enums::PaymentMethodType::Klarna,
                     ) => Ok(format!(
-                        "{}payments/v1/authorizations/{}/order",
-                        endpoint, token
+                        "{endpoint}payments/v1/authorizations/{token}/order",
                     )),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
@@ -751,8 +746,7 @@ impl
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         Ok(format!(
-            "{}{}{}{}",
-            endpoint, "ordermanagement/v1/orders/", order_id, "/cancel"
+            "{endpoint}ordermanagement/v1/orders/{order_id}/cancel"
         ))
     }
 
@@ -831,8 +825,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         Ok(format!(
-            "{}{}{}{}",
-            endpoint, "ordermanagement/v1/orders/", order_id, "/refunds"
+            "{endpoint}ordermanagement/v1/orders/{order_id}/refunds",
         ))
     }
 
@@ -933,8 +926,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         Ok(format!(
-            "{}{}{}{}{}",
-            endpoint, "ordermanagement/v1/orders/", order_id, "/refunds/", refund_id
+            "{endpoint}ordermanagement/v1/orders/{order_id}/refunds/{refund_id}"
         ))
     }
 

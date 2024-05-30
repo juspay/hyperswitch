@@ -1142,8 +1142,6 @@ key1="Klarna Merchant Username"
 api_key="Klarna Merchant ID Password"
 [klarna.metadata]
 klarna_region=["Europe","NorthAmerica","Oceania"]
-[klarna.connector_webhook_details]
-merchant_secret="Source verification key"
 
 [mollie]
 [[mollie.credit]]
