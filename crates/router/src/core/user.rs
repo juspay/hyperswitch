@@ -1632,8 +1632,9 @@ pub async fn begin_totp(
         }));
     }
 
-    let (secret, totp) =
-        tfa_utils::generate_totp_and_insert_secret_in_redis(state, user_from_db).await?;
+    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let secret = totp.get_secret_base32().into();
+    tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
     Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
         secret: Some(user_api::TotpSecret {
@@ -1664,8 +1665,9 @@ pub async fn reset_totp(
         return Err(UserErrors::TwoFactorAuthRequired.into());
     }
 
-    let (secret, totp) =
-        tfa_utils::generate_totp_and_insert_secret_in_redis(state, user_from_db).await?;
+    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let secret = totp.get_secret_base32().into();
+    tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
     Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
         secret: Some(user_api::TotpSecret {

@@ -7,7 +7,6 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     routes::AppState,
-    types::domain::UserFromStorage,
 };
 
 pub fn generate_default_totp(
@@ -30,17 +29,6 @@ pub fn generate_default_totp(
         email.expose().expose(),
     )
     .change_context(UserErrors::InternalServerError)
-}
-
-pub async fn generate_totp_and_insert_secret_in_redis(
-    state: AppState,
-    user_from_db: UserFromStorage,
-) -> UserResult<(masking::Secret<String>, TOTP)> {
-    let totp = generate_default_totp(user_from_db.get_email(), None)?;
-    let secret = totp.get_secret_base32().into();
-    insert_totp_secret_in_redis(&state, user_from_db.get_user_id(), &secret).await?;
-
-    Ok((secret, totp))
 }
 
 pub async fn check_totp_in_redis(state: &AppState, user_id: &str) -> UserResult<bool> {
