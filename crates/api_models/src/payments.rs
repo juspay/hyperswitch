@@ -10,7 +10,7 @@ use common_utils::{
     crypto,
     ext_traits::{ConfigExt, Encode},
     pii::{self, Email},
-    types::MinorUnit,
+    types::{MinorUnit, PaymentChargeRequest},
 };
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -477,20 +477,6 @@ pub struct PaymentsRequest {
 
     /// Fee information to be charged on the payment being collected
     pub charges: Option<PaymentChargeRequest>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct PaymentChargeRequest {
-    /// Stripe's charge type
-    #[schema(value_type = PaymentChargeType, example = "direct")]
-    pub charge_type: api_enums::PaymentChargeType,
-
-    /// Platform fees to be collected on the payment
-    pub fees: i64,
-
-    /// Identifier for the reseller's account to send the funds to
-    pub transfer_account_id: String,
 }
 
 impl PaymentsRequest {

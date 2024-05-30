@@ -117,6 +117,7 @@ pub async fn construct_webhook_router_data<'a>(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        // charges: None,
     };
     Ok(router_data)
 }

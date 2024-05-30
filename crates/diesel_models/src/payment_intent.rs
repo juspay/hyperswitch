@@ -1,5 +1,8 @@
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{pii, types::MinorUnit};
+use common_utils::{
+    pii,
+    types::{MinorUnit, PaymentChargeRequest},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -58,7 +61,7 @@ pub struct PaymentIntent {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub charges: Option<PaymentChargeRequest>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
@@ -113,7 +116,7 @@ pub struct PaymentIntentNew {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub charges: Option<PaymentChargeRequest>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
@@ -244,7 +247,7 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub charges: Option<PaymentChargeRequest>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 

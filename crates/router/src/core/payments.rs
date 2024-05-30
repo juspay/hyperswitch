@@ -29,7 +29,7 @@ use common_utils::{
     pii,
     types::{MinorUnit, Surcharge},
 };
-use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
+use diesel_models::{ephemeral_key, fraud_check::FraudCheck, ConnectorPsIdentifiers};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
@@ -2455,6 +2455,7 @@ where
     pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
+    pub connector_ps_identifiers: Option<ConnectorPsIdentifiers>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

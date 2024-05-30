@@ -1,4 +1,4 @@
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -62,7 +62,7 @@ pub enum ConnectorPsIdentifiersUpdate {
     },
 }
 
-#[derive(Clone, Debug, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = connector_ps_identifiers)]
 pub struct ConnectorPsIdentifierUpdateInternal {
     pub id: Option<String>,

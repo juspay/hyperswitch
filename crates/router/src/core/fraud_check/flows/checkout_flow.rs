@@ -128,6 +128,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            // charges: None,
         };
 
         Ok(router_data)

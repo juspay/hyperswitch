@@ -456,6 +456,7 @@ pub trait PaymentsPreProcessingData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_connected_account_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -504,6 +505,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn get_connected_account_id(&self) -> Result<String, Error> {
+        self.connected_account_id
+            .clone()
+            .ok_or_else(missing_field_err("connected_account_id"))
     }
 }
 

@@ -6,6 +6,7 @@ use std::{
     str::FromStr,
 };
 
+use common_enums::enums;
 use diesel::{
     backend::Backend,
     deserialize,
@@ -213,6 +214,47 @@ where
 }
 
 impl ToSql<Jsonb, diesel::pg::Pg> for SemanticVersion
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+#[derive(
+    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+/// Charge object for payments
+pub struct PaymentChargeRequest {
+    /// Stripe's charge type
+    #[schema(value_type = PaymentChargeType, example = "direct")]
+    pub charge_type: enums::PaymentChargeType,
+
+    /// Platform fees to be collected on the payment
+    pub fees: i64,
+
+    /// Identifier for the reseller's account to send the funds to
+    pub transfer_account_id: String,
+}
+
+impl<DB: Backend> FromSql<Jsonb, DB> for PaymentChargeRequest
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for PaymentChargeRequest
 where
     serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
 {

@@ -5,9 +5,8 @@ use std::collections::HashMap;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
@@ -17,7 +16,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, types::PaymentCharges},
+        payments::{self, access_token},
         utils as core_utils,
     },
     db, logger,
@@ -607,20 +606,12 @@ pub async fn validate_and_create_refund(
                 }))
                 .attach_printable("charge_id sent in request mismatches with original charge_id")
             })?;
-            let payment_charges: PaymentCharges = charges
-                .peek()
-                .clone()
-                .parse_value("PaymentCharges")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse charges in to PaymentCharges")?;
-            let options = validator::validate_charge_refund(
-                &refund_charge_request,
-                &payment_charges.charge_type,
-            )?;
+            let options =
+                validator::validate_charge_refund(&refund_charge_request, &charges.charge_type)?;
             Some(ChargeRefunds {
                 charge_id: charge_id.to_string(),
-                charge_type: payment_charges.charge_type,
-                transfer_account_id: payment_charges.transfer_account_id,
+                charge_type: charges.charge_type.clone(),
+                transfer_account_id: charges.transfer_account_id.clone(),
                 options,
             })
         }
@@ -1139,20 +1130,14 @@ pub async fn trigger_refund_execute_workflow(
                             "charge_id sent in request mismatches with original charge_id",
                         )
                     })?;
-                    let payment_charges: PaymentCharges = charges
-                        .peek()
-                        .clone()
-                        .parse_value("PaymentCharges")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse charges in to PaymentCharges")?;
                     let options = validator::validate_charge_refund(
                         &refund_charge_request,
-                        &payment_charges.charge_type,
+                        &charges.charge_type,
                     )?;
                     Some(ChargeRefunds {
                         charge_id: charge_id.to_string(),
-                        charge_type: payment_charges.charge_type,
-                        transfer_account_id: payment_charges.transfer_account_id,
+                        charge_type: charges.charge_type.clone(),
+                        transfer_account_id: charges.transfer_account_id.clone(),
                         options,
                     })
                 }

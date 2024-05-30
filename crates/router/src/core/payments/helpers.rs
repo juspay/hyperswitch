@@ -3357,6 +3357,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
+        // charges: router_data.charges,
     }
 }
 

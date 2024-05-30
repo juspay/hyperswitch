@@ -1,7 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
-use common_utils::{consts, errors, pii};
+use common_utils::{consts, errors, pii, types::PaymentChargeRequest};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -51,6 +51,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub authentication_data: Option<AuthenticationData>,
+    pub charges: Option<PaymentChargeRequest>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -97,6 +98,7 @@ pub struct ConnectorCustomerData {
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub payment_method_data: PaymentMethodData,
+    pub connected_account_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -124,6 +126,7 @@ pub struct PaymentsPreProcessingData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub connected_account_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

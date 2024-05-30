@@ -2,7 +2,7 @@ use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     pii,
-    types::MinorUnit,
+    types::{MinorUnit, PaymentChargeRequest},
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -115,7 +115,7 @@ pub struct PaymentIntentNew {
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub charges: Option<PaymentChargeRequest>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

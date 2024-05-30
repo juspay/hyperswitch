@@ -23,7 +23,11 @@ pub use api_models::{enums::Connector, mandates};
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
-use common_utils::{pii, pii::Email, types::MinorUnit};
+use common_utils::{
+    pii,
+    pii::Email,
+    types::{MinorUnit, PaymentChargeRequest},
+};
 use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::router_request_types::PayoutsData;
@@ -350,7 +354,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub authentication_data: Option<AuthenticationData>,
-    pub charges: Option<types::PaymentCharges>,
+    pub charges: Option<PaymentChargeRequest>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -398,6 +402,7 @@ pub struct ConnectorCustomerData {
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub payment_method_data: domain::PaymentMethodData,
+    pub connected_account_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -425,6 +430,7 @@ pub struct PaymentsPreProcessingData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub connected_account_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -466,7 +472,7 @@ pub struct PaymentsSyncData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
-    pub charges: Option<types::PaymentCharges>,
+    pub charges: Option<PaymentChargeRequest>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
 }
 

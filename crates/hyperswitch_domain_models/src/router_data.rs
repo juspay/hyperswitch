@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use common_utils::types::PaymentChargeRequest;
 use masking::Secret;
 
 use crate::payment_address::PaymentAddress;

@@ -210,6 +210,28 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             _ => Ok((None, true)),
         }
     }
+
+    async fn clone_connector_customer<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<String>> {
+        let mut connector_customer_data = types::ConnectorCustomerData::try_from(self)?;
+        connector_customer_data.connected_account_id = self
+            .request
+            .charges
+            .as_ref()
+            .map(|charges| charges.transfer_account_id.clone());
+        customers::create_connector_customer(state, connector, self, connector_customer_data).await
+    }
+
+    async fn clone_connector_payment_method<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<String>> {
+        
+    }
 }
 
 pub trait RouterDataAuthorize {
@@ -351,6 +373,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
             phone: None,
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
+            connected_account_id: None,
         })
     }
 }
@@ -388,6 +411,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
             redirect_response: None,
+            connected_account_id: None,
         })
     }
 }
@@ -412,6 +436,7 @@ impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData 
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
+            connected_account_id: None,
         })
     }
 }

@@ -526,7 +526,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::WebhookDeliveryAttempt,
         api_models::enums::PaymentChargeType,
         api_models::enums::StripeChargeType,
-        api_models::payments::PaymentChargeRequest,
+        common_utils::types::PaymentChargeRequest,
         api_models::payments::PaymentChargeResponse,
         api_models::refunds::ChargeRefunds,
     )),

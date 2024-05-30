@@ -106,6 +106,7 @@ impl VerifyConnectorData {
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            // charges: None,
         }
     }
 }
