@@ -94,6 +94,18 @@ pub struct AuthenticationNew {
 
 #[derive(Debug)]
 pub enum AuthenticationUpdate {
+    PreAuthenticationVersionCallUpdate {
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
+        message_version: common_utils::types::SemanticVersion,
+    },
+    PreAuthenticationThreeDsMethodCall {
+        threeds_server_transaction_id: String,
+        three_ds_method_data: Option<String>,
+        three_ds_method_url: Option<String>,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
+    },
     PreAuthenticationUpdate {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
@@ -116,6 +128,7 @@ pub enum AuthenticationUpdate {
         acs_reference_number: Option<String>,
         acs_trans_id: Option<String>,
         acs_signed_content: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
         authentication_status: common_enums::AuthenticationStatus,
         ds_trans_id: Option<String>,
     },
@@ -283,7 +296,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_code,
                 error_message,
                 authentication_status: Some(authentication_status),
-
                 connector_authentication_id,
                 authentication_type: None,
                 authentication_lifecycle_status: None,
@@ -342,6 +354,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acs_reference_number,
                 acs_trans_id,
                 acs_signed_content,
+                connector_metadata,
                 authentication_status,
                 ds_trans_id,
             } => Self {
@@ -353,6 +366,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acs_reference_number,
                 acs_trans_id,
                 acs_signed_content,
+                connector_metadata,
                 authentication_status: Some(authentication_status),
                 ds_trans_id,
                 ..Default::default()
@@ -367,6 +381,30 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 cavv: authentication_value,
                 eci,
                 authentication_status: Some(authentication_status),
+                ..Default::default()
+            },
+            AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+                maximum_supported_3ds_version,
+                message_version,
+            } => Self {
+                maximum_supported_version: Some(maximum_supported_3ds_version),
+                message_version: Some(message_version),
+                ..Default::default()
+            },
+            AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                acquirer_bin,
+                acquirer_merchant_id,
+                connector_metadata,
+            } => Self {
+                threeds_server_transaction_id: Some(threeds_server_transaction_id),
+                three_ds_method_data,
+                three_ds_method_url,
+                acquirer_bin,
+                acquirer_merchant_id,
+                connector_metadata,
                 ..Default::default()
             },
         }

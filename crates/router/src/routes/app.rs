@@ -1218,6 +1218,7 @@ impl User {
                 .service(
                     web::scope("/totp")
                         .service(web::resource("/begin").route(web::get().to(totp_begin)))
+                        .service(web::resource("/reset").route(web::get().to(totp_reset)))
                         .service(
                             web::resource("/verify")
                                 .route(web::post().to(totp_verify))
