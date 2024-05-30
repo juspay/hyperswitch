@@ -172,10 +172,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                &payment_intent
+                payment_intent
                     .customer_id
-                    .clone()
-                    .or_else(|| customer_details.customer_id.clone()),
+                    .as_ref()
+                    .or(customer_details.customer_id.as_ref()),
             )?;
         }
 
@@ -781,6 +781,16 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
             &request.payment_token,
             &request.mandate_id,
         )?;
+
+        let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
+            .routing
+            .clone()
+            .map(|val| val.parse_value("RoutingAlgorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid straight through routing rules format".to_string(),
+            })
+            .attach_printable("Invalid straight through routing rules format")?;
 
         Ok((
             Box::new(self),

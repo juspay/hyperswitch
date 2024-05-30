@@ -3814,7 +3814,7 @@ pub async fn payment_external_authentication(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
-                    format!("error while finding customer with customer_id {customer_id}")
+                    format!("error while finding customer with customer_id {customer_id:?}")
                 })?,
         ),
         None => None,

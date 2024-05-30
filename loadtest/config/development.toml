@@ -322,3 +322,9 @@ partner_id = ""
 
 [unmasked_headers]
 keys = "user-agent"
+
+[multitenancy]
+enabled = false
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = ""}

@@ -1,5 +1,5 @@
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{pii, types::MinorUnit};
+use common_utils::{id_type, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -16,7 +16,7 @@ pub struct PaymentIntent {
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -73,7 +73,7 @@ pub struct PaymentIntentNew {
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -134,7 +134,7 @@ pub enum PaymentIntentUpdate {
     ReturnUrlUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         updated_by: String,
@@ -155,7 +155,7 @@ pub enum PaymentIntentUpdate {
         currency: storage_enums::Currency,
         setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         return_url: Option<String>,
@@ -216,7 +216,7 @@ pub struct PaymentIntentUpdateInternal {
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
