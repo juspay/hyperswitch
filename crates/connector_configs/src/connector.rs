@@ -72,6 +72,15 @@ pub enum ApplePayTomlConfig {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+
+pub enum KlarnaEndpoint {
+    Europe,
+    NorthAmerica,
+    Oceania,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<String>,
@@ -91,6 +100,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<KlarnaEndpoint>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -272,7 +282,7 @@ impl ConnectorConfig {
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
-            // Connector::Gpayments => Ok(connector_data.gpayments),  Added as template code for future usage
+            Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mollie => Ok(connector_data.mollie),

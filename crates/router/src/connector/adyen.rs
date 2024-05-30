@@ -367,7 +367,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let authorize_req = types::PaymentsAuthorizeRouterData::foreign_from((
             req,
-            types::PaymentsAuthorizeData::from(req),
+            types::PaymentsAuthorizeData::foreign_from(req),
         ));
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
