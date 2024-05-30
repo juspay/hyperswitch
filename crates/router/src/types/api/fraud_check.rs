@@ -55,7 +55,7 @@ pub trait FraudCheckRecordReturn:
 {
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FraudCheckConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: enums::FrmConnectors,
