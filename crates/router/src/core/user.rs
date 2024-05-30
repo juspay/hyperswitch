@@ -1645,7 +1645,7 @@ pub async fn begin_totp(
 
 pub async fn reset_totp(
     state: AppState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserFromToken,
 ) -> UserResponse<user_api::BeginTotpResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
