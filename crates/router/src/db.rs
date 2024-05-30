@@ -128,14 +128,9 @@ pub trait StorageInterface:
 
 #[async_trait::async_trait]
 pub trait GlobalStorageInterface:
-    Send
-    + Sync
-    + dyn_clone::DynClone
-+ user::UserInterface
-+ 'static {
-
+    Send + Sync + dyn_clone::DynClone + user::UserInterface + 'static
+{
 }
-
 
 pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
@@ -174,9 +169,7 @@ impl StorageInterface for Store {
 }
 
 #[async_trait::async_trait]
-impl GlobalStorageInterface for Store {
-}
-
+impl GlobalStorageInterface for Store {}
 
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
@@ -190,8 +183,7 @@ impl StorageInterface for MockDb {
 }
 
 #[async_trait::async_trait]
-impl GlobalStorageInterface for MockDb {
-}
+impl GlobalStorageInterface for MockDb {}
 
 impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
