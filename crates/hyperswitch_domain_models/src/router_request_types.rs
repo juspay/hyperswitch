@@ -67,7 +67,7 @@ pub struct PaymentsAuthorizeData {
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct PaymentCharges {
     pub charge_type: api_models::enums::PaymentChargeType,
-    pub fees: i64,
+    pub fees: MinorUnit,
     pub transfer_account_id: String,
 }
 
@@ -236,6 +236,9 @@ pub struct PaymentsPreProcessingData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
@@ -245,6 +248,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
@@ -269,6 +273,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: None,
@@ -282,6 +287,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
+            
         })
     }
 }

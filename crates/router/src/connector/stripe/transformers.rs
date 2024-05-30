@@ -1845,11 +1845,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 let charges = match &charges.charge_type {
                     api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         api_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: MinorUnit::new(charges.fees),
+                            application_fee_amount: charges.fees,
                             destination_account_id: None,
                         }),
                         api_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: MinorUnit::new(charges.fees),
+                            application_fee_amount: charges.fees,
                             destination_account_id: Some(charges.transfer_account_id.clone()),
                         }),
                     },
@@ -1860,7 +1860,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         Ok(Self {
-            amount: MinorUnit::new(item.request.amount), //hopefully we don't loose some cents here
+            amount: item.request.minor_amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
@@ -2863,10 +2863,10 @@ pub struct RefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_amount;
+        let amount = item.request.minor_refund_amount;
         let payment_intent = item.request.connector_transaction_id.clone();
         Ok(Self {
-            amount: Some(MinorUnit::new(amount)),
+            amount: Some(amount),
             payment_intent,
             meta_data: StripeMetadata {
                 order_id: Some(item.request.refund_id.clone()),
@@ -2889,7 +2889,7 @@ pub struct ChargeRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_amount;
+        let amount = item.request.minor_refund_amount;
         match item.request.charges.as_ref() {
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "charges",
@@ -2909,7 +2909,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
                     charge: charges.charge_id.clone(),
                     refund_application_fee,
                     reverse_transfer,
-                    amount: Some(MinorUnit::new(amount)),
+                    amount: Some(amount),
                     meta_data: StripeMetadata {
                         order_id: Some(item.request.refund_id.clone()),
                         is_refund_id_as_reference: Some("true".to_string()),
@@ -3184,7 +3184,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount_to_capture: Some(MinorUnit::new(item.request.amount_to_capture)),
+            amount_to_capture: Some(item.request.minor_amount_to_capture),
         })
     }
 }
@@ -3193,7 +3193,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let currency = item.request.get_currency()?;
-        let amount = item.request.get_amount()?;
+        let amount = item.request.get_minor_amount()?;
 
         match &item.request.payment_method_data {
             Some(domain::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
@@ -3205,7 +3205,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                             payment_method_data: MultibancoTransferData {
                                 email: item.request.get_email()?,
                             },
-                            amount: Some(MinorUnit::new(amount)),
+                            amount: Some(amount),
                             return_url: Some(item.get_return_url()?),
                         }),
                     ),
