@@ -282,7 +282,7 @@ impl ConnectorConfig {
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
-            // Connector::Gpayments => Ok(connector_data.gpayments),  Added as template code for future usage
+            Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mollie => Ok(connector_data.mollie),
