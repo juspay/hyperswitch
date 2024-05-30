@@ -741,7 +741,7 @@ async fn handle_new_user_invitation(
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
     new_user
-        .insert_user_in_db(state.store.as_ref())
+        .insert_user_in_db(state.global_store.as_ref())
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1675,7 +1675,7 @@ pub async fn reset_totp(
     user_token: auth::UserFromToken,
 ) -> UserResponse<user_api::BeginTotpResponse> {
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
@@ -1745,7 +1745,7 @@ pub async fn update_totp(
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
@@ -1768,7 +1768,7 @@ pub async fn update_totp(
     let key_store = user_from_db.get_or_create_key_store(&state).await?;
 
     state
-        .store
+        .global_store
         .update_user_by_user_id(
             &user_token.user_id,
             storage_user::UserUpdate::TotpUpdate {
@@ -1842,7 +1842,7 @@ pub async fn verify_recovery_code(
     req: user_api::VerifyRecoveryCodeRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
@@ -1866,7 +1866,7 @@ pub async fn verify_recovery_code(
     let _ = recovery_codes.remove(matching_index);
 
     state
-        .store
+        .global_store
         .update_user_by_user_id(
             user_from_db.get_user_id(),
             storage_user::UserUpdate::TotpUpdate {
@@ -1887,7 +1887,7 @@ pub async fn terminate_two_factor_auth(
     skip_two_factor_auth: bool,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
@@ -1906,7 +1906,7 @@ pub async fn terminate_two_factor_auth(
 
         if user_from_db.get_totp_status() != TotpStatus::Set {
             state
-                .store
+                .global_store
                 .update_user_by_user_id(
                     user_from_db.get_user_id(),
                     storage_user::UserUpdate::TotpUpdate {

@@ -55,7 +55,7 @@ use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     core::routing,
-    db::{StorageImpl, StorageInterface},
+    db::{StorageImpl, StorageInterface, GlobalStorageInterface, CommonStorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
@@ -74,7 +74,7 @@ pub struct ReqState {
 pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
     /// Global store is used for global schema operations in tables like Users and Tenants
-    pub global_store: Box<dyn StorageInterface>,
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -132,7 +132,7 @@ impl SessionStateInfo for SessionState {
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
-    pub global_store: Box<dyn StorageInterface>,
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
@@ -261,16 +261,19 @@ impl AppState {
             } else {
                 DEFAULT_TENANT
             };
-            let global_store = Self::get_store_interface(
+            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
                 &storage_impl,
                 &event_handler,
                 &conf,
-                global_tenant,
+                &settings::GlobalTenant {
+                    schema: global_tenant.to_string(),
+                    redis_key_prefix: String::default(),
+                },
                 Arc::clone(&cache_store),
                 testable,
             )
-            .await;
-            for tenant in conf.clone().multitenancy.get_tenant_names() {
+            .await.get_global_storage_interface();
+            for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
                 let store: Box<dyn StorageInterface> = Self::get_store_interface(
                     &storage_impl,
                     &event_handler,
@@ -279,7 +282,7 @@ impl AppState {
                     Arc::clone(&cache_store),
                     testable,
                 )
-                .await;
+                .await.get_storage_interface();
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
                 let pool =
@@ -319,10 +322,10 @@ impl AppState {
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
-        tenant: &settings::Tenant,
+        tenant: &dyn TenantConfig,
         cache_store: Arc<RedisStore>,
         testable: bool,
-    ) -> Box<dyn StorageInterface> {
+    ) -> Box<dyn CommonStorageInterface> {
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(

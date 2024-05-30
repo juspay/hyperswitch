@@ -112,7 +112,6 @@ pub trait StorageInterface:
     + OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
-    + user::UserInterface
     + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
@@ -125,6 +124,22 @@ pub trait StorageInterface:
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
 
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
+}
+
+#[async_trait::async_trait]
+pub trait GlobalStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
++ user::UserInterface
++ 'static {
+
+}
+
+
+pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface {
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface>;
 }
 
 pub trait MasterKeyInterface {
@@ -159,12 +174,39 @@ impl StorageInterface for Store {
 }
 
 #[async_trait::async_trait]
+impl GlobalStorageInterface for Store {
+}
+
+
+#[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
     }
 
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl GlobalStorageInterface for MockDb {
+}
+
+impl CommonStorageInterface for MockDb {
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+}
+
+impl CommonStorageInterface for Store {
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -205,6 +247,7 @@ where
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);
+dyn_clone::clone_trait_object!(GlobalStorageInterface);
 
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {

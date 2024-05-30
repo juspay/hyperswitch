@@ -66,7 +66,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
-        MasterKeyInterface, StorageInterface,
+        MasterKeyInterface, StorageInterface, GlobalStorageInterface, CommonStorageInterface
     },
     services::{authentication, kafka::KafkaProducer, Store},
     types::{
@@ -2288,6 +2288,17 @@ impl StorageInterface for KafkaStore {
     }
 
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
+
+impl GlobalStorageInterface for KafkaStore {}
+
+impl CommonStorageInterface for KafkaStore {
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
         Box::new(self.clone())
     }
 }

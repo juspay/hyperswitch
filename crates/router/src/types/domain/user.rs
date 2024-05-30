@@ -29,7 +29,7 @@ use crate::{
         admin,
         errors::{self, UserErrors, UserResult},
     },
-    db::StorageInterface,
+    db::GlobalStorageInterface,
     routes::SessionState,
     services::{self, authentication as auth, authentication::UserFromToken, authorization::info},
     types::transformers::ForeignFrom,
@@ -542,7 +542,7 @@ impl NewUser {
 
     pub async fn insert_user_in_db(
         &self,
-        db: &dyn StorageInterface,
+        db: &dyn GlobalStorageInterface,
     ) -> UserResult<UserFromStorage> {
         match db.insert_user(self.clone().try_into()?).await {
             Ok(user) => Ok(user.into()),
