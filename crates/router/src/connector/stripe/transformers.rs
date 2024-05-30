@@ -2100,7 +2100,7 @@ pub struct SepaAndBacsBankTransferInstructions {
 #[derive(Clone, Debug, Serialize)]
 pub struct QrCodeNextInstructions {
     pub image_data_url: Url,
-    pub display_to_timestamp: Option<MinorUnit>,
+    pub display_to_timestamp: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2820,7 +2820,7 @@ pub struct StripeCashappQrResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct QrCodeResponse {
-    pub expires_at: Option<MinorUnit>,
+    pub expires_at: Option<i64>,
     pub image_url_png: Url,
     pub image_url_svg: Url,
 }
