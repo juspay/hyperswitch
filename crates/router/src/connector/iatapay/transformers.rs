@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use api_models::enums::PaymentMethod;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::Encode};
+use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
@@ -85,6 +86,13 @@ pub struct PayerInfo {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PreferredCheckoutMethod {
+    Vpa,
+    Qr,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: Secret<String>,
@@ -95,7 +103,9 @@ pub struct IatapayPaymentsRequest {
     locale: String,
     redirect_urls: RedirectUrls,
     notification_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     payer_info: Option<PayerInfo>,
+    preferred_checkout_method: Option<PreferredCheckoutMethod>,
 }
 
 impl
@@ -136,24 +146,31 @@ impl
             | PaymentMethod::GiftCard => item.router_data.get_billing_country()?.to_string(),
         };
         let return_url = item.router_data.get_return_url()?;
-        let payer_info = match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
-                token_id: id.switch_strategy(),
-            }),
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => None,
-        };
+        let (payer_info, preferred_checkout_method) =
+            match item.router_data.request.payment_method_data.clone() {
+                domain::PaymentMethodData::Upi(upi_type) => match upi_type {
+                    domain::UpiData::UpiCollect(upi_data) => (
+                        upi_data.vpa_id.map(|id| PayerInfo {
+                            token_id: id.switch_strategy(),
+                        }),
+                        Some(PreferredCheckoutMethod::Vpa),
+                    ),
+                    domain::UpiData::UpiIntent(_) => (None, Some(PreferredCheckoutMethod::Qr)),
+                },
+                domain::PaymentMethodData::Card(_)
+                | domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => (None, None),
+            };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
                 .merchant_id,
@@ -165,6 +182,7 @@ impl
             redirect_urls: get_redirect_url(return_url),
             payer_info,
             notification_url: item.router_data.request.get_webhook_url()?,
+            preferred_checkout_method,
         };
         Ok(payload)
     }
@@ -291,8 +309,46 @@ fn get_iatpay_response(
     };
     let connector_response_reference_id = response.merchant_payment_id.or(response.iata_payment_id);
 
-    let payment_response_data = response.checkout_methods.map_or(
-        types::PaymentsResponseData::TransactionResponse {
+    let payment_response_data = match response.checkout_methods {
+        Some(checkout_methods) => {
+            let (connector_metadata, redirection_data) =
+                match checkout_methods.redirect.redirect_url.ends_with("qr") {
+                    true => {
+                        let qr_code_info = api_models::payments::FetchQrCodeInformation {
+                            qr_code_fetch_url: url::Url::parse(
+                                &checkout_methods.redirect.redirect_url,
+                            )
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                        };
+                        (
+                            Some(qr_code_info.encode_to_value())
+                                .transpose()
+                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                            None,
+                        )
+                    }
+                    false => (
+                        None,
+                        Some(services::RedirectForm::Form {
+                            endpoint: checkout_methods.redirect.redirect_url,
+                            method: services::Method::Get,
+                            form_fields,
+                        }),
+                    ),
+                };
+
+            types::PaymentsResponseData::TransactionResponse {
+                resource_id: id,
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata,
+                network_txn_id: None,
+                connector_response_reference_id: connector_response_reference_id.clone(),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }
+        }
+        None => types::PaymentsResponseData::TransactionResponse {
             resource_id: id.clone(),
             redirection_data: None,
             mandate_reference: None,
@@ -302,21 +358,8 @@ fn get_iatpay_response(
             incremental_authorization_allowed: None,
             charge_id: None,
         },
-        |checkout_methods| types::PaymentsResponseData::TransactionResponse {
-            resource_id: id,
-            redirection_data: Some(services::RedirectForm::Form {
-                endpoint: checkout_methods.redirect.redirect_url,
-                method: services::Method::Get,
-                form_fields,
-            }),
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: connector_response_reference_id.clone(),
-            incremental_authorization_allowed: None,
-            charge_id: None,
-        },
-    );
+    };
+
     Ok((status, error, payment_response_data))
 }
 

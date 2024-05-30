@@ -285,13 +285,24 @@ pub enum BankRedirectData {
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {
     pub pay_currency: Option<String>,
+    pub network: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct UpiData {
+pub enum UpiData {
+    UpiCollect(UpiCollectData),
+    UpiIntent(UpiIntentData),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiCollectData {
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct UpiIntentData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -683,15 +694,25 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
 
 impl From<api_models::payments::CryptoData> for CryptoData {
     fn from(value: api_models::payments::CryptoData) -> Self {
-        let api_models::payments::CryptoData { pay_currency } = value;
-        Self { pay_currency }
+        let api_models::payments::CryptoData {
+            pay_currency,
+            network,
+        } = value;
+        Self {
+            pay_currency,
+            network,
+        }
     }
 }
 
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
-        let api_models::payments::UpiData { vpa_id } = value;
-        Self { vpa_id }
+        match value {
+            api_models::payments::UpiData::UpiCollect(upi) => {
+                Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id })
+            }
+            api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
+        }
     }
 }
 

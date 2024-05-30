@@ -132,9 +132,6 @@ pub fn validate_for_valid_refunds(
                     (
                         api_models::enums::Connector::Braintree,
                         diesel_models::enums::PaymentMethodType::Paypal,
-                    ) | (
-                        api_models::enums::Connector::Klarna,
-                        diesel_models::enums::PaymentMethodType::Klarna
                     )
                 ),
                 || {
