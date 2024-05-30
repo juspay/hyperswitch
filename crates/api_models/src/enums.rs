@@ -111,7 +111,7 @@ pub enum Connector {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
-    // Payone, added as template code for future usage
+    Payone,
     Paypal,
     Payu,
     Placetopay,
@@ -221,7 +221,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
-            // | Self::Payone  Added as a template code for future usage
+            | Self::Payone
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -300,10 +300,11 @@ impl AuthenticationConnectors {
 pub enum PayoutConnectors {
     Adyen,
     Stripe,
-    Wise,
+    Payone,
     Paypal,
     Ebanx,
     Cybersource,
+    Wise,
 }
 
 #[cfg(feature = "payouts")]
@@ -312,10 +313,11 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Wise => Self::Wise,
         }
     }
 }
@@ -326,10 +328,11 @@ impl From<PayoutConnectors> for Connector {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Wise => Self::Wise,
         }
     }
 }
@@ -345,6 +348,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Payone => Ok(Self::Payone),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }
