@@ -72,6 +72,15 @@ pub enum ApplePayTomlConfig {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+
+pub enum KlarnaEndpoint {
+    Europe,
+    NorthAmerica,
+    Oceania,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<String>,
@@ -91,6 +100,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<Vec<KlarnaEndpoint>>,
     pub brand_id: Option<String>,
 }
 
@@ -158,6 +168,8 @@ pub struct ConnectorConfig {
     pub noon: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
@@ -230,6 +242,7 @@ impl ConnectorConfig {
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
+            PayoutConnectors::Payone => Ok(connector_data.payone_payout),
         }
     }
 
@@ -274,7 +287,7 @@ impl ConnectorConfig {
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
-            // Connector::Gpayments => Ok(connector_data.gpayments),  Added as template code for future usage
+            Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
@@ -286,6 +299,7 @@ impl ConnectorConfig {
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Payme => Ok(connector_data.payme),
+            Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
             Connector::Payu => Ok(connector_data.payu),
             Connector::Placetopay => Ok(connector_data.placetopay),

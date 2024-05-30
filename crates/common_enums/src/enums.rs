@@ -1430,6 +1430,7 @@ pub enum PaymentMethodType {
     Trustly,
     Twint,
     UpiCollect,
+    UpiIntent,
     Vipps,
     Venmo,
     Walley,

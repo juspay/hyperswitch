@@ -269,6 +269,7 @@ pub enum CryptoType {
 #[strum(serialize_all = "snake_case")]
 pub enum UpiType {
     UpiCollect,
+    UpiIntent,
 }
 
 #[derive(

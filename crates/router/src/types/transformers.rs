@@ -230,11 +230,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
-            // api_enums::Connector::Gpayments => {
-            //     Err(common_utils::errors::ValidationError::InvalidValue {
-            //         message: "gpayments is not a routable connector".to_string(),
-            //     })?
-            // }Added as template code for future usage
+            api_enums::Connector::Gpayments => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "gpayments is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Klarna => Self::Klarna,
@@ -252,7 +252,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
             api_enums::Connector::Payme => Self::Payme,
-            // api_enums::Connector::Payone => Self::Payone, Added as template code for future usage
+            api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
             api_models::enums::Connector::Placetopay => Self::Placetopay,
@@ -462,7 +462,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
-            api_enums::PaymentMethodType::UpiCollect => Self::Upi,
+            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent => {
+                Self::Upi
+            }
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
@@ -932,6 +934,8 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             reference_id: payment_attempt.connector_response_reference_id,
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            client_source: payment_attempt.client_source,
+            client_version: payment_attempt.client_version,
         }
     }
 }
@@ -1181,7 +1185,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
-impl ForeignFrom<&domain::Customer> for payments::CustomerDetails {
+impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
             id: customer.customer_id.clone(),

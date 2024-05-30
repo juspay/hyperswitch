@@ -1,7 +1,7 @@
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    pii,
+    id_type, pii,
     types::MinorUnit,
 };
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,7 @@ pub struct PaymentIntentNew {
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -135,7 +135,7 @@ pub enum PaymentIntentUpdate {
     ReturnUrlUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         updated_by: String,
@@ -156,7 +156,7 @@ pub enum PaymentIntentUpdate {
         currency: storage_enums::Currency,
         setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         return_url: Option<String>,
@@ -216,7 +216,7 @@ pub struct PaymentIntentUpdateInternal {
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -458,7 +458,7 @@ pub struct PaymentIntentListParams {
     pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
     pub merchant_connector_id: Option<Vec<String>>,
     pub profile_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<String>,
     pub ending_before_id: Option<String>,
     pub limit: Option<u32>,

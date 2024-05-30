@@ -64,7 +64,7 @@ pub struct MifinityPaymentsRequest {
     client: MifinityClient,
     address: MifinityAddress,
     validation_key: String,
-    client_reference: String,
+    client_reference: common_utils::id_type::CustomerId,
     trace_id: String,
     description: String,
     destination_account_number: Secret<String>,

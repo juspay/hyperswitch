@@ -291,6 +291,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CryptoData,
         api_models::payments::RewardData,
         api_models::payments::UpiData,
+        api_models::payments::UpiCollectData,
+        api_models::payments::UpiIntentData,
         api_models::payments::VoucherData,
         api_models::payments::BoletoVoucherData,
         api_models::payments::AlfamartVoucherData,
@@ -528,6 +530,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentChargeRequest,
         api_models::payments::PaymentChargeResponse,
         api_models::refunds::ChargeRefunds,
+        api_models::payments::CustomerDetailsResponse,
     )),
     modifiers(&SecurityAddon)
 )]

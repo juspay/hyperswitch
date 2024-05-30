@@ -9,7 +9,9 @@ use common_utils::{
 use diesel_models::business_profile::BusinessProfile;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
-pub use hyperswitch_domain_models::router_request_types::{AuthenticationData, SurchargeDetails};
+pub use hyperswitch_domain_models::router_request_types::{
+    AuthenticationData, PaymentCharges, SurchargeDetails,
+};
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 
@@ -367,17 +369,11 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
                 eci: authentication.eci.clone(),
                 cavv,
                 threeds_server_transaction_id,
-                message_version: message_version.to_string(),
+                message_version,
+                ds_trans_id: authentication.ds_trans_id.clone(),
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())
         }
     }
-}
-
-#[derive(Debug, serde::Deserialize, Clone)]
-pub struct PaymentCharges {
-    pub charge_type: api_models::enums::PaymentChargeType,
-    pub fees: i64,
-    pub transfer_account_id: String,
 }

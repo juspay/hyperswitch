@@ -14,26 +14,25 @@ use euclid::{
 use router_env::{instrument, tracing};
 
 use crate::{
-    core::payments::{types, PaymentData},
-    db::StorageInterface,
-    types::{
-        storage::{self as oss_storage, payment_attempt::PaymentAttemptExt},
-        transformers::ForeignTryFrom,
-    },
-};
-static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
-use crate::{
     core::{
         errors::ConditionalConfigError as ConfigError,
         payments::{
             conditional_configs::ConditionalConfigResult, routing::make_dsl_input_for_surcharge,
+            types, PaymentData,
         },
+    },
+    db::StorageInterface,
+    types::{
+        storage::{self, payment_attempt::PaymentAttemptExt},
+        transformers::ForeignTryFrom,
     },
     AppState,
 };
 
+static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
+
 struct VirInterpreterBackendCacheWrapper {
-    cached_alogorith: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
+    cached_algorithm: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
     merchant_surcharge_configs: surcharge_decision_configs::MerchantSurchargeConfigs,
 }
 
@@ -41,12 +40,12 @@ impl TryFrom<SurchargeDecisionManagerRecord> for VirInterpreterBackendCacheWrapp
     type Error = error_stack::Report<ConfigError>;
 
     fn try_from(value: SurchargeDecisionManagerRecord) -> Result<Self, Self::Error> {
-        let cached_alogorith = backend::VirInterpreterBackend::with_program(value.algorithm)
+        let cached_algorithm = backend::VirInterpreterBackend::with_program(value.algorithm)
             .change_context(ConfigError::DslBackendInitError)
             .attach_printable("Error initializing DSL interpreter backend")?;
         let merchant_surcharge_configs = value.merchant_surcharge_configs;
         Ok(Self {
-            cached_alogorith,
+            cached_algorithm,
             merchant_surcharge_configs,
         })
     }
@@ -63,14 +62,14 @@ impl SurchargeSource {
     pub fn generate_surcharge_details_and_populate_surcharge_metadata(
         &self,
         backend_input: &backend::BackendInput,
-        payment_attempt: &oss_storage::PaymentAttempt,
+        payment_attempt: &storage::PaymentAttempt,
         surcharge_metadata_and_key: (&mut types::SurchargeMetadata, types::SurchargeKey),
     ) -> ConditionalConfigResult<Option<types::SurchargeDetails>> {
         match self {
             Self::Generate(interpreter) => {
                 let surcharge_output = execute_dsl_and_get_conditional_config(
                     backend_input.clone(),
-                    &interpreter.cached_alogorith,
+                    &interpreter.cached_algorithm,
                 )?;
                 Ok(surcharge_output
                     .surcharge_details
@@ -98,8 +97,8 @@ impl SurchargeSource {
 pub async fn perform_surcharge_decision_management_for_payment_method_list(
     state: &AppState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    payment_attempt: &oss_storage::PaymentAttempt,
-    payment_intent: &oss_storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
     billing_address: Option<payments::Address>,
     response_payment_method_types: &mut [api_models::payment_methods::ResponsePaymentMethodsEnabled],
 ) -> ConditionalConfigResult<(
@@ -279,8 +278,8 @@ where
 pub async fn perform_surcharge_decision_management_for_saved_cards(
     state: &AppState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    payment_attempt: &oss_storage::PaymentAttempt,
-    payment_intent: &oss_storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
     customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
 ) -> ConditionalConfigResult<types::SurchargeMetadata> {
     let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
@@ -348,7 +347,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
 
 fn get_surcharge_details_from_surcharge_output(
     surcharge_details: surcharge_decision_configs::SurchargeDetailsOutput,
-    payment_attempt: &oss_storage::PaymentAttempt,
+    payment_attempt: &storage::PaymentAttempt,
 ) -> ConditionalConfigResult<types::SurchargeDetails> {
     let surcharge_amount = match surcharge_details.surcharge.clone() {
         surcharge_decision_configs::SurchargeOutput::Fixed { amount } => amount,
