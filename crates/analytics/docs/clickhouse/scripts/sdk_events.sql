@@ -212,7 +212,7 @@ CREATE TABLE sdk_active_payments (
 ) ENGINE = MergeTree
 PARTITION BY toStartOfSecond(created_at)
 ORDER BY 
-    (created_at, merchant_id) 
+    merchant_id
 TTL 
     toDateTime(created_at) + INTERVAL 60 SECOND
 SETTINGS 
