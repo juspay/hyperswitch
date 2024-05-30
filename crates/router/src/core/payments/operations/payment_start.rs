@@ -219,9 +219,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     where
         F: 'b + Send,
     {
-        _req_state
+        req_state
             .event_context
-            .event(AuditEvent::new(AuditEventType::PaymentStarted))
+            .event(AuditEvent::new(AuditEventType::PaymentStart))
             .with(payment_data.to_event())
             .emit()
         Ok((Box::new(self), payment_data))

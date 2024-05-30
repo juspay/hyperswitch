@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 #[serde(tag = "event_type")]
 pub enum AuditEventType {
     Error { error_message: String },
-    PaymentStarted,
+    PaymentStart,
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
@@ -43,7 +43,7 @@ impl Event for AuditEvent {
     fn identifier(&self) -> String {
         let event_type = match &self.event_type {
             AuditEventType::Error { .. } => "error",
-            AuditEventType::PaymentStarted => "payment_started"
+            AuditEventType::PaymentStart => "payment_start"
             AuditEventType::PaymentCreated => "payment_created",
             AuditEventType::ConnectorDecided => "connector_decided",
             AuditEventType::ConnectorCalled => "connector_called",
