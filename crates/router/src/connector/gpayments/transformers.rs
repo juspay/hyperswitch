@@ -353,7 +353,7 @@ impl
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing three_ds_method_data_str")
                     .map(|three_ds_method_data_string| {
-                        base64::Engine::encode(&BASE64_ENGINE, three_ds_method_data_string)
+                       Engine::encode(&BASE64_ENGINE, three_ds_method_data_string)
                     })
             })
             .transpose()?;
