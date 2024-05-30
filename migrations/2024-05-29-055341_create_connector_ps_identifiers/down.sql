@@ -1,0 +1,1 @@
+DROP TABLE connector_ps_identifiers;

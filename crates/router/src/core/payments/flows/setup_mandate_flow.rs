@@ -141,6 +141,28 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             _ => Ok((None, true)),
         }
     }
+
+        async fn clone_connector_customer<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<String>> {
+        let mut connector_customer_data = types::ConnectorCustomerData::try_from(self)?;
+        connector_customer_data.connected_account_id = self
+            .request
+            .charges
+            .as_ref()
+            .map(|charges| charges.transfer_account_id.clone());
+        customers::create_connector_customer(state, connector, self, connector_customer_data).await
+    }
+
+    async fn clone_connector_payment_method<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<String>> {
+        
+    }
 }
 
 impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {

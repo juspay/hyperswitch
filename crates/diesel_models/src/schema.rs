@@ -276,7 +276,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    connector_ps_identifiers (merchant_id, mca_id, connect_account_id, customer_ps_id, pm_ps_id) {
+    connector_ps_identifiers (id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -291,7 +291,7 @@ diesel::table! {
         #[max_length = 64]
         customer_ps_id -> Varchar,
         #[max_length = 64]
-        pm_ps_id -> Varchar,
+        pm_ps_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
     }

@@ -10,6 +10,7 @@ pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
+pub mod connector_ps_identifiers;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;

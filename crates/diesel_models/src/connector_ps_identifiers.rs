@@ -4,17 +4,17 @@ use time::PrimitiveDateTime;
 
 use crate::schema::connector_ps_identifiers;
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
+#[derive(Clone, Debug, Identifiable, Queryable, serde::Serialize, serde::Deserialize)]
 #[diesel(table_name = connector_ps_identifiers)]
-#[diesel(primary_key(merchant_id, mca_id, connect_account_id, customer_ps_id, pm_ps_id))]
+#[diesel(primary_key(id))]
 pub struct ConnectorPsIdentifiers {
-    pub id: String,
+    pub id: i32,
     pub merchant_id: String,
     pub mca_id: String,
     pub connect_account_id: String,
     pub customer_id: String,
     pub pm_id: String,
-    pub customer_ps_id: Option<String>,
+    pub customer_ps_id: String,
     pub pm_ps_id: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -26,13 +26,11 @@ pub struct ConnectorPsIdentifiers {
     Clone,
     Debug,
     Default,
-    Eq,
-    PartialEq,
     Insertable,
-    Serialize,
-    Deserialize,
     router_derive::DebugAsDisplay,
     router_derive::Setter,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[diesel(table_name = connector_ps_identifiers)]
 pub struct ConnectorPsIdentifiersNew {
@@ -41,7 +39,7 @@ pub struct ConnectorPsIdentifiersNew {
     pub connect_account_id: String,
     pub customer_id: String,
     pub pm_id: String,
-    pub customer_ps_id: Option<String>,
+    pub customer_ps_id: String,
     pub pm_ps_id: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -65,7 +63,6 @@ pub enum ConnectorPsIdentifiersUpdate {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = connector_ps_identifiers)]
 pub struct ConnectorPsIdentifierUpdateInternal {
-    pub id: Option<String>,
     pub merchant_id: Option<String>,
     pub mca_id: Option<String>,
     pub connect_account_id: Option<String>,
@@ -80,7 +77,6 @@ pub struct ConnectorPsIdentifierUpdateInternal {
 impl Default for ConnectorPsIdentifierUpdateInternal {
     fn default() -> Self {
         Self {
-            id: None,
             merchant_id: None,
             mca_id: None,
             connect_account_id: None,

@@ -2178,8 +2178,8 @@ pub enum PayoutEntityType {
     NaturalPerson,
 
     /// Wise
-    // #[strum(serialize = "lowercase")]
-    // #[serde(rename = "lowercase")]
+    #[strum(serialize = "lowercase")]
+    #[serde(rename = "lowercase")]
     Business,
     Personal,
 }
