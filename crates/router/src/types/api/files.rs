@@ -1,4 +1,5 @@
 use api_models::enums::FileUploadProvider;
+pub use hyperswitch_domain_models::router_flow_types::files::{Retrieve, Upload};
 use masking::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -67,16 +68,10 @@ pub enum FilePurpose {
     DisputeEvidence,
 }
 
-#[derive(Debug, Clone)]
-pub struct Upload;
-
 pub trait UploadFile:
     services::ConnectorIntegration<Upload, types::UploadFileRequestData, types::UploadFileResponse>
 {
 }
-
-#[derive(Debug, Clone)]
-pub struct Retrieve;
 
 pub trait RetrieveFile:
     services::ConnectorIntegration<

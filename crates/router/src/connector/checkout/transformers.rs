@@ -383,7 +383,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 eci: authentication_data.and_then(|auth| auth.eci.clone()),
                 cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.map(|auth| auth.message_version.clone()),
+                version: authentication_data.map(|auth| auth.message_version.to_string()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,

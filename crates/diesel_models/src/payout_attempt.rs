@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -10,7 +11,7 @@ use crate::{enums as storage_enums, schema::payout_attempt};
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub address_id: String,
     pub connector: Option<String>,
@@ -34,7 +35,6 @@ pub struct PayoutAttempt {
 #[derive(
     Clone,
     Debug,
-    Default,
     Eq,
     PartialEq,
     Insertable,
@@ -47,7 +47,7 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub address_id: String,
     pub connector: Option<String>,

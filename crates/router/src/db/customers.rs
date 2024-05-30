@@ -1,4 +1,4 @@
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, id_type};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use router_env::{instrument, tracing};
@@ -23,13 +23,13 @@ where
 {
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -37,7 +37,7 @@ where
 
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: String,
+        customer_id: id_type::CustomerId,
         merchant_id: String,
         customer: domain::Customer,
         customer_update: storage_types::CustomerUpdate,
@@ -47,7 +47,7 @@ where
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -69,7 +69,7 @@ where
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::ext_traits::AsyncExt;
+    use common_utils::{ext_traits::AsyncExt, id_type};
     use diesel_models::kv;
     use error_stack::{report, ResultExt};
     use futures::future::try_join_all;
@@ -103,7 +103,7 @@ mod storage {
         // check customer not found in kv and fallback to db
         async fn find_customer_optional_by_customer_id_merchant_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -126,9 +126,9 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id,
+                        customer_id: customer_id.get_string_repr(),
                     };
-                    let field = format!("cust_{}", customer_id);
+                    let field = format!("cust_{}", customer_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
@@ -167,7 +167,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_customer_by_customer_id_merchant_id(
             &self,
-            customer_id: String,
+            customer_id: id_type::CustomerId,
             merchant_id: String,
             customer: domain::Customer,
             customer_update: storage_types::CustomerUpdate,
@@ -190,9 +190,9 @@ mod storage {
             };
             let key = PartitionKey::MerchantIdCustomerId {
                 merchant_id: merchant_id.as_str(),
-                customer_id: customer_id.as_str(),
+                customer_id: customer_id.get_string_repr(),
             };
-            let field = format!("cust_{}", customer_id);
+            let field = format!("cust_{}", customer_id.get_string_repr());
             let storage_scheme = decide_storage_scheme::<_, diesel_models::Customer>(
                 self,
                 storage_scheme,
@@ -244,7 +244,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -267,9 +267,9 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id,
+                        customer_id: customer_id.get_string_repr(),
                     };
-                    let field = format!("cust_{}", customer_id);
+                    let field = format!("cust_{}", customer_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -357,9 +357,9 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id: merchant_id.as_str(),
-                        customer_id: customer_id.as_str(),
+                        customer_id: customer_id.get_string_repr(),
                     };
-                    let field = format!("cust_{}", customer_id.clone());
+                    let field = format!("cust_{}", customer_id.get_string_repr());
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
@@ -384,7 +384,7 @@ mod storage {
                         Ok(redis_interface::HsetnxReply::KeyNotSet) => {
                             Err(report!(errors::StorageError::DuplicateValue {
                                 entity: "customer",
-                                key: Some(customer_id),
+                                key: Some(customer_id.get_string_repr().to_string()),
                             }))
                         }
                         Ok(redis_interface::HsetnxReply::KeySet) => Ok(storage_customer),
@@ -402,7 +402,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn delete_customer_by_customer_id_merchant_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
         ) -> CustomResult<bool, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
@@ -419,7 +419,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use common_utils::ext_traits::AsyncExt;
+    use common_utils::{ext_traits::AsyncExt, id_type};
     use error_stack::{report, ResultExt};
     use futures::future::try_join_all;
     use masking::PeekInterface;
@@ -447,7 +447,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_optional_by_customer_id_merchant_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -483,7 +483,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_customer_by_customer_id_merchant_id(
             &self,
-            customer_id: String,
+            customer_id: id_type::CustomerId,
             merchant_id: String,
             _customer: domain::Customer,
             customer_update: storage_types::CustomerUpdate,
@@ -510,7 +510,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -590,7 +590,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn delete_customer_by_customer_id_merchant_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
         ) -> CustomResult<bool, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
@@ -610,7 +610,7 @@ impl CustomerInterface for MockDb {
     #[allow(clippy::panic)]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
@@ -619,7 +619,7 @@ impl CustomerInterface for MockDb {
         let customer = customers
             .iter()
             .find(|customer| {
-                customer.customer_id == customer_id && customer.merchant_id == merchant_id
+                customer.customer_id == *customer_id && customer.merchant_id == merchant_id
             })
             .cloned();
         customer
@@ -659,7 +659,7 @@ impl CustomerInterface for MockDb {
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        _customer_id: String,
+        _customer_id: id_type::CustomerId,
         _merchant_id: String,
         _customer: domain::Customer,
         _customer_update: storage_types::CustomerUpdate,
@@ -672,7 +672,7 @@ impl CustomerInterface for MockDb {
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        _customer_id: &str,
+        _customer_id: &id_type::CustomerId,
         _merchant_id: &str,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
@@ -704,7 +704,7 @@ impl CustomerInterface for MockDb {
 
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
-        _customer_id: &str,
+        _customer_id: &id_type::CustomerId,
         _merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`

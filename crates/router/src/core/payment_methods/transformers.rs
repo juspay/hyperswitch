@@ -1,8 +1,7 @@
-use std::str::FromStr;
-
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
+    id_type,
     pii::Email,
     request::RequestContent,
 };
@@ -39,7 +38,7 @@ impl StoreLockerReq<'_> {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
-    pub merchant_customer_id: String,
+    pub merchant_customer_id: id_type::CustomerId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requestor_card_reference: Option<String>,
     pub card: Card,
@@ -49,7 +48,7 @@ pub struct StoreCardReq<'a> {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreGenericReq<'a> {
     pub merchant_id: &'a str,
-    pub merchant_customer_id: String,
+    pub merchant_customer_id: id_type::CustomerId,
     #[serde(rename = "enc_card_data")]
     pub enc_data: String,
     pub ttl: i64,
@@ -79,7 +78,7 @@ pub enum DataDuplicationCheck {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBody<'a> {
     pub merchant_id: &'a str,
-    pub merchant_customer_id: String,
+    pub merchant_customer_id: id_type::CustomerId,
     pub card_reference: String,
 }
 
@@ -108,7 +107,7 @@ pub struct DeleteCardResp {
 #[serde(rename_all = "camelCase")]
 pub struct AddCardRequest<'a> {
     pub card_number: cards::CardNumber,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub merchant_id: &'a str,
@@ -131,7 +130,7 @@ pub struct AddCardResponse {
     pub card_exp_month: Option<Secret<String>>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
 }
 
@@ -143,7 +142,7 @@ pub struct AddPaymentMethodResponse {
     #[serde(rename = "merchant_id")]
     pub merchant_id: Option<String>,
     pub nickname: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
     pub payment_method_data: Secret<String>,
 }
@@ -380,43 +379,10 @@ pub fn mk_add_card_response_hs(
     }
 }
 
-pub fn mk_add_card_request(
-    locker: &settings::Locker,
-    card: &api::CardDetail,
-    customer_id: &str,
-    _req: &api::PaymentMethodCreate,
-    locker_id: &'static str,
-    merchant_id: &str,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let customer_id = if cfg!(feature = "release") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
-    let add_card_req = AddCardRequest {
-        card_number: card.card_number.clone(),
-        customer_id,
-        card_exp_month: card.card_exp_month.clone(),
-        card_exp_year: card.card_exp_year.clone(),
-        merchant_id: locker_id,
-        email_address: match Email::from_str("dummy@gmail.com") {
-            Ok(email) => Some(email),
-            Err(_) => None,
-        }, //
-        name_on_card: Some("John Doe".to_string().into()), // [#256]
-        nickname: Some("router".to_string()),              //
-    };
-    let mut url = locker.host.to_owned();
-    url.push_str("/card/addCard");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.set_body(RequestContent::FormUrlEncoded(Box::new(add_card_req)));
-    Ok(request)
-}
-
 pub async fn mk_get_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     card_reference: &str,
     locker_choice: Option<api_enums::LockerChoice>,
@@ -488,7 +454,7 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
 pub async fn mk_delete_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -618,7 +584,7 @@ pub fn mk_card_value2(
     card_security_code: Option<String>,
     card_fingerprint: Option<String>,
     external_id: Option<String>,
-    customer_id: Option<String>,
+    customer_id: Option<id_type::CustomerId>,
     payment_method_id: Option<String>,
 ) -> CustomResult<String, errors::VaultError> {
     let value2 = api::TokenizedCardValue2 {

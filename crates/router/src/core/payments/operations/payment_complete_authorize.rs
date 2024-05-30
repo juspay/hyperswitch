@@ -169,10 +169,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
-            &payment_intent
+            payment_intent
                 .customer_id
-                .clone()
-                .or_else(|| request.customer_id.clone()),
+                .as_ref()
+                .or(request.customer_id.as_ref()),
         )?;
 
         let shipping_address = helpers::create_or_update_address_for_payment_by_request(

@@ -5,7 +5,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::date_time;
+use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -1037,7 +1037,7 @@ where
 pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
 

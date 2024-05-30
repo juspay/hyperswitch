@@ -6,7 +6,6 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
-pub mod cache;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
@@ -124,6 +123,8 @@ pub trait StorageInterface:
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
 }
 
 pub trait MasterKeyInterface {
@@ -151,11 +152,19 @@ impl StorageInterface for Store {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
     }
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
 }
 
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
         Box::new(self.clone())
     }
 }

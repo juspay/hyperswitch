@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{collections::HashMap, fmt::Debug, ops::Deref};
+use std::{collections::HashMap, ops::Deref};
 
 use common_utils::request::RequestContent;
 use diesel_models::enums;

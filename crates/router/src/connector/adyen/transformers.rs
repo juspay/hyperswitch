@@ -2,7 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
-use common_utils::{ext_traits::Encode, pii};
+use common_utils::{ext_traits::Encode, id_type, pii};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
@@ -1640,7 +1640,8 @@ fn get_recurring_processing_model(
     match (item.request.setup_future_usage, item.request.off_session) {
         (Some(storage_enums::FutureUsage::OffSession), _) => {
             let customer_id = item.get_customer_id()?;
-            let shopper_reference = format!("{}_{}", item.merchant_id, customer_id);
+            let shopper_reference =
+                format!("{}_{}", item.merchant_id, customer_id.get_string_repr());
             let store_payment_method = item.request.is_mandate_payment();
             Ok((
                 Some(AdyenRecurringModel::UnscheduledCardOnFile),
@@ -1651,7 +1652,11 @@ fn get_recurring_processing_model(
         (_, Some(true)) => Ok((
             Some(AdyenRecurringModel::UnscheduledCardOnFile),
             None,
-            Some(format!("{}_{}", item.merchant_id, item.get_customer_id()?)),
+            Some(format!(
+                "{}_{}",
+                item.merchant_id,
+                item.get_customer_id()?.get_string_repr()
+            )),
         )),
         _ => Ok((None, None, None)),
     }
@@ -1814,10 +1819,13 @@ fn get_social_security_number(voucher_data: &domain::VoucherData) -> Option<Secr
     }
 }
 
-fn build_shopper_reference(customer_id: &Option<String>, merchant_id: String) -> Option<String> {
+fn build_shopper_reference(
+    customer_id: &Option<id_type::CustomerId>,
+    merchant_id: String,
+) -> Option<String> {
     customer_id
         .clone()
-        .map(|c_id| format!("{}_{}", merchant_id, c_id))
+        .map(|c_id| format!("{}_{}", merchant_id, c_id.get_string_repr()))
 }
 
 impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>

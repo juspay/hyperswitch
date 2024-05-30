@@ -1,6 +1,7 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
     errors::ReportSwitchExt,
+    ext_traits::OptionExt,
 };
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
@@ -35,7 +36,11 @@ pub async fn create_customer(
     mut customer_data: customers::CustomerRequest,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
-    let customer_id = &customer_data.customer_id;
+    let customer_id = customer_data
+        .customer_id
+        .clone()
+        .unwrap_or_else(common_utils::generate_customer_id_of_default_length);
+
     let merchant_id = &merchant_account.merchant_id;
     merchant_id.clone_into(&mut customer_data.merchant_id);
 
@@ -46,7 +51,7 @@ pub async fn create_customer(
     // it errors out, now the address that was inserted is not deleted
     match db
         .find_customer_by_customer_id_merchant_id(
-            customer_id,
+            &customer_id,
             merchant_id,
             &key_store,
             merchant_account.storage_scheme,
@@ -73,7 +78,7 @@ pub async fn create_customer(
             .get_domain_address(
                 customer_address,
                 merchant_id,
-                customer_id,
+                &customer_id,
                 key,
                 merchant_account.storage_scheme,
             )
@@ -93,7 +98,7 @@ pub async fn create_customer(
 
     let new_customer = async {
         Ok(domain::Customer {
-            customer_id: customer_id.to_string(),
+            customer_id: customer_id.to_owned(),
             merchant_id: merchant_id.to_string(),
             name: customer_data
                 .name
@@ -350,9 +355,17 @@ pub async fn update_customer(
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
     //Add this in update call if customer can be updated anywhere else
+
+    let customer_id = update_customer
+        .customer_id
+        .as_ref()
+        .get_required_value("customer_id")
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach("Missing required field `customer_id`")?;
+
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &update_customer.customer_id,
+            customer_id,
             &merchant_account.merchant_id,
             &key_store,
             merchant_account.storage_scheme,
@@ -376,8 +389,8 @@ pub async fn update_customer(
                         .await
                         .switch()
                         .attach_printable(format!(
-                            "Failed while updating address: merchant_id: {}, customer_id: {}",
-                            merchant_account.merchant_id, update_customer.customer_id
+                            "Failed while updating address: merchant_id: {}, customer_id: {:?}",
+                            merchant_account.merchant_id, customer_id
                         ))?,
                 )
             }
@@ -416,7 +429,7 @@ pub async fn update_customer(
 
     let response = db
         .update_customer_by_customer_id_merchant_id(
-            update_customer.customer_id.to_owned(),
+            customer_id.to_owned(),
             merchant_account.merchant_id.to_owned(),
             customer,
             async {

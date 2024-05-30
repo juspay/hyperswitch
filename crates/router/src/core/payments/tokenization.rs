@@ -4,7 +4,7 @@ use api_models::payment_methods::PaymentMethodsData;
 use common_enums::PaymentMethod;
 use common_utils::{
     ext_traits::{Encode, ValueExt},
-    pii,
+    id_type, pii,
 };
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
@@ -58,7 +58,7 @@ pub async fn save_payment_method<FData>(
     connector_name: String,
     merchant_connector_id: Option<String>,
     save_payment_method_data: SavePaymentMethodData<FData>,
-    customer_id: Option<String>,
+    customer_id: Option<id_type::CustomerId>,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
@@ -307,7 +307,7 @@ where
                                         payment_methods::cards::create_payment_method(
                                             db,
                                             &payment_method_create_request,
-                                            customer_id.as_str(),
+                                            &customer_id,
                                             &resp.payment_method_id,
                                             locker_id,
                                             merchant_id,
@@ -402,7 +402,7 @@ where
                                                 payment_method_create_request.clone(),
                                                 key_store,
                                                 &merchant_account.merchant_id,
-                                                customer_id.as_str(),
+                                                &customer_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
                                                 locker_id,
@@ -426,7 +426,7 @@ where
 
                                 payment_methods::cards::delete_card_from_locker(
                                     state,
-                                    customer_id.as_str(),
+                                    &customer_id,
                                     merchant_id,
                                     existing_pm
                                         .locker_id
@@ -439,7 +439,7 @@ where
                                     state,
                                     payment_method_create_request,
                                     &card,
-                                    customer_id.clone(),
+                                    &customer_id,
                                     merchant_account,
                                     api::enums::LockerChoice::HyperswitchCardVault,
                                     Some(
@@ -529,7 +529,7 @@ where
                         payment_methods::cards::create_payment_method(
                             db,
                             &payment_method_create_request,
-                            customer_id.as_str(),
+                            &customer_id,
                             &resp.payment_method_id,
                             locker_id,
                             merchant_id,

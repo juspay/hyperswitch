@@ -1,6 +1,5 @@
 pub mod paypal;
 pub mod stripe;
-
 use error_stack::ResultExt;
 
 use crate::{
@@ -12,7 +11,7 @@ use crate::{
     AppState,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VerifyConnectorData {
     pub connector: &'static (dyn api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,
@@ -26,6 +25,7 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
+            minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
             currency: storage_enums::Currency::USD,
             metadata: None,

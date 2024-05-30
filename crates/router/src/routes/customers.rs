@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -35,7 +36,7 @@ pub async fn customers_create(
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
     let payload = web::Json(customers::CustomerId {
@@ -90,12 +91,12 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
     mut json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
     let customer_id = path.into_inner();
-    json_payload.customer_id = customer_id;
+    json_payload.customer_id = Some(customer_id);
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -116,13 +117,14 @@ pub async fn customers_update(
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersCreate;
     let payload = web::Json(customers::CustomerId {
         customer_id: path.into_inner(),
     })
     .into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -142,7 +144,7 @@ pub async fn customers_delete(
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersGetMandates;
     let customer_id = customers::CustomerId {

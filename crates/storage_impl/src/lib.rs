@@ -4,7 +4,7 @@ use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
-use redis::{kv_store::RedisConnInterface, RedisStore};
+use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
 pub mod config;
 pub mod connection;
@@ -105,7 +105,8 @@ impl<T: DatabaseStore> RouterStore<T> {
             .attach_printable("Failed to create cache store")?;
         cache_store.set_error_callback(cache_error_signal);
         cache_store
-            .subscribe_to_channel(inmemory_cache_stream)
+            .redis_conn
+            .subscribe(inmemory_cache_stream)
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("Failed to subscribe to inmemory cache stream")?;
@@ -391,7 +392,8 @@ impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
             "customer_{}_{}",
-            self.customer_id, self.merchant_id
+            self.customer_id.get_string_repr(),
+            self.merchant_id
         )]
     }
     fn table_name(&self) -> &str {

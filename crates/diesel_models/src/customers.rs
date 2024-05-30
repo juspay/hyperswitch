@@ -1,5 +1,4 @@
-use common_enums::MerchantStorageScheme;
-use common_utils::pii;
+use common_utils::{id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
@@ -10,7 +9,7 @@ use crate::{encryption::Encryption, schema::customers};
 )]
 #[diesel(table_name = customers)]
 pub struct CustomerNew {
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
@@ -26,7 +25,7 @@ pub struct CustomerNew {
 }
 
 impl CustomerNew {
-    pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme) {
+    pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
@@ -57,7 +56,7 @@ impl From<CustomerNew> for Customer {
 #[diesel(table_name = customers)]
 pub struct Customer {
     pub id: i32,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,

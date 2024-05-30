@@ -2,6 +2,7 @@ use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
+    generate_customer_id_of_default_length, id_type,
 };
 use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
@@ -22,7 +23,6 @@ use crate::{
             CustomerDetails,
         },
         routing::TransactionData,
-        utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, AppState},
@@ -44,7 +44,7 @@ pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -581,8 +581,11 @@ pub async fn get_or_create_customer_details(
 ) -> RouterResult<Option<domain::Customer>> {
     let db: &dyn StorageInterface = &*state.store;
     // Create customer_id if not passed in request
-    let customer_id =
-        core_utils::get_or_generate_id("customer_id", &customer_details.customer_id, "cust")?;
+    let customer_id = customer_details
+        .customer_id
+        .clone()
+        .unwrap_or_else(generate_customer_id_of_default_length);
+
     let merchant_id = &merchant_account.merchant_id;
     let key = key_store.key.get_inner().peek();
 

@@ -2,6 +2,11 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+use crate::{
+    consts::ID_LENGTH,
+    id_type::{CustomerId, MerchantReferenceId},
+};
+
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
@@ -11,6 +16,7 @@ pub mod errors;
 pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
+pub mod id_type;
 pub mod macros;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
@@ -193,10 +199,22 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
+/// Generate a MerchantRefId with the default length
+fn generate_merchant_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
+    prefix: &str,
+) -> MerchantReferenceId<MAX_LENGTH, MIN_LENGTH> {
+    MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
+}
+
+/// Generate a customer id with default length
+pub fn generate_customer_id_of_default_length() -> CustomerId {
+    CustomerId::new(generate_merchant_ref_id_with_default_length("cus"))
+}
+
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
-    let len = consts::ID_LENGTH;
+    let len = ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }
 
@@ -204,4 +222,32 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
 #[inline]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
+}
+
+#[cfg(test)]
+mod nanoid_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use crate::{
+        consts::{
+            MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
+        },
+        id_type::AlphaNumericId,
+    };
+
+    #[test]
+    fn test_generate_id_with_alphanumeric_id() {
+        let alphanumeric_id = AlphaNumericId::from(generate_id(10, "def").into());
+        assert!(alphanumeric_id.is_ok())
+    }
+
+    #[test]
+    fn test_generate_merchant_ref_id_with_default_length() {
+        let ref_id = MerchantReferenceId::<
+            MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
+            MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
+        >::from(generate_id_with_default_len("def").into());
+
+        assert!(ref_id.is_ok())
+    }
 }

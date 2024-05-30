@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
 use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
+use redis_interface::RedisConnectionPool;
 
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
@@ -190,4 +191,12 @@ pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> maskin
         user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
         user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
     }
+}
+
+pub fn get_redis_connection(state: &AppState) -> UserResult<Arc<RedisConnectionPool>> {
+    state
+        .store
+        .get_redis_conn()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")
 }

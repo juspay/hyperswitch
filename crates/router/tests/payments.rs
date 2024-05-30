@@ -2,7 +2,7 @@
 
 mod utils;
 
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 use router::{
     configs,
     core::payments,
@@ -493,7 +493,7 @@ async fn payments_create_core_adyen_no_redirect() {
         amount_to_capture: Some(MinorUnit::new(6540)),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
-        customer_id: Some(customer_id),
+        customer_id: Some(id_type::CustomerId::from(customer_id.into()).unwrap()),
         description: Some("Its my first payment request".to_string()),
         return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OnSession),

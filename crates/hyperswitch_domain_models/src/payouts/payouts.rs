@@ -1,5 +1,5 @@
 use common_enums as storage_enums;
-use common_utils::pii;
+use common_utils::{id_type, pii};
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
@@ -71,7 +71,7 @@ pub trait PayoutsInterface {
 pub struct Payouts {
     pub payout_id: String,
     pub merchant_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub address_id: String,
     pub payout_type: storage_enums::PayoutType,
     pub payout_method_id: Option<String>,
@@ -96,7 +96,7 @@ pub struct Payouts {
 pub struct PayoutsNew {
     pub payout_id: String,
     pub merchant_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub address_id: String,
     pub payout_type: storage_enums::PayoutType,
     pub payout_method_id: Option<String>,
@@ -124,7 +124,7 @@ impl Default for PayoutsNew {
         Self {
             payout_id: String::default(),
             merchant_id: String::default(),
-            customer_id: String::default(),
+            customer_id: common_utils::generate_customer_id_of_default_length(),
             address_id: String::default(),
             payout_type: storage_enums::PayoutType::default(),
             payout_method_id: Option::default(),

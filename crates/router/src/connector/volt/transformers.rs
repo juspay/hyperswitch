@@ -1,4 +1,4 @@
-use common_utils::pii::Email;
+use common_utils::{id_type, pii::Email};
 use diesel_models::enums;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct ShopperDetails {
-    reference: String,
+    reference: id_type::CustomerId,
     email: Option<Email>,
     first_name: Secret<String>,
     last_name: Secret<String>,

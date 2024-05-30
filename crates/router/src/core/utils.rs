@@ -6,7 +6,7 @@ use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
 #[cfg(feature = "payouts")]
@@ -218,7 +218,7 @@ pub async fn construct_refund_router_data<'a, F>(
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    money: (i64, enums::Currency),
+    money: (MinorUnit, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
@@ -323,9 +323,11 @@ pub async fn construct_refund_router_data<'a, F>(
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             connector_transaction_id: refund.connector_transaction_id.clone(),
-            refund_amount: refund.refund_amount,
+            refund_amount: refund.refund_amount.get_amount_as_i64(),
+            minor_refund_amount: refund.refund_amount,
             currency,
-            payment_amount,
+            payment_amount: payment_amount.get_amount_as_i64(),
+            minor_payment_amount: payment_amount,
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),

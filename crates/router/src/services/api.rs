@@ -15,7 +15,6 @@ use actix_web::{
 };
 use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -23,7 +22,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
+pub use hyperswitch_domain_models::router_response_types::RedirectForm;
+use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -899,62 +899,6 @@ pub enum PaymentAction {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub enum RedirectForm {
-    Form {
-        endpoint: String,
-        method: Method,
-        form_fields: HashMap<String, String>,
-    },
-    Html {
-        html_data: String,
-    },
-    BlueSnap {
-        payment_fields_token: String, // payment-field-token
-    },
-    CybersourceAuthSetup {
-        access_token: String,
-        ddc_url: String,
-        reference_id: String,
-    },
-    CybersourceConsumerAuth {
-        access_token: String,
-        step_up_url: String,
-    },
-    Payme,
-    Braintree {
-        client_token: String,
-        card_token: String,
-        bin: String,
-    },
-    Nmi {
-        amount: String,
-        currency: Currency,
-        public_key: Secret<String>,
-        customer_vault_id: String,
-        order_id: String,
-    },
-}
-
-impl From<(url::Url, Method)> for RedirectForm {
-    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
-        let form_fields = HashMap::from_iter(
-            redirect_url
-                .query_pairs()
-                .map(|(key, value)| (key.to_string(), value.to_string())),
-        );
-
-        // Do not include query params in the endpoint
-        redirect_url.set_query(None);
-
-        Self::Form {
-            endpoint: redirect_url.to_string(),
-            method,
-            form_fields,
-        }
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

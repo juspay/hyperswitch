@@ -1,24 +1,49 @@
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutMethodData;
+#[cfg(feature = "payouts")]
+use cards::CardNumber;
+#[cfg(feature = "payouts")]
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
-    types::{self, api, domain, storage::enums},
+use crate::connector::{
+    utils,
+    utils::{get_unimplemented_payment_method_error_message, CardIssuer},
 };
 
-//TODO: Fill the struct with respective fields
+#[cfg(feature = "payouts")]
+type Error = error_stack::Report<errors::ConnectorError>;
+
+#[cfg(feature = "payouts")]
+use crate::{
+    connector::utils::{CardData, RouterData},
+    core::errors,
+    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
+    utils::OptionExt,
+};
+#[cfg(not(feature = "payouts"))]
+use crate::{
+    core::errors,
+    types::{self, api, storage::enums as storage_enums},
+};
+
 pub struct PayoneRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: i64,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for PayoneRouterData<T> {
+impl<T> TryFrom<(&api::CurrencyUnit, storage_enums::Currency, i64, T)> for PayoneRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (_currency_unit, _currency, amount, item): (
+            &api::CurrencyUnit,
+            storage_enums::Currency,
+            i64,
+            T,
+        ),
     ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
             amount,
             router_data: item,
@@ -26,203 +51,232 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for PayoneRouterD
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct PayonePaymentsRequest {
-    amount: i64,
-    card: PayoneCard,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ErrorResponse {
+    pub errors: Option<Vec<SubError>>,
+    pub error_id: Option<i32>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct PayoneCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SubError {
+    pub code: String,
+    pub message: String,
+    pub http_status_code: u16,
 }
 
-impl TryFrom<&PayoneRouterData<&types::PaymentsAuthorizeRouterData>> for PayonePaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PayoneRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
-                let card = PayoneCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+impl From<SubError> for utils::ErrorCodeAndMessage {
+    fn from(error: SubError) -> Self {
+        Self {
+            error_code: error.code.to_string(),
+            error_message: error.code.to_string(),
         }
     }
 }
-
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct PayoneAuthType {
     pub(super) api_key: Secret<String>,
+    pub merchant_account: Secret<String>,
+    pub api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PayoneAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            types::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
+                merchant_account: key1.to_owned(),
+                api_secret: api_secret.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum PayonePaymentStatus {
-    Succeeded,
-    Failed,
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayonePayoutFulfillRequest {
+    amount_of_money: AmountOfMoney,
+    card_payout_method_specific_input: CardPayoutMethodSpecificInput,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AmountOfMoney {
+    amount: i64,
+    currency_code: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardPayoutMethodSpecificInput {
+    card: Card,
+    payment_product_id: PaymentProductId,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Card {
+    card_holder_name: Secret<String>,
+    card_number: CardNumber,
+    expiry_date: Secret<String>,
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
+    for PayonePayoutFulfillRequest
+{
+    type Error = Error;
+    fn try_from(
+        item: PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
+        let request = item.router_data.request.to_owned();
+        match request.payout_type.to_owned() {
+            storage_enums::PayoutType::Card => {
+                let amount_of_money: AmountOfMoney = AmountOfMoney {
+                    amount: item.amount,
+                    currency_code: item.router_data.request.destination_currency.to_string(),
+                };
+                let card_payout_method_specific_input = match item
+                    .router_data
+                    .get_payout_method_data()?
+                {
+                    PayoutMethodData::Card(card_data) => CardPayoutMethodSpecificInput {
+                        card: Card {
+                            card_number: card_data.card_number.clone(),
+                            card_holder_name: card_data
+                                .card_holder_name
+                                .clone()
+                                .get_required_value("card_holder_name")
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "payout_method_data.card.holder_name",
+                                })?,
+                            expiry_date: card_data
+                                .get_card_expiry_month_year_2_digit_with_delimiter(
+                                    "".to_string(),
+                                )?,
+                        },
+                        payment_product_id: PaymentProductId::try_from(
+                            card_data.get_card_issuer()?,
+                        )?,
+                    },
+                    PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            get_unimplemented_payment_method_error_message("Payone"),
+                        ))?
+                    }
+                };
+                Ok(Self {
+                    amount_of_money,
+                    card_payout_method_specific_input,
+                })
+            }
+            storage_enums::PayoutType::Wallet | storage_enums::PayoutType::Bank => {
+                Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Payone"),
+                ))?
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize_repr, Deserialize_repr)]
+#[repr(i32)]
+pub enum PaymentProductId {
+    Visa = 1,
+    MasterCard = 3,
+}
+
+impl TryFrom<CardIssuer> for PaymentProductId {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(issuer: CardIssuer) -> Result<Self, Self::Error> {
+        match issuer {
+            CardIssuer::Master => Ok(Self::MasterCard),
+            CardIssuer::Visa => Ok(Self::Visa),
+            CardIssuer::AmericanExpress
+            | CardIssuer::Maestro
+            | CardIssuer::Discover
+            | CardIssuer::DinersClub
+            | CardIssuer::JCB
+            | CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("payone"),
+            )
+            .into()),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayoneStatus {
+    Created,
     #[default]
-    Processing,
+    PendingApproval,
+    Rejected,
+    PayoutRequested,
+    AccountCredited,
+    RejectedCredit,
+    Cancelled,
+    Reversed,
 }
 
-impl From<PayonePaymentStatus> for enums::AttemptStatus {
-    fn from(item: PayonePaymentStatus) -> Self {
-        match item {
-            PayonePaymentStatus::Succeeded => Self::Charged,
-            PayonePaymentStatus::Failed => Self::Failure,
-            PayonePaymentStatus::Processing => Self::Authorizing,
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayonePayoutFulfillResponse {
+    id: String,
+    payout_output: PayoutOutput,
+    status: PayoneStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutOutput {
+    amount_of_money: AmountOfMoney,
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<PayoneStatus> for storage_enums::PayoutStatus {
+    fn foreign_from(payone_status: PayoneStatus) -> Self {
+        match payone_status {
+            PayoneStatus::AccountCredited => Self::Success,
+            PayoneStatus::RejectedCredit | PayoneStatus::Rejected => Self::Failed,
+            PayoneStatus::Cancelled | PayoneStatus::Reversed => Self::Cancelled,
+            PayoneStatus::Created
+            | PayoneStatus::PendingApproval
+            | PayoneStatus::PayoutRequested => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayonePaymentsResponse {
-    status: PayonePaymentStatus,
-    id: String,
-}
-
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PayonePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>>
+    for types::PayoutsRouterData<F>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<F, PayonePaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>,
     ) -> Result<Self, Self::Error> {
+        let response: PayonePayoutFulfillResponse = item.response;
+
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+            response: Ok(types::PayoutsResponseData {
+                status: Some(storage_enums::PayoutStatus::foreign_from(response.status)),
+                connector_payout_id: response.id,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
     }
-}
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct PayoneRefundRequest {
-    pub amount: i64,
-}
-
-impl<F> TryFrom<&PayoneRouterData<&types::RefundsRouterData<F>>> for PayoneRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PayoneRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PayoneErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
 }

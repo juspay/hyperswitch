@@ -13,7 +13,7 @@ impl utils::Connector for NmiTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nmi;
         types::api::ConnectorData {
-            connector: Box::new(&Nmi),
+            connector: Box::new(Nmi::new()),
             connector_name: types::Connector::Nmi,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

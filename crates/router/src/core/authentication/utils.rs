@@ -84,6 +84,8 @@ pub async fn update_trackers<F: Clone, Req>(
                 authn_flow_type,
                 authentication_value,
                 trans_status,
+                connector_metadata,
+                ds_trans_id,
             } => {
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
@@ -97,6 +99,8 @@ pub async fn update_trackers<F: Clone, Req>(
                     acs_signed_content: authn_flow_type.get_acs_signed_content(),
                     authentication_type: authn_flow_type.get_decoupled_authentication_type(),
                     authentication_status,
+                    connector_metadata,
+                    ds_trans_id,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -111,11 +115,36 @@ pub async fn update_trackers<F: Clone, Req>(
                 authentication_value,
                 eci,
             },
+            AuthenticationResponseData::PreAuthVersionCallResponse {
+                maximum_supported_3ds_version,
+            } => storage::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+                message_version: maximum_supported_3ds_version.clone(),
+                maximum_supported_3ds_version,
+            },
+            AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                connector_metadata,
+            } => storage::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                connector_metadata,
+                acquirer_bin: acquirer_details
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                acquirer_merchant_id: acquirer_details
+                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+            },
         },
         Err(error) => storage::AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,
             authentication_status: common_enums::AuthenticationStatus::Failed,
-            error_message: Some(error.message),
+            error_message: error
+                .reason
+                .map(|reason| format!("message: {}, reason: {}", error.message, reason))
+                .or(Some(error.message)),
             error_code: Some(error.code),
         },
     };
@@ -183,6 +212,7 @@ pub async fn create_new_authentication(
         profile_id,
         payment_id,
         merchant_connector_id,
+        ds_trans_id: None,
         directory_server_id: None,
     };
     state

@@ -8,29 +8,6 @@ use crate::{
     router_request_types::BrowserInformation,
 };
 
-#[derive(Debug, Clone)]
-pub enum AuthenticationResponseData {
-    PreAuthNResponse {
-        threeds_server_transaction_id: String,
-        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
-        connector_authentication_id: String,
-        three_ds_method_data: Option<String>,
-        three_ds_method_url: Option<String>,
-        message_version: common_utils::types::SemanticVersion,
-        connector_metadata: Option<serde_json::Value>,
-    },
-    AuthNResponse {
-        authn_flow_type: AuthNFlowType,
-        authentication_value: Option<String>,
-        trans_status: common_enums::TransactionStatus,
-    },
-    PostAuthNResponse {
-        trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<String>,
-        eci: Option<String>,
-    },
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChallengeParams {
     pub acs_url: Option<url::Url>,
@@ -94,8 +71,7 @@ impl AuthNFlowType {
 #[derive(Clone, Default, Debug)]
 pub struct PreAuthNRequestData {
     // card number
-    #[allow(dead_code)]
-    pub(crate) card_holder_account_number: CardNumber,
+    pub card_holder_account_number: CardNumber,
 }
 
 #[derive(Clone, Debug)]

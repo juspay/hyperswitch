@@ -698,6 +698,7 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
   });
 });
 
+
 Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) => {
   let connectorId = globalState.get("connectorId");
   let expected_url = new URL(expected_redirection);
@@ -713,7 +714,7 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
       })
   }
   else if (globalState.get("connectorId") === "cybersource" || globalState.get("connectorId") === "bankofamerica") {
-    cy.get('iframe')
+    cy.get('iframe', { timeout: 15000 })
       .its('0.contentDocument.body')
       .within((body) => {
         cy.get('input[type="text"]').click().type("1234");
@@ -734,8 +735,9 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
           })
       })
   }
+  
   else if (globalState.get("connectorId") === "stripe") {
-    cy.get('iframe')
+    cy.get('iframe', { timeout: 30000 })
       .its('0.contentDocument.body')
       .within((body) => {
         cy.get('iframe')
@@ -768,7 +770,6 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
       cy.window().its('location.origin').should('eq', expected_url);
     })
   }
-
 });
 
 Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {

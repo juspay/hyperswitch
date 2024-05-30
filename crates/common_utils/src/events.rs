@@ -1,6 +1,8 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use serde::Serialize;
 
+use crate::id_type;
+
 pub trait ApiEventMetric {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
@@ -24,7 +26,7 @@ pub enum ApiEventsType {
         payment_method_type: Option<PaymentMethodType>,
     },
     Customer {
-        customer_id: String,
+        customer_id: id_type::CustomerId,
     },
     User {
         //specified merchant_id will overridden on global defined

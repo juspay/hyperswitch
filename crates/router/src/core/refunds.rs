@@ -5,7 +5,10 @@ use std::collections::HashMap;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, ValueExt},
+    types::MinorUnit,
+};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -75,14 +78,12 @@ pub async fn refund_create_core(
     // Amount is not passed in request refer from payment intent.
     amount = req
         .amount
-        .or(payment_intent
-            .amount_captured
-            .map(|capture_amount| capture_amount.get_amount_as_i64()))
+        .or(payment_intent.amount_captured)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
-    utils::when(amount <= 0, || {
+    utils::when(amount <= MinorUnit::new(0), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
             expected_format: "positive integer".to_string()
@@ -178,7 +179,7 @@ pub async fn trigger_refund_to_gateway(
         &routed_through,
         merchant_account,
         key_store,
-        (payment_attempt.amount.get_amount_as_i64(), currency),
+        (payment_attempt.amount, currency),
         payment_intent,
         payment_attempt,
         refund,
@@ -458,7 +459,7 @@ pub async fn sync_refund_with_gateway(
         &connector_id,
         merchant_account,
         key_store,
-        (payment_attempt.amount.get_amount_as_i64(), currency),
+        (payment_attempt.amount, currency),
         payment_intent,
         payment_attempt,
         refund,
@@ -588,7 +589,7 @@ pub async fn validate_and_create_refund(
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    refund_amount: i64,
+    refund_amount: MinorUnit,
     req: refunds::RefundRequest,
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
@@ -680,7 +681,7 @@ pub async fn validate_and_create_refund(
     validator::validate_refund_amount(
         total_amount_captured.get_amount_as_i64(),
         &all_refunds,
-        refund_amount,
+        refund_amount.get_amount_as_i64(),
     )
     .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
@@ -705,7 +706,7 @@ pub async fn validate_and_create_refund(
         .set_connector_transaction_id(connecter_transaction_id.to_string())
         .set_connector(connector)
         .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
-        .set_total_amount(payment_attempt.amount.get_amount_as_i64())
+        .set_total_amount(payment_attempt.amount)
         .set_refund_amount(refund_amount)
         .set_currency(currency)
         .set_created_at(Some(common_utils::date_time::now()))

@@ -714,13 +714,16 @@ pub async fn payouts_list_core(
                         ) {
                             logger::warn!(
                                 ?error,
-                                "customer missing for customer_id : {}",
+                                "customer missing for customer_id : {:?}",
                                 payouts.customer_id,
                             );
                             return None;
                         }
                         Some(Err(error.change_context(StorageError::ValueNotFound(
-                            format!("customer missing for customer_id : {}", payouts.customer_id),
+                            format!(
+                                "customer missing for customer_id : {:?}",
+                                payouts.customer_id
+                            ),
                         ))))
                     }
                 }
@@ -789,7 +792,11 @@ pub async fn payouts_filtered_list_core(
         match domain::Customer::convert_back(c, &key_store.key).await {
             Ok(domain_cust) => Some((p, pa, domain_cust)),
             Err(err) => {
-                logger::warn!(?err, "failed to convert customer for id: {}", p.customer_id);
+                logger::warn!(
+                    ?err,
+                    "failed to convert customer for id: {:?}",
+                    p.customer_id
+                );
                 None
             }
         }
