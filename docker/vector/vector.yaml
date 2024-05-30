@@ -11,7 +11,10 @@ sources:
     bootstrap_servers: kafka0:29092
     group_id: sessionizer
     topics:
-      - ^hyperswitch-*
+      - hyperswitch-payment-attempt-events
+      - hyperswitch-payment-intent-events
+      - hyperswitch-refund-events
+      - hyperswitch-dispute-events
 
 transforms:
   parse_kafka_payments:
