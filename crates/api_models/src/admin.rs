@@ -709,9 +709,6 @@ pub struct MerchantConnectorUpdate {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
-
-    #[schema(value_type = Option<Object>)]
-    pub connector_wallets_details: Option<pii::SecretSerdeValue>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
