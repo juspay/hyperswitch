@@ -88,7 +88,10 @@ pub async fn validate_create_request(
     // Payout token
     let payout_method_data = match req.payout_token.to_owned() {
         Some(payout_token) => {
-            let customer_id = req.customer_id.to_owned().map_or("".to_string(), |c| c);
+            let customer_id = req
+                .customer_id
+                .to_owned()
+                .unwrap_or_else(common_utils::generate_customer_id_of_default_length);
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
