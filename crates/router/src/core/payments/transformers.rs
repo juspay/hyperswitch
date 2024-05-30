@@ -160,9 +160,7 @@ where
             .payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
-        minor_amount_captured: payment_data
-            .payment_intent
-            .amount_captured,
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
         reference_id: None,

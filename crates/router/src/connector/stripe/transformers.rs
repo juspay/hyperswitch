@@ -2417,10 +2417,11 @@ impl<F, T>
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
             response,
-            amount_captured : item.response.amount_received.map(|amount| amount.get_amount_as_i64()),
-            minor_amount_captured: item
+            amount_captured: item
                 .response
-                .amount_received,
+                .amount_received
+                .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2606,9 +2607,7 @@ impl<F, T>
                 .response
                 .amount_received
                 .map(|amount| amount.get_amount_as_i64()),
-            minor_amount_captured : item
-                .response
-                .amount_received,
+            minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
             ..item.data
         })

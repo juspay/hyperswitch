@@ -73,7 +73,7 @@ impl
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
             amount_captured: None,
-            minor_amount_captured:None,
+            minor_amount_captured: None,
             request: FraudCheckTransactionData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
