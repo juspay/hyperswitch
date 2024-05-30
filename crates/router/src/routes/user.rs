@@ -656,7 +656,7 @@ pub async fn totp_reset(state: web::Data<AppState>, req: HttpRequest) -> HttpRes
         &req,
         (),
         |state, user, _, _| user_core::reset_totp(state, user),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

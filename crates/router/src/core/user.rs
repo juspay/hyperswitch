@@ -1658,6 +1658,12 @@ pub async fn reset_totp(
         return Err(UserErrors::TotpNotSetup.into());
     }
 
+    if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
+        && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
+    {
+        return Err(UserErrors::TwoFactorAuthRequired.into());
+    }
+
     let (secret, totp) =
         tfa_utils::generate_totp_and_insert_secret_in_redis(state, user_from_db).await?;
 
