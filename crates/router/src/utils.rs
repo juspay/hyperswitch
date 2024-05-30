@@ -159,7 +159,6 @@ impl<E> ConnectorResponseExt
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
 }
-
 #[derive(Debug)]
 pub struct QrImage {
     pub data: String,
