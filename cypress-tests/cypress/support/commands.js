@@ -348,7 +348,8 @@ Cypress.Commands.add(
     }
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
-
+    globalState.set("paymentMethodType", confirmBody.payment_method_type);
+    
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,

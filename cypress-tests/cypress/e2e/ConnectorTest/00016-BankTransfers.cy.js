@@ -1,8 +1,7 @@
 import confirmBody from "../../fixtures/confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import State from "../../utils/State";
-import getConnectorDetails from "../ConnectorUtils/utils";
-import * as utils from "../ConnectorUtils/utils";
+import getConnectorDetails, * as utils from "../ConnectorUtils/utils";
 
 let globalState;
 
@@ -71,10 +70,10 @@ describe("Bank Transfers", () => {
 
     it("Handle bank transfer redirection", () => {
       let expected_redirection = confirmBody["return_url"];
-      let bank_transfer_payment_method_type = "pix";
+      let payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankTransferRedirection(
         globalState,
-        bank_transfer_payment_method_type,
+        payment_method_type,
         expected_redirection
       );
     });
