@@ -35,3 +35,12 @@ function getValueByKey(jsonObject, key) {
     return null;
   }
 }
+
+export const should_continue_further = (res_data) => {
+  if(res_data.body.error !== undefined || res_data.body.error_code !== undefined || res_data.body.error_message !== undefined){
+      return false;
+  }
+  else {
+      return true;
+  }
+}

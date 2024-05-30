@@ -24,8 +24,9 @@ use crate::{
     routes::{app::ReqState, AppState},
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
-    utils,
+    utils::{self, user::two_factor_auth as tfa_utils},
 };
+
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
@@ -178,7 +179,7 @@ pub async fn signin(
         })?
         .into();
 
-    user_from_db.compare_password(request.password)?;
+    user_from_db.compare_password(&request.password)?;
 
     let signin_strategy =
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
@@ -216,7 +217,7 @@ pub async fn signin_token_only_flow(
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
 
-    user_from_db.compare_password(request.password)?;
+    user_from_db.compare_password(&request.password)?;
 
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
@@ -340,7 +341,7 @@ pub async fn change_password(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    user.compare_password(request.old_password.to_owned())
+    user.compare_password(&request.old_password)
         .change_context(UserErrors::InvalidOldPassword)?;
 
     if request.old_password == request.new_password {
@@ -438,7 +439,7 @@ pub async fn rotate_password(
     let password = domain::UserPassword::new(request.password.to_owned())?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    if user.compare_password(request.password).is_ok() {
+    if user.compare_password(&request.password).is_ok() {
         return Err(UserErrors::ChangePasswordError.into());
     }
 
@@ -1631,42 +1632,15 @@ pub async fn begin_totp(
         }));
     }
 
-    let totp = utils::user::generate_default_totp(user_from_db.get_email(), None)?;
-    let recovery_codes = domain::RecoveryCodes::generate_new();
+    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let secret = totp.get_secret_base32().into();
 
-    let key_store = user_from_db.get_or_create_key_store(&state).await?;
-
-    state
-        .store
-        .update_user_by_user_id(
-            user_from_db.get_user_id(),
-            storage_user::UserUpdate::TotpUpdate {
-                totp_status: Some(TotpStatus::InProgress),
-                totp_secret: Some(
-                    // TODO: Impl conversion trait for User and move this there
-                    domain::types::encrypt::<String, masking::WithType>(
-                        totp.get_secret_base32().into(),
-                        key_store.key.peek(),
-                    )
-                    .await
-                    .change_context(UserErrors::InternalServerError)?
-                    .into(),
-                ),
-                totp_recovery_codes: Some(
-                    recovery_codes
-                        .get_hashed()
-                        .change_context(UserErrors::InternalServerError)?,
-                ),
-            },
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)?;
+    tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
     Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
         secret: Some(user_api::TotpSecret {
-            secret: totp.get_secret_base32().into(),
+            secret,
             totp_url: totp.get_url().into(),
-            recovery_codes: recovery_codes.into_inner(),
         }),
     }))
 }
@@ -1683,28 +1657,196 @@ pub async fn verify_totp(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if let Some(user_totp) = req.totp {
-        if user_from_db.get_totp_status() == TotpStatus::NotSet {
-            return Err(UserErrors::TotpNotSetup.into());
-        }
+    if user_from_db.get_totp_status() != TotpStatus::Set {
+        return Err(UserErrors::TotpNotSetup.into());
+    }
 
-        let user_totp_secret = user_from_db
-            .decrypt_and_get_totp_secret(&state)
-            .await?
-            .ok_or(UserErrors::InternalServerError)?;
+    let user_totp_secret = user_from_db
+        .decrypt_and_get_totp_secret(&state)
+        .await?
+        .ok_or(UserErrors::InternalServerError)?;
 
-        let totp =
-            utils::user::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
+    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
 
-        if totp
-            .generate_current()
-            .change_context(UserErrors::InternalServerError)?
-            != user_totp.expose()
+    if totp
+        .generate_current()
+        .change_context(UserErrors::InternalServerError)?
+        != req.totp.expose()
+    {
+        return Err(UserErrors::InvalidTotp.into());
+    }
+
+    tfa_utils::insert_totp_in_redis(&state, &user_token.user_id).await?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn update_totp(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::VerifyTotpRequest,
+) -> UserResponse<()> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let new_totp_secret = tfa_utils::get_totp_secret_from_redis(&state, &user_token.user_id)
+        .await?
+        .ok_or(UserErrors::TotpSecretNotFound)?;
+
+    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), Some(new_totp_secret))?;
+
+    if totp
+        .generate_current()
+        .change_context(UserErrors::InternalServerError)?
+        != req.totp.expose()
+    {
+        return Err(UserErrors::InvalidTotp.into());
+    }
+
+    let key_store = user_from_db.get_or_create_key_store(&state).await?;
+
+    state
+        .store
+        .update_user_by_user_id(
+            &user_token.user_id,
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: None,
+                totp_secret: Some(
+                    // TODO: Impl conversion trait for User and move this there
+                    domain::types::encrypt::<String, masking::WithType>(
+                        totp.get_secret_base32().into(),
+                        key_store.key.peek(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .into(),
+                ),
+
+                totp_recovery_codes: None,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let _ = tfa_utils::delete_totp_secret_from_redis(&state, &user_token.user_id)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    // This is not the main task of this API, so we don't throw error if this fails.
+    // Any following API which requires TOTP will throw error if TOTP is not set in redis
+    // and FE will ask user to enter TOTP again
+    let _ = tfa_utils::insert_totp_in_redis(&state, &user_token.user_id)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn generate_recovery_codes(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+) -> UserResponse<user_api::RecoveryCodes> {
+    if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await? {
+        return Err(UserErrors::TotpRequired.into());
+    }
+
+    let recovery_codes = domain::RecoveryCodes::generate_new();
+
+    state
+        .store
+        .update_user_by_user_id(
+            &user_token.user_id,
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: None,
+                totp_secret: None,
+                totp_recovery_codes: Some(
+                    recovery_codes
+                        .get_hashed()
+                        .change_context(UserErrors::InternalServerError)?,
+                ),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(user_api::RecoveryCodes {
+        recovery_codes: recovery_codes.into_inner(),
+    }))
+}
+
+pub async fn verify_recovery_code(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_api::VerifyRecoveryCodeRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_totp_status() != TotpStatus::Set {
+        return Err(UserErrors::TwoFactorAuthNotSetup.into());
+    }
+
+    let mut recovery_codes = user_from_db
+        .get_recovery_codes()
+        .ok_or(UserErrors::InternalServerError)?;
+
+    let matching_index = utils::user::password::get_index_for_correct_recovery_code(
+        &req.recovery_code,
+        &recovery_codes,
+    )?
+    .ok_or(UserErrors::InvalidRecoveryCode)?;
+
+    tfa_utils::insert_recovery_code_in_redis(&state, user_from_db.get_user_id()).await?;
+    let _ = recovery_codes.remove(matching_index);
+
+    state
+        .store
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
+            storage_user::UserUpdate::TotpUpdate {
+                totp_status: None,
+                totp_secret: None,
+                totp_recovery_codes: Some(recovery_codes),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn terminate_two_factor_auth(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    skip_two_factor_auth: bool,
+) -> UserResponse<user_api::TokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if !skip_two_factor_auth {
+        if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
+            && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
         {
-            return Err(UserErrors::InvalidTotp.into());
+            return Err(UserErrors::TwoFactorAuthRequired.into());
         }
 
-        if user_from_db.get_totp_status() == TotpStatus::InProgress {
+        if user_from_db.get_recovery_codes().is_none() {
+            return Err(UserErrors::TwoFactorAuthNotSetup.into());
+        }
+
+        if user_from_db.get_totp_status() != TotpStatus::Set {
             state
                 .store
                 .update_user_by_user_id(
@@ -1731,4 +1873,17 @@ pub async fn verify_totp(
         },
         token,
     )
+}
+
+pub async fn check_two_factor_auth_status(
+    state: AppState,
+    user_token: auth::UserFromToken,
+) -> UserResponse<user_api::TwoFactorAuthStatusResponse> {
+    Ok(ApplicationResponse::Json(
+        user_api::TwoFactorAuthStatusResponse {
+            totp: tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?,
+            recovery_code: tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id)
+                .await?,
+        },
+    ))
 }

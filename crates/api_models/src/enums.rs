@@ -111,7 +111,7 @@ pub enum Connector {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
-    // Payone, added as template code for future usage
+    Payone,
     Paypal,
     Payu,
     Placetopay,
@@ -221,7 +221,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
-            // | Self::Payone  Added as a template code for future usage
+            | Self::Payone
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -244,10 +244,9 @@ impl Connector {
             | Self::Riskified
             | Self::Threedsecureio
             | Self::Netcetera
-            | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi => true,
+            Self::Checkout | Self::Nmi| Self::Cybersource => true,
         }
     }
 }
@@ -301,10 +300,11 @@ impl AuthenticationConnectors {
 pub enum PayoutConnectors {
     Adyen,
     Stripe,
-    Wise,
+    Payone,
     Paypal,
     Ebanx,
     Cybersource,
+    Wise,
 }
 
 #[cfg(feature = "payouts")]
@@ -313,10 +313,11 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Wise => Self::Wise,
         }
     }
 }
@@ -327,10 +328,11 @@ impl From<PayoutConnectors> for Connector {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Wise => Self::Wise,
         }
     }
 }
@@ -346,6 +348,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Payone => Ok(Self::Payone),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }
@@ -598,4 +601,53 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+pub enum PaymentChargeType {
+    #[serde(untagged)]
+    Stripe(StripeChargeType),
+}
+
+impl Default for PaymentChargeType {
+    fn default() -> Self {
+        Self::Stripe(StripeChargeType::default())
+    }
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Hash,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum StripeChargeType {
+    #[default]
+    Direct,
+    Destination,
+}
+
+#[cfg(feature = "frm")]
+pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
+    FrmConnectors::from_str(connector_name).ok()
 }

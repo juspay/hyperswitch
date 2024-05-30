@@ -6,6 +6,7 @@ use common_utils::{
     date_time,
     ext_traits::StringExt,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
@@ -140,10 +141,10 @@ impl From<StripeWallet> for payments::WalletData {
 }
 
 impl From<StripeUpi> for payments::UpiData {
-    fn from(upi: StripeUpi) -> Self {
-        Self {
-            vpa_id: Some(upi.vpa_id),
-        }
+    fn from(upi_data: StripeUpi) -> Self {
+        Self::UpiCollect(payments::UpiCollectData {
+            vpa_id: Some(upi_data.vpa_id),
+        })
     }
 }
 
@@ -312,9 +313,23 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 expected_format: "127.0.0.1".to_string(),
             })?;
 
+        let amount = item.amount.map(|amount| MinorUnit::new(amount).into());
+
+        let payment_method_data = item.payment_method_data.as_ref().map(|pmd| {
+            let payment_method_data = match pmd.payment_method_details.as_ref() {
+                Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
+                None => get_pmd_based_on_payment_method_type(item.payment_method_types),
+            };
+
+            payments::PaymentMethodDataRequest {
+                payment_method_data,
+                billing: pmd.billing_details.clone().map(payments::Address::from),
+            }
+        });
+
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
-            amount: item.amount.map(|amount| amount.into()),
+            amount,
             currency: item
                 .currency
                 .as_ref()
@@ -324,23 +339,14 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                     field_name: "currency",
                 })?,
             capture_method: item.capture_method,
-            amount_to_capture: item.amount_capturable,
+            amount_to_capture: item.amount_capturable.map(MinorUnit::new),
             confirm: item.confirm,
             customer_id: item.customer,
             email: item.receipt_email,
             phone: item.shipping.as_ref().and_then(|s| s.phone.clone()),
             description: item.description,
             return_url: item.return_url,
-            payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
-                pmd.payment_method_details
-                    .as_ref()
-                    .map(|spmd| payments::PaymentMethodDataRequest {
-                        payment_method_data: Some(payments::PaymentMethodData::from(
-                            spmd.to_owned(),
-                        )),
-                        billing: pmd.billing_details.clone().map(payments::Address::from),
-                    })
-            }),
+            payment_method_data,
             payment_method: item
                 .payment_method_data
                 .as_ref()
@@ -508,9 +514,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             object: "payment_intent",
             id: resp.payment_id,
             status: StripePaymentStatus::from(resp.status),
-            amount: resp.amount,
-            amount_capturable: resp.amount_capturable,
-            amount_received: resp.amount_received,
+            amount: resp.amount.get_amount_as_i64(),
+            amount_capturable: resp.amount_capturable.map(|amt| amt.get_amount_as_i64()),
+            amount_received: resp.amount_received.map(|amt| amt.get_amount_as_i64()),
             connector: resp.connector,
             client_secret: resp.client_secret,
             created: resp.created.map(|t| t.assume_utc().unix_timestamp()),
@@ -729,7 +735,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                 Some(item) => match item {
                     StripeMandateType::SingleUse => Some(payments::MandateType::SingleUse(
                         payments::MandateAmountData {
-                            amount: mandate.amount.unwrap_or_default(),
+                            amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
                             currency,
                             start_date: mandate.start_date,
                             end_date: mandate.end_date,
@@ -738,7 +744,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                     )),
                     StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(Some(
                         payments::MandateAmountData {
-                            amount: mandate.amount.unwrap_or_default(),
+                            amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
                             currency,
                             start_date: mandate.start_date,
                             end_date: mandate.end_date,
@@ -748,7 +754,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                 },
                 None => Some(payments::MandateType::MultiUse(Some(
                     payments::MandateAmountData {
-                        amount: mandate.amount.unwrap_or_default(),
+                        amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
                         currency,
                         start_date: mandate.start_date,
                         end_date: mandate.end_date,
@@ -813,12 +819,18 @@ pub enum StripeNextAction {
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
     },
+    FetchQrCodeInformation {
+        qr_code_fetch_url: url::Url,
+    },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
     },
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+    },
+    InvokeSdkClient {
+        next_action_data: payments::SdkNextActionData,
     },
 }
 
@@ -852,6 +864,9 @@ pub(crate) fn into_stripe_next_action(
             display_to_timestamp,
             qr_code_url,
         },
+        payments::NextActionData::FetchQrCodeInformation { qr_code_fetch_url } => {
+            StripeNextAction::FetchQrCodeInformation { qr_code_fetch_url }
+        }
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
@@ -868,10 +883,25 @@ pub(crate) fn into_stripe_next_action(
                 url: None,
             },
         },
+        payments::NextActionData::InvokeSdkClient { next_action_data } => {
+            StripeNextAction::InvokeSdkClient { next_action_data }
+        }
     })
 }
 
 #[derive(Deserialize, Clone)]
 pub struct StripePaymentRetrieveBody {
     pub client_secret: Option<String>,
+}
+
+//To handle payment types that have empty payment method data
+fn get_pmd_based_on_payment_method_type(
+    payment_method_type: Option<api_enums::PaymentMethodType>,
+) -> Option<payments::PaymentMethodData> {
+    match payment_method_type {
+        Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
+            payments::UpiData::UpiIntent(payments::UpiIntentData {}),
+        )),
+        _ => None,
+    }
 }

@@ -63,6 +63,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 three_ds_method_url,
                 message_version,
                 connector_metadata,
+                directory_server_id,
             } => storage::AuthenticationUpdate::PreAuthenticationUpdate {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,
@@ -77,11 +78,14 @@ pub async fn update_trackers<F: Clone, Req>(
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
                 acquirer_merchant_id: acquirer_details
                     .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+                directory_server_id,
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
                 authentication_value,
                 trans_status,
+                connector_metadata,
+                ds_trans_id,
             } => {
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
@@ -95,6 +99,8 @@ pub async fn update_trackers<F: Clone, Req>(
                     acs_signed_content: authn_flow_type.get_acs_signed_content(),
                     authentication_type: authn_flow_type.get_decoupled_authentication_type(),
                     authentication_status,
+                    connector_metadata,
+                    ds_trans_id,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -119,12 +125,12 @@ pub async fn update_trackers<F: Clone, Req>(
                 threeds_server_transaction_id,
                 three_ds_method_data,
                 three_ds_method_url,
-                authentication_url,
+                connector_metadata,
             } => storage::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
                 threeds_server_transaction_id,
                 three_ds_method_data,
                 three_ds_method_url,
-                authentication_url,
+                connector_metadata,
                 acquirer_bin: acquirer_details
                     .as_ref()
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
@@ -203,8 +209,8 @@ pub async fn create_new_authentication(
         profile_id,
         payment_id,
         merchant_connector_id,
-        three_ds_requestor_trans_id: None,
-        authentication_url: None,
+        ds_trans_id: None,
+        directory_server_id: None,
     };
     state
         .store

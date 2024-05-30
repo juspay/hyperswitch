@@ -386,7 +386,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments_complete_authorize))
+                        .route(web::get().to(payments_complete_authorize_redirect))
+                        .route(web::post().to(payments_complete_authorize_redirect)),
+                )
+                .service(
+                    web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments_complete_authorize)),
                 )
                 .service(
@@ -866,6 +870,7 @@ impl MerchantAccount {
                     .route(web::post().to(merchant_account_toggle_kv))
                     .route(web::get().to(merchant_account_kv_status)),
             )
+            .service(web::resource("/kv").route(web::post().to(merchant_account_toggle_all_kv)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
@@ -1204,9 +1209,35 @@ impl User {
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            )
-            .service(web::resource("/totp/begin").route(web::get().to(totp_begin)))
-            .service(web::resource("/totp/verify").route(web::post().to(totp_verify)));
+            );
+
+        // Two factor auth routes
+        route = route.service(
+            web::scope("/2fa")
+                .service(web::resource("").route(web::get().to(check_two_factor_auth_status)))
+                .service(
+                    web::scope("/totp")
+                        .service(web::resource("/begin").route(web::get().to(totp_begin)))
+                        .service(
+                            web::resource("/verify")
+                                .route(web::post().to(totp_verify))
+                                .route(web::put().to(totp_update)),
+                        ),
+                )
+                .service(
+                    web::scope("/recovery_code")
+                        .service(
+                            web::resource("/verify").route(web::post().to(verify_recovery_code)),
+                        )
+                        .service(
+                            web::resource("/generate")
+                                .route(web::get().to(generate_recovery_codes)),
+                        ),
+                )
+                .service(
+                    web::resource("/terminate").route(web::get().to(terminate_two_factor_auth)),
+                ),
+        );
 
         #[cfg(feature = "email")]
         {

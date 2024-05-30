@@ -729,8 +729,11 @@ pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
-    ///payment method types(credit, debit) that can be used in the payment
-    pub payment_method_types: Vec<FrmPaymentMethodType>,
+    ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
+    ///frm flow type to be used, can be pre/post
+    #[schema(value_type = Option<FrmPreferredFlowTypes>)]
+    pub flow: Option<api_enums::FrmPreferredFlowTypes>,
 }
 
 ///Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -743,7 +746,7 @@ pub struct FrmPaymentMethodType {
     ///card networks(like visa mastercard) types that can be used in the payment
     #[schema(value_type = CardNetwork)]
     pub card_networks: Option<Vec<common_enums::CardNetwork>>,
-    ///frm flow type to be used...can be pre/post
+    ///frm flow type to be used, can be pre/post
     #[schema(value_type = FrmPreferredFlowTypes)]
     pub flow: api_enums::FrmPreferredFlowTypes,
     ///action that the frm would take, in case fraud is detected
@@ -826,6 +829,22 @@ pub struct ToggleKVRequest {
     pub kv_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVRequest {
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToggleAllKVResponse {
+    ///Total number of updated merchants
+    #[schema(example = 20)]
+    pub total_updated: usize,
+    /// Status of KV for the specific merchant
+    #[schema(example = true)]
+    pub kv_enabled: bool,
+}
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MerchantConnectorDetailsWrap {
     /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string "null".
@@ -991,6 +1010,9 @@ pub struct BusinessProfileResponse {
 
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// Merchant's config to support extended card info feature
+    pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

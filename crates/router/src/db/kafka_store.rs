@@ -828,6 +828,15 @@ impl MerchantAccountInterface for KafkaStore {
             .await
     }
 
+    async fn update_all_merchant_account(
+        &self,
+        merchant_account: storage::MerchantAccountUpdate,
+    ) -> CustomResult<usize, errors::StorageError> {
+        self.diesel_store
+            .update_all_merchant_account(merchant_account)
+            .await
+    }
+
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
@@ -2274,6 +2283,10 @@ impl GsmInterface for KafkaStore {
 #[async_trait::async_trait]
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
+        Box::new(self.clone())
+    }
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
         Box::new(self.clone())
     }
 }

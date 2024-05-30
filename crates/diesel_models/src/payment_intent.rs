@@ -1,5 +1,5 @@
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::pii;
+use common_utils::{pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -13,9 +13,9 @@ pub struct PaymentIntent {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -58,6 +58,8 @@ pub struct PaymentIntent {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -68,9 +70,9 @@ pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -111,13 +113,15 @@ pub struct PaymentIntentNew {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
-        amount_captured: Option<i64>,
+        amount_captured: Option<MinorUnit>,
         fingerprint_id: Option<String>,
         return_url: Option<String>,
         updated_by: String,
@@ -147,7 +151,7 @@ pub enum PaymentIntentUpdate {
         incremental_authorization_allowed: Option<bool>,
     },
     Update {
-        amount: i64,
+        amount: MinorUnit,
         currency: storage_enums::Currency,
         setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
@@ -167,6 +171,7 @@ pub enum PaymentIntentUpdate {
         session_expiry: Option<PrimitiveDateTime>,
         fingerprint_id: Option<String>,
         request_external_three_ds_authentication: Option<bool>,
+        frm_metadata: Option<pii::SecretSerdeValue>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -194,20 +199,23 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
-        amount: i64,
+        amount: MinorUnit,
     },
     AuthorizationCountUpdate {
         authorization_count: i32,
+    },
+    CompleteAuthorizeUpdate {
+        shipping_address_id: Option<String>,
     },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
-    pub amount_captured: Option<i64>,
+    pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<String>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -236,6 +244,8 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
+    pub charges: Option<pii::SecretSerdeValue>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentIntentUpdate {
@@ -271,6 +281,8 @@ impl PaymentIntentUpdate {
             session_expiry,
             fingerprint_id,
             request_external_three_ds_authentication,
+            charges,
+            frm_metadata,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -308,6 +320,9 @@ impl PaymentIntentUpdate {
             session_expiry: session_expiry.or(source.session_expiry),
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
+            charges: charges.or(source.charges),
+
+            frm_metadata: frm_metadata.or(source.frm_metadata),
             ..source
         }
     }
@@ -337,6 +352,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 session_expiry,
                 fingerprint_id,
                 request_external_three_ds_authentication,
+                frm_metadata,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -359,6 +375,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 session_expiry,
                 fingerprint_id,
                 request_external_three_ds_authentication,
+                frm_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -494,6 +511,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 authorization_count: Some(authorization_count),
                 ..Default::default()
             },
+            PaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => Self {
+                shipping_address_id,
+                ..Default::default()
+            },
         }
     }
 }
@@ -542,7 +565,8 @@ mod tests {
     "incremental_authorization_allowed": null,
     "authorization_count": null,
     "session_expiry": null,
-    "fingerprint_id": null
+    "fingerprint_id": null,
+    "frm_metadata": null
 }"#;
         let deserialized_payment_intent =
             serde_json::from_str::<super::PaymentIntent>(serialized_payment_intent);
