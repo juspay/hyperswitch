@@ -4,7 +4,7 @@ use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
-use redis::{kv_store::RedisConnInterface, RedisStore};
+use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
 pub mod config;
 pub mod connection;
@@ -109,7 +109,8 @@ impl<T: DatabaseStore> RouterStore<T> {
             )),
         });
         cache_store
-            .subscribe_to_channel(inmemory_cache_stream)
+            .redis_conn
+            .subscribe(inmemory_cache_stream)
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("Failed to subscribe to inmemory cache stream")?;

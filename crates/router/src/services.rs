@@ -24,7 +24,7 @@ use storage_impl::{redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::Settings, consts, core::errors};
+use crate::{configs::Settings, core::errors};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
@@ -71,7 +71,7 @@ pub async fn get_store(
             tenant,
             master_enc_key,
             cache_store,
-            consts::PUB_SUB_CHANNEL,
+            storage_impl::redis::cache::PUB_SUB_CHANNEL,
         )
         .await?
     };

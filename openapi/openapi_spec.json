@@ -7421,6 +7421,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gpayments",
           "helcim",
           "iatapay",
           "klarna",
@@ -7433,6 +7434,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",
@@ -16139,10 +16141,11 @@
         "enum": [
           "adyen",
           "stripe",
-          "wise",
+          "payone",
           "paypal",
           "ebanx",
-          "cybersource"
+          "cybersource",
+          "wise"
         ]
       },
       "PayoutCreateRequest": {
