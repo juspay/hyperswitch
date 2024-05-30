@@ -1006,6 +1006,7 @@ impl Default for PaymentSyncType {
             connector_meta: None,
             payment_method_type: None,
             currency: enums::Currency::USD,
+            payment_experience: None,
         };
         Self(data)
     }
