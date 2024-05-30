@@ -5,9 +5,9 @@ use common_utils::date_time;
 use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
 
+use super::AuthToken;
 #[cfg(feature = "olap")]
-use super::{SinglePurposeToken, SinglePurposeOrLoginToken};
-use super::{AuthToken};
+use super::{SinglePurposeOrLoginToken, SinglePurposeToken};
 #[cfg(feature = "email")]
 use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
