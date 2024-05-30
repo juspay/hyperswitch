@@ -387,8 +387,11 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        if payload.purpose.as_ref() == Some(&self.0) && payload.permission == self.1 {
-            Ok((
+        match (
+            payload.purpose.as_ref().map(|inner| inner == &self.0),
+            payload.permission == self.1,
+        ) {
+            (Some(true), _) | (None, true) => Ok((
                 UserFromSinglePurposeOrLoginToken {
                     user_id: payload.user_id.clone(),
                 },
@@ -397,9 +400,8 @@ where
                     purpose: payload.purpose,
                     permission: payload.permission,
                 },
-            ))
-        } else {
-            Err(errors::ApiErrorResponse::InvalidJwtToken.into())
+            )),
+            _ => Err(errors::ApiErrorResponse::InvalidJwtToken.into()),
         }
     }
 }
