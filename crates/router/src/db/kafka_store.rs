@@ -2285,6 +2285,10 @@ impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
         Box::new(self.clone())
     }
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
 }
 
 #[async_trait::async_trait]

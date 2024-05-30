@@ -1,9 +1,7 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::CacheKind;
-#[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::ACCOUNTS_CACHE;
+use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 
 use super::{MockDb, Store};
 use crate::{
@@ -104,7 +102,7 @@ impl ApiKeyInterface for Store {
                 "ApiKey of {_key_id} not found"
             ))))?;
 
-            super::cache::publish_and_redact(
+            cache::publish_and_redact(
                 self,
                 CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
                 update_call,
@@ -146,7 +144,7 @@ impl ApiKeyInterface for Store {
                         "ApiKey of {key_id} not found"
                     ))))?;
 
-            super::cache::publish_and_redact(
+            cache::publish_and_redact(
                 self,
                 CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
                 delete_call,
@@ -187,7 +185,7 @@ impl ApiKeyInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &_hashed_api_key.into_inner(),
                 find_call,
@@ -375,14 +373,14 @@ impl ApiKeyInterface for MockDb {
 #[cfg(test)]
 mod tests {
     use storage_impl::redis::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
+        cache::{self, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };
     use time::macros::datetime;
 
     use crate::{
-        db::{api_keys::ApiKeyInterface, cache, MockDb},
+        db::{api_keys::ApiKeyInterface, MockDb},
         types::storage,
     };
 
