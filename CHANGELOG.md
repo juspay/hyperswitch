@@ -4,6 +4,36 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.31.0
+
+### Features
+
+- **connector:** Implement pre auth flow for gpayments ([#4692](https://github.com/juspay/hyperswitch/pull/4692)) ([`bed42ce`](https://github.com/juspay/hyperswitch/commit/bed42ce4be901f2b8f46033dd395dee8dbe807c9))
+- **payout:** [Payone] add payone connector ([#4553](https://github.com/juspay/hyperswitch/pull/4553)) ([`832968c`](https://github.com/juspay/hyperswitch/commit/832968c0c444af74fb6398950159847d639eb50e))
+- **router:** Added amount conversion function in core for connector module ([#4710](https://github.com/juspay/hyperswitch/pull/4710)) ([`08eefdb`](https://github.com/juspay/hyperswitch/commit/08eefdba4a7f428ffe7f0dac9799c46b82c49864))
+- **users:** Add support to reset totp ([#4821](https://github.com/juspay/hyperswitch/pull/4821)) ([`aca6ad1`](https://github.com/juspay/hyperswitch/commit/aca6ad1bd1f43758b22638a7a2e7e4a99b66e5ff))
+- Add a domain type for `customer_id` ([#4705](https://github.com/juspay/hyperswitch/pull/4705)) ([`93d61d1`](https://github.com/juspay/hyperswitch/commit/93d61d1053a834ac1e7bf6d5dd70053d28f3e7d5))
+
+### Bug Fixes
+
+- **netcetera:** Handle non-ascii characters for cardholdername, error message and send missing fields ([#4755](https://github.com/juspay/hyperswitch/pull/4755)) ([`5d1900e`](https://github.com/juspay/hyperswitch/commit/5d1900e1d96da1e8bb72dadfa1132a2340733fdc))
+- **routing:** Added routing validation for payments req ([#4762](https://github.com/juspay/hyperswitch/pull/4762)) ([`21a3a2e`](https://github.com/juspay/hyperswitch/commit/21a3a2ea8ada838c67b0e5871f01d09bd5a8b9ed))
+
+### Refactors
+
+- **connector:** [Klarna] Refactor configs for sandbox and production and update payment status ([#4819](https://github.com/juspay/hyperswitch/pull/4819)) ([`f7e99e1`](https://github.com/juspay/hyperswitch/commit/f7e99e1eda4bea68351f4249074e35877a95e6ee))
+- **core:** Move router data flow types to hyperswitch domain models crate ([#4801](https://github.com/juspay/hyperswitch/pull/4801)) ([`61e67e4`](https://github.com/juspay/hyperswitch/commit/61e67e42724525660df1d1076d2422f28d58a637))
+
+### Miscellaneous Tasks
+
+- **euclid_wasm:** Update klarna metadata ([#4823](https://github.com/juspay/hyperswitch/pull/4823)) ([`f192fa3`](https://github.com/juspay/hyperswitch/commit/f192fa3866c2ea21555aed8783fad2ac022091ad))
+- **postman:** Update Postman collection files ([`4833f1a`](https://github.com/juspay/hyperswitch/commit/4833f1ac31b725c275465cf9fba34c5950b3c500))
+- Remove redundant caching code ([#4804](https://github.com/juspay/hyperswitch/pull/4804)) ([`971ef1f`](https://github.com/juspay/hyperswitch/commit/971ef1fb8fd16f5af89071ddf4d143330d32f056))
+
+**Full Changelog:** [`2024.05.30.0...2024.05.31.0`](https://github.com/juspay/hyperswitch/compare/2024.05.30.0...2024.05.31.0)
+
+- - -
+
 ## 2024.05.30.0
 
 ### Features
