@@ -1669,7 +1669,12 @@ pub async fn reset_totp(
         return Err(UserErrors::TwoFactorAuthRequired.into());
     }
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        None,
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
+
     let secret = totp.get_secret_base32().into();
     tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
