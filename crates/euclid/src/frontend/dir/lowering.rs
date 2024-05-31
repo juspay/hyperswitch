@@ -56,6 +56,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::TouchNGo => Self::TouchNGo,
             enums::WalletType::Swish => Self::Swish,
             enums::WalletType::Cashapp => Self::Cashapp,
+            enums::WalletType::Venmo => Self::Venmo,
         }
     }
 }
@@ -74,6 +75,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
     fn from(value: enums::UpiType) -> Self {
         match value {
             enums::UpiType::UpiCollect => Self::UpiCollect,
+            enums::UpiType::UpiIntent => Self::UpiIntent,
         }
     }
 }

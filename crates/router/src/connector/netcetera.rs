@@ -5,7 +5,6 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
-use masking::ExposeInterface;
 use transformers as netcetera;
 
 use crate::{
@@ -229,6 +228,7 @@ fn build_endpoint(
 }
 
 impl api::ConnectorPreAuthentication for Netcetera {}
+impl api::ConnectorPreAuthenticationVersionCall for Netcetera {}
 impl api::ExternalAuthentication for Netcetera {}
 impl api::ConnectorAuthentication for Netcetera {}
 impl api::ConnectorPostAuthentication for Netcetera {}
@@ -297,8 +297,8 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(netcetera_auth_type.certificate.expose()))
-                .add_certificate_key(Some(netcetera_auth_type.private_key.expose()))
+                .add_certificate(Some(netcetera_auth_type.certificate))
+                .add_certificate_key(Some(netcetera_auth_type.private_key))
                 .build(),
         ))
     }
@@ -407,8 +407,8 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(netcetera_auth_type.certificate.expose()))
-                .add_certificate_key(Some(netcetera_auth_type.private_key.expose()))
+                .add_certificate(Some(netcetera_auth_type.certificate))
+                .add_certificate_key(Some(netcetera_auth_type.private_key))
                 .build(),
         ))
     }
@@ -448,6 +448,15 @@ impl
     ConnectorIntegration<
         api::PostAuthentication,
         types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Netcetera
+{
+}
+
+impl
+    ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
+        types::authentication::PreAuthNRequestData,
         types::authentication::AuthenticationResponseData,
     > for Netcetera
 {

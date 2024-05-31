@@ -71,6 +71,11 @@ pub mod headers {
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
     pub const X_REQUEST_ID: &str = "X-Request-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
+    pub const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
+    pub const X_CLIENT_VERSION: &str = "X-Client-Version";
+    pub const X_CLIENT_SOURCE: &str = "X-Client-Source";
+    pub const X_PAYMENT_CONFIRM_SOURCE: &str = "X-Payment-Confirm-Source";
+    pub const CONTENT_LENGTH: &str = "Content-Length";
 }
 
 pub mod pii {
@@ -187,7 +192,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
             errors::ApplicationError::ApiClientError(error.current_context().clone())
         })?,
     );
-    let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
+    let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?

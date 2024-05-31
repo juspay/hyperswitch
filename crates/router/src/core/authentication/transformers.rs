@@ -29,10 +29,10 @@ pub fn construct_authentication_router_data(
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: PaymentMethod,
-    billing_address: api_models::payments::Address,
-    shipping_address: Option<api_models::payments::Address>,
+    billing_address: payments::Address,
+    shipping_address: Option<payments::Address>,
     browser_details: Option<types::BrowserInformation>,
-    amount: Option<i64>,
+    amount: Option<common_utils::types::MinorUnit>,
     currency: Option<common_enums::Currency>,
     message_category: types::api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
@@ -40,8 +40,8 @@ pub fn construct_authentication_router_data(
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: storage::Authentication,
     return_url: Option<String>,
-    sdk_information: Option<api_models::payments::SdkInformation>,
-    threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    sdk_information: Option<payments::SdkInformation>,
+    threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
@@ -61,7 +61,7 @@ pub fn construct_authentication_router_data(
         billing_address,
         shipping_address,
         browser_details,
-        amount,
+        amount: amount.map(|amt| amt.get_amount_as_i64()),
         currency,
         message_category,
         device_channel,
@@ -109,12 +109,18 @@ pub fn construct_post_authentication_router_data(
     )
 }
 
-pub fn construct_pre_authentication_router_data(
+pub fn construct_pre_authentication_router_data<F: Clone>(
     authentication_connector: String,
     card_holder_account_number: cards::CardNumber,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     merchant_id: String,
-) -> RouterResult<types::authentication::PreAuthNRouterData> {
+) -> RouterResult<
+    types::RouterData<
+        F,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    >,
+> {
     let router_request = types::authentication::PreAuthNRequestData {
         card_holder_account_number,
     };
@@ -168,7 +174,6 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         connector_api_version: None,
         request: request_data,
         response: Err(types::ErrorResponse::default()),
-        payment_method_id: None,
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         #[cfg(feature = "payouts")]

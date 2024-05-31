@@ -458,6 +458,31 @@ pub async fn merchant_account_toggle_kv(
     )
     .await
 }
+
+/// Merchant Account - Toggle KV
+///
+/// Toggle KV mode for all Merchant Accounts
+#[instrument(skip_all)]
+pub async fn merchant_account_toggle_all_kv(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::ToggleAllKVRequest>,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyUpdate;
+    let payload = json_payload.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, payload, _| toggle_kv_for_all_merchants(state, payload.kv_enabled),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -587,6 +612,32 @@ pub async fn business_profiles_list(
         ),
         api_locking::LockAction::NotApplicable,
     )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ToggleConnectorAgnosticMit))]
+pub async fn toggle_connector_agnostic_mit(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    json_payload: web::Json<api_models::admin::ConnectorAgnosticMitChoice>,
+) -> HttpResponse {
+    let flow = Flow::ToggleConnectorAgnosticMit;
+    let (merchant_id, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
 /// Merchant Account - KV Status

@@ -1,4 +1,7 @@
-use common_utils::pii::{Email, SecretSerdeValue};
+use common_utils::{
+    id_type,
+    pii::{Email, SecretSerdeValue},
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -14,22 +17,10 @@ pub struct BillwerkRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for BillwerkRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BillwerkRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -157,7 +148,7 @@ impl<T>
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCustomerObject {
-    handle: Option<String>,
+    handle: Option<id_type::CustomerId>,
     email: Option<Email>,
     address: Option<Secret<String>>,
     address2: Option<Secret<String>>,
@@ -190,7 +181,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
             .into());
         };
         let source = match item.router_data.get_payment_method_token()? {
-            types::PaymentMethodToken::Token(pm_token) => Ok(Secret::new(pm_token)),
+            types::PaymentMethodToken::Token(pm_token) => Ok(pm_token),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
             }),
@@ -288,6 +279,7 @@ impl<F, T>
             network_txn_id: None,
             connector_response_reference_id: Some(item.response.handle),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),

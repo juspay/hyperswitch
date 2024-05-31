@@ -15,7 +15,6 @@ use actix_web::{
 };
 use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -23,7 +22,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
+pub use hyperswitch_domain_models::router_response_types::RedirectForm;
+use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -88,6 +88,26 @@ pub trait ConnectorValidation: ConnectorCommon {
                 }
                 .into())
             }
+        }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        _pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
         }
     }
 
@@ -273,7 +293,7 @@ pub enum CaptureSyncMethod {
 pub async fn execute_connector_processing_step<
     'b,
     'a,
-    T: 'static,
+    T,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
@@ -284,7 +304,7 @@ pub async fn execute_connector_processing_step<
     connector_request: Option<Request>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
-    T: Clone + Debug,
+    T: Clone + Debug + 'static,
     // BoxedConnectorIntegration<T, Req, Resp>: 'b,
 {
     // If needed add an error stack as follows
@@ -651,7 +671,7 @@ pub async fn send_request(
         }
         .add_headers(headers)
         .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
+            option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
         ))
     };
 
@@ -881,62 +901,6 @@ pub struct ApplicationRedirectResponse {
     pub url: String,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub enum RedirectForm {
-    Form {
-        endpoint: String,
-        method: Method,
-        form_fields: HashMap<String, String>,
-    },
-    Html {
-        html_data: String,
-    },
-    BlueSnap {
-        payment_fields_token: String, // payment-field-token
-    },
-    CybersourceAuthSetup {
-        access_token: String,
-        ddc_url: String,
-        reference_id: String,
-    },
-    CybersourceConsumerAuth {
-        access_token: String,
-        step_up_url: String,
-    },
-    Payme,
-    Braintree {
-        client_token: String,
-        card_token: String,
-        bin: String,
-    },
-    Nmi {
-        amount: String,
-        currency: Currency,
-        public_key: Secret<String>,
-        customer_vault_id: String,
-        order_id: String,
-    },
-}
-
-impl From<(url::Url, Method)> for RedirectForm {
-    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
-        let form_fields = std::collections::HashMap::from_iter(
-            redirect_url
-                .query_pairs()
-                .map(|(key, value)| (key.to_string(), value.to_string())),
-        );
-
-        // Do not include query params in the endpoint
-        redirect_url.set_query(None);
-
-        Self::Form {
-            endpoint: redirect_url.to_string(),
-            method,
-            form_fields,
-        }
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AuthFlow {
     Client,
@@ -1127,10 +1091,7 @@ where
                 if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
                     acc.insert(key.clone(), value.clone());
                 } else {
-                    acc.insert(
-                        key.clone(),
-                        http::header::HeaderValue::from_static("**MASKED**"),
-                    );
+                    acc.insert(key.clone(), HeaderValue::from_static("**MASKED**"));
                 }
                 acc
             });
@@ -1309,6 +1270,11 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
         #[cfg(not(feature = "detailed_errors"))]
         self
     }
+}
+
+impl EmbedError
+    for Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>
+{
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {

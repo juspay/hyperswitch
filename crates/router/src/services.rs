@@ -13,8 +13,8 @@ pub mod recon;
 #[cfg(feature = "email")]
 pub mod email;
 
-use data_models::errors::StorageResult;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::StorageResult;
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
@@ -22,7 +22,7 @@ use storage_impl::RouterStore;
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::Settings, consts, core::errors};
+use crate::{configs::Settings, core::errors};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
@@ -68,7 +68,7 @@ pub async fn get_store(
             &config.redis,
             master_enc_key,
             shut_down_signal,
-            consts::PUB_SUB_CHANNEL,
+            storage_impl::redis::cache::PUB_SUB_CHANNEL,
         )
         .await?
     };
@@ -79,6 +79,7 @@ pub async fn get_store(
         config.drainer.stream_name.clone(),
         config.drainer.num_partitions,
         config.kv_config.ttl,
+        config.kv_config.soft_kill,
     );
 
     Ok(store)

@@ -184,7 +184,7 @@ pub async fn add_api_key_expiry_task(
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let current_time = common_utils::date_time::now();
+    let current_time = date_time::now();
 
     let schedule_time = expiry_reminder_days
         .first()
@@ -341,7 +341,7 @@ pub async fn update_api_key_expiry_task(
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let current_time = common_utils::date_time::now();
+    let current_time = date_time::now();
 
     let schedule_time = expiry_reminder_days
         .first()

@@ -8,12 +8,13 @@ use crate::{
         PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
-        PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
-        PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
-        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
-        PaymentsStartRequest, RedirectionResponse,
+        ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
+        PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsRejectRequest, PaymentsRequest,
+        PaymentsResponse, PaymentsRetrieveRequest, PaymentsStartRequest, RedirectionResponse,
     },
 };
 impl ApiEventMetric for PaymentsRetrieveRequest {
@@ -39,6 +40,14 @@ impl ApiEventMetric for PaymentsCaptureRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.to_owned(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsCompleteAuthorizeRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
         })
     }
 }
@@ -201,3 +210,5 @@ impl ApiEventMetric for PaymentsExternalAuthenticationRequest {
         })
     }
 }
+
+impl ApiEventMetric for ExtendedCardInfoResponse {}

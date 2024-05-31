@@ -55,6 +55,12 @@ pub enum GooglePayData {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaypalSdkData {
+    pub client_id: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum GoogleApiModelData {
@@ -79,6 +85,7 @@ pub struct ApiModelMetaData {
     pub terminal_id: Option<String>,
     pub merchant_id: Option<String>,
     pub google_pay: Option<GoogleApiModelData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
     pub endpoint_prefix: Option<String>,
@@ -87,6 +94,19 @@ pub struct ApiModelMetaData {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<KlarnaEndpoint>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+
+pub enum KlarnaEndpoint {
+    Europe,
+    NorthAmerica,
+    Oceania,
 }
 
 #[serde_with::skip_serializing_none]
@@ -177,6 +197,7 @@ pub struct DashboardMetaData {
     pub terminal_id: Option<String>,
     pub merchant_id: Option<String>,
     pub google_pay: Option<GooglePayData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
     pub endpoint_prefix: Option<String>,
@@ -185,4 +206,8 @@ pub struct DashboardMetaData {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<KlarnaEndpoint>,
 }

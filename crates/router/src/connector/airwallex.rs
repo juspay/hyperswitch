@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use std::fmt::Debug;
 
 use common_utils::{
@@ -28,6 +27,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, Response, RouterData,
     },
     utils::{crypto, BytesExt},
@@ -223,7 +223,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -312,7 +312,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -349,7 +349,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsInitRouterData::from((
+        let authorize_data = &types::PaymentsInitRouterData::foreign_from((
             &router_data.to_owned(),
             router_data.request.clone(),
         ));
@@ -442,7 +442,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -523,7 +523,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -614,7 +614,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -703,7 +703,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -779,7 +779,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -892,7 +892,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -965,7 +965,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

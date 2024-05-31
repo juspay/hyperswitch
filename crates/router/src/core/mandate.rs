@@ -1,7 +1,7 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -235,7 +235,7 @@ pub async fn get_customer_mandates(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while finding mandate: merchant_id: {}, customer_id: {}",
+                "Failed while finding mandate: merchant_id: {}, customer_id: {:?}",
                 merchant_account.merchant_id, req.customer_id
             )
         })?;
@@ -344,7 +344,7 @@ where
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
@@ -512,9 +512,11 @@ impl ForeignFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
 pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
-    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
-    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
+    fn get_mandate_id(&self) -> Option<&payments::MandateIds>;
+    fn set_mandate_id(&mut self, new_mandate_id: Option<payments::MandateIds>);
     fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData;
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData>;
-    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance>;
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
+    fn get_customer_acceptance(&self) -> Option<payments::CustomerAcceptance>;
 }

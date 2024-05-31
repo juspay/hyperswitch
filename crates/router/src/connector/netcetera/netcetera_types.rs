@@ -1,9 +1,15 @@
 use std::collections::HashMap;
 
 use common_utils::pii::Email;
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
+use unidecode::unidecode;
 
-use crate::types::api::MessageCategory;
+use crate::{
+    connector::utils::{AddressDetailsData, PhoneDetailsData},
+    errors,
+    types::api::MessageCategory,
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -679,24 +685,31 @@ pub struct Cardholder {
 }
 
 impl
-    From<(
+    TryFrom<(
         api_models::payments::Address,
         Option<api_models::payments::Address>,
     )> for Cardholder
 {
-    fn from(
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
         (billing_address, shipping_address): (
             api_models::payments::Address,
             Option<api_models::payments::Address>,
         ),
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
             addr_match: None,
             bill_addr_city: billing_address
                 .address
                 .as_ref()
                 .and_then(|add| add.city.clone()),
-            bill_addr_country: None,
+            bill_addr_country: billing_address.address.as_ref().and_then(|add| {
+                add.country.map(|country| {
+                    common_enums::Country::from_alpha2(country)
+                        .to_numeric()
+                        .to_string()
+                })
+            }),
             bill_addr_line1: billing_address
                 .address
                 .as_ref()
@@ -716,20 +729,43 @@ impl
             bill_addr_state: billing_address
                 .address
                 .as_ref()
-                .and_then(|add| add.state.clone()),
+                .and_then(|add| add.to_state_code_as_optional().transpose())
+                .transpose()?,
             email: billing_address.email,
-            home_phone: billing_address.phone.clone().map(Into::into),
-            mobile_phone: billing_address.phone.clone().map(Into::into),
-            work_phone: billing_address.phone.clone().map(Into::into),
-            cardholder_name: billing_address
-                .address
-                .as_ref()
-                .and_then(|add| add.first_name.clone()),
+            home_phone: billing_address
+                .phone
+                .clone()
+                .map(PhoneNumber::try_from)
+                .transpose()?,
+            mobile_phone: billing_address
+                .phone
+                .clone()
+                .map(PhoneNumber::try_from)
+                .transpose()?,
+            work_phone: billing_address
+                .phone
+                .clone()
+                .map(PhoneNumber::try_from)
+                .transpose()?,
+            cardholder_name: billing_address.address.and_then(|address| {
+                address
+                    .get_optional_full_name()
+                    .map(|name| masking::Secret::new(unidecode(&name.expose())))
+            }),
             ship_addr_city: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
                 .and_then(|add| add.city.clone()),
-            ship_addr_country: None,
+            ship_addr_country: shipping_address
+                .as_ref()
+                .and_then(|shipping_add| shipping_add.address.as_ref())
+                .and_then(|add| {
+                    add.country.map(|country| {
+                        common_enums::Country::from_alpha2(country)
+                            .to_numeric()
+                            .to_string()
+                    })
+                }),
             ship_addr_line1: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
@@ -749,9 +785,10 @@ impl
             ship_addr_state: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
-                .and_then(|add| add.state.clone()),
+                .and_then(|add| add.to_state_code_as_optional().transpose())
+                .transpose()?,
             tax_id: None,
-        }
+        })
     }
 }
 
@@ -764,12 +801,13 @@ pub struct PhoneNumber {
     subscriber: Option<masking::Secret<String>>,
 }
 
-impl From<api_models::payments::PhoneDetails> for PhoneNumber {
-    fn from(value: api_models::payments::PhoneDetails) -> Self {
-        Self {
-            country_code: value.country_code,
+impl TryFrom<api_models::payments::PhoneDetails> for PhoneNumber {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::PhoneDetails) -> Result<Self, Self::Error> {
+        Ok(Self {
+            country_code: Some(value.extract_country_code()?),
             subscriber: value.number,
-        }
+        })
     }
 }
 
@@ -1293,7 +1331,7 @@ pub struct Browser {
     /// - with message version = 2.1.0 and deviceChannel = 02 (BRW).
     /// - with message version = 2.2.0 and deviceChannel = 02 (BRW) and browserJavascriptEnabled = true.
     #[serde(rename = "browserTZ")]
-    browser_tz: Option<u32>,
+    browser_tz: Option<i32>,
 
     /// Exact content of the HTTP user-agent header. The field is limited to maximum 2048 characters. If the total length of
     /// the User-Agent sent by the browser exceeds 2048 characters, the 3DS Server truncates the excess portion.
@@ -1344,7 +1382,7 @@ impl From<crate::types::BrowserInformation> for Browser {
             browser_color_depth: value.color_depth.map(|cd| cd.to_string()),
             browser_screen_height: value.screen_height,
             browser_screen_width: value.screen_width,
-            browser_tz: Some(1),
+            browser_tz: value.time_zone,
             browser_user_agent: value.user_agent,
             challenge_window_size: Some(ChallengeWindowSizeEnum::FullScreen),
             browser_javascript_enabled: value.java_script_enabled,
@@ -1377,6 +1415,7 @@ pub struct Sdk {
     ///
     /// Starting from EMV 3DS 2.3.1:
     /// In case of Browser-SDK, the SDK App ID value is not reliable, and may change for each transaction.
+    #[serde(rename = "sdkAppID")]
     sdk_app_id: Option<String>,
 
     /// JWE Object as defined Section 6.2.2.1 containing data encrypted by the SDK for the DS to decrypt. This element is
@@ -1404,6 +1443,7 @@ pub struct Sdk {
     /// Universally unique transaction identifier assigned by the 3DS SDK to identify a single transaction. The field is
     /// limited to 36 characters and it shall be in a canonical format as defined in IETF RFC 4122. This may utilize any of
     /// the specified versions as long as the output meets specific requirements.
+    #[serde(rename = "sdkTransID")]
     sdk_trans_id: Option<String>,
 
     /// Contains the JWS object(represented as a string) created by the Split-SDK Server for the AReq message. A
@@ -1586,4 +1626,36 @@ pub enum ThreeDSReqAuthMethod {
     /// Additionally, 80-99 can be used for PS-specific values, regardless of protocol version.
     #[serde(untagged)]
     PsSpecificValue(String),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceRenderingOptionsSupported {
+    pub sdk_interface: SdkInterface,
+    /// For Native UI SDK Interface accepted values are 01-04 and for HTML UI accepted values are 01-05.
+    pub sdk_ui_type: Vec<SdkUiType>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum SdkInterface {
+    #[serde(rename = "01")]
+    Native,
+    #[serde(rename = "02")]
+    Html,
+    #[serde(rename = "03")]
+    Both,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum SdkUiType {
+    #[serde(rename = "01")]
+    Text,
+    #[serde(rename = "02")]
+    SingleSelect,
+    #[serde(rename = "03")]
+    MultiSelect,
+    #[serde(rename = "04")]
+    Oob,
+    #[serde(rename = "05")]
+    HtmlOther,
 }

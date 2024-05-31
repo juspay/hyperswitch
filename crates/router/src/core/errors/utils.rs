@@ -42,7 +42,7 @@ impl<T> StorageErrorExt<T, errors::CustomersErrorResponse>
 }
 
 impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
-    for error_stack::Result<T, data_models::errors::StorageError>
+    for error_stack::Result<T, hyperswitch_domain_models::errors::StorageError>
 {
     #[track_caller]
     fn to_not_found_response(
@@ -51,8 +51,10 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let new_err = match err.current_context() {
-                data_models::errors::StorageError::ValueNotFound(_) => not_found_response,
-                data_models::errors::StorageError::CustomerRedacted => {
+                hyperswitch_domain_models::errors::StorageError::ValueNotFound(_) => {
+                    not_found_response
+                }
+                hyperswitch_domain_models::errors::StorageError::CustomerRedacted => {
                     errors::ApiErrorResponse::CustomerRedacted
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
@@ -68,7 +70,9 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let new_err = match err.current_context() {
-                data_models::errors::StorageError::DuplicateValue { .. } => duplicate_response,
+                hyperswitch_domain_models::errors::StorageError::DuplicateValue { .. } => {
+                    duplicate_response
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(new_err)
@@ -154,9 +158,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             }
             errors::ConnectorError::NotImplemented(reason) => {
                 errors::ApiErrorResponse::NotImplemented {
-                    message: errors::api_error_response::NotImplementedMessage::Reason(
-                        reason.to_string(),
-                    ),
+                    message: errors::NotImplementedMessage::Reason(reason.to_string()),
                 }
                 .into()
             }
@@ -213,7 +215,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::InSufficientBalanceInPaymentMethod
             | errors::ConnectorError::RequestTimeoutReceived
             | errors::ConnectorError::CurrencyNotSupported { .. }
-            | errors::ConnectorError::InvalidConnectorConfig { .. } => {
+            | errors::ConnectorError::InvalidConnectorConfig { .. }
+            | errors::ConnectorError::AmountConversionFailed { .. } => {
                 err.change_context(errors::ApiErrorResponse::RefundFailed { data: None })
             }
         })
@@ -245,7 +248,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                        message: errors::NotImplementedMessage::Reason(
                             reason.to_string(),
                         ),
                     }
@@ -307,7 +310,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::MissingPaymentMethodType |
                 errors::ConnectorError::InSufficientBalanceInPaymentMethod |
                 errors::ConnectorError::RequestTimeoutReceived |
-                errors::ConnectorError::ProcessingStepFailed(None) => errors::ApiErrorResponse::InternalServerError
+                errors::ConnectorError::ProcessingStepFailed(None)|
+                errors::ConnectorError::AmountConversionFailed => errors::ApiErrorResponse::InternalServerError
             };
             err.change_context(error)
         })
@@ -397,7 +401,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::InSufficientBalanceInPaymentMethod
                 | errors::ConnectorError::RequestTimeoutReceived
                 | errors::ConnectorError::CurrencyNotSupported { .. }
-                | errors::ConnectorError::ProcessingStepFailed(None) => {
+                | errors::ConnectorError::ProcessingStepFailed(None)
+                | errors::ConnectorError::AmountConversionFailed { .. } => {
                     logger::error!(%error,"Setup Mandate flow failed");
                     errors::ApiErrorResponse::PaymentAuthorizationFailed { data: None }
                 }
@@ -472,9 +477,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
-                            reason.to_string(),
-                        ),
+                        message: errors::NotImplementedMessage::Reason(reason.to_string()),
                     }
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,

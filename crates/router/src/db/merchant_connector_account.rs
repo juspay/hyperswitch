@@ -24,13 +24,13 @@ pub trait ConnectorAccessToken {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &str,
+        merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError>;
 
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &str,
+        merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError>;
 }
@@ -41,13 +41,15 @@ impl ConnectorAccessToken for Store {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &str,
+        merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         //TODO: Handle race condition
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
-        let key =
-            common_utils::access_token::create_access_token_key(merchant_id, merchant_connector_id);
+        let key = common_utils::access_token::create_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
 
         let maybe_token = self
             .get_redis_conn()
@@ -69,11 +71,13 @@ impl ConnectorAccessToken for Store {
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id: &str,
+        merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
-        let key =
-            common_utils::access_token::create_access_token_key(merchant_id, merchant_connector_id);
+        let key = common_utils::access_token::create_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
         let serialized_access_token = access_token
             .encode_to_string_of_json()
             .change_context(errors::StorageError::SerializationFailed)?;
@@ -90,7 +94,7 @@ impl ConnectorAccessToken for MockDb {
     async fn get_access_token(
         &self,
         _merchant_id: &str,
-        _merchant_connector_id: &str,
+        _merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         Ok(None)
     }
@@ -98,7 +102,7 @@ impl ConnectorAccessToken for MockDb {
     async fn set_access_token(
         &self,
         _merchant_id: &str,
-        _merchant_connector_id: &str,
+        _merchant_connector_id_or_connector_name: &str,
         _access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         Ok(())
@@ -199,7 +203,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id, connector_label),
                 find_call,
@@ -244,7 +248,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", profile_id, connector_name),
                 find_call,
@@ -318,7 +322,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id, merchant_connector_id),
                 find_call,
@@ -414,7 +418,7 @@ impl MerchantConnectorAccountInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             // Redact both the caches as any one or both might be used because of backwards compatibility
-            super::cache::publish_and_redact_multiple(
+            cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -422,6 +426,9 @@ impl MerchantConnectorAccountInterface for Store {
                     ),
                     cache::CacheKind::Accounts(
                         format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                    ),
+                    cache::CacheKind::CGraph(
+                        format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
                     ),
                 ],
                 update_call,
@@ -471,9 +478,16 @@ impl MerchantConnectorAccountInterface for Store {
                 "profile_id".to_string(),
             ))?;
 
-            super::cache::publish_and_redact(
+            cache::publish_and_redact_multiple(
                 self,
-                cache::CacheKind::Accounts(format!("{}_{}", mca.merchant_id, _profile_id).into()),
+                [
+                    cache::CacheKind::Accounts(
+                        format!("{}_{}", mca.merchant_id, _profile_id).into(),
+                    ),
+                    cache::CacheKind::CGraph(
+                        format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                    ),
+                ],
                 delete_call,
             )
             .await
@@ -746,6 +760,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
 }
 
+#[cfg(feature = "accounts_cache")]
 #[cfg(test)]
 mod merchant_connector_account_cache_tests {
     use api_models::enums::CountryAlpha2;
@@ -754,7 +769,7 @@ mod merchant_connector_account_cache_tests {
     use error_stack::ResultExt;
     use masking::PeekInterface;
     use storage_impl::redis::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
+        cache::{self, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };
@@ -763,7 +778,7 @@ mod merchant_connector_account_cache_tests {
     use crate::{
         core::errors,
         db::{
-            cache, merchant_connector_account::MerchantConnectorAccountInterface,
+            merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
         },
         services,

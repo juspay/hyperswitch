@@ -35,7 +35,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     if should_update_router_data {
         match add_access_token_result.access_token_result.as_ref() {
             Ok(access_token) => {
-                router_data.access_token = access_token.clone();
+                router_data.access_token.clone_from(access_token);
                 true
             }
             Err(connector_error) => {
@@ -64,21 +64,53 @@ pub async fn add_access_token<
     {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
-        let merchant_connector_id = connector
+
+        // `merchant_connector_id` may not be present in the below cases
+        // - when straight through routing is used without passing the `merchant_connector_id`
+        // - when creds identifier is passed
+        //
+        // In these cases fallback to `connector_name`.
+        // We cannot use multiple merchant connector account in these cases
+        let merchant_connector_id_or_connector_name = connector
             .merchant_connector_id
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing merchant_connector_id in ConnectorData")?;
+            .clone()
+            .unwrap_or(connector.connector_name.to_string());
 
         let old_access_token = store
-            .get_access_token(merchant_id, merchant_connector_id)
+            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
 
         let res = match old_access_token {
-            Some(access_token) => Ok(Some(access_token)),
+            Some(access_token) => {
+                router_env::logger::debug!(
+                    "Access token found in redis for merchant_id: {}, payment_id: {}, connector: {} which has expiry of: {} seconds",
+                    merchant_account.merchant_id,
+                    router_data.payment_id,
+                    connector.connector_name,
+                    access_token.expires
+                );
+                metrics::ACCESS_TOKEN_CACHE_HIT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes(
+                        "connector",
+                        connector.connector_name.to_string(),
+                    )],
+                );
+                Ok(Some(access_token))
+            }
             None => {
+                metrics::ACCESS_TOKEN_CACHE_MISS.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes(
+                        "connector",
+                        connector.connector_name.to_string(),
+                    )],
+                );
+
                 let cloned_router_data = router_data.clone();
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from(
                     router_data.connector_auth_type.clone(),
@@ -108,15 +140,31 @@ pub async fn add_access_token<
                     &refresh_token_router_data,
                 )
                 .await?
-                .async_map(|access_token| async {
-                    // Store the access token in redis with expiry
-                    // The expiry should be adjusted for network delays from the connector
+                .async_map(|access_token| async move {
                     let store = &*state.store;
+
+                    // The expiry should be adjusted for network delays from the connector
+                    // The access token might not have been expired when request is sent
+                    // But once it reaches the connector, it might expire because of the network delay
+                    // Subtract few seconds from the expiry in order to account for these network delays
+                    // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
+                    let modified_access_token_with_expiry = types::AccessToken {
+                        expires: access_token
+                            .expires
+                            .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
+                        ..access_token
+                    };
+
+                    logger::debug!(
+                        access_token_expiry_after_modification =
+                            modified_access_token_with_expiry.expires
+                    );
+
                     if let Err(access_token_set_error) = store
                         .set_access_token(
                             merchant_id,
-                            merchant_connector_id.as_str(),
-                            access_token.clone(),
+                            &merchant_connector_id_or_connector_name,
+                            modified_access_token_with_expiry.clone(),
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -127,7 +175,7 @@ pub async fn add_access_token<
                         // The next request will create new access token, if required
                         logger::error!(access_token_set_error=?access_token_set_error);
                     }
-                    Some(access_token)
+                    Some(modified_access_token_with_expiry)
                 })
                 .await
             }

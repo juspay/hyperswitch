@@ -2,15 +2,6 @@
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use data_models::payouts::PayoutFetchConstraints;
-use data_models::{
-    errors::StorageError,
-    payouts::{
-        payout_attempt::PayoutAttempt,
-        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
-    },
-};
-#[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "olap")]
 use diesel_models::{
@@ -28,6 +19,15 @@ use diesel_models::{
     },
 };
 use error_stack::ResultExt;
+#[cfg(feature = "olap")]
+use hyperswitch_domain_models::payouts::PayoutFetchConstraints;
+use hyperswitch_domain_models::{
+    errors::StorageError,
+    payouts::{
+        payout_attempt::PayoutAttempt,
+        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    },
+};
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -38,7 +38,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -51,6 +51,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         new: PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Insert).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store.insert_payout(new, storage_scheme).await
@@ -86,6 +88,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     profile_id: new.profile_id.clone(),
                     status: new.status,
                     attempt_count: new.attempt_count,
+                    confirm: new.confirm,
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -127,6 +130,17 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         payout_attempt: &PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
+        let key = PartitionKey::MerchantIdPayoutId {
+            merchant_id: &this.merchant_id,
+            payout_id: &this.payout_id,
+        };
+        let field = format!("po_{}", this.payout_id);
+        let storage_scheme = decide_storage_scheme::<_, DieselPayouts>(
+            self,
+            storage_scheme,
+            Op::Update(key.clone(), &field, None),
+        )
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -134,12 +148,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPayoutId {
-                    merchant_id: &this.merchant_id,
-                    payout_id: &this.payout_id,
-                };
                 let key_str = key.to_string();
-                let field = format!("po_{}", this.payout_id);
 
                 let diesel_payout_update = payout_update.to_storage_model();
                 let origin_diesel_payout = this.clone().to_storage_model();
@@ -193,6 +202,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
@@ -235,6 +246,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
+        let storage_scheme =
+            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 let maybe_payouts = database_call().await?;
@@ -674,6 +687,7 @@ impl DataModelExt for Payouts {
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
+            confirm: self.confirm,
         }
     }
 
@@ -699,6 +713,7 @@ impl DataModelExt for Payouts {
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
+            confirm: storage_model.confirm,
         }
     }
 }
@@ -727,6 +742,7 @@ impl DataModelExt for PayoutsNew {
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
+            confirm: self.confirm,
         }
     }
 
@@ -752,6 +768,7 @@ impl DataModelExt for PayoutsNew {
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
+            confirm: storage_model.confirm,
         }
     }
 }
@@ -771,6 +788,7 @@ impl DataModelExt for PayoutsUpdate {
                 metadata,
                 profile_id,
                 status,
+                confirm,
             } => DieselPayoutsUpdate::Update {
                 amount,
                 destination_currency,
@@ -783,6 +801,7 @@ impl DataModelExt for PayoutsUpdate {
                 metadata,
                 profile_id,
                 status,
+                confirm,
             },
             Self::PayoutMethodIdUpdate { payout_method_id } => {
                 DieselPayoutsUpdate::PayoutMethodIdUpdate { payout_method_id }

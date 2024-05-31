@@ -1,7 +1,6 @@
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
-pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
 #[cfg(feature = "kv_store")]
@@ -17,14 +16,15 @@ use std::fmt::Debug;
 
 use api_models::{enums, payments, webhooks};
 use base64::Engine;
+use common_utils::id_type;
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
     validation::validate_email,
 };
-use data_models::payments::PaymentIntent;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
@@ -99,7 +99,7 @@ pub mod error_parser {
     }
 
     pub fn custom_json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> Error {
-        actix_web::error::Error::from(CustomJsonError { err })
+        Error::from(CustomJsonError { err })
     }
 }
 
@@ -160,7 +160,6 @@ impl<E> ConnectorResponseExt
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
 }
-
 #[derive(Debug)]
 pub struct QrImage {
     pub data: String,
@@ -185,7 +184,7 @@ impl QrImage {
         let image_data_source = format!(
             "{},{}",
             consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes.get_ref().get_ref())
+            consts::BASE64_ENGINE.encode(image_bytes.buffer())
         );
         Ok(Self {
             data: image_data_source,
@@ -565,26 +564,26 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
 pub trait CustomerAddress {
     async fn get_address_update(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
+    ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
 }
 
 #[async_trait::async_trait]
 impl CustomerAddress for api_models::customers::CustomerRequest {
     async fn get_address_update(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
@@ -640,14 +639,14 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 
     async fn get_domain_address(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+    ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
         async {
-            Ok(domain::Address {
+            let address = domain::Address {
                 id: None,
                 city: address_details.city,
                 country: address_details.country,
@@ -685,10 +684,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
-                payment_id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 updated_by: storage_scheme.to_string(),
@@ -698,6 +695,11 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .cloned()
                     .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
                     .await?,
+            };
+
+            Ok(domain::CustomerAddress {
+                address,
+                customer_id: customer_id.to_owned(),
             })
         }
         .await
@@ -849,6 +851,7 @@ where
         enums::IntentStatus::Succeeded
             | enums::IntentStatus::Failed
             | enums::IntentStatus::PartiallyCaptured
+            | enums::IntentStatus::RequiresMerchantAction
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,

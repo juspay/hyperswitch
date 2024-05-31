@@ -259,7 +259,7 @@ pub async fn routing_update_default_config(
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingUpdateDefaultConfig,
         state,
         &req,
@@ -281,7 +281,7 @@ pub async fn routing_update_default_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -292,7 +292,7 @@ pub async fn routing_retrieve_default_config(
     req: HttpRequest,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
         state,
         &req,
@@ -309,7 +309,7 @@ pub async fn routing_retrieve_default_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::RoutingRead),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -568,47 +568,12 @@ pub async fn routing_retrieve_linked_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
-pub async fn upsert_connector_agnostic_mandate_config(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<routing_types::DetailedConnectorChoice>,
-    path: web::Path<String>,
-) -> impl Responder {
-    use crate::services::authentication::AuthenticationData;
-
-    let flow = Flow::CreateConnectorAgnosticMandateConfig;
-    let business_profile_id = path.into_inner();
-
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state, _auth: AuthenticationData, mandate_config, _| {
-            Box::pin(routing::upsert_connector_agnostic_mandate_config(
-                state,
-                &business_profile_id,
-                mandate_config,
-            ))
-        },
-        auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::RoutingWrite),
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "olap")]
-#[instrument(skip_all)]
 pub async fn routing_retrieve_default_config_for_profiles(
     state: web::Data<AppState>,
     req: HttpRequest,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
         state,
         &req,
@@ -633,7 +598,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -650,7 +615,7 @@ pub async fn routing_update_default_config_for_profile(
         updated_config: json_payload.into_inner(),
         profile_id: path.into_inner(),
     };
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingUpdateDefaultConfig,
         state,
         &req,
@@ -673,6 +638,6 @@ pub async fn routing_update_default_config_for_profile(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

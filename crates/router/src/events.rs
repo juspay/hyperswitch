@@ -1,6 +1,6 @@
-use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
+use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};

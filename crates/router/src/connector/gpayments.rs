@@ -1,0 +1,422 @@
+pub mod gpayments_types;
+pub mod transformers;
+
+use std::fmt::Debug;
+
+use common_utils::request::RequestContent;
+use error_stack::{report, ResultExt};
+use transformers as gpayments;
+
+use crate::{
+    configs::settings,
+    core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
+    headers, services,
+    services::{request, ConnectorIntegration, ConnectorValidation},
+    types::{
+        self,
+        api::{self, ConnectorCommon, ConnectorCommonExt},
+        ErrorResponse, Response,
+    },
+    utils::BytesExt,
+};
+
+#[derive(Debug, Clone)]
+pub struct Gpayments;
+
+impl api::Payment for Gpayments {}
+impl api::PaymentSession for Gpayments {}
+impl api::ConnectorAccessToken for Gpayments {}
+impl api::MandateSetup for Gpayments {}
+impl api::PaymentAuthorize for Gpayments {}
+impl api::PaymentSync for Gpayments {}
+impl api::PaymentCapture for Gpayments {}
+impl api::PaymentVoid for Gpayments {}
+impl api::Refund for Gpayments {}
+impl api::RefundExecute for Gpayments {}
+impl api::RefundSync for Gpayments {}
+impl api::PaymentToken for Gpayments {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Gpayments
+{
+    // Not Implemented (R)
+}
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Gpayments
+where
+    Self: ConnectorIntegration<Flow, Request, Response>,
+{
+    fn build_headers(
+        &self,
+        _req: &types::RouterData<Flow, Request, Response>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.get_content_type().to_string().into(),
+        )];
+        Ok(header)
+    }
+}
+
+impl ConnectorCommon for Gpayments {
+    fn id(&self) -> &'static str {
+        "gpayments"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+        //    TODO! Check connector documentation, on which unit they are processing the currency.
+        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+    }
+
+    fn common_get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.gpayments.base_url.as_ref()
+    }
+
+    fn get_auth_header(
+        &self,
+        _auth_type: &types::ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: gpayments_types::TDS2ApiError = res
+            .response
+            .parse_struct("gpayments_types TDS2ApiError")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code,
+            message: response.error_description,
+            reason: response.error_detail,
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
+    }
+}
+
+impl ConnectorValidation for Gpayments {
+    //TODO: implement functions when support enabled
+}
+
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Gpayments
+{
+}
+
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Gpayments
+{
+}
+
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Gpayments
+{
+}
+
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Gpayments
+{
+}
+
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Gpayments
+{
+}
+
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Gpayments
+{
+}
+
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Gpayments
+{
+}
+
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Gpayments
+{
+}
+
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for Gpayments
+{
+}
+
+#[async_trait::async_trait]
+impl api::IncomingWebhook for Gpayments {
+    fn get_webhook_object_reference_id(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+
+    fn get_webhook_event_type(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+impl api::ExternalAuthentication for Gpayments {}
+impl api::ConnectorAuthentication for Gpayments {}
+impl api::ConnectorPreAuthentication for Gpayments {}
+impl api::ConnectorPreAuthenticationVersionCall for Gpayments {}
+impl api::ConnectorPostAuthentication for Gpayments {}
+
+fn build_endpoint(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let metadata = gpayments::GpaymentsMetaData::try_from(connector_metadata)?;
+    let endpoint_prefix = metadata.endpoint_prefix;
+    Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
+}
+
+impl
+    ConnectorIntegration<
+        api::Authentication,
+        types::authentication::ConnectorAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Gpayments
+{
+}
+
+impl
+    ConnectorIntegration<
+        api::PostAuthentication,
+        types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Gpayments
+{
+}
+
+impl
+    ConnectorIntegration<
+        api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Gpayments
+{
+    fn get_headers(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}/api/v2/auth/brw/init?mode=custom", base_url,))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = gpayments::GpaymentsRouterData::try_from((0, req))?;
+        let req_obj =
+            gpayments_types::GpaymentsPreAuthenticationRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let gpayments_auth_type = gpayments::GpaymentsAuthType::try_from(&req.connector_auth_type)?;
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(
+                    &types::authentication::ConnectorPreAuthenticationType::get_url(
+                        self, req, connectors,
+                    )?,
+                )
+                .attach_default_headers()
+                .headers(
+                    types::authentication::ConnectorPreAuthenticationType::get_headers(
+                        self, req, connectors,
+                    )?,
+                )
+                .set_body(
+                    types::authentication::ConnectorPreAuthenticationType::get_request_body(
+                        self, req, connectors,
+                    )?,
+                )
+                .add_certificate(Some(gpayments_auth_type.certificate))
+                .add_certificate_key(Some(gpayments_auth_type.private_key))
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::authentication::PreAuthNRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::authentication::PreAuthNRouterData, errors::ConnectorError> {
+        let response: gpayments_types::GpaymentsPreAuthenticationResponse = res
+            .response
+            .parse_struct("gpayments GpaymentsPreAuthenticationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+impl
+    ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Gpayments
+{
+    fn get_headers(
+        &self,
+        req: &types::authentication::PreAuthNVersionCallRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::authentication::PreAuthNVersionCallRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}/api/v2/auth/enrol", base_url,))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::authentication::PreAuthNVersionCallRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = gpayments::GpaymentsRouterData::try_from((0, req))?;
+        let req_obj =
+            gpayments_types::GpaymentsPreAuthVersionCallRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::authentication::PreAuthNVersionCallRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let gpayments_auth_type = gpayments::GpaymentsAuthType::try_from(&req.connector_auth_type)?;
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(
+                    &types::authentication::ConnectorPreAuthenticationVersionCallType::get_url(
+                        self, req, connectors,
+                    )?,
+                )
+                .attach_default_headers()
+                .headers(
+                    types::authentication::ConnectorPreAuthenticationVersionCallType::get_headers(
+                        self, req, connectors,
+                    )?,
+                )
+                .set_body(
+                    types::authentication::ConnectorPreAuthenticationVersionCallType::get_request_body(
+                        self, req, connectors,
+                    )?,
+                )
+                .add_certificate(Some(gpayments_auth_type.certificate))
+                .add_certificate_key(Some(gpayments_auth_type.private_key))
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::authentication::PreAuthNVersionCallRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::authentication::PreAuthNVersionCallRouterData, errors::ConnectorError>
+    {
+        let response: gpayments_types::GpaymentsPreAuthVersionCallResponse = res
+            .response
+            .parse_struct("gpayments GpaymentsPreAuthVersionCallResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
