@@ -63,6 +63,36 @@ impl DashboardRequestPayload {
             },
         }
     }
+
+    pub fn transform_paypal_payment_method(
+        providers: Vec<Provider>,
+    ) -> Vec<payment_methods::RequestPaymentMethodTypes> {
+        let payment_experiences = [
+            api_models::enums::PaymentExperience::RedirectToUrl,
+            api_models::enums::PaymentExperience::InvokeSdkClient,
+        ];
+
+        let mut payment_method_types = Vec::new();
+
+        for experience in payment_experiences {
+            for provider in &providers {
+                let data = payment_methods::RequestPaymentMethodTypes {
+                    payment_method_type: provider.payment_method_type,
+                    card_networks: None,
+                    minimum_amount: Some(0),
+                    maximum_amount: Some(68607706),
+                    recurring_enabled: true,
+                    installment_payment_enabled: false,
+                    accepted_currencies: provider.accepted_currencies.clone(),
+                    accepted_countries: provider.accepted_countries.clone(),
+                    payment_experience: Some(experience),
+                };
+                payment_method_types.push(data);
+            }
+        }
+
+        payment_method_types
+    }
     pub fn transform_payment_method(
         connector: Connector,
         provider: Vec<Provider>,
@@ -125,8 +155,37 @@ impl DashboardRequestPayload {
                         }
                     }
 
-                    PaymentMethod::Wallet
-                    | PaymentMethod::BankRedirect
+                    PaymentMethod::Wallet => match request.connector {
+                        Connector::Paypal => {
+                            if let Some(provider) = payload.provider {
+                                let val = Self::transform_paypal_payment_method(provider);
+                                if !val.is_empty() {
+                                    let methods = PaymentMethodsEnabled {
+                                        payment_method: payload.payment_method,
+                                        payment_method_types: Some(val),
+                                    };
+                                    payment_method_enabled.push(methods);
+                                }
+                            }
+                        }
+                        _ => {
+                            if let Some(provider) = payload.provider {
+                                let val = Self::transform_payment_method(
+                                    request.connector,
+                                    provider,
+                                    payload.payment_method,
+                                );
+                                if !val.is_empty() {
+                                    let methods = PaymentMethodsEnabled {
+                                        payment_method: payload.payment_method,
+                                        payment_method_types: Some(val),
+                                    };
+                                    payment_method_enabled.push(methods);
+                                }
+                            }
+                        }
+                    },
+                    PaymentMethod::BankRedirect
                     | PaymentMethod::PayLater
                     | PaymentMethod::BankTransfer
                     | PaymentMethod::Crypto
