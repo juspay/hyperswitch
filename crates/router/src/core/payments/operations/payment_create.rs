@@ -727,13 +727,23 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                &request
+                request
                     .customer
-                    .clone()
-                    .map(|customer| customer.id)
-                    .or(request.customer_id.clone()),
+                    .as_ref()
+                    .map(|customer| &customer.id)
+                    .or(request.customer_id.as_ref()),
             )?;
         }
+
+        let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
+            .routing
+            .clone()
+            .map(|val| val.parse_value("RoutingAlgorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid straight through routing rules format".to_string(),
+            })
+            .attach_printable("Invalid straight through routing rules format")?;
 
         Ok((
             Box::new(self),

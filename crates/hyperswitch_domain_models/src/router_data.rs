@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 use masking::Secret;
 
 use crate::payment_address::PaymentAddress;
@@ -9,7 +9,7 @@ use crate::payment_address::PaymentAddress;
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub connector: String,
     pub payment_id: String,

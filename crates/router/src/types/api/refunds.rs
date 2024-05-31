@@ -2,6 +2,7 @@ pub use api_models::refunds::{
     RefundRequest, RefundResponse, RefundStatus, RefundType, RefundUpdateRequest,
     RefundsRetrieveRequest,
 };
+pub use hyperswitch_domain_models::router_flow_types::refunds::{Execute, RSync};
 
 use super::ConnectorCommon;
 use crate::{
@@ -20,11 +21,6 @@ impl ForeignFrom<storage_enums::RefundStatus> for RefundStatus {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct Execute;
-#[derive(Debug, Clone)]
-pub struct RSync;
 
 pub trait RefundExecute:
     api::ConnectorIntegration<Execute, types::RefundsData, types::RefundsResponseData>

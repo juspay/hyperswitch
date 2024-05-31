@@ -29,6 +29,9 @@ pub mod webhooks;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
+pub use hyperswitch_domain_models::router_flow_types::{
+    access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
+};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -50,10 +53,6 @@ use crate::{
     services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
     types::{self, api::enums as api_enums},
 };
-
-#[derive(Clone, Debug)]
-pub struct AccessTokenAuth;
-
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
@@ -65,9 +64,6 @@ pub enum ConnectorCallType {
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
 }
-
-#[derive(Clone, Debug)]
-pub struct VerifyWebhookSource;
 
 pub trait ConnectorVerifyWebhookSource:
     ConnectorIntegration<
@@ -366,7 +362,7 @@ impl ConnectorData {
                 enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
-                // enums::Connector::Payone => Ok(Box::new(&connector::Payone)), Added as template code for future usage
+                enums::Connector::Payone => Ok(Box::new(&connector::Payone)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Placetopay => Ok(Box::new(&connector::Placetopay)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
@@ -391,7 +387,7 @@ impl ConnectorData {
                 | enums::Connector::Plaid
                 | enums::Connector::Riskified
                 | enums::Connector::Threedsecureio
-                // | enums::Connector::Gpayments  Added as template code for future usage
+                | enums::Connector::Gpayments
                 | enums::Connector::Netcetera => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))

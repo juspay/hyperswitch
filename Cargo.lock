@@ -5734,6 +5734,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_qs",
+ "serde_repr",
  "serde_urlencoded",
  "serde_with",
  "serial_test",
@@ -5749,6 +5750,7 @@ dependencies = [
  "totp-rs",
  "tracing-futures",
  "unicode-segmentation",
+ "unidecode",
  "url",
  "utoipa",
  "uuid",
@@ -6232,9 +6234,9 @@ dependencies = [
 
 [[package]]
 name = "serde_repr"
-version = "0.1.18"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b2e6b945e9d3df726b65d6ee24060aff8e3533d431f677a9695db04eff9dfdb"
+checksum = "6c64451ba24fc7a6a2d60fc75dd9c83c90903b19028d4eff35e88fc1e86564e9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7851,6 +7853,12 @@ name = "unicode_categories"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
+
+[[package]]
+name = "unidecode"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "402bb19d8e03f1d1a7450e2bd613980869438e0666331be3e073089124aa1adc"
 
 [[package]]
 name = "untrusted"
