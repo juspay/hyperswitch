@@ -49,6 +49,41 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
+    #[cfg(feature = "no-ttl")]
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn set_key_without_expiry<V>(
+        &self,
+        key: &str,
+        value: V,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
+    {
+        self.pool
+            .set(key, value, None, None, false)
+            .await
+            .change_context(errors::RedisError::SetFailed)
+    }
+
+    #[cfg(feature = "no-ttl")]
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_without_expiry<V>(
+        &self,
+        key: &str,
+        value: V,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let serialized = value
+            .encode_to_vec()
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
+
+        self.set_key_without_expiry(key, serialized.as_slice())
+            .await
+    }
+
     pub async fn set_key_without_modifying_ttl<V>(
         &self,
         key: &str,
