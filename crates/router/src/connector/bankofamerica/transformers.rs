@@ -1565,7 +1565,7 @@ impl<F, T>
                 .error_information
                 .details
                 .as_ref()
-                .map_or("".to_string(), |details| {
+                .map(|details| {
                     details
                         .iter()
                         .map(|details| format!("{} : {}", details.field, details.reason))
@@ -1573,20 +1573,16 @@ impl<F, T>
                         .join(", ")
                 });
 
-        let error_info = error_response
-            .error_information
-            .message
-            .as_ref()
-            .map(|error_msg| error_msg.to_owned());
+        let error_info = error_response.error_information.message.clone();
 
-        let error_reason  =   match (error_details, error_info) {
-                (Some(details), Some(message)) => {
-                    format!("{}, {}", message, details)
-                }
-                (Some(details), None) => details,
-                (None, Some(message)) => message,
-                (None, None) => error_message.to_string(),
-            };
+        let error_reason = match (detailed_error_info, error_info) {
+            (Some(details), Some(message)) => {
+                format!("{}, {}", message, details)
+            }
+            (Some(details), None) => details,
+            (None, Some(message)) => message,
+            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+        };
 
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
@@ -1727,29 +1723,28 @@ impl<F, T>
                 ..item.data
             }),
             BankOfAmericaAuthSetupResponse::ErrorInformation(error_response) => {
-                let detailed_error_info = error_response
-                    .error_information
-                    .to_owned()
-                    .details
-                    .map_or("".to_string(), |error_details| {
-                        error_details
-                            .iter()
-                            .map(|details| format!("{} : {}", details.field, details.reason))
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    });
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .to_owned()
+                        .details
+                        .map(|error_details| {
+                            error_details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
 
-                let error_info = error_response
-                    .error_information
-                    .message;
+                let error_info = error_response.error_information.message;
 
-                let error_reason = match (error_details, error_info) {
-                        (Some(details), Some(message)) => {
-                            format!("{}, {}", message, details)
-                        }
-                        (Some(details), None) => details,
-                        (None, Some(message)) => message,
-                        (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+                let error_reason = match (detailed_error_info, error_info) {
+                    (Some(details), Some(message)) => {
+                        format!("{}, {}", message, details)
+                    }
+                    (Some(details), None) => details,
+                    (None, Some(message)) => message,
+                    (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
                 };
 
                 let error_message = error_response.error_information.reason;
@@ -2890,22 +2885,19 @@ impl
             })
         });
 
+        let error_info = error_data.clone().and_then(|error_details| {
+            error_details
+                .message
+                .map(|message| message + &avs_message.unwrap_or("".to_string()))
+        });
 
-        let error_info = error_data
-            .clone()
-            .and_then(|error_details| {
-                error_details.message.map(|message| 
-                    message
-                    + &avs_message.unwrap_or("".to_string())
-            )});
-
-            let error_reason = match (error_details, error_info) {
-                (Some(details), Some(message)) => {
-                    format!("{}, {}", message, details)
-                }
-                (Some(details), None) => details,
-                (None, Some(message)) => message,
-                (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+        let error_reason = match (detailed_error_info, error_info) {
+            (Some(details), Some(message)) => {
+                format!("{}, {}", message, details)
+            }
+            (Some(details), None) => details,
+            (None, Some(message)) => message,
+            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
 
         let error_message = error_data
@@ -3146,31 +3138,29 @@ impl ForeignFrom<(&BankOfAmericaErrorInformationResponse, u16)> for types::Error
     fn foreign_from(
         (error_response, status_code): (&BankOfAmericaErrorInformationResponse, u16),
     ) -> Self {
-        let detailed_error_info = error_response.error_information.to_owned().details.map_or(
-            consts::NO_ERROR_MESSAGE.to_string(),
-            |error_details| {
-                error_details
-                    .iter()
-                    .map(|details| format!("{} : {}", details.field, details.reason))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            },
-        );
+        let detailed_error_info =
+            error_response
+                .error_information
+                .to_owned()
+                .details
+                .map(|error_details| {
+                    error_details
+                        .iter()
+                        .map(|details| format!("{} : {}", details.field, details.reason))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                });
 
-        let error_info = error_response
-            .error_information
-            .message
-            .to_owned();
+        let error_info = error_response.error_information.message.to_owned();
 
-        let error_reason = match (error_details, error_info) {
-                (Some(details), Some(message)) => {
-                    format!("{}, {}", message, details)
-                }
-                (Some(details), None) => details,
-                (None, Some(message)) => message,
-                (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+        let error_reason = match (detailed_error_info, error_info) {
+            (Some(details), Some(message)) => {
+                format!("{}, {}", message, details)
+            }
+            (Some(details), None) => details,
+            (None, Some(message)) => message,
+            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
-
 
         let error_message = error_response.error_information.reason.to_owned();
         Self {

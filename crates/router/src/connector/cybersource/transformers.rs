@@ -105,7 +105,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
                         card: Card {
                             number: ccard.card_number,
-                            expiration_month: Secret::new("13".to_string()),// ccard.card_exp_month,
+                            expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
                             security_code: Some(ccard.card_cvc),
                             card_type,
@@ -1707,32 +1707,28 @@ impl<F, T>
             Option<enums::AttemptStatus>,
         ),
     ) -> Self {
-        let error_details =
-            error_response
-                .error_information
-                .details
-                .to_owned()
-                .map_or("".to_string(), |details| {
-                    details
-                        .iter()
-                        .map(|details| format!("{} : {}", details.field, details.reason))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                });
-
-        let error_info = error_response
+        let error_details = error_response
             .error_information
-            .message
-            .clone();
+            .details
+            .to_owned()
+            .map(|details| {
+                details
+                    .iter()
+                    .map(|details| format!("{} : {}", details.field, details.reason))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            });
 
-            let error_reason  =   match (error_details, error_info) {
-                (Some(details), Some(message)) => {
-                    format!("{}, {}", message, details)
-                }
-                (Some(details), None) => details,
-                (None, Some(message)) => message,
-                (None, None) => error_message.to_string(),
-            };
+        let error_info = error_response.error_information.message.clone();
+
+        let error_reason = match (error_details, error_info) {
+            (Some(details), Some(message)) => {
+                format!("{}, {}", message, details)
+            }
+            (Some(details), None) => details,
+            (None, Some(message)) => message,
+            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+        };
 
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
@@ -2305,29 +2301,29 @@ impl<F>
                 }
             }
             CybersourcePreProcessingResponse::ErrorInformation(error_response) => {
-                let error_details = error_response.error_information.details.to_owned().map_or(
-                    "".to_string(),
-                    |details| {
-                        details
-                            .iter()
-                            .map(|details| format!("{} : {}", details.field, details.reason))
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    },
-                );
+                let error_details =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
 
-                let error_info = error_response
-                    .error_information
-                    .message;
+                let error_info = error_response.error_information.message;
 
-                    let error_reason  =   match (error_details, error_info) {
-                        (Some(details), Some(message)) => {
-                            format!("{}, {}", message, details)
-                        }
-                        (Some(details), None) => details,
-                        (None, Some(message)) => message,
-                        (None, None) => error_message.to_string(),
-                    };
+                let error_reason = match (error_details, error_info) {
+                    (Some(details), Some(message)) => {
+                        format!("{}, {}", message, details)
+                    }
+                    (Some(details), None) => details,
+                    (None, Some(message)) => message,
+                    (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+                };
 
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
@@ -2566,31 +2562,29 @@ impl<F, T>
                 })
             }
             CybersourceSetupMandatesResponse::ErrorInformation(error_response) => {
-                let error_details = error_response.error_information.details.to_owned().map_or(
-                    "".to_string(),
-                    |details| {
-                        details
-                            .iter()
-                            .map(|details| format!("{} : {}", details.field, details.reason))
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    },
-                );
+                let error_details =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
 
-                let error_info = error_response
-                    .error_information
-                    .clone()
-                    .message
-                    .map(|error_msg| error_msg);
+                let error_info = error_response.error_information.clone().message;
 
-                    let error_reason  =   match (error_details, error_info) {
-                        (Some(details), Some(message)) => {
-                            format!("{}, {}", message, details)
-                        }
-                        (Some(details), None) => details,
-                        (None, Some(message)) => message,
-                        (None, None) => error_message.to_string(),
-                    };
+                let error_reason = match (error_details, error_info) {
+                    (Some(details), Some(message)) => {
+                        format!("{}, {}", message, details)
+                    }
+                    (Some(details), None) => details,
+                    (None, Some(message)) => message,
+                    (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+                };
 
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
@@ -3254,23 +3248,20 @@ impl
                 None => "".to_string(),
             });
 
-        let error_info = error_data
-            .clone()
-            .and_then(|error_info| {
-                error_info.message.map(|error_msg| 
-                     error_msg
-                    + &avs_message.unwrap_or("".to_string())
-                    
-            )});
+        let error_info = error_data.clone().and_then(|error_info| {
+            error_info
+                .message
+                .map(|error_msg| error_msg + &avs_message.unwrap_or("".to_string()))
+        });
 
-            let error_reason  =   match (error_details, error_info) {
-                (Some(details), Some(message)) => {
-                    format!("{}, {}", message, details)
-                }
-                (Some(details), None) => details,
-                (None, Some(message)) => message,
-                (None, None) => error_message.to_string(),
-            };
+        let error_reason = match (error_details, error_info) {
+            (Some(details), Some(message)) => {
+                format!("{}, {}", message, details)
+            }
+            (Some(details), None) => details,
+            (None, Some(message)) => message,
+            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+        };
 
         let error_message = error_data.clone().and_then(|error_info| error_info.reason);
 
