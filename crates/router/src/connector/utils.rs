@@ -288,12 +288,10 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>> {
-        self.address.get_shipping().and_then(|shipping_address| {
-            shipping_address
-                .clone()
-                .phone
-                .and_then(|phone_data| phone_data.number)
-        })
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.get_number_with_country_code().ok())
     }
 
     fn get_description(&self) -> Result<String, Error> {
