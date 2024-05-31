@@ -7,6 +7,7 @@ pub mod jwt;
 pub mod kafka;
 pub mod logger;
 pub mod pm_auth;
+pub mod decision;
 #[cfg(feature = "recon")]
 pub mod recon;
 

@@ -639,6 +639,9 @@ pub struct ApiKeys {
 
     #[cfg(feature = "partial-auth")]
     pub checksum_auth_key: Secret<String>,
+
+    #[cfg(feature = "partial-auth")]
+    pub decision_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

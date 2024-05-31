@@ -8404,6 +8404,8 @@ impl Default for super::settings::ApiKeys {
             // context used for blake3
             #[cfg(feature = "partial-auth")]
             checksum_auth_context: String::new().into(),
+
+            decision_url: String::new()
         }
     }
 }

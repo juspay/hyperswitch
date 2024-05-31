@@ -123,6 +123,8 @@ impl SecretsHandler for settings::ApiKeys {
             .get_secret(api_keys.checksum_auth_key.clone())
             .await?;
 
+        let decision_url = api_keys.decision_url.clone();
+
         Ok(value.transition_state(|_| Self {
             hash_key,
             #[cfg(feature = "email")]
@@ -132,6 +134,8 @@ impl SecretsHandler for settings::ApiKeys {
             checksum_auth_key,
             #[cfg(feature = "partial-auth")]
             checksum_auth_context,
+
+            decision_url,
         }))
     }
 }

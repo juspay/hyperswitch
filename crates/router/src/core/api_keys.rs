@@ -4,6 +4,7 @@ use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
+use router_env::logger;
 
 use crate::{
     configs::settings,
@@ -115,6 +116,7 @@ pub async fn create_api_key(
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
     let api_key_config = state.conf.api_keys.get_inner();
+    let cloned_state = state.clone();
     let store = state.store.as_ref();
     // We are not fetching merchant account as the merchant key store is needed to search for a
     // merchant account.
@@ -141,6 +143,35 @@ pub async fn create_api_key(
         expires_at: api_key.expiration.into(),
         last_used: None,
     };
+
+    let cloned_api_key = api_key.clone();
+
+    tokio::spawn(async move {
+        let state = cloned_state;
+        let api_key = cloned_api_key;
+        let hashed_api_key = api_key.hashed_api_key.clone().into_inner();
+        let key_id = api_key.key_id.clone();
+        let merchant_id = api_key.merchant_id.clone();
+
+        logger::error!("Registering API KEY");
+
+        let response = crate::services::decision::register_api_key(
+            &state,
+            hashed_api_key.into(),
+            merchant_id,
+            key_id,
+        )
+        .await;
+
+        match response {
+            Ok(()) => {
+                logger::error!("API")
+            },
+            Err(e) =>{ 
+                logger::error!(?e)
+            }
+        }
+    });
 
     let api_key = store
         .insert_api_key(api_key)

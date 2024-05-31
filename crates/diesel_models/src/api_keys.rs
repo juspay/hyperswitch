@@ -18,7 +18,7 @@ pub struct ApiKey {
     pub last_used: Option<PrimitiveDateTime>,
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Debug, Insertable, Clone)]
 #[diesel(table_name = api_keys)]
 pub struct ApiKeyNew {
     pub key_id: String,
