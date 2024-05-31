@@ -238,7 +238,7 @@ pub async fn connect_account(
     state: SessionState,
     request: user_api::ConnectAccountRequest,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
-    let find_user = state.store.find_user_by_email(&request.email).await;
+    let find_user = state.global_store.find_user_by_email(&request.email).await;
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
@@ -397,7 +397,7 @@ pub async fn forgot_password(
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
 
     let user_from_db = state
-        .store
+        .global_store
         .find_user_by_email(&user_email.into_inner())
         .await
         .map_err(|e| {
@@ -480,7 +480,7 @@ pub async fn reset_password_token_only_flow(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_email(
             &email_token
                 .get_email()
@@ -498,7 +498,7 @@ pub async fn reset_password_token_only_flow(
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     let user = state
-        .store
+        .global_store
         .update_user_by_email(
             &email_token
                 .get_email()
@@ -536,7 +536,7 @@ pub async fn reset_password(
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     let user = state
-        .store
+        .global_store
         .update_user_by_email(
             &email_token
                 .get_email()
@@ -851,7 +851,7 @@ pub async fn resend_invite(
 ) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_email(&invitee_email.clone().into_inner())
         .await
         .map_err(|e| {
@@ -918,7 +918,7 @@ pub async fn accept_invite_from_email(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_email(
             &email_token
                 .get_email()
@@ -986,7 +986,7 @@ pub async fn accept_invite_from_email_token_only_flow(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_email(
             &email_token
                 .get_email()
@@ -1389,7 +1389,7 @@ pub async fn verify_email(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user = state
-        .store
+        .global_store
         .find_user_by_email(
             &email_token
                 .get_email()
@@ -1449,7 +1449,7 @@ pub async fn verify_email_token_only_flow(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user_from_email = state
-        .store
+        .global_store
         .find_user_by_email(
             &email_token
                 .get_email()
@@ -1500,7 +1500,7 @@ pub async fn send_verification_mail(
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::try_from(req.email)?;
     let user = state
-        .store
+        .global_store
         .find_user_by_email(&user_email.into_inner())
         .await
         .map_err(|e| {
@@ -1539,7 +1539,7 @@ pub async fn verify_token(
     req: auth::ReconUser,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
     let user = state
-        .store
+        .global_store
         .find_user_by_id(&req.user_id)
         .await
         .map_err(|e| {
@@ -1619,7 +1619,7 @@ pub async fn user_from_email(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_email(
             &email_token
                 .get_email()
