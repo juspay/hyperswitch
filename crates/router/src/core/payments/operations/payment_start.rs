@@ -223,7 +223,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentStart))
             .with(payment_data.to_event())
-            .emit()
+            .emit();
         Ok((Box::new(self), payment_data))
     }
 }
