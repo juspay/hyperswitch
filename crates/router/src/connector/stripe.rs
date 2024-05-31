@@ -2,7 +2,10 @@ pub mod transformers;
 
 use std::{collections::HashMap, ops::Deref};
 
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -15,6 +18,7 @@ use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsReques
 use super::utils::{PayoutsData, RouterData};
 use crate::{
     configs::settings,
+    connector::utils::PaymentsPreProcessingData,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -35,8 +39,18 @@ use crate::{
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Stripe;
+#[derive(Clone)]
+pub struct Stripe {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Stripe {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripe
 where
@@ -223,7 +237,12 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
+        let req_currency = req.request.get_currency()?;
+        let req_amount = req.request.get_minor_amount()?;
+        let amount =
+            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
+        let connector_req =
+            stripe::StripeCreditTransferSourceRequest::try_from((req, amount, req_currency))?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -618,7 +637,12 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::CaptureRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_req = stripe::CaptureRequest::try_from(amount)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -931,12 +955,17 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
         match &req.request.payment_method_data {
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
+                stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref(), amount)
             }
             _ => {
-                let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
+                let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
 
                 Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }

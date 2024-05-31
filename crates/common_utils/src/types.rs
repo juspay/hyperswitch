@@ -317,6 +317,30 @@ impl AmountConvertor for FloatMajorUnitForConnector {
         amount.to_minor_unit_as_i64(currency)
     }
 }
+
+/// Connector required amount type
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct MinorUnitForConnector;
+
+impl AmountConvertor for MinorUnitForConnector {
+    type Output = MinorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        Ok(amount)
+    }
+    fn convert_back(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        Ok(amount)
+    }
+}
+
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
     Default,
