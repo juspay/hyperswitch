@@ -559,7 +559,9 @@ impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventTyp
             storage_enums::PayoutStatus::Cancelled => {
                 Some(storage_enums::EventType::PayoutCancelled)
             }
-            storage_enums::PayoutStatus::Initiated => Some(storage_enums::EventType::PayoutInitiated),
+            storage_enums::PayoutStatus::Initiated => {
+                Some(storage_enums::EventType::PayoutInitiated)
+            }
             storage_enums::PayoutStatus::Expired => Some(storage_enums::EventType::PayoutExpired),
             storage_enums::PayoutStatus::Reversed => Some(storage_enums::EventType::PayoutReversed),
             storage_enums::PayoutStatus::Ineligible
