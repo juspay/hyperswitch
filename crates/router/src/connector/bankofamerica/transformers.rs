@@ -1573,13 +1573,20 @@ impl<F, T>
                         .join(", ")
                 });
 
-        let error_reason = error_response
+        let error_info = error_response
             .error_information
             .message
             .as_ref()
-            .map(|error_msg| error_msg.to_owned() + &detailed_error_info)
-            .to_owned()
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+            .map(|error_msg| error_msg.to_owned());
+
+        let error_reason  =   match (error_details, error_info) {
+                (Some(details), Some(message)) => {
+                    format!("{}, {}", message, details)
+                }
+                (Some(details), None) => details,
+                (None, Some(message)) => message,
+                (None, None) => error_message.to_string(),
+            };
 
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
@@ -1732,13 +1739,21 @@ impl<F, T>
                             .join(", ")
                     });
 
-                let error_reason = error_response
+                let error_info = error_response
                     .error_information
-                    .message
-                    .map(|error_msg| error_msg + &detailed_error_info)
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                    .message;
+
+                let error_reason = match (error_details, error_info) {
+                        (Some(details), Some(message)) => {
+                            format!("{}, {}", message, details)
+                        }
+                        (Some(details), None) => details,
+                        (None, Some(message)) => message,
+                        (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+                };
 
                 let error_message = error_response.error_information.reason;
+
                 Ok(Self {
                     response: Err(types::ErrorResponse {
                         code: error_message
@@ -2875,14 +2890,24 @@ impl
             })
         });
 
-        let error_reason = error_data
+
+        let error_info = error_data
             .clone()
-            .map(|error_details| {
-                error_details.message.unwrap_or("".to_string())
-                    + &detailed_error_info.unwrap_or("".to_string())
+            .and_then(|error_details| {
+                error_details.message.map(|message| 
+                    message
                     + &avs_message.unwrap_or("".to_string())
-            })
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+            )});
+
+            let error_reason = match (error_details, error_info) {
+                (Some(details), Some(message)) => {
+                    format!("{}, {}", message, details)
+                }
+                (Some(details), None) => details,
+                (None, Some(message)) => message,
+                (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+        };
+
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -3132,11 +3157,21 @@ impl ForeignFrom<(&BankOfAmericaErrorInformationResponse, u16)> for types::Error
             },
         );
 
-        let error_reason = error_response
+        let error_info = error_response
             .error_information
             .message
-            .to_owned()
-            .unwrap_or("".to_string() + &detailed_error_info);
+            .to_owned();
+
+        let error_reason = match (error_details, error_info) {
+                (Some(details), Some(message)) => {
+                    format!("{}, {}", message, details)
+                }
+                (Some(details), None) => details,
+                (None, Some(message)) => message,
+                (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
+        };
+
+
         let error_message = error_response.error_information.reason.to_owned();
         Self {
             code: error_message

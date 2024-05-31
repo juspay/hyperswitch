@@ -105,7 +105,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
                         card: Card {
                             number: ccard.card_number,
-                            expiration_month: ccard.card_exp_month,
+                            expiration_month: Secret::new("13".to_string()),// ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
                             security_code: Some(ccard.card_cvc),
                             card_type,
@@ -1720,12 +1720,19 @@ impl<F, T>
                         .join(", ")
                 });
 
-        let error_reason = error_response
+        let error_info = error_response
             .error_information
             .message
-            .clone()
-            .map(|error_msg| error_msg + &error_details)
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+            .clone();
+
+            let error_reason  =   match (error_details, error_info) {
+                (Some(details), Some(message)) => {
+                    format!("{}, {}", message, details)
+                }
+                (Some(details), None) => details,
+                (None, Some(message)) => message,
+                (None, None) => error_message.to_string(),
+            };
 
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
@@ -2309,11 +2316,18 @@ impl<F>
                     },
                 );
 
-                let error_reason = error_response
+                let error_info = error_response
                     .error_information
-                    .message
-                    .map(|error_msg| error_msg + &error_details)
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                    .message;
+
+                    let error_reason  =   match (error_details, error_info) {
+                        (Some(details), Some(message)) => {
+                            format!("{}, {}", message, details)
+                        }
+                        (Some(details), None) => details,
+                        (None, Some(message)) => message,
+                        (None, None) => error_message.to_string(),
+                    };
 
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
@@ -2563,12 +2577,20 @@ impl<F, T>
                     },
                 );
 
-                let error_reason = error_response
+                let error_info = error_response
                     .error_information
                     .clone()
                     .message
-                    .map(|error_msg| error_msg + &error_details)
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                    .map(|error_msg| error_msg);
+
+                    let error_reason  =   match (error_details, error_info) {
+                        (Some(details), Some(message)) => {
+                            format!("{}, {}", message, details)
+                        }
+                        (Some(details), None) => details,
+                        (None, Some(message)) => message,
+                        (None, None) => error_message.to_string(),
+                    };
 
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
@@ -3232,14 +3254,23 @@ impl
                 None => "".to_string(),
             });
 
-        let error_reason = error_data
+        let error_info = error_data
             .clone()
-            .map(|error_info| {
-                error_info.message.unwrap_or("".to_string())
+            .and_then(|error_info| {
+                error_info.message.map(|error_msg| 
+                     error_msg
                     + &avs_message.unwrap_or("".to_string())
-                    + &error_details.unwrap_or("".to_string())
-            })
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                    
+            )});
+
+            let error_reason  =   match (error_details, error_info) {
+                (Some(details), Some(message)) => {
+                    format!("{}, {}", message, details)
+                }
+                (Some(details), None) => details,
+                (None, Some(message)) => message,
+                (None, None) => error_message.to_string(),
+            };
 
         let error_message = error_data.clone().and_then(|error_info| error_info.reason);
 
