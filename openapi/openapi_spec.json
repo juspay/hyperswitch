@@ -16365,7 +16365,8 @@
           "status",
           "error_message",
           "error_code",
-          "profile_id"
+          "profile_id",
+          "reference_id"
         ],
         "properties": {
           "payout_id": {
@@ -16513,6 +16514,11 @@
             },
             "description": "List of attempts",
             "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The reference id to check payout in the connector's dashboard",
+            "example": "50c90b09-11d2-4c97-ab5c-42e336e7506c"
           }
         },
         "additionalProperties": false
