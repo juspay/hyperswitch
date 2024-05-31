@@ -238,7 +238,6 @@ pub struct TenantID(#[allow(unused)] String);
 impl Default for TenantID {
     fn default() -> Self {
         Self(String::from("default"))
-
     }
 }
 
