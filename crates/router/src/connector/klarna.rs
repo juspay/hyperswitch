@@ -223,6 +223,9 @@ impl
         ))?;
 
         let connector_req = klarna::KlarnaSessionRequest::try_from(&connector_router_data)?;
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ sessionrequest{:?}", printrequest);
         // encode only for for urlencoded things.
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -253,6 +256,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+        println!("$$$$$ sessionresponse{:?}", res.response);
         let response: klarna::KlarnaSessionResponse = res
             .response
             .parse_struct("KlarnaSessionResponse")
@@ -665,6 +669,10 @@ impl
             req,
         ))?;
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
+
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$authorize request {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -696,6 +704,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("$$$$$authorize response {:?}", res.response);
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
