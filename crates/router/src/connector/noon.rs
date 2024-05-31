@@ -1,8 +1,12 @@
 pub mod transformers;
 
-
 use base64::Engine;
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent, types::{StringMajorUnitForConnector, StringMajorUnit, AmountConvertor}};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
@@ -15,8 +19,8 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult},
+        mandate::MandateBehaviour,
         payments,
-        mandate::MandateBehaviour
     },
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -34,7 +38,7 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Noon{
+pub struct Noon {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
@@ -285,26 +289,32 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .take(50)
             .collect();
 
-        let subscription: Option<noon::NoonSubscriptionData> = req.request.get_setup_mandate_details().map(|mandate_data|
-            {
+        let subscription: Option<noon::NoonSubscriptionData> = req
+            .request
+            .get_setup_mandate_details()
+            .map(|mandate_data| {
                 let max_amount = match &mandate_data.mandate_type {
-                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(mandate))
-                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
-                        connector_utils::convert_amount(
-                            self.amount_converter,
-                            mandate.amount,
-                            mandate.currency,
-                        )
-                    }
+                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
+                        mandate,
+                    ))
+                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
+                        mandate,
+                    ))) => connector_utils::convert_amount(
+                        self.amount_converter,
+                        mandate.amount,
+                        mandate.currency,
+                    ),
                     Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
                         Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                        }.into())
-                    },
+                            field_name:
+                                "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                        }
+                        .into())
+                    }
                     None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "setup_future_usage.mandate_data.mandate_type",
-                    }.into()
-                    ),
+                    }
+                    .into()),
                 }?;
                 Ok::<noon::NoonSubscriptionData, Report<errors::ConnectorError>>(
                     noon::NoonSubscriptionData {
@@ -313,14 +323,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         max_amount,
                     },
                 )
-            }
-        )
+            })
             .transpose()?;
-       
+
         let connector_req = noon::NoonPaymentsRequest::try_from((req, amount, subscription, name))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
-
 
     fn build_request(
         &self,

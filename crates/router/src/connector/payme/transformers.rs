@@ -908,7 +908,9 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsCaptureRouterData>> for PaymentCap
     fn try_from(
         item: &PaymeRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.minor_amount_to_capture != item.router_data.request.minor_payment_amount {
+        if item.router_data.request.minor_amount_to_capture
+            != item.router_data.request.minor_payment_amount
+        {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
                 connector: "Payme",

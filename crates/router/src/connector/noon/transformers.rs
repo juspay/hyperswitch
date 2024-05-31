@@ -13,7 +13,6 @@ use crate::{
     types::{self, api, domain, storage::enums, transformers::ForeignFrom, ErrorResponse},
 };
 
-
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
 const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
 const GOOGLEPAY_API_VERSION: u8 = 2;
@@ -227,9 +226,23 @@ pub struct NoonPaymentsRequest {
     billing: Option<NoonBilling>,
 }
 
-impl TryFrom<(&types::PaymentsAuthorizeRouterData, StringMajorUnit,  Option<NoonSubscriptionData>, String)> for NoonPaymentsRequest {
+impl
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        StringMajorUnit,
+        Option<NoonSubscriptionData>,
+        String,
+    )> for NoonPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(data: (&types::PaymentsAuthorizeRouterData, StringMajorUnit , Option<NoonSubscriptionData>, String)) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: (
+            &types::PaymentsAuthorizeRouterData,
+            StringMajorUnit,
+            Option<NoonSubscriptionData>,
+            String,
+        ),
+    ) -> Result<Self, Self::Error> {
         let item = data.0;
         let amount = data.1;
         let subscription = data.2;
@@ -591,7 +604,9 @@ pub struct NoonPaymentsActionRequest {
 
 impl TryFrom<(&types::PaymentsCaptureRouterData, StringMajorUnit)> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(data: (&types::PaymentsCaptureRouterData, StringMajorUnit)) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: (&types::PaymentsCaptureRouterData, StringMajorUnit),
+    ) -> Result<Self, Self::Error> {
         let item = data.0;
         let amount = data.1;
         let order = NoonActionOrder {
@@ -651,7 +666,9 @@ impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
 
 impl<F> TryFrom<(&types::RefundsRouterData<F>, StringMajorUnit)> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(data: (&types::RefundsRouterData<F>, StringMajorUnit)) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: (&types::RefundsRouterData<F>, StringMajorUnit),
+    ) -> Result<Self, Self::Error> {
         let item = data.0;
         let refund_amount = data.1;
         let order = NoonActionOrder {
