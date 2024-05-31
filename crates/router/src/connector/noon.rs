@@ -1,9 +1,8 @@
 pub mod transformers;
 
-use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent, types::{StringMajorUnitForConnector, StringMajorUnit, AmountConvertor}};
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
@@ -12,11 +11,12 @@ use transformers as noon;
 
 use crate::{
     configs::settings,
-    connector::utils::{self as connector_utils, PaymentMethodDataType},
+    connector::utils::{self as connector_utils, PaymentMethodDataType, RouterData},
     consts,
     core::{
         errors::{self, CustomResult},
         payments,
+        mandate::MandateBehaviour
     },
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -33,8 +33,18 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Noon;
+#[derive(Clone)]
+pub struct Noon{
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Noon {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Noon {}
 impl api::PaymentSession for Noon {}
@@ -260,9 +270,57 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = noon::NoonPaymentsRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
+        let name: String = req
+            .get_description()?
+            .trim()
+            .replace("  ", " ")
+            .chars()
+            .take(50)
+            .collect();
+
+        let subscription: Option<noon::NoonSubscriptionData> = req.request.get_setup_mandate_details().map(|mandate_data|
+            {
+                let max_amount = match &mandate_data.mandate_type {
+                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(mandate))
+                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
+                        connector_utils::convert_amount(
+                            self.amount_converter,
+                            mandate.amount,
+                            mandate.currency,
+                        )
+                    }
+                    Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
+                        Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                        }.into())
+                    },
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "setup_future_usage.mandate_data.mandate_type",
+                    }.into()
+                    ),
+                }?;
+                Ok::<noon::NoonSubscriptionData, Report<errors::ConnectorError>>(
+                    noon::NoonSubscriptionData {
+                        subscription_type: noon::NoonSubscriptionType::Unscheduled,
+                        name: name.clone(),
+                        max_amount,
+                    },
+                )
+            }
+        )
+            .transpose()?;
+       
+        let connector_req = noon::NoonPaymentsRequest::try_from((req, amount, subscription, name))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
+
 
     fn build_request(
         &self,
@@ -416,7 +474,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = noon::NoonPaymentsActionRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_req = noon::NoonPaymentsActionRequest::try_from((req, amount))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -656,7 +719,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = noon::NoonPaymentsActionRequest::try_from(req)?;
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_req = noon::NoonPaymentsActionRequest::try_from((req, refund_amount))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

@@ -357,7 +357,7 @@ impl ConnectorData {
                 // enums::Connector::Mifinity => Ok(Box::new(&connector::Mifinity)), Added as template code for future usage
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
                 enums::Connector::Nmi => Ok(Box::new(connector::Nmi::new())),
-                enums::Connector::Noon => Ok(Box::new(&connector::Noon)),
+                enums::Connector::Noon => Ok(Box::new(connector::Noon::new())),
                 enums::Connector::Nuvei => Ok(Box::new(&connector::Nuvei)),
                 enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
