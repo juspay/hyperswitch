@@ -34,9 +34,7 @@ pub struct PaymeRouterData<T> {
 
 impl<T> TryFrom<(MinorUnit, T)> for PaymeRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, item): (MinorUnit, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
