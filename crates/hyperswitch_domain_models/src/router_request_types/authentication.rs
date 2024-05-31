@@ -110,6 +110,7 @@ pub struct PreAuthenticationData {
     pub message_version: common_utils::types::SemanticVersion,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
 }
 
@@ -136,6 +137,7 @@ impl TryFrom<&diesel_models::authentication::Authentication> for PreAuthenticati
             acquirer_bin: authentication.acquirer_bin.clone(),
             acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
             connector_metadata: authentication.connector_metadata.clone(),
+            acquirer_country_code: authentication.acquirer_country_code.clone(),
         })
     }
 }
@@ -150,6 +152,7 @@ pub struct ThreeDsMethodData {
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
