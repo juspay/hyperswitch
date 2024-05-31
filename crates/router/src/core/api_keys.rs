@@ -3,8 +3,7 @@ use common_utils::date_time;
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, tracing};
-use router_env::logger;
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     configs::settings,
@@ -166,8 +165,8 @@ pub async fn create_api_key(
         match response {
             Ok(()) => {
                 logger::error!("API")
-            },
-            Err(e) =>{ 
+            }
+            Err(e) => {
                 logger::error!(?e)
             }
         }

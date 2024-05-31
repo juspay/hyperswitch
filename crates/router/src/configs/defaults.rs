@@ -8405,7 +8405,7 @@ impl Default for super::settings::ApiKeys {
             #[cfg(feature = "partial-auth")]
             checksum_auth_context: String::new().into(),
 
-            decision_url: String::new()
+            decision_url: String::new(),
         }
     }
 }

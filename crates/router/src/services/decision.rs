@@ -1,13 +1,13 @@
-use common_utils::errors::CustomResult;
-use common_utils::request::{Request, RequestContent};
+use common_utils::{
+    errors::CustomResult,
+    request::{Request, RequestContent},
+};
 use error_stack::ResultExt;
-use masking::{ErasedMaskSerialize, Secret};
+use masking::Secret;
 use storage_impl::errors;
 
-use crate::routes::app::AppStateInfo;
-use crate::routes::AppState;
-
 use super::send_request;
+use crate::routes::{app::AppStateInfo, AppState};
 
 mod types;
 
@@ -54,12 +54,10 @@ pub async fn register_api_key(
 
     let response = send_request(state, request_builder, Some(10)).await?;
 
-    let output = response
+    let _output = response
         .json::<types::RuleResponse>()
         .await
         .change_context(errors::ApiClientError::ResponseDecodingFailed)?;
 
     Ok(())
 }
-
-
