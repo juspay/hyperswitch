@@ -1,3 +1,18 @@
+use api_models::{
+    payment_methods::SurchargeDetailsResponse,
+    payments, routing,
+    surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
+};
+use common_utils::{ext_traits::StringExt, types as common_utils_types};
+use error_stack::{self, ResultExt};
+use euclid::{
+    backend,
+    backend::{inputs as dsl_inputs, EuclidBackend},
+};
+use router_env::{instrument, tracing};
+use serde::{Deserialize, Serialize};
+use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
+
 use crate::{
     core::{
         errors::{self, ConditionalConfigError as ConfigError},
@@ -13,20 +28,6 @@ use crate::{
     },
     AppState,
 };
-use api_models::{
-    payment_methods::SurchargeDetailsResponse,
-    payments, routing,
-    surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
-};
-use common_utils::{ext_traits::StringExt, types as common_utils_types};
-use error_stack::{self, ResultExt};
-use euclid::{
-    backend,
-    backend::{inputs as dsl_inputs, EuclidBackend},
-};
-use router_env::{instrument, tracing};
-use serde::{Deserialize, Serialize};
-use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct VirInterpreterBackendCacheWrapper {
