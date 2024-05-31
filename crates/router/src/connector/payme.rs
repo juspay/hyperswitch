@@ -287,10 +287,9 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = req.request.get_amount()?;
-        let currency = req.request.get_currency()?;
+        let amount = req.request.get_minor_amount()?;
         let connector_router_data =
-            payme::PaymeRouterData::try_from((&self.get_currency_unit(), currency, amount, req))?;
+            payme::PaymeRouterData::try_from((amount, req))?;
         let connector_req = payme::GenerateSaleRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -537,9 +536,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = payme::PaymeRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.amount,
+            req.request.minor_amount,
             req,
         ))?;
         let connector_req = payme::PaymePaymentRequest::try_from(&connector_router_data)?;
@@ -725,9 +722,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = payme::PaymeRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.amount_to_capture,
+            req.request.minor_amount_to_capture,
             req,
         ))?;
         let connector_req = payme::PaymentCaptureRequest::try_from(&connector_router_data)?;
@@ -824,18 +819,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = req
             .request
-            .amount
+            .minor_amount
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "amount",
             })?;
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
         let connector_router_data =
-            payme::PaymeRouterData::try_from((&self.get_currency_unit(), currency, amount, req))?;
+            payme::PaymeRouterData::try_from((amount, req))?;
         let connector_req = payme::PaymeVoidRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -923,9 +912,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = payme::PaymeRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.refund_amount,
+            req.request.minor_refund_amount,
             req,
         ))?;
         let connector_req = payme::PaymeRefundRequest::try_from(&connector_router_data)?;

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::enums::{AuthenticationType, PaymentMethod};
-use common_utils::pii;
+use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -28,14 +28,14 @@ const LANGUAGE: &str = "en";
 
 #[derive(Debug, Serialize)]
 pub struct PaymeRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for PaymeRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for PaymeRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (amount, item): (MinorUnit, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -57,7 +57,7 @@ pub struct PayRequest {
 #[derive(Debug, Serialize)]
 pub struct MandateRequest {
     currency: enums::Currency,
-    sale_price: i64,
+    sale_price: MinorUnit,
     transaction_id: String,
     product_name: String,
     sale_return_url: String,
@@ -118,7 +118,7 @@ pub struct CaptureBuyerResponse {
 pub struct GenerateSaleRequest {
     currency: enums::Currency,
     sale_type: SaleType,
-    sale_price: i64,
+    sale_price: MinorUnit,
     transaction_id: String,
     product_name: String,
     sale_return_url: String,
@@ -902,7 +902,7 @@ impl<F, T>
 #[derive(Debug, Serialize)]
 pub struct PaymentCaptureRequest {
     payme_sale_id: String,
-    sale_price: i64,
+    sale_price: MinorUnit,
 }
 
 impl TryFrom<&PaymeRouterData<&types::PaymentsCaptureRouterData>> for PaymentCaptureRequest {
@@ -927,7 +927,7 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsCaptureRouterData>> for PaymentCap
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct PaymeRefundRequest {
-    sale_refund_amount: i64,
+    sale_refund_amount: MinorUnit,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
     language: String,
