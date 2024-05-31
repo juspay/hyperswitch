@@ -4036,7 +4036,30 @@ where
                 }
             }
         }
-        Some(connector_data_list)
+
+        let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
+            &*state.clone().store,
+            profile_id,
+            &api_enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let mut ordered_connector_data_list = vec![decided_connector_data.clone()];
+        fallback_connetors_list
+            .iter()
+            .for_each(|fallback_connector| {
+                let connector_data = connector_data_list.iter().find(|connector_data| {
+                    fallback_connector.merchant_connector_id == connector_data.merchant_connector_id
+                        && fallback_connector.merchant_connector_id
+                            != decided_connector_data.merchant_connector_id
+                });
+                if let Some(connector_data_details) = connector_data {
+                    ordered_connector_data_list.push(connector_data_details.clone());
+                }
+            });
+
+        Some(ordered_connector_data_list)
     } else {
         None
     };
