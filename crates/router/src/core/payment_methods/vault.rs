@@ -2,7 +2,7 @@ use common_enums::PaymentMethodType;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
-    generate_id_with_default_len,
+    generate_id_with_default_len, id_type,
     pii::Email,
 };
 use error_stack::{report, ResultExt};
@@ -26,13 +26,19 @@ use crate::{
 const VAULT_SERVICE_NAME: &str = "CARD";
 
 pub struct SupplementaryVaultData {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_id: Option<String>,
 }
 
 pub trait Vaultable: Sized {
-    fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError>;
-    fn get_value2(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError>;
+    fn get_value2(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         Ok(String::new())
     }
     fn from_values(
@@ -42,7 +48,10 @@ pub trait Vaultable: Sized {
 }
 
 impl Vaultable for api::Card {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
@@ -62,7 +71,10 @@ impl Vaultable for api::Card {
             .attach_printable("Failed to encode card value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedCardValue2 {
             card_security_code: Some(self.card_cvc.peek().clone()),
             card_fingerprint: None,
@@ -117,7 +129,10 @@ impl Vaultable for api::Card {
 }
 
 impl Vaultable for api_models::payments::BankTransferData {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = api_models::payment_methods::TokenizedBankTransferValue1 {
             data: self.to_owned(),
         };
@@ -128,7 +143,10 @@ impl Vaultable for api_models::payments::BankTransferData {
             .attach_printable("Failed to encode bank transfer data")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = api_models::payment_methods::TokenizedBankTransferValue2 { customer_id };
 
         value2
@@ -163,7 +181,10 @@ impl Vaultable for api_models::payments::BankTransferData {
 }
 
 impl Vaultable for api::WalletData {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedWalletValue1 {
             data: self.to_owned(),
         };
@@ -174,7 +195,10 @@ impl Vaultable for api::WalletData {
             .attach_printable("Failed to encode wallet data value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedWalletValue2 { customer_id };
 
         value2
@@ -209,7 +233,10 @@ impl Vaultable for api::WalletData {
 }
 
 impl Vaultable for api_models::payments::BankRedirectData {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = api_models::payment_methods::TokenizedBankRedirectValue1 {
             data: self.to_owned(),
         };
@@ -220,7 +247,10 @@ impl Vaultable for api_models::payments::BankRedirectData {
             .attach_printable("Failed to encode bank redirect data")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = api_models::payment_methods::TokenizedBankRedirectValue2 { customer_id };
 
         value2
@@ -264,7 +294,10 @@ pub enum VaultPaymentMethod {
 }
 
 impl Vaultable for api::PaymentMethodData {
-    fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value1(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value1(customer_id)?),
@@ -284,7 +317,10 @@ impl Vaultable for api::PaymentMethodData {
             .attach_printable("Failed to encode payment method value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value2(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value2(customer_id)?),
@@ -352,7 +388,10 @@ impl Vaultable for api::PaymentMethodData {
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::CardPayout {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
             exp_year: self.expiry_year.peek().clone(),
@@ -369,7 +408,10 @@ impl Vaultable for api::CardPayout {
             .attach_printable("Failed to encode card value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedCardValue2 {
             card_security_code: None,
             card_fingerprint: None,
@@ -427,12 +469,15 @@ pub struct TokenizedWalletSensitiveValues {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletInsensitiveValues {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::WalletPayout {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Paypal(paypal_data) => TokenizedWalletSensitiveValues {
                 email: paypal_data.email.clone(),
@@ -454,7 +499,10 @@ impl Vaultable for api::WalletPayout {
             .attach_printable("Failed to encode wallet data - TokenizedWalletSensitiveValues")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = TokenizedWalletInsensitiveValues { customer_id };
 
         value2
@@ -510,7 +558,7 @@ pub struct TokenizedBankSensitiveValues {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankInsensitiveValues {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub bank_name: Option<String>,
     pub bank_country_code: Option<api::enums::CountryAlpha2>,
     pub bank_city: Option<String>,
@@ -519,7 +567,10 @@ pub struct TokenizedBankInsensitiveValues {
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::BankPayout {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let bank_sensitive_data = match self {
             Self::Ach(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.clone()),
@@ -565,7 +616,10 @@ impl Vaultable for api::BankPayout {
             .attach_printable("Failed to encode data - bank_sensitive_data")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let bank_insensitive_data = match self {
             Self::Ach(b) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -688,7 +742,10 @@ pub enum VaultPayoutMethod {
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::PayoutMethodData {
-    fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value1(customer_id)?),
             Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value1(customer_id)?),
@@ -701,7 +758,10 @@ impl Vaultable for api::PayoutMethodData {
             .attach_printable("Failed to encode payout method value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value2(customer_id)?),
             Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value2(customer_id)?),
@@ -777,7 +837,7 @@ impl Vault {
         state: &routes::AppState,
         token_id: Option<String>,
         payment_method: &api::PaymentMethodData,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         pm: enums::PaymentMethod,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
@@ -829,7 +889,7 @@ impl Vault {
         state: &routes::AppState,
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
         let value1 = payout_method

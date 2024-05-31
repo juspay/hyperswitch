@@ -235,6 +235,12 @@ pub struct TokenResponse {
     pub token_type: TokenPurpose,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthStatusResponse {
+    pub totp: bool,
+    pub recovery_code: bool,
+}
+
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum TokenOrPayloadResponse<T> {
@@ -255,12 +261,11 @@ pub struct BeginTotpResponse {
 pub struct TotpSecret {
     pub secret: Secret<String>,
     pub totp_url: Secret<String>,
-    pub recovery_codes: Vec<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VerifyTotpRequest {
-    pub totp: Option<Secret<String>>,
+    pub totp: Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -648,6 +648,20 @@ pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpRes
     .await
 }
 
+pub async fn totp_reset(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::TotpReset;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::reset_totp(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn totp_verify(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -684,6 +698,24 @@ pub async fn verify_recovery_code(
     .await
 }
 
+pub async fn totp_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyTotpRequest>,
+) -> HttpResponse {
+    let flow = Flow::TotpUpdate;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req_body, _| user_core::update_totp(state, user, req_body),
+        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn generate_recovery_codes(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::RecoveryCodesGenerate;
     Box::pin(api::server_wrap(
@@ -713,6 +745,23 @@ pub async fn terminate_two_factor_auth(
         (),
         |state, user, _, _| user_core::terminate_two_factor_auth(state, user, skip_two_factor_auth),
         &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn check_two_factor_auth_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::TwoFactorAuthStatus;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::check_two_factor_auth_status(state, user),
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -24,7 +24,7 @@
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
       "amount_to_capture": "{{random_number}}",
-      "customer_id": "stripesavecard_{{random_number}}",
+      "customer_id": "stripesavecard",
       "email": "guest@example.com",
       "name": "John Doe",
       "phone": "999999999",
