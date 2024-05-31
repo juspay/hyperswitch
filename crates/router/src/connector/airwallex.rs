@@ -339,36 +339,6 @@ impl api::PaymentAuthorize for Airwallex {}
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Airwallex
 {
-    // async fn execute_pretasks(
-    //     &self,
-    //     router_data: &mut types::PaymentsAuthorizeRouterData,
-    //     app_state: &routes::AppState,
-    // ) -> CustomResult<(), errors::ConnectorError> {
-    // let integ: Box<
-    //     &(dyn ConnectorIntegration<
-    //         api::InitPayment,
-    //         types::PaymentsAuthorizeData,
-    //         types::PaymentsResponseData,
-    //     > + Send
-    //           + Sync
-    //           + 'static),
-    // > = Box::new(&Self);
-    // let authorize_data = &types::PaymentsInitRouterData::foreign_from((
-    //     &router_data.to_owned(),
-    //     router_data.request.clone(),
-    // ));
-    // let resp = services::execute_connector_processing_step(
-    //     app_state,
-    //     integ,
-    //     authorize_data,
-    //     payments::CallConnectorAction::Trigger,
-    //     None,
-    // )
-    // .await?;
-    // router_data.reference_id = resp.reference_id;
-    //     Ok(())
-    // }
-
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
