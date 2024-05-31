@@ -231,7 +231,7 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse webhook event request information")?;
 
-    super::trigger_webhook_and_raise_event(
+    Box::pin(super::trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
         &key_store,
@@ -240,7 +240,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt,
         None,
         None,
-    )
+    ))
     .await;
 
     let updated_event = store
