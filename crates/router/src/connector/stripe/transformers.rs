@@ -8,6 +8,7 @@ use common_utils::{
     request::RequestContent,
     types::MinorUnit,
 };
+use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::AcceptanceType;
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
@@ -15,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
-use diesel_models::enums as storage_enums;
 #[cfg(feature = "payouts")]
 pub mod connect;
 #[cfg(feature = "payouts")]
@@ -1571,7 +1571,9 @@ impl TryFrom<&domain::GooglePayWalletData> for StripePaymentMethodData {
 
 impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(data: (&types::PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: (&types::PaymentsAuthorizeRouterData, MinorUnit),
+    ) -> Result<Self, Self::Error> {
         let item = data.0;
         let amount = data.1;
         let order_id = item.connector_request_reference_id.clone();
@@ -1862,7 +1864,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
         };
 
         Ok(Self {
-            amount,//hopefully we don't loose some cents here
+            amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
@@ -3193,9 +3195,21 @@ impl TryFrom<MinorUnit> for CaptureRequest {
     }
 }
 
-impl TryFrom<(&types::PaymentsPreProcessingRouterData, MinorUnit, storage_enums::Currency)> for StripeCreditTransferSourceRequest {
+impl
+    TryFrom<(
+        &types::PaymentsPreProcessingRouterData,
+        MinorUnit,
+        storage_enums::Currency,
+    )> for StripeCreditTransferSourceRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(data: (&types::PaymentsPreProcessingRouterData, MinorUnit, storage_enums::Currency)) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: (
+            &types::PaymentsPreProcessingRouterData,
+            MinorUnit,
+            storage_enums::Currency,
+        ),
+    ) -> Result<Self, Self::Error> {
         let item = data.0;
         let currency = data.2;
         let amount = data.1;
@@ -3302,8 +3316,10 @@ impl<F, T>
 impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for ChargesRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(data: (&types::PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
-        {   
+    fn try_from(
+        data: (&types::PaymentsAuthorizeRouterData, MinorUnit),
+    ) -> Result<Self, Self::Error> {
+        {
             let value = data.0;
             let amount = data.1;
             let order_id = value.connector_request_reference_id.clone();
@@ -3722,7 +3738,7 @@ pub struct StripeGpayToken {
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
     bank_transfer_data: &domain::BankTransferData,
-    amount: MinorUnit
+    amount: MinorUnit,
 ) -> CustomResult<RequestContent, errors::ConnectorError> {
     match bank_transfer_data {
         domain::BankTransferData::AchBankTransfer { .. }

@@ -341,7 +341,6 @@ impl AmountConvertor for MinorUnitForConnector {
     }
 }
 
-
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
     Default,

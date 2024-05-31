@@ -2,7 +2,10 @@ pub mod transformers;
 
 use std::{collections::HashMap, ops::Deref};
 
-use common_utils::{request::RequestContent, types::{AmountConvertor, MinorUnitForConnector, MinorUnit}};
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -15,6 +18,7 @@ use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsReques
 use super::utils::{PayoutsData, RouterData};
 use crate::{
     configs::settings,
+    connector::utils::PaymentsPreProcessingData,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -27,7 +31,6 @@ use crate::{
         request::{self, Mask},
         ConnectorValidation,
     },
-    connector::utils::PaymentsPreProcessingData,
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -48,7 +51,6 @@ impl Stripe {
         }
     }
 }
-
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripe
 where
@@ -237,12 +239,10 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_currency = req.request.get_currency()?;
         let req_amount = req.request.get_minor_amount()?;
-        let amount = connector_utils::convert_amount(
-            self.amount_converter,
-            req_amount,
-            req_currency,
-        )?;
-        let connector_req = stripe::StripeCreditTransferSourceRequest::try_from((req,amount, req_currency))?;
+        let amount =
+            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
+        let connector_req =
+            stripe::StripeCreditTransferSourceRequest::try_from((req, amount, req_currency))?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
