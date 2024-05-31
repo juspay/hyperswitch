@@ -1862,6 +1862,11 @@ pub async fn response_handler(
         }
     });
 
+    let reference_id = payout_attempt
+        .connector_payout_id
+        .clone()
+        .or(Some(payout_attempt.payout_attempt_id));
+
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.merchant_id.to_owned(),
@@ -1890,6 +1895,7 @@ pub async fn response_handler(
         profile_id: payout_attempt.profile_id,
         created: Some(payouts.created_at),
         attempts: None,
+        reference_id,
     };
     Ok(services::ApplicationResponse::Json(response))
 }

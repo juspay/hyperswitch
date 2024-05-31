@@ -445,6 +445,10 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attempts: Option<Vec<PayoutAttemptResponse>>,
+
+    /// The reference id to check payout in the connector's dashboard
+    #[schema(value_type = String, example = "50c90b09-11d2-4c97-ab5c-42e336e7506c")]
+    pub reference_id: Option<String>,
 }
 
 #[derive(

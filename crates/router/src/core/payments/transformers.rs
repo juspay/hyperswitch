@@ -976,7 +976,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
     fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
         let (payout, payout_attempt, customer) = item;
         let attempt = PayoutAttemptResponse {
-            attempt_id: payout_attempt.payout_attempt_id,
+            attempt_id: payout_attempt.payout_attempt_id.clone(),
             status: payout_attempt.status,
             amount: payout.amount,
             currency: Some(payout.destination_currency),
@@ -985,7 +985,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             error_message: payout_attempt.error_message.clone(),
             payment_method: Some(payout.payout_type),
             payout_method_type: None,
-            connector_transaction_id: payout_attempt.connector_payout_id,
+            connector_transaction_id: payout_attempt.connector_payout_id.clone(),
             cancellation_reason: None,
             unified_code: None,
             unified_message: None,
@@ -1019,6 +1019,9 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             attempts: Some(attempts),
             billing: None,
             client_secret: None,
+            reference_id: payout_attempt
+                .connector_payout_id
+                .or(Some(payout_attempt.payout_attempt_id)),
         }
     }
 }
