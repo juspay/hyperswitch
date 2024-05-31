@@ -1144,7 +1144,6 @@ impl api::IncomingWebhook for Bluesnap {
         let dispute_details: bluesnap::BluesnapDisputeWebhookBody =
             serde_urlencoded::from_bytes(request.body)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let dispute_amount = 
         Ok(api::disputes::DisputePayload {
             amount: connector_utils::to_currency_lower_unit(
                 dispute_details.invoice_charge_amount.abs().to_string(),
@@ -1160,6 +1159,7 @@ impl api::IncomingWebhook for Bluesnap {
             created_at: None,
             updated_at: None,
         })
+
     }
 
     fn get_webhook_resource_object(
