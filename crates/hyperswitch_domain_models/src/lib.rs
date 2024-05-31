@@ -6,6 +6,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod router_data;
+pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 

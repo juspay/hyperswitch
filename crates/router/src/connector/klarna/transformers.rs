@@ -267,7 +267,7 @@ impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
                     Self::Authorized
                 }
             }
-            KlarnaFraudStatus::Pending => Self::Authorizing,
+            KlarnaFraudStatus::Pending => Self::Pending,
             KlarnaFraudStatus::Rejected => Self::Failure,
         }
     }
@@ -362,13 +362,24 @@ pub struct KlarnaCaptureResponse {
     pub capture_id: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, KlarnaCaptureResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            KlarnaCaptureResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, KlarnaCaptureResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            KlarnaCaptureResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let connector_meta = serde_json::json!(KlarnaMeta {
             capture_id: item.response.capture_id,
@@ -381,10 +392,11 @@ impl<F, T>
         } else {
             item.data.status
         };
+        let resource_id = item.data.request.connector_transaction_id.clone();
 
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
+                resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
