@@ -165,6 +165,7 @@ pub async fn construct_payout_router_data<'a, F>(
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
+        minor_amount_captured: None,
         payment_method_status: None,
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
@@ -320,6 +321,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
         payment_method_status: None,
+        minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             connector_transaction_id: refund.connector_transaction_id.clone(),
@@ -568,6 +570,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: types::AcceptDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
@@ -664,6 +667,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         request: submit_evidence_request_data,
         response: Err(ErrorResponse::default()),
         access_token: None,
@@ -758,6 +762,7 @@ pub async fn construct_upload_file_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: types::UploadFileRequestData {
             file_key,
@@ -856,6 +861,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: types::DefendDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
@@ -943,6 +949,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
+        minor_amount_captured: None,
         payment_method_status: None,
         request: types::RetrieveFileRequestData {
             provider_file_id: file_metadata

@@ -81,6 +81,7 @@ impl VerifyConnectorData {
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,
             amount_captured: None,
+            minor_amount_captured: None,
             preprocessing_id: None,
             connector_customer: None,
             connector_auth_type: self.connector_auth.clone(),

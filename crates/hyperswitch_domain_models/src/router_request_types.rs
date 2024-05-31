@@ -2,7 +2,7 @@ pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
 use common_utils::{
-    consts, errors, ext_traits::OptionExt, pii, types as common_types, types::MinorUnit,
+    consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -15,7 +15,7 @@ use crate::{
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
     router_data::{self, RouterData},
-    router_response_types as response_types,
+    router_flow_types as flows, router_response_types as response_types,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -134,13 +134,19 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
         })
     }
 }
-impl<F> TryFrom<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
-    for ConnectorCustomerData
+impl
+    TryFrom<
+        &RouterData<flows::Authorize, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+    > for ConnectorCustomerData
 {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(
-        data: &RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+        data: &RouterData<
+            flows::Authorize,
+            PaymentsAuthorizeData,
+            response_types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
@@ -639,7 +645,7 @@ pub struct PayoutsData {
 
 #[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub name: Option<Secret<String, masking::WithType>>,
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,

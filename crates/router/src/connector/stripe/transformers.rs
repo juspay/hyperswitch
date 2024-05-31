@@ -260,7 +260,7 @@ pub struct StripeCustomerResponse {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ChargesRequest {
-    pub amount: String,
+    pub amount: MinorUnit,
     pub currency: String,
     pub customer: Secret<String>,
     pub source: Secret<String>,
@@ -271,8 +271,8 @@ pub struct ChargesRequest {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ChargesResponse {
     pub id: String,
-    pub amount: u64,
-    pub amount_captured: u64,
+    pub amount: MinorUnit,
+    pub amount_captured: MinorUnit,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub source: StripeSourceResponse,
@@ -2100,7 +2100,7 @@ pub struct SepaAndBacsBankTransferInstructions {
 #[derive(Clone, Debug, Serialize)]
 pub struct QrCodeNextInstructions {
     pub image_data_url: Url,
-    pub display_to_timestamp: Option<MinorUnit>,
+    pub display_to_timestamp: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2421,6 +2421,7 @@ impl<F, T>
                 .response
                 .amount_received
                 .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2606,6 +2607,7 @@ impl<F, T>
                 .response
                 .amount_received
                 .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2820,7 +2822,7 @@ pub struct StripeCashappQrResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct QrCodeResponse {
-    pub expires_at: Option<MinorUnit>,
+    pub expires_at: Option<i64>,
     pub image_url_png: Url,
     pub image_url_svg: Url,
 }
@@ -3306,7 +3308,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
                 order_id,
             ));
             Ok(Self {
-                amount: value.request.amount.to_string(),
+                amount: value.request.minor_amount,
                 currency: value.request.currency.to_string(),
                 customer: Secret::new(value.get_connector_customer_id()?),
                 source: Secret::new(value.get_preprocessing_id()?),

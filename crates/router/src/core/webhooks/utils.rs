@@ -87,6 +87,7 @@ pub async fn construct_webhook_router_data<'a>(
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
         amount_captured: None,
+        minor_amount_captured: None,
         request: types::VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
