@@ -43,7 +43,7 @@ impl Event for AuditEvent {
     fn identifier(&self) -> String {
         let event_type = match &self.event_type {
             AuditEventType::Error { .. } => "error",
-            AuditEventType::PaymentStart => "payment_start"
+            AuditEventType::PaymentStart => "payment_start",
             AuditEventType::PaymentCreated => "payment_created",
             AuditEventType::ConnectorDecided => "connector_decided",
             AuditEventType::ConnectorCalled => "connector_called",
