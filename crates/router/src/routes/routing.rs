@@ -385,7 +385,7 @@ pub async fn retrieve_surcharge_decision_manager_config(
     req: HttpRequest,
 ) -> impl Responder {
     let flow = Flow::DecisionManagerRetrieveConfig;
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
@@ -405,7 +405,7 @@ pub async fn retrieve_surcharge_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -482,7 +482,7 @@ pub async fn retrieve_decision_manager_config(
     req: HttpRequest,
 ) -> impl Responder {
     let flow = Flow::DecisionManagerRetrieveConfig;
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
@@ -499,7 +499,7 @@ pub async fn retrieve_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
