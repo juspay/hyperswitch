@@ -8,12 +8,11 @@ use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
 use router_env::{instrument, tracing};
-use storage_impl::redis::cache::ROUTING_CACHE;
+use storage_impl::redis::cache::{self, DECISION_MANAGER_CACHE};
 
 use super::routing::make_dsl_input;
 use crate::{
     core::{errors, errors::ConditionalConfigError as ConfigError, payments},
-    db::cache,
     routes,
 };
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
@@ -30,22 +29,37 @@ pub async fn perform_decision_management<F: Clone>(
     } else {
         return Ok(ConditionalConfigs::default());
     };
-    let key = format!("dsl_{merchant_id}");
     let db = &*state.store;
-    let find_key_from_db = || async { db.find_config_by_key(&algorithm_id).await };
-    let config = cache::get_or_populate_in_memory(db, &key, find_key_from_db, &ROUTING_CACHE)
+
+    let key = format!("dsl_{merchant_id}");
+
+    let config = db
+        .find_config_by_key(&algorithm_id)
         .await
-        .change_context(ConfigError::DslCachePoisoned)?;
+        .change_context(ConfigError::DslMissingInDb)
+        .attach_printable("Missing the config in db")?;
+
     let rec: DecisionManagerRecord = config
         .config
         .parse_struct("Program")
         .change_context(ConfigError::DslParsingError)
         .attach_printable("Error parsing routing algorithm from configs")?;
 
-    let interpreter: backend::VirInterpreterBackend<ConditionalConfigs> =
+    let find_key_from_db = || async {
         backend::VirInterpreterBackend::with_program(rec.program)
-            .change_context(ConfigError::DslBackendInitError)
-            .attach_printable("Error initializing DSL interpreter backend")?;
+            .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
+            .attach_printable("Error initializing DSL interpreter backend")
+    };
+
+    let interpreter = cache::get_or_populate_in_memory(
+        db.get_cache_store().as_ref(),
+        &key,
+        find_key_from_db,
+        &DECISION_MANAGER_CACHE,
+    )
+    .await
+    .change_context(ConfigError::DslCachePoisoned)?;
+
     let backend_input =
         make_dsl_input(payment_data).change_context(ConfigError::InputConstructionError)?;
 

@@ -57,6 +57,14 @@ pub static ACCOUNTS_CACHE: Lazy<Cache> =
 pub static ROUTING_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
+/// 3DS Decision Manager Cache
+pub static DECISION_MANAGER_CACHE: Lazy<Cache> =
+    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
+/// Surcharge Cache
+pub static SURCHARGE_CACHE: Lazy<Cache> =
+    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
 /// CGraph Cache
 pub static CGRAPH_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
