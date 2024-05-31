@@ -403,7 +403,7 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
 ///
 /// A wrapper type to store the encrypted data for sensitive pii domain data types
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, Clone)]
 pub struct Encryptable<T: Clone> {
     inner: T,
     encrypted: Secret<Vec<u8>, EncryptionStrategy>,

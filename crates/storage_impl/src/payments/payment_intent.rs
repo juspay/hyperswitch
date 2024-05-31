@@ -6,7 +6,7 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::errors::ReportSwitchExt;
 use common_utils::{
     date_time,
-    ext_traits::{AsyncExt, Encode},
+    ext_traits::{AsyncExt, Encode}, crypto::Encryptable, errors::{ValidationError, CustomResult},
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
@@ -17,13 +17,14 @@ use diesel_models::{
     payment_intent::{
         PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
         PaymentIntentUpdate as DieselPaymentIntentUpdate,
-    },
+    }, encryption::{Encryption, AsyncLift, decrypt},
 };
 #[cfg(feature = "olap")]
 use diesel_models::{
     query::generics::db_metrics,
     schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl},
 };
+use masking::{PeekInterface, Secret};
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
@@ -31,7 +32,7 @@ use hyperswitch_domain_models::{
     errors::StorageError,
     payments::{
         payment_attempt::PaymentAttempt,
-        payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
+        payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate, GuestCustomerDetails},
         PaymentIntent,
     },
     RemoteStorageObject,
@@ -122,7 +123,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     request_external_three_ds_authentication: new
                         .request_external_three_ds_authentication,
                     guest_customer_data: Some(
-                        new.guest_customer_data
+                        new.guest_customer_data.map(|customer_data| customer_data.peek())
                             .encode_to_value()
                             .change_context(StorageError::CustomerRedacted)?,
                     ),
@@ -871,7 +872,7 @@ impl DataModelExt for PaymentIntentNew {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            guest_customer_data: self.guest_customer_data,
+            guest_customer_data: self.guest_customer_data.map(Encryption::from),
         }
     }
 
@@ -920,9 +921,25 @@ impl DataModelExt for PaymentIntentNew {
             session_expiry: storage_model.session_expiry,
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
-            guest_customer_data: storage_model.guest_customer_data,
+            guest_customer_data: storage_model.guest_customer_data
         }
     }
+}
+
+async fn convert_guest_customer_details_for_domain(
+    other: Option<Encryption>,
+    key: &Secret<Vec<u8>>,
+) -> CustomResult<Option<Encryptable<Secret<GuestCustomerDetails>>>, ValidationError> {
+    async {
+        let inner_decrypt = |inner| decrypt(inner, key.peek());
+            Ok::<Option<Encryptable<Secret<GuestCustomerDetails>>>, error_stack::Report<common_utils::errors::CryptoError>>(
+                other.async_lift(inner_decrypt).await?,
+            )
+        }
+    .await
+    .change_context(ValidationError::InvalidValue {
+        message: "Failed while decrypting".to_string(),
+    })
 }
 
 #[async_trait::async_trait]
@@ -974,7 +991,7 @@ impl DataModelExt for PaymentIntent {
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
             frm_metadata: self.frm_metadata,
-            guest_customer_data: self.guest_customer_data,
+            guest_customer_data: self.guest_customer_data.map(Encryption::from),
         }
     }
 

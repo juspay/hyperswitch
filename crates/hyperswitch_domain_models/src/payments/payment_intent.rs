@@ -2,10 +2,15 @@ use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     pii,
-    types::MinorUnit,
+    types::MinorUnit, crypto::{Encryptable, self}, errors::{CustomResult, CryptoError},
 };
+
+use diesel_models::encryption::{TypeEncryption, Encryption};
+use error_stack::ResultExt;
+use masking::{Secret, PeekInterface};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+use async_trait::async_trait;
 
 use super::{payment_attempt::PaymentAttempt, PaymentIntent};
 use crate::{errors, RemoteStorageObject};
@@ -115,7 +120,7 @@ pub struct PaymentIntentNew {
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub guest_customer_data: Option<GuestCustomerDetails>,
+    pub guest_customer_data: Option<Encryptable<Secret<GuestCustomerDetails>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,6 +223,43 @@ pub struct GuestCustomerDetails {
     phone_coumtry_code: Option<String>,
 }
 
+#[async_trait]
+impl<
+        V: crypto::DecodeMessage + crypto::EncodeMessage + Send +'static,
+        S: masking::Strategy<GuestCustomerDetails> + Send,
+    > TypeEncryption<GuestCustomerDetails, V, S> for Encryptable<Secret<GuestCustomerDetails, S>>
+{
+    // #[instrument(skip_all)]
+    async fn encrypt(
+        masked_data: Secret<GuestCustomerDetails, S>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, CryptoError> {
+        let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().to_string().as_bytes())?;
+
+        Ok(Self::new(masked_data, encrypted_data.into()))
+    }
+
+    // #[instrument(skip_all)]
+    async fn decrypt
+        encrypted_data: Encryption,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, CryptoError> {
+        let encrypted = encrypted_data.into_inner();
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
+
+        let json_value: serde_json::Value =
+            serde_json::from_slice(&data).change_context(CryptoError::DecodingFailed)?;
+
+        let value: GuestCustomerDetails = 
+        serde_json::from_value::<GuestCustomerDetails>(json_value)
+            .change_context(CryptoError::DecodingFailed)?;
+
+        Ok(Self::new(value.into(), encrypted))
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -253,7 +295,7 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub guest_customer_data: Option<GuestCustomerDetails>,
+    pub guest_customer_data: Option<Encryptable<Secret<GuestCustomerDetails>>>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {

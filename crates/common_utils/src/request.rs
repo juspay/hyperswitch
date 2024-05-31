@@ -184,3 +184,35 @@ impl Default for RequestBuilder {
         Self::new()
     }
 }
+
+use std::time;
+
+#[inline]
+pub async fn time_future<F, R>(future: F) -> (R, time::Duration)
+where
+    F: futures::Future<Output = R>,
+{
+    let start = time::Instant::now();
+    let result = future.await;
+    let time_spent = start.elapsed();
+    (result, time_spent)
+}
+
+use router_env::opentelemetry;
+use router_env::{global_meter, metrics_context};
+metrics_context!(CONTEXT);
+global_meter!(GLOBAL_METER, "ROUTER_API");
+
+#[inline]
+pub async fn record_operation_time<F, R>(
+    future: F,
+    metric: &once_cell::sync::Lazy<opentelemetry::metrics::Histogram<f64>>,
+    key_value: &[opentelemetry::KeyValue],
+) -> R
+where
+    F: futures::Future<Output = R>,
+{
+    let (result, time) = time_future(future).await;
+    metric.record(&CONTEXT, time.as_secs_f64(), key_value);
+    result
+}

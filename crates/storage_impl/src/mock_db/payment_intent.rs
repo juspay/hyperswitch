@@ -10,6 +10,7 @@ use hyperswitch_domain_models::{
     },
 };
 
+use masking::PeekInterface;
 use super::MockDb;
 use crate::DataModelExt;
 
@@ -109,11 +110,10 @@ impl PaymentIntentInterface for MockDb {
             session_expiry: new.session_expiry,
             request_external_three_ds_authentication: new.request_external_three_ds_authentication,
             frm_metadata: new.frm_metadata,
-            guest_customer_data: Some(
-                new.guest_customer_data
+            guest_customer_data:
+                Some(new.guest_customer_data.map(|customer_data| customer_data.peek())
                     .encode_to_value()
-                    .change_context(StorageError::CustomerRedacted)?,
-            ),
+                    .change_context(StorageError::CustomerRedacted)?),
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
