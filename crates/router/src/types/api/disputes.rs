@@ -1,7 +1,6 @@
 use masking::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-
 use crate::{services, types};
 
 #[derive(Default, Debug, Deserialize, Serialize)]

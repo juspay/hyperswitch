@@ -1,12 +1,11 @@
 pub mod transformers;
 
-
 use base64::Engine;
 use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
     request::RequestContent,
-    types::{StringMajorUnitForConnector,StringMajorUnit, AmountConvertor}
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -49,7 +48,7 @@ pub struct Bluesnap {
 impl Bluesnap {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMajorUnitForConnector
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -477,12 +476,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let amount_to_capture = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
-            req.request.currency
+            req.request.currency,
         )?;
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            amount_to_capture,
-            req,
-        ))?;
+        let connector_router_data =
+            bluesnap::BluesnapRouterData::try_from((amount_to_capture, req))?;
         let connector_req = bluesnap::BluesnapCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -667,12 +664,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
-            req.request.currency
+            req.request.currency,
         )?;
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            amount,
-            req,
-        ))?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((amount, req))?;
         match req.is_three_ds() && req.request.is_card() {
             true => {
                 let connector_req =
@@ -812,10 +806,7 @@ impl
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            amount,
-            req,
-        ))?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((amount, req))?;
         let connector_req =
             bluesnap::BluesnapCompletePaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -912,10 +903,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            refund_amount,
-            req,
-        ))?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((refund_amount, req))?;
         let connector_req = bluesnap::BluesnapRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1159,7 +1147,6 @@ impl api::IncomingWebhook for Bluesnap {
             created_at: None,
             updated_at: None,
         })
-
     }
 
     fn get_webhook_resource_object(

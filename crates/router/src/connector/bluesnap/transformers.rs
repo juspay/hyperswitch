@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, StringExt, ValueExt},
     pii::Email,
-    types::StringMajorUnit
+    types::StringMajorUnit,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -39,9 +39,7 @@ pub struct BluesnapRouterData<T> {
 
 impl<T> TryFrom<(StringMajorUnit, T)> for BluesnapRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, item): (StringMajorUnit, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
