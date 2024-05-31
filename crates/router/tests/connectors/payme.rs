@@ -17,7 +17,7 @@ impl utils::Connector for PaymeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payme;
         types::api::ConnectorData {
-            connector: Box::new(&Payme),
+            connector: Box::new(Payme::new()),
             connector_name: types::Connector::Payme,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

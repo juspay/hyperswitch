@@ -1,9 +1,8 @@
 pub mod transformers;
 
-use std::fmt::Debug;
 
 use api_models::enums::AuthenticationType;
-use common_utils::{crypto, request::RequestContent};
+use common_utils::{crypto, request::RequestContent,  types::{AmountConvertor, MinorUnit, MinorUnitForConnector}};
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
@@ -27,8 +26,18 @@ use crate::{
     utils::{handle_json_response_deserialization_failure, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Payme;
+#[derive(Clone)]
+pub struct Payme {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Payme {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Payme {}
 impl api::PaymentSession for Payme {}
@@ -287,7 +296,9 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount()?;
+        let req_currency = req.request.get_currency()?;
+        let amount =  connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
         let connector_router_data = payme::PaymeRouterData::try_from((amount, req))?;
         let connector_req = payme::GenerateSaleRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -534,8 +545,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount =
+            connector_utils::convert_amount(self.amount_converter, req.request.minor_amount, req.request.currency)?;
         let connector_router_data =
-            payme::PaymeRouterData::try_from((req.request.minor_amount, req))?;
+            payme::PaymeRouterData::try_from((amount, req))?;
         let connector_req = payme::PaymePaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -718,8 +731,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount =
+            connector_utils::convert_amount(self.amount_converter, req.request.minor_amount_to_capture, req.request.currency)?;
         let connector_router_data =
-            payme::PaymeRouterData::try_from((req.request.minor_amount_to_capture, req))?;
+            payme::PaymeRouterData::try_from((amount, req))?;
         let connector_req = payme::PaymentCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -812,12 +827,16 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount =
+        let req_amount =
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "amount",
                 })?;
+        let req_currency = req.request.currency.ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: "amount",
+        })?;
+        let amount = connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
         let connector_router_data = payme::PaymeRouterData::try_from((amount, req))?;
         let connector_req = payme::PaymeVoidRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -905,8 +924,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount =
+            connector_utils::convert_amount(self.amount_converter, req.request.minor_refund_amount, req.request.currency)?;
         let connector_router_data =
-            payme::PaymeRouterData::try_from((req.request.minor_refund_amount, req))?;
+            payme::PaymeRouterData::try_from((amount, req))?;
         let connector_req = payme::PaymeRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
