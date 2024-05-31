@@ -726,7 +726,7 @@ pub async fn validate_and_create_refund(
         .await
     {
         Ok(refund) => {
-            schedule_refund_execution(
+            Box::pin(schedule_refund_execution(
                 state,
                 refund.clone(),
                 refund_type,
@@ -736,7 +736,7 @@ pub async fn validate_and_create_refund(
                 payment_intent,
                 creds_identifier,
                 charges,
-            )
+            ))
             .await?
         }
         Err(err) => {

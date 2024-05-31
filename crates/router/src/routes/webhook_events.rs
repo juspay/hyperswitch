@@ -27,7 +27,7 @@ pub async fn list_initial_webhook_delivery_attempts(
         constraints,
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -48,7 +48,7 @@ pub async fn list_initial_webhook_delivery_attempts(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -66,7 +66,7 @@ pub async fn list_webhook_delivery_attempts(
         initial_attempt_id,
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -87,7 +87,7 @@ pub async fn list_webhook_delivery_attempts(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -105,7 +105,7 @@ pub async fn retry_webhook_delivery_attempt(
         event_id,
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -126,6 +126,6 @@ pub async fn retry_webhook_delivery_attempt(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

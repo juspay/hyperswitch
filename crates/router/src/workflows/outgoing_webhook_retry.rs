@@ -114,7 +114,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     .peek()
                     .parse_struct("OutgoingWebhookRequestContent")?;
 
-                webhooks_core::trigger_webhook_and_raise_event(
+                Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                     state.clone(),
                     business_profile,
                     &key_store,
@@ -123,7 +123,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     delivery_attempt,
                     None,
                     Some(process),
-                )
+                ))
                 .await;
             }
 
@@ -168,7 +168,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             errors::ProcessTrackerError::EApiErrorResponse
                         })?;
 
-                        webhooks_core::trigger_webhook_and_raise_event(
+                        Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                             state.clone(),
                             business_profile,
                             &key_store,
@@ -177,7 +177,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             delivery_attempt,
                             Some(content),
                             Some(process),
-                        )
+                        ))
                         .await;
                     }
                     // Resource status has changed since the event was created, finish task

@@ -1,24 +1,74 @@
-import { getCustomExchange } from "./Commons";
+// This file is the default. To override, add to connector.js
+import State from "../../utils/State";
+
+const globalState = new State({
+  connectorId: Cypress.env("CONNECTOR"),
+  baseUrl: Cypress.env("BASEURL"),
+  adminApiKey: Cypress.env("ADMINAPIKEY"),
+  connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
+});
+
+const connectorId = globalState.get("connectorId");
 
 const successfulNo3DSCardDetails = {
-  card_number: "371449635398431",
-  card_exp_month: "03",
-  card_exp_year: "30",
-  card_holder_name: "John Doe",
-  card_cvc: "7373",
+  card_number: "4111111111111111",
+  card_exp_month: "08",
+  card_exp_year: "25",
+  card_holder_name: "joseph Doe",
+  card_cvc: "999",
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4917610000000000",
-  card_exp_month: "03",
-  card_exp_year: "30",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "737",
+  card_number: "4111111111111111",
+  card_exp_month: "10",
+  card_exp_year: "25",
+  card_holder_name: "morino",
+  card_cvc: "999",
+};
+
+/*
+`getDefaultExchange` contains the default Request and Response to be considered if none provided.
+`getCustomExchange` takes in 2 optional fields named as Request and Response.
+with `getCustomExchange`, if 501 response is expected, there is no need to pass Response as it considers default values.
+*/
+
+// Const to get default PaymentExchange object
+const getDefaultExchange = () => ({
+  Request: {
+    currency: "EUR",
+  },
+  Response: {
+    status: 501,
+    body: {
+      error: {
+        type: "invalid_request",
+        message: `Selected payment method through ${connectorId} is not implemented`,
+        code: "IR_00",
+      },
+    },
+  },
+});
+
+// Const to get PaymentExchange with overridden properties
+export const getCustomExchange = (overrides) => {
+  const defaultExchange = getDefaultExchange();
+
+  return {
+    ...defaultExchange,
+    Request: {
+      ...defaultExchange.Request,
+      ...(overrides.Request || {}),
+    },
+    Response: {
+      ...defaultExchange.Response,
+      ...(overrides.Response || {}),
+    },
+  };
 };
 
 export const connectorDetails = {
   card_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -31,7 +81,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    },
+    }),
     "3DSManualCapture": {
       Request: {
         card: successfulThreeDSTestCardDetails,
@@ -56,7 +106,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -70,7 +120,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "processing",
         },
       },
     },
@@ -84,7 +134,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -100,11 +150,9 @@ export const connectorDetails = {
           status: "processing",
           amount: 6500,
           amount_capturable: 6500,
-          amount_received: 0,
         },
       },
     },
-
     PartialCapture: {
       Request: {},
       Response: {
@@ -113,57 +161,78 @@ export const connectorDetails = {
           status: "processing",
           amount: 6500,
           amount_capturable: 6500,
-          amount_received: 0,
         },
       },
     },
     Void: {
       Request: {},
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "processing",
+          error: {
+            code: "IR_16",
+            message:
+              "You cannot cancel this payment because it has status processing",
+            type: "invalid_request",
+          },
         },
       },
     },
     Refund: {
       Request: {
+        card: successfulNo3DSCardDetails,
         currency: "USD",
+        customer_acceptance: null,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
-        },
-        status: 200,
-        body: {
-          status: "pending",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
     PartialRefund: {
       Request: {
+        card: successfulNo3DSCardDetails,
         currency: "USD",
+        customer_acceptance: null,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
     SyncRefund: {
       Request: {
+        card: successfulNo3DSCardDetails,
         currency: "USD",
+        customer_acceptance: null,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
-    MandateSingleUse3DSAutoCapture: {
+    MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -174,14 +243,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateSingleUse3DSManualCapture: {
+    }),
+    MandateSingleUse3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -192,14 +255,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    MandateSingleUseNo3DSAutoCapture: {
+    }),
+    MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -210,14 +267,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateSingleUseNo3DSManualCapture: {
+    }),
+    MandateSingleUseNo3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -228,14 +279,20 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
+    }),
+    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        card: successfulNo3DSCardDetails,
+        currency: "USD",
+        mandate_type: {
+          single_use: {
+            amount: 8000,
+            currency: "USD",
+          },
         },
       },
-    },
-    MandateMultiUseNo3DSAutoCapture: {
+    }),
+    MandateMultiUseNo3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -246,32 +303,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateMultiUseNo3DSManualCapture: {
-      Request: {
-        card: successfulNo3DSCardDetails,
-        currency: "USD",
-        mandate_type: {
-          multi_use: {
-            amount: 8000,
-            currency: "USD",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MandateMultiUse3DSAutoCapture: {
+    }),
+    MandateMultiUse3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -282,14 +315,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MandateMultiUse3DSManualCapture: {
+    }),
+    MandateMultiUse3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulThreeDSTestCardDetails,
         currency: "USD",
@@ -300,14 +327,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    ZeroAuthMandate: {
+    }),
+    ZeroAuthMandate: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -318,14 +339,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSAutoCapture: {
+    }),
+    SaveCardUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -339,14 +354,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCapture: {
+    }),
+    SaveCardUseNo3DSManualCapture: getCustomExchange({
       Request: {
         card: successfulNo3DSCardDetails,
         currency: "USD",
@@ -360,16 +369,10 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
+    }),
   },
   bank_transfer_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomExchange({
       Request: {
         currency: "BRL",
       },
@@ -379,8 +382,8 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    },
-    Pix: {
+    }),
+    Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix",
@@ -391,13 +394,7 @@ export const connectorDetails = {
         },
         currency: "BRL",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
+    }),
   },
   bank_redirect_pm: {
     PaymentIntent: getCustomExchange({
@@ -411,7 +408,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    ideal: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -424,14 +421,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    giropay: {
+    }),
+    giropay: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -447,14 +438,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    sofort: {
+    }),
+    sofort: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -467,14 +452,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    eps: {
+    }),
+    eps: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -486,22 +465,25 @@ export const connectorDetails = {
           },
         },
       },
+    }),
+    blikPaymentIntent: getCustomExchange({
+      Request: {
+        currency: "PLN",
+      },
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_payment_method",
         },
       },
-    },
-    blik: {
+    }),
+    blik: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
         payment_method_data: {
           bank_redirect: {
             blik: {
-              name: "John Doe",
-              email: "example@email.com",
               blik_code: "777987",
             },
           },
@@ -520,12 +502,6 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
+    }),
   },
 };

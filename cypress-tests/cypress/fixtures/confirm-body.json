@@ -1,20 +1,9 @@
 {
   "client_secret": "",
   "return_url": "https://hyperswitch.io",
-  "payment_method": "card",
   "confirm": true,
-  "payment_method_data": {
-    "card": {
-      "_comment": "these details are fetched from utils",
-      "card_number": "YourCardNumberHere",
-      "card_exp_month": "04",
-      "card_exp_year": "24",
-      "card_holder_name": "xyz",
-      "card_cvc": "424",
-      "card_issuer": "",
-      "card_network": "Visa"
-    }
-  },
+  "payment_method": "card",
+  "payment_method_data": {},
   "customer_acceptance": {
     "acceptance_type": "offline",
     "accepted_at": "1963-05-03T04:07:52.723Z",

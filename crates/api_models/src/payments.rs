@@ -2904,7 +2904,11 @@ impl AddressDetails {
 
     pub fn unify_address_details(self, other: Option<&Self>) -> Self {
         if let Some(other) = other {
-            let (first_name, last_name) = if self.first_name.is_some() {
+            let (first_name, last_name) = if self
+                .first_name
+                .as_ref()
+                .is_some_and(|first_name| !first_name.is_empty_after_trim())
+            {
                 (self.first_name, self.last_name)
             } else {
                 (other.first_name.clone(), other.last_name.clone())

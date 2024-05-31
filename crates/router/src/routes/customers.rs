@@ -53,7 +53,7 @@ pub async fn customers_retrieve(
         }
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -61,7 +61,7 @@ pub async fn customers_retrieve(
         |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
         &*auth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
