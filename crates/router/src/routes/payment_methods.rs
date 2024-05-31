@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
+use common_utils::{consts::TOKEN_TTL, errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
@@ -131,7 +131,7 @@ pub async fn list_payment_method_api(
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
-    customer_id: web::Path<(String,)>,
+    customer_id: web::Path<(id_type::CustomerId,)>,
     req: HttpRequest,
     query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {

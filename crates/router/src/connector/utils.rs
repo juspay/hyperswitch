@@ -11,8 +11,9 @@ use common_utils::{
     date_time,
     errors::ReportSwitchExt,
     ext_traits::StringExt,
+    id_type,
     pii::{self, Email, IpAddress},
-    types::MinorUnit,
+    types::{AmountConvertor, MinorUnit},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -87,7 +88,7 @@ pub trait RouterData {
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error>;
-    fn get_customer_id(&self) -> Result<String, Error>;
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
     fn get_recurring_mandate_payment_data(
@@ -402,7 +403,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
     }
-    fn get_customer_id(&self) -> Result<String, Error> {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, Error> {
         self.customer_id
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
@@ -877,7 +878,7 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
 
 #[cfg(feature = "payouts")]
 pub trait CustomerDetails {
-    fn get_customer_id(&self) -> Result<String, errors::ConnectorError>;
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
     fn get_customer_name(
         &self,
     ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
@@ -890,7 +891,7 @@ pub trait CustomerDetails {
 
 #[cfg(feature = "payouts")]
 impl CustomerDetails for types::CustomerDetails {
-    fn get_customer_id(&self) -> Result<String, errors::ConnectorError> {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError> {
         self.customer_id
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -2616,4 +2617,24 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
         }
     }
+}
+
+pub fn convert_amount<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<T, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
+pub fn convert_back<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert_back(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
 }
