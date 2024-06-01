@@ -660,14 +660,14 @@ pub async fn save_in_locker(
         .clone()
         .get_required_value("customer_id")?;
     match payment_method_request.card.clone() {
-        Some(card) => payment_methods::cards::add_card_to_locker(
+        Some(card) => Box::pin(payment_methods::cards::add_card_to_locker(
             state,
             payment_method_request,
             &card,
             &customer_id,
             merchant_account,
             None,
-        )
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed"),
