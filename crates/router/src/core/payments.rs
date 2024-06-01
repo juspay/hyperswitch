@@ -1481,8 +1481,8 @@ where
             payment_processing_details,
         ) => {
             let apple_pay_data = match payment_data.payment_method_data.clone() {
-                Some(payment_data) => {
-                    let domain_data = domain::PaymentMethodData::from(payment_data);
+                Some(payment_method_data) => {
+                    let domain_data = domain::PaymentMethodData::from(payment_method_data);
                     match domain_data {
                         domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
                             wallet_data,
@@ -1507,8 +1507,6 @@ where
                     "ApplePayPredecryptData",
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            logger::debug!(?apple_pay_predecrypt);
 
             router_data.payment_method_token = Some(
                 hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(

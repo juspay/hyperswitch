@@ -1007,7 +1007,7 @@ pub struct ApplePayCertificatesMigration;
 #[cfg(feature = "olap")]
 impl ApplePayCertificatesMigration {
     pub fn server(state: AppState) -> Scope {
-        web::scope("apple_pay_certificates_migration/{merchant_id}")
+        web::scope("/apple_pay_certificates_migration/{merchant_id}")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(
                 web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),

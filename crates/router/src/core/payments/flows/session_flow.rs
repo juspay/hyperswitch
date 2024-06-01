@@ -169,7 +169,7 @@ async fn create_applepay_session_token(
         let connector_apple_pay_wallet_details =
             helpers::get_applepay_metadata(router_data.connector_wallets_details.clone())
                 .map_err(|error| {
-                    logger::info!(
+                    logger::debug!(
                         "Apple pay connector wallets details parsing failed in create_applepay_session_token {:?}",
                         error
                     )

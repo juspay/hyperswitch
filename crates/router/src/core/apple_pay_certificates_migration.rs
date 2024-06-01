@@ -44,7 +44,7 @@ pub async fn apple_pay_certificates_migration(
         let connector_apple_pay_metadata =
             helpers::get_applepay_metadata(connector_account.clone().metadata)
                 .map_err(|error| {
-                    logger::info!(
+                    logger::error!(
                 "Apple pay metadata parsing failed for {:?} in certificates migrations api {:?}",
                 connector_account.clone().connector_name,
                 error
@@ -65,24 +65,10 @@ pub async fn apple_pay_certificates_migration(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt connector apple pay metadata")?;
 
-            let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
-                merchant_id: None,
-                connector_type: None,
-                connector_name: None,
-                connector_account_details: None,
-                test_mode: None,
-                disabled: None,
-                merchant_connector_id: None,
-                payment_methods_enabled: None,
-                metadata: None,
-                frm_configs: None,
-                connector_webhook_details: None,
-                applepay_verified_domains: None,
-                pm_auth_config: None,
-                connector_label: None,
-                status: None,
-                connector_wallets_details: Some(encrypted_apple_pay_metadata),
-            };
+            let updated_mca =
+                storage::MerchantConnectorAccountUpdate::ConnectorWalletDeatilsUpdate {
+                    connector_wallets_details: Some(encrypted_apple_pay_metadata),
+                };
             db.update_merchant_connector_account(
                 connector_account.clone(),
                 updated_mca.into(),

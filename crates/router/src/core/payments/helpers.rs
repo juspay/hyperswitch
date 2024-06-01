@@ -3923,7 +3923,7 @@ pub fn is_apple_pay_simplified_flow(
     let connector_apple_pay_wallet_details =
         get_applepay_metadata(connector_wallets_details)
             .map_err(|error| {
-                logger::info!(
+                logger::debug!(
                     "Apple pay connector wallets details parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
                     connector_name,
                     error
@@ -3935,7 +3935,7 @@ pub fn is_apple_pay_simplified_flow(
         Some(apple_pay_wallet_details) => Some(apple_pay_wallet_details),
         None => get_applepay_metadata(connector_metadata)
             .map_err(|error| {
-                logger::info!(
+                logger::debug!(
                 "Apple pay metadata parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
                 connector_name,
                 error
@@ -3961,7 +3961,7 @@ pub async fn get_encrypted_apple_pay_connector_wallets_details(
 ) -> RouterResult<Option<Encryptable<masking::Secret<serde_json::Value>>>> {
     let apple_pay_metadata = get_applepay_metadata(connector_metadata.clone())
         .map_err(|error| {
-            logger::info!(
+            logger::error!(
                 "Apple pay metadata parsing failed in get_encrypted_apple_pay_connector_wallets_details {:?}",
                 error
             )

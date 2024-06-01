@@ -2,7 +2,6 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     date_time,
     errors::{CustomResult, ValidationError},
-    ext_traits::AsyncExt,
     pii,
 };
 use diesel_models::{
@@ -12,7 +11,10 @@ use diesel_models::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
-use super::{behaviour, types::TypeEncryption};
+use super::{
+    behaviour,
+    types::{self, AsyncLift, TypeEncryption},
+};
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
@@ -58,6 +60,9 @@ pub enum MerchantConnectorAccountUpdate {
         pm_auth_config: Option<serde_json::Value>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
+        connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    },
+    ConnectorWalletDeatilsUpdate {
         connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
 }
@@ -138,16 +143,11 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_map(|wallet_details| async {
-                    Encryptable::decrypt(wallet_details, key.peek(), GcmAes256)
-                        .await
-                        .change_context(ValidationError::InvalidValue {
-                            message: "Failed while decrypting connector wallets details"
-                                .to_string(),
-                        })
-                })
+                .async_lift(|inner| types::decrypt(inner, key.peek()))
                 .await
-                .transpose()?,
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting connector wallets details".to_string(),
+                })?,
         })
     }
 
@@ -220,6 +220,28 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_label,
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
+            },
+            MerchantConnectorAccountUpdate::ConnectorWalletDeatilsUpdate {
+                connector_wallets_details,
+            } => Self {
+                connector_wallets_details: connector_wallets_details.map(Encryption::from),
+                merchant_id: None,
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
             },
         }
     }
