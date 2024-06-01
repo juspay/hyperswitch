@@ -3,7 +3,7 @@ use std::{convert::From, default::Default};
 use api_models::{payment_methods as api_types, payments};
 use common_utils::{
     crypto::Encryptable,
-    date_time,
+    date_time, id_type,
     pii::{self, Email},
 };
 use serde::{Deserialize, Serialize};
@@ -80,9 +80,9 @@ pub struct CustomerUpdateRequest {
     pub tax_exempt: Option<String>,                  // not used
 }
 
-#[derive(Default, Serialize, PartialEq, Eq)]
+#[derive(Serialize, PartialEq, Eq)]
 pub struct CreateCustomerResponse {
-    pub id: String,
+    pub id: id_type::CustomerId,
     pub object: String,
     pub created: u64,
     pub description: Option<String>,
@@ -95,9 +95,9 @@ pub struct CreateCustomerResponse {
 pub type CustomerRetrieveResponse = CreateCustomerResponse;
 pub type CustomerUpdateResponse = CreateCustomerResponse;
 
-#[derive(Default, Serialize, PartialEq, Eq)]
+#[derive(Serialize, PartialEq, Eq)]
 pub struct CustomerDeleteResponse {
-    pub id: String,
+    pub id: id_type::CustomerId,
     pub deleted: bool,
 }
 
@@ -120,7 +120,7 @@ impl From<StripeAddressDetails> for payments::AddressDetails {
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
-            customer_id: api_models::customers::generate_customer_id(),
+            customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             name: req.name,
             phone: req.phone,
             email: req.email,

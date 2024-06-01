@@ -1992,6 +1992,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             paypal::transformers::PaypalAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Payone => {
+            payone::transformers::PayoneAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Payu => {
             payu::transformers::PayuAuthType::try_from(val)?;
             Ok(())
