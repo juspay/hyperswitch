@@ -66,7 +66,7 @@ pub async fn apple_pay_certificates_migration(
             .attach_printable("Unable to encrypt connector apple pay metadata")?;
 
             let updated_mca =
-                storage::MerchantConnectorAccountUpdate::ConnectorWalletDeatilsUpdate {
+                storage::MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                     connector_wallets_details: Some(encrypted_apple_pay_metadata),
                 };
             db.update_merchant_connector_account(
