@@ -26,7 +26,7 @@ pub async fn apple_pay_certificates_migration(
 
     let merchant_id_list = &req.merchant_ids;
 
-    let mut migration_sucessful_merchant_ids = vec![];
+    let mut migration_successful_merchant_ids = vec![];
     let mut migration_failed_merchant_ids = vec![];
 
     for merchant_id in merchant_id_list {
@@ -94,7 +94,7 @@ pub async fn apple_pay_certificates_migration(
 
                 match merchant_connector_account_response {
                     Ok(_) => {
-                        migration_sucessful_merchant_ids.push(merchant_id.to_string());
+                        migration_successful_merchant_ids.push(merchant_id.to_string());
                     }
                     Err(_) => {
                         migration_failed_merchant_ids.push(merchant_id.to_string());
@@ -106,7 +106,7 @@ pub async fn apple_pay_certificates_migration(
 
     Ok(services::api::ApplicationResponse::Json(
         apple_pay_certificates_migration::ApplePayCertificatesMigrationResponse {
-            migration_sucessful: migration_sucessful_merchant_ids,
+            migration_successful: migration_successful_merchant_ids,
             migraiton_failed: migration_failed_merchant_ids,
         },
     ))
