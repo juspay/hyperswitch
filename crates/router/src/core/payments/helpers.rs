@@ -3979,7 +3979,7 @@ pub async fn get_encrypted_apple_pay_connector_wallets_details(
 
     let encrypted_connector_apple_pay_details = connector_apple_pay_details
         .async_lift(|wallets_details| {
-            domain::types::encrypt_optional(wallets_details, key_store.key.get_inner().peek())
+            types::encrypt_optional(wallets_details, key_store.key.get_inner().peek())
         })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
