@@ -10,17 +10,18 @@ use crate::{
 pub async fn apple_pay_certificates_migration(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    json_payload: web::Json<
+        api_models::apple_pay_certificates_migration::ApplePayCertificatesMigrationRequest,
+    >,
 ) -> HttpResponse {
     let flow = Flow::ApplePayCertificatesMigration;
-    let merchant_id = path.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        &merchant_id,
-        |state, _, _, _| {
-            apple_pay_certificates_migration::apple_pay_certificates_migration(state, &merchant_id)
+        &json_payload.into_inner(),
+        |state, _, req, _| {
+            apple_pay_certificates_migration::apple_pay_certificates_migration(state, req)
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
