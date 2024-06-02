@@ -1,4 +1,3 @@
-use api_models::payments;
 use common_utils::pii::{self, Email};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -25,7 +24,7 @@ pub enum PaymentMethodData {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApplePayFlow {
-    Simplified(payments::PaymentProcessingDetails),
+    Simplified(api_models::payments::PaymentProcessingDetails),
     Manual,
 }
 
