@@ -1,5 +1,4 @@
 #[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ApplePayCertificatesMigrationResponse {
     pub migration_successful: Vec<String>,
     pub migraiton_failed: Vec<String>,
