@@ -314,6 +314,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
+                            //The payment ID is included in the description because the connector requires unique description when creating a mandate.
                             description: item.payment_id.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
@@ -699,6 +700,8 @@ impl
                     create_profile: true,
                 })),
                 Some(CustomerDetails {
+                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
                     id: if item.router_data.payment_id.len() <= 20 {
                         item.router_data.payment_id.clone()
                     } else {
