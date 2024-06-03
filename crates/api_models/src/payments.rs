@@ -11,7 +11,7 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode},
     id_type,
     pii::{self, Email},
-    types::{MinorUnit,StringMajorUnit}
+    types::{MinorUnit, StringMajorUnit},
 };
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;

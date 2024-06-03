@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use api_models::enums::{AuthenticationType, PaymentMethod};
-use common_utils::{pii, types::{MinorUnit, StringMajorUnit}};
+use common_utils::{
+    pii,
+    types::{MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -18,9 +21,11 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api, domain, domain::PaymentMethodData, storage::enums, transformers::ForeignFrom,
+        self, api, domain,
+        domain::PaymentMethodData,
+        storage::enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
         MandateReference,
-        transformers::ForeignTryFrom
     },
     unimplemented_payment_method,
 };
@@ -47,7 +52,7 @@ impl<T> TryFrom<(MinorUnit, T)> for PaymeRouterData<T> {
 pub struct PaymeResponseRouterData<T> {
     pub amount: MinorUnit,
     pub router_data: T,
-    pub apple_pay_amount: StringMajorUnit
+    pub apple_pay_amount: StringMajorUnit,
 }
 
 impl<T> PaymeResponseRouterData<T> {
@@ -56,11 +61,10 @@ impl<T> PaymeResponseRouterData<T> {
         Self {
             amount,
             router_data: item,
-            apple_pay_amount
+            apple_pay_amount,
         }
     }
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct PayRequest {
@@ -489,25 +493,26 @@ impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
 }
 
 impl<F>
-ForeignTryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             GenerateSaleResponse,
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-        StringMajorUnit
-)> for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+        StringMajorUnit,
+    )> for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        (item, apple_pay_amount):(
+        (item, apple_pay_amount): (
             types::ResponseRouterData<
-            F,
-            GenerateSaleResponse,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData>,
-            StringMajorUnit
+                F,
+                GenerateSaleResponse,
+                types::PaymentsPreProcessingData,
+                types::PaymentsResponseData,
+            >,
+            StringMajorUnit,
         ),
     ) -> Result<Self, Self::Error> {
         match item.data.payment_method {

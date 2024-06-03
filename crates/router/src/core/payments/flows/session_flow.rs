@@ -1,8 +1,13 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent, types::{StringMajorUnitForConnector,AmountConvertor}};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnitForConnector},
+};
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
+
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
@@ -399,7 +404,7 @@ fn get_apple_pay_amount_info(
     let amount_info = payment_types::AmountInfo {
         label: label.to_string(),
         total_type: Some("final".to_string()),
-        amount: apple_pay_amount
+        amount: apple_pay_amount,
     };
 
     Ok(amount_info)
