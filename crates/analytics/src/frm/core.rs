@@ -2,11 +2,9 @@
 use std::collections::HashMap;
 
 use api_models::analytics::{
-    frm::{
-        FrmDimensions, FrmMetrics, FrmMetricsBucketIdentifier, FrmMetricsBucketResponse,
-    },
-    AnalyticsMetadata, GetFrmFilterRequest, GetFrmMetricRequest, MetricsResponse,
-    FrmFilterValue, FrmFiltersResponse,
+    frm::{FrmDimensions, FrmMetrics, FrmMetricsBucketIdentifier, FrmMetricsBucketResponse},
+    AnalyticsMetadata, FrmFilterValue, FrmFiltersResponse, GetFrmFilterRequest,
+    GetFrmMetricRequest, MetricsResponse,
 };
 use error_stack::ResultExt;
 use router_env::{
@@ -21,9 +19,8 @@ use super::{
 };
 use crate::{
     errors::{AnalyticsError, AnalyticsResult},
-    metrics,
     frm::FrmMetricAccumulator,
-    AnalyticsProvider,
+    metrics, AnalyticsProvider,
 };
 
 pub async fn get_metrics(
@@ -37,10 +34,8 @@ pub async fn get_metrics(
     for metric_type in req.metrics.iter().cloned() {
         let req = req.clone();
         let pool = pool.clone();
-        let task_span = tracing::debug_span!(
-            "analytics_frm_query",
-            frm_metric = metric_type.as_ref()
-        );
+        let task_span =
+            tracing::debug_span!("analytics_frm_query", frm_metric = metric_type.as_ref());
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
         let merchant_id_scoped = merchant_id.to_owned();

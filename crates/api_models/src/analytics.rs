@@ -7,9 +7,9 @@ use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
     auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
+    frm::{FrmDimensions, FrmMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
-    frm::{FrmDimensions, FrmMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
 pub use crate::payments::TimeRange;
@@ -18,10 +18,10 @@ pub mod api_event;
 pub mod auth_events;
 pub mod connector_events;
 pub mod disputes;
+pub mod frm;
 pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
-pub mod frm;
 pub mod sdk_events;
 pub mod search;
 
@@ -135,7 +135,7 @@ pub struct GetFrmMetricRequest {
     pub time_range: TimeRange,
     #[serde(default)]
     pub group_by_names: Vec<FrmDimensions>,
-    #[serde(default)]    
+    #[serde(default)]
     pub filters: frm::FrmFilters,
     pub metrics: HashSet<FrmMetrics>,
     #[serde(default)]

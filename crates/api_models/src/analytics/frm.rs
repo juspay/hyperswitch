@@ -23,19 +23,19 @@ use crate::frm::FrmStatus;
 
 pub enum FrmType {
     #[default]
-	PreFlow,
-	PostFlow,
+    PreFlow,
+    PostFlow,
 }
 
 use super::{NameDescription, TimeRange};
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct FrmFilters {
-	#[serde(default)]
-	pub frm_status: Vec<FrmStatus>,
-	#[serde(default)]
-	pub frm_name: Vec<String>,
-	#[serde(default)]
-	pub frm_transaction_type: Vec<FrmType>,
+    #[serde(default)]
+    pub frm_status: Vec<FrmStatus>,
+    #[serde(default)]
+    pub frm_name: Vec<String>,
+    #[serde(default)]
+    pub frm_transaction_type: Vec<FrmType>,
 }
 #[derive(
     Debug,
@@ -55,9 +55,9 @@ pub struct FrmFilters {
 #[strum(serialize_all = "snake_case")]
 
 pub enum FrmDimensions {
-	FrmStatus,
-	FrmName,
-	FrmTransactionType,
+    FrmStatus,
+    FrmName,
+    FrmTransactionType,
 }
 
 #[derive(
@@ -76,13 +76,13 @@ pub enum FrmDimensions {
 #[serde(rename_all = "snake_case")]
 
 pub enum FrmMetrics {
-	FrmTriggeredAttempts,
-	FrmBlockRate,
+    FrmTriggeredAttempts,
+    FrmBlockRate,
 }
 
 pub mod metric_behaviour {
     pub struct FrmTriggeredAttempts;
-	pub struct FrmBlockRate;
+    pub struct FrmBlockRate;
 }
 
 impl From<FrmMetrics> for NameDescription {
@@ -107,7 +107,7 @@ impl From<FrmDimensions> for NameDescription {
 pub struct FrmMetricsBucketIdentifier {
     pub frm_status: Option<String>,
     pub frm_name: Option<String>,
-	pub frm_transaction_type: Option<String>,
+    pub frm_transaction_type: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -118,9 +118,9 @@ pub struct FrmMetricsBucketIdentifier {
 impl Hash for FrmMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.frm_status.hash(state);
-		self.frm_name.hash(state);
-		self.frm_transaction_type.hash(state);
-		self.time_bucket.hash(state);
+        self.frm_name.hash(state);
+        self.frm_transaction_type.hash(state);
+        self.time_bucket.hash(state);
     }
 }
 impl PartialEq for FrmMetricsBucketIdentifier {
@@ -136,24 +136,24 @@ impl PartialEq for FrmMetricsBucketIdentifier {
 impl FrmMetricsBucketIdentifier {
     pub fn new(
         frm_status: Option<String>,
-		frm_name: Option<String>,
-		frm_transaction_type: Option<String>,
-		normalized_time_range: TimeRange,
-	) -> Self {
-		Self {
-			frm_status,
-			frm_name,
-			frm_transaction_type,
-			time_bucket: normalized_time_range,
-			start_time: normalized_time_range.start_time,
-		}
-	}
+        frm_name: Option<String>,
+        frm_transaction_type: Option<String>,
+        normalized_time_range: TimeRange,
+    ) -> Self {
+        Self {
+            frm_status,
+            frm_name,
+            frm_transaction_type,
+            time_bucket: normalized_time_range,
+            start_time: normalized_time_range.start_time,
+        }
+    }
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct FrmMetricsBucketValue {
-   pub frm_triggered_attempts: Option<u64>,
-   pub frm_block_rate: Option<f64>,
+    pub frm_triggered_attempts: Option<u64>,
+    pub frm_block_rate: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]

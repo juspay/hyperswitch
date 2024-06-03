@@ -13,9 +13,10 @@ pub mod routes {
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetPaymentFiltersRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest, GetFrmMetricRequest, GetFrmFilterRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetFrmFilterRequest,
+        GetFrmMetricRequest, GetPaymentFiltersRequest, GetPaymentMetricRequest,
+        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
+        GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
@@ -46,10 +47,7 @@ pub mod routes {
                     .service(
                         web::resource("metrics/refunds").route(web::post().to(get_refunds_metrics)),
                     )
-                    .service(
-                        web::resource("metrics/frm")
-                            .route(web::post().to(get_frm_metrics)),
-                    )
+                    .service(web::resource("metrics/frm").route(web::post().to(get_frm_metrics)))
                     .service(
                         web::resource("filters/payments")
                             .route(web::post().to(get_payment_filters)),
@@ -57,9 +55,7 @@ pub mod routes {
                     .service(
                         web::resource("filters/refunds").route(web::post().to(get_refund_filters)),
                     )
-                    .service(
-                        web::resource("filters/frm").route(web::post().to(get_frm_filters)),
-                    )
+                    .service(web::resource("filters/frm").route(web::post().to(get_frm_filters)))
                     .service(web::resource("{domain}/info").route(web::get().to(get_info)))
                     .service(
                         web::resource("report/dispute")
@@ -387,13 +383,9 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
-                analytics::frm::get_filters(
-                    &state.pool,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::frm::get_filters(&state.pool, req, &auth.merchant_account.merchant_id)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

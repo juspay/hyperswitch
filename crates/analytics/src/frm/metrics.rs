@@ -1,7 +1,5 @@
 use api_models::analytics::{
-    frm::{
-        FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier, FrmType,
-    },
+    frm::{FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier, FrmType},
     Granularity, TimeRange,
 };
 use diesel_models::enums as storage_enums;
@@ -10,14 +8,14 @@ use time::PrimitiveDateTime;
 // mod refund_processed_amount;
 // mod refund_success_count;
 // mod refund_success_rate;
-mod frm_triggered_attempts;
 mod frm_blocked_rate;
+mod frm_triggered_attempts;
 // use refund_count::RefundCount;
 // use refund_processed_amount::RefundProcessedAmount;
 // use refund_success_count::RefundSuccessCount;
 // use refund_success_rate::RefundSuccessRate;
-use frm_triggered_attempts::FrmTriggeredAttempts;
 use frm_blocked_rate::FrmBlockedRate;
+use frm_triggered_attempts::FrmTriggeredAttempts;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},

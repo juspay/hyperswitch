@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 // TODO (tsdk02) - should rewrite the entire file,  based on KT
 use common_utils::pii;
 pub use common_utils::types::ChargeRefunds;
@@ -227,7 +228,7 @@ pub struct FrmListFilters {
 #[serde(rename_all = "snake_case")]
 pub enum FrmStatus {
     FrmRejected,
-	#[default]
+    #[default]
     ManualReview,
 }
 

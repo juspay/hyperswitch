@@ -15,6 +15,7 @@ pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
 pub mod files;
+pub mod frm;
 pub mod gsm;
 pub mod health_check;
 pub mod locker_migration;
@@ -29,7 +30,6 @@ pub mod poll;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;
-pub mod frm;
 pub mod routing;
 pub mod surcharge_decision_configs;
 pub mod user;
