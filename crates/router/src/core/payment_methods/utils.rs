@@ -606,27 +606,27 @@ fn compile_accepted_countries_for_mca(
                 }
             }
             admin::AcceptedCountries::DisableOnly(countries) => {
+                // Country from the MCA
+                let pm_object_country_value_node = builder
+                    .make_in_aggregator(
+                        countries
+                            .into_iter()
+                            .map(|country| {
+                                dir::DirValue::BillingCountry(common_enums::Country::from_alpha2(
+                                    country,
+                                ))
+                            })
+                            .collect(),
+                        None,
+                        None::<()>,
+                    )
+                    .map_err(KgraphError::GraphConstructionError)?;
+
                 if let Some(config) = config
                     .0
                     .get(connector.as_str())
                     .or_else(|| config.0.get("default"))
                 {
-                    // Country from the MCA
-                    let pm_object_country_value_node = builder
-                        .make_in_aggregator(
-                            countries
-                                .into_iter()
-                                .map(|country| {
-                                    dir::DirValue::BillingCountry(common_enums::Country::from_alpha2(
-                                        country,
-                                    ))
-                                })
-                                .collect(),
-                            None,
-                            None::<()>,
-                        )
-                        .map_err(KgraphError::GraphConstructionError)?;
-
                     if let Some(value) =
                         config
                             .0
@@ -682,12 +682,11 @@ fn compile_accepted_countries_for_mca(
             .get(connector.as_str())
             .or_else(|| config.0.get("default"))
         {
-            if let Some(value) =
-                config
-                    .0
-                    .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                        *payment_method_type,
-                    ))
+            if let Some(value) = config
+                .0
+                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                    *payment_method_type,
+                ))
             {
                 // country from config
                 if let Some(config_countries) = value.country.as_ref() {
@@ -862,12 +861,11 @@ fn compile_accepted_currency_for_mca(
             .get(connector.as_str())
             .or_else(|| config.0.get("default"))
         {
-            if let Some(value) =
-                config
-                    .0
-                    .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                        *payment_method_type,
-                    ))
+            if let Some(value) = config
+                .0
+                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                    *payment_method_type,
+                ))
             {
                 // Currency from config
                 if let Some(config_currencies) = value.currency.as_ref() {
@@ -893,4 +891,3 @@ fn compile_accepted_currency_for_mca(
     }
     Ok(None)
 }
-

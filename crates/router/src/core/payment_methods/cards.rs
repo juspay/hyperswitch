@@ -2903,6 +2903,19 @@ pub async fn filter_payment_methods(
                         })
                     });
 
+                    // Addition of Connector to context
+                    if let Ok(connector) = api_enums::RoutableConnectors::from_str(
+                        connector_variant.to_string().as_str(),
+                    ) {
+                        context_values.push(dir::DirValue::Connector(Box::new(
+                            api_models::routing::ast::ConnectorChoice {
+                                connector,
+                                #[cfg(not(feature = "connector_choice_mca_id"))]
+                                sub_label: None,
+                            },
+                        )));
+                    };
+
                     let filter_pm_based_on_allowed_types = filter_pm_based_on_allowed_types(
                         allowed_payment_method_types.as_ref(),
                         &payment_method_object.payment_method_type,
@@ -2915,17 +2928,6 @@ pub async fn filter_payment_methods(
                         context_values.push(dir::DirValue::PaymentType(
                             euclid::enums::PaymentType::NewMandate,
                         ));
-                        if let Ok(connector) = api_enums::RoutableConnectors::from_str(
-                            connector_variant.to_string().as_str(),
-                        ) {
-                            context_values.push(dir::DirValue::Connector(Box::new(
-                                api_models::routing::ast::ConnectorChoice {
-                                    connector,
-                                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                                    sub_label: None,
-                                },
-                            )));
-                        };
                     };
 
                     payment_attempt
