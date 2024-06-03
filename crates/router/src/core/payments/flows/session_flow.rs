@@ -1,9 +1,8 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent, types::{StringMajorUnitForConnector,AmountConvertor}};
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
-
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
@@ -391,15 +390,16 @@ fn get_apple_pay_amount_info(
     label: &str,
     session_data: types::PaymentsSessionData,
 ) -> RouterResult<payment_types::AmountInfo> {
+    let converter = StringMajorUnitForConnector;
+    let apple_pay_amount = converter
+        .convert(session_data.minor_amount, session_data.currency)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for applePay".to_string(),
+        })?;
     let amount_info = payment_types::AmountInfo {
         label: label.to_string(),
         total_type: Some("final".to_string()),
-        amount: session_data
-            .currency
-            .to_currency_base_unit(session_data.amount)
-            .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Failed to convert currency to base unit".to_string(),
-            })?,
+        amount: apple_pay_amount
     };
 
     Ok(amount_info)

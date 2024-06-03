@@ -1375,7 +1375,7 @@ impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
 }
 
 impl From<ApplePayTotalInfo> for api_models::payments::AmountInfo {
-    fn from(value: ApplePayTotalInfo) -> Self {
+    fn try_from(value: ApplePayTotalInfo) -> Self {
         Self {
             label: value.label,
             amount: value.amount,

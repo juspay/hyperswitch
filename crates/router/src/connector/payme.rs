@@ -4,7 +4,7 @@ use api_models::enums::AuthenticationType;
 use common_utils::{
     crypto,
     request::RequestContent,
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, MinorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
@@ -25,19 +25,23 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         domain, ErrorResponse, Response,
+        transformers::ForeignTryFrom,
     },
+    // transformers::{ForeignFrom, ForeignTryFrom},
     utils::{handle_json_response_deserialization_failure, BytesExt},
 };
 
 #[derive(Clone)]
 pub struct Payme {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    apple_pay_google_pay_amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync)
 }
 
 impl Payme {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
+            apple_pay_google_pay_amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -342,14 +346,21 @@ impl
             .parse_struct("Payme GenerateSaleResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let req_amount = data.request.get_minor_amount()?;
+        let req_currency = data.request.get_currency()?;
+
+        let apple_pay_amount = connector_utils::convert_amount(self.apple_pay_google_pay_amount_converter, req_amount, req_currency)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::foreign_try_from((types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        },
+        apple_pay_amount
+    ))
     }
 
     fn get_error_response(

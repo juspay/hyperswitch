@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::enums::{AuthenticationType, PaymentMethod};
-use common_utils::{pii, types::MinorUnit};
+use common_utils::{pii, types::{MinorUnit, StringMajorUnit}};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ use crate::{
     types::{
         self, api, domain, domain::PaymentMethodData, storage::enums, transformers::ForeignFrom,
         MandateReference,
+        transformers::ForeignTryFrom
     },
     unimplemented_payment_method,
 };
@@ -41,6 +42,25 @@ impl<T> TryFrom<(MinorUnit, T)> for PaymeRouterData<T> {
         })
     }
 }
+
+#[derive(Debug, Serialize)]
+pub struct PaymeResponseRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+    pub apple_pay_amount: StringMajorUnit
+}
+
+impl<T> PaymeResponseRouterData<T> {
+    // type Error = error_stack::Report<errors::ConnectorError>;
+    pub fn new(amount: MinorUnit, item: T, apple_pay_amount: StringMajorUnit) -> Self {
+        Self {
+            amount,
+            router_data: item,
+            apple_pay_amount
+        }
+    }
+}
+
 
 #[derive(Debug, Serialize)]
 pub struct PayRequest {
@@ -469,23 +489,26 @@ impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
 }
 
 impl<F>
-    TryFrom<
+ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             GenerateSaleResponse,
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+        StringMajorUnit
+)> for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
+    fn foreign_try_from(
+        (item, apple_pay_amount):(
+            types::ResponseRouterData<
             F,
             GenerateSaleResponse,
             types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        >,
+            types::PaymentsResponseData>,
+            StringMajorUnit
+        ),
     ) -> Result<Self, Self::Error> {
         match item.data.payment_method {
             PaymentMethod::Card => {
@@ -533,8 +556,8 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
-                let amount = item.data.request.get_amount()?;
-                let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
+                // let amount = item.data.request.get_amount()?;
+                // let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
                 let pmd = item.data.request.payment_method_data.to_owned();
                 let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 
@@ -552,7 +575,7 @@ impl<F>
                                     total: api_models::payments::AmountInfo {
                                         label: "Apple Pay".to_string(),
                                         total_type: None,
-                                        amount: amount_in_base_unit,
+                                        amount: apple_pay_amount,
                                     },
                                     merchant_capabilities: None,
                                     supported_networks: None,
