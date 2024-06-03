@@ -3166,6 +3166,7 @@ where
             }
 
             #[cfg(feature = "retry")]
+            #[cfg(feature = "connector_choice_mca_id")]
             let should_do_retry =
                 retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
 
