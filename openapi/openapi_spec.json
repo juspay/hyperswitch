@@ -9227,6 +9227,12 @@
           {
             "type": "string",
             "enum": [
+              "user_crypto_currency_network"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_billing_name"
             ]
           },
