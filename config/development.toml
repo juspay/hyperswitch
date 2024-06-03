@@ -89,8 +89,7 @@ vault_private_key = ""
 tunnel_private_key = ""
 
 [connectors.supported]
-wallets = ["klarna",
-    "mifinity", "braintree", "applepay", "adyen"]
+wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
@@ -559,7 +558,7 @@ redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 delay_between_retries_in_milliseconds = 500
 
 [kv_config]
-ttl = 900 # 15 * 60 seconds
+ttl = 900         # 15 * 60 seconds
 soft_kill = false
 
 [frm]
@@ -579,6 +578,7 @@ outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
+consolidated_events_topic = "hyperswitch-consolidated-events"
 
 [analytics]
 source = "sqlx"
