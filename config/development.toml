@@ -89,8 +89,7 @@ vault_private_key = ""
 tunnel_private_key = ""
 
 [connectors.supported]
-wallets = ["klarna",
-    "mifinity", "braintree", "applepay", "adyen"]
+wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
@@ -197,7 +196,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api{{region_based_endpoint}}.playground.klarna.com/"
+klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
@@ -559,7 +558,7 @@ redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 delay_between_retries_in_milliseconds = 500
 
 [kv_config]
-ttl = 900 # 15 * 60 seconds
+ttl = 900         # 15 * 60 seconds
 soft_kill = false
 
 [frm]
@@ -579,6 +578,7 @@ outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
+consolidated_events_topic = "hyperswitch-consolidated-events"
 
 [analytics]
 source = "sqlx"

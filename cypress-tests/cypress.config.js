@@ -1,25 +1,24 @@
-
 let globalState;
 module.exports = {
   e2e: {
     setupNodeEvents(on, config) {
-      on('task', {
+      on("task", {
         setGlobalState: (val) => {
-          return (globalState = (val || {}))
+          return (globalState = val || {});
         },
         getGlobalState: () => {
-          return (globalState || {})
+          return globalState || {};
         },
         cli_log: (message) => {
           console.log("Logging console message from task");
           console.log(message);
           return null;
-        }
-      })
+        },
+      });
     },
-    experimentalRunAllSpecs: true
+    experimentalRunAllSpecs: true,
   },
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
-  pageLoadTimeout: 20000
+  pageLoadTimeout: 20000,
 };
