@@ -677,36 +677,35 @@ fn compile_accepted_countries_for_mca(
             admin::AcceptedCountries::AllAccepted => return Ok(None),
         }
     } else if let Some(config) = config
+        .0
+        .get(connector.as_str())
+        .or_else(|| config.0.get("default"))
+    {
+        if let Some(value) = config
             .0
-            .get(connector.as_str())
-            .or_else(|| config.0.get("default"))
+            .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                *payment_method_type,
+            ))
         {
-            if let Some(value) = config
-                .0
-                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                    *payment_method_type,
-                ))
-            {
-                // country from config
-                if let Some(config_countries) = value.country.as_ref() {
-                    let config_countries: Vec<common_enums::Country> =
-                        Vec::from_iter(config_countries)
-                            .into_iter()
-                            .map(|country| common_enums::Country::from_alpha2(*country))
-                            .collect();
-                    let dir_countries: Vec<dir::DirValue> = config_countries
-                        .into_iter()
-                        .map(dir::DirValue::BillingCountry)
-                        .collect();
+            // country from config
+            if let Some(config_countries) = value.country.as_ref() {
+                let config_countries: Vec<common_enums::Country> = Vec::from_iter(config_countries)
+                    .into_iter()
+                    .map(|country| common_enums::Country::from_alpha2(*country))
+                    .collect();
+                let dir_countries: Vec<dir::DirValue> = config_countries
+                    .into_iter()
+                    .map(dir::DirValue::BillingCountry)
+                    .collect();
 
-                    let config_country_agg_node = builder
-                        .make_in_aggregator(dir_countries, None, None::<()>)
-                        .map_err(KgraphError::GraphConstructionError)?;
+                let config_country_agg_node = builder
+                    .make_in_aggregator(dir_countries, None, None::<()>)
+                    .map_err(KgraphError::GraphConstructionError)?;
 
-                    return Ok(Some(config_country_agg_node));
-                }
+                return Ok(Some(config_country_agg_node));
             }
         }
+    }
     Ok(None)
 }
 
@@ -854,36 +853,36 @@ fn compile_accepted_currency_for_mca(
             admin::AcceptedCurrencies::AllAccepted => return Ok(None),
         }
     } else if let Some(config) = config
+        .0
+        .get(connector.as_str())
+        .or_else(|| config.0.get("default"))
+    {
+        if let Some(value) = config
             .0
-            .get(connector.as_str())
-            .or_else(|| config.0.get("default"))
+            .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                *payment_method_type,
+            ))
         {
-            if let Some(value) = config
-                .0
-                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                    *payment_method_type,
-                ))
-            {
-                // Currency from config
-                if let Some(config_currencies) = value.currency.as_ref() {
-                    let config_currency: Vec<common_enums::Currency> =
-                        Vec::from_iter(config_currencies)
-                            .into_iter()
-                            .cloned()
-                            .collect();
-
-                    let dir_currencies: Vec<dir::DirValue> = config_currency
+            // Currency from config
+            if let Some(config_currencies) = value.currency.as_ref() {
+                let config_currency: Vec<common_enums::Currency> =
+                    Vec::from_iter(config_currencies)
                         .into_iter()
-                        .map(dir::DirValue::PaymentCurrency)
+                        .cloned()
                         .collect();
 
-                    let config_currency_agg_node = builder
-                        .make_in_aggregator(dir_currencies, None, None::<()>)
-                        .map_err(KgraphError::GraphConstructionError)?;
+                let dir_currencies: Vec<dir::DirValue> = config_currency
+                    .into_iter()
+                    .map(dir::DirValue::PaymentCurrency)
+                    .collect();
 
-                    return Ok(Some(config_currency_agg_node));
-                }
+                let config_currency_agg_node = builder
+                    .make_in_aggregator(dir_currencies, None, None::<()>)
+                    .map_err(KgraphError::GraphConstructionError)?;
+
+                return Ok(Some(config_currency_agg_node));
             }
         }
+    }
     Ok(None)
 }
