@@ -3961,6 +3961,7 @@ pub fn get_applepay_metadata(
         })
 }
 
+#[cfg(feature = "connector_choice_mca_id")]
 pub async fn get_apple_pay_retryable_connectors<F>(
     state: AppState,
     merchant_account: &domain::MerchantAccount,

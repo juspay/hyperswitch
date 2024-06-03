@@ -3170,6 +3170,7 @@ where
                 retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
 
             #[cfg(feature = "retry")]
+            #[cfg(feature = "connector_choice_mca_id")]
             if payment_data.payment_attempt.payment_method_type
                 == Some(storage_enums::PaymentMethodType::ApplePay)
                 && should_do_retry
@@ -3180,10 +3181,7 @@ where
                     payment_data,
                     key_store,
                     connector_data.clone(),
-                    #[cfg(feature = "connector_choice_mca_id")]
                     choice.merchant_connector_id.clone().as_ref(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
                 .await?;
 
