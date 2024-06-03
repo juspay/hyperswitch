@@ -1885,6 +1885,14 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
+    if !is_operation_complete_authorize(&operation)
+        && connector
+            .connector_name
+            .is_pre_processing_required_before_authorize()
+    {
+        router_data = router_data.preprocessing_steps(state, connector).await?;
+        return Ok((router_data, should_continue_payment));
+    }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {

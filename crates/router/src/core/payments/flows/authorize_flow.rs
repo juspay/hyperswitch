@@ -322,13 +322,14 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                 ),
             ],
         );
-
-        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+        let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
             resp.clone(),
             router_data.request.to_owned(),
             resp.response,
         );
-
+        if connector.connector_name == api_models::enums::Connector::Airwallex {
+            authorize_router_data.reference_id = resp.reference_id;
+        }
         Ok(authorize_router_data)
     } else {
         Ok(router_data.clone())
