@@ -1295,7 +1295,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
 
-
         let client_src = payment_data.payment_attempt.client_source.clone();
         let client_ver = payment_data.payment_attempt.client_version.clone();
 
