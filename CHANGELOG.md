@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.31.1
+
+### Features
+
+- **cypress:** Add trustpay, adyen bank redirects and corresponding refactor ([#4766](https://github.com/juspay/hyperswitch/pull/4766)) ([`48dac12`](https://github.com/juspay/hyperswitch/commit/48dac12cedc7f11b76c6a9ef8ba4ce04ae2456bf))
+
+### Refactors
+
+- **core:** Reverts Inclusion of constraint graph for merchant Payment Method list ([#4839](https://github.com/juspay/hyperswitch/pull/4839)) ([`f74b9b6`](https://github.com/juspay/hyperswitch/commit/f74b9b622e5565a00bf9ee8223c64a3def37b776))
+- **first_name:** Check if first_name is sent as empty string ([#4832](https://github.com/juspay/hyperswitch/pull/4832)) ([`5cb84f6`](https://github.com/juspay/hyperswitch/commit/5cb84f66e4c59f6ffbd12bf4e91ab0152ac1c2c5))
+
+### Miscellaneous Tasks
+
+- **euclid_wasm:** Update paypal payment experience ([#4811](https://github.com/juspay/hyperswitch/pull/4811)) ([`121b611`](https://github.com/juspay/hyperswitch/commit/121b61123f31db9d94888fa708532cdabca4bbc8))
+- Enable `clippy::large_futures` lint ([#4822](https://github.com/juspay/hyperswitch/pull/4822)) ([`d2d317c`](https://github.com/juspay/hyperswitch/commit/d2d317ce61c0c00ca38af9774bd1b45247d30c82))
+
+**Full Changelog:** [`2024.05.31.0...2024.05.31.1`](https://github.com/juspay/hyperswitch/compare/2024.05.31.0...2024.05.31.1)
+
+- - -
+
 ## 2024.05.31.0
 
 ### Features
