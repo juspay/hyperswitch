@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, str::FromStr};
 
 use api_models::payments::{Address, AddressDetails, PhoneDetails};
+use common_utils::id_type;
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -22,7 +23,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
-        customer_id: Some(String::from("aci")),
+        customer_id: Some(id_type::CustomerId::from("aci".into()).unwrap()),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -130,7 +131,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
     types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
-        customer_id: Some(String::from("aci")),
+        customer_id: Some(id_type::CustomerId::from("aci".into()).unwrap()),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),

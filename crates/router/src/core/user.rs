@@ -1634,7 +1634,39 @@ pub async fn begin_totp(
 
     let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
     let secret = totp.get_secret_base32().into();
+    tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
+    Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {
+        secret: Some(user_api::TotpSecret {
+            secret,
+            totp_url: totp.get_url().into(),
+        }),
+    }))
+}
+
+pub async fn reset_totp(
+    state: AppState,
+    user_token: auth::UserFromToken,
+) -> UserResponse<user_api::BeginTotpResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_totp_status() != TotpStatus::Set {
+        return Err(UserErrors::TotpNotSetup.into());
+    }
+
+    if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
+        && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
+    {
+        return Err(UserErrors::TwoFactorAuthRequired.into());
+    }
+
+    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let secret = totp.get_secret_base32().into();
     tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
     Ok(ApplicationResponse::Json(user_api::BeginTotpResponse {

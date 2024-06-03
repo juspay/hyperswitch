@@ -648,6 +648,20 @@ pub async fn totp_begin(state: web::Data<AppState>, req: HttpRequest) -> HttpRes
     .await
 }
 
+pub async fn totp_reset(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::TotpReset;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::reset_totp(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn totp_verify(
     state: web::Data<AppState>,
     req: HttpRequest,
