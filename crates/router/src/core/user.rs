@@ -1925,4 +1925,3 @@ pub async fn check_two_factor_auth_status(
         },
     ))
 }
-
