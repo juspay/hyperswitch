@@ -45,13 +45,13 @@ use super::{ephemeral_key::*, webhooks::*};
 use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
-use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
+use crate::{configs::secrets_transformers, errors::RouterResult};
 pub use crate::{
     configs::settings,
     core::routing,
@@ -101,7 +101,7 @@ pub trait AppStateInfo {
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
     #[cfg(feature = "partial-auth")]
-    fn get_detached_auth(&self) -> Option<(impl VerifySignature, &[u8])>;
+    fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])>;
 }
 
 #[cfg(feature = "partial-auth")]
@@ -141,7 +141,9 @@ impl AppStateInfo for AppState {
     }
 
     #[cfg(feature = "partial-auth")]
-    fn get_detached_auth(&self) -> Option<(impl VerifySignature, &[u8])> {
+    fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])> {
+        use error_stack::ResultExt;
+        use hyperswitch_domain_models::errors::api_error_response as errors;
         use masking::prelude::PeekInterface as _;
         use router_env::logger;
 
@@ -163,10 +165,10 @@ impl AppStateInfo for AppState {
         });
 
         match output {
-            Ok((context, key)) => Some((Blake3(context.peek().clone()), key.peek())),
-            Err(_) => {
+            Ok((context, key)) => Ok((Blake3::new(context.peek().clone()), key.peek())),
+            Err(err) => {
                 logger::error!("Failed to get checksum key");
-                None
+                Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
             }
         }
     }

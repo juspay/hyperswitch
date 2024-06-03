@@ -387,43 +387,24 @@ where
             .and_then(|value| {
                 let (algo, secret) = state.get_detached_auth()?;
 
-                value
+                Ok(value
                     .verify_checksum(request_headers, algo, secret)
-                    .then_some(value)
+                    .then_some(value))
             })
-            .and_then(|inner_payload| {
-                (inner_payload.payload_type == self.0.get_auth_type()).then_some(inner_payload)
+            .map(|inner_payload| {
+                inner_payload.and_then(|inner| {
+                    (inner.payload_type == self.0.get_auth_type()).then_some(inner)
+                })
             });
 
         match payload {
-            Some(data) => match data {
+            Ok(Some(data)) => match data {
                 ExtractedPayload {
                     payload_type: detached::PayloadType::ApiKey,
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
-                    let key_store = state
-                        .store()
-                        .get_merchant_key_store_by_merchant_id(
-                            &merchant_id,
-                            &state.store().get_master_key().to_vec().into(),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::Unauthorized)
-                        .attach_printable(
-                            "Failed to fetch merchant key store for the merchant id",
-                        )?;
-
-                    let merchant = state
-                        .store()
-                        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
-                    let auth = AuthenticationData {
-                        merchant_account: merchant,
-                        key_store,
-                    };
+                    let auth = construct_authentication_data(state, &merchant_id).await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::ApiKey {
@@ -437,28 +418,7 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: None,
                 } => {
-                    let key_store = state
-                        .store()
-                        .get_merchant_key_store_by_merchant_id(
-                            &merchant_id,
-                            &state.store().get_master_key().to_vec().into(),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::Unauthorized)
-                        .attach_printable(
-                            "Failed to fetch merchant key store for the merchant id",
-                        )?;
-
-                    let merchant = state
-                        .store()
-                        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
-                    let auth = AuthenticationData {
-                        merchant_account: merchant,
-                        key_store,
-                    };
+                    let auth = construct_authentication_data(state, &merchant_id).await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::PublishableKey {
@@ -468,9 +428,44 @@ where
                 }
                 _ => self.0.authenticate_and_fetch(request_headers, state).await,
             },
-            None => self.0.authenticate_and_fetch(request_headers, state).await,
+            Ok(None) => self.0.authenticate_and_fetch(request_headers, state).await,
+            Err(error) => {
+                logger::error!(%error, "Failed to extract payload from headers");
+                self.0.authenticate_and_fetch(request_headers, state).await
+            }
         }
     }
+}
+
+async fn construct_authentication_data<A>(
+    state: &A,
+    merchant_id: &str,
+) -> RouterResult<AuthenticationData>
+where
+    A: AppStateInfo + Sync,
+{
+    let key_store = state
+        .store()
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store().get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+    let merchant = state
+        .store()
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+    let auth = AuthenticationData {
+        merchant_account: merchant,
+        key_store,
+    };
+
+    Ok(auth)
 }
 
 #[cfg(feature = "olap")]

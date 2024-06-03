@@ -4,7 +4,7 @@
 
 use std::{fmt, marker::PhantomData};
 
-use crate::{strategy::Strategy, PeekInterface};
+use crate::{strategy::Strategy, PeekInterface, StrongSecret};
 
 ///
 /// Secret thing.
@@ -83,11 +83,11 @@ where
     }
 
     /// Convert to [`StrongSecret`]
-    pub fn into_strong(self) -> crate::StrongSecret<SecretValue, MaskingStrategy>
+    pub fn into_strong(self) -> StrongSecret<SecretValue, MaskingStrategy>
     where
         SecretValue: zeroize::DefaultIsZeroes,
     {
-        crate::StrongSecret::new(self.inner_secret)
+        StrongSecret::new(self.inner_secret)
     }
 }
 

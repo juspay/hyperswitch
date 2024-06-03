@@ -2,6 +2,15 @@ use std::string::ToString;
 
 use actix_web::http::header::HeaderMap;
 use common_utils::crypto::VerifySignature;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+
+use crate::core::errors::RouterResult;
+
+const HEADER_AUTH_TYPE: &str = "x-auth-type";
+const HEADER_MERCHANT_ID: &str = "x-merchant-id";
+const HEADER_KEY_ID: &str = "x-key-id";
+const HEADER_CHECKSUM: &str = "x-checksum";
 
 #[derive(Debug)]
 pub struct ExtractedPayload {
@@ -22,15 +31,37 @@ pub trait GetAuthType {
 }
 
 impl ExtractedPayload {
-    pub fn from_headers(headers: &HeaderMap) -> Option<Self> {
-        let merchant_id = headers.get("x-merchant-id")?.to_str().ok()?;
-        let auth_type: PayloadType = headers.get("x-auth-type")?.to_str().ok()?.parse().ok()?;
+    pub fn from_headers(headers: &HeaderMap) -> RouterResult<Self> {
+        let merchant_id = headers
+            .get(HEADER_MERCHANT_ID)
+            .map(|value| value.to_str())
+            .transpose()
+            .change_context(ApiErrorResponse::InvalidRequestData {
+                message: format!("`{}` header is invalid or not present", HEADER_MERCHANT_ID),
+            })?
+            .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
+                message: format!("`{}` header is invalid or not present", HEADER_MERCHANT_ID),
+            })?;
+        let auth_type: PayloadType = headers
+            .get(HEADER_AUTH_TYPE)
+            .map(|inner| inner.to_str())
+            .transpose()
+            .change_context(ApiErrorResponse::InvalidRequestData {
+                message: format!("`{}` header not present", HEADER_AUTH_TYPE),
+            })?
+            .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
+                message: format!("`{}` header not present", HEADER_AUTH_TYPE),
+            })?
+            .parse::<PayloadType>()
+            .change_context(ApiErrorResponse::InvalidRequestData {
+                message: format!("`{}` header not present", HEADER_AUTH_TYPE),
+            })?;
 
-        Some(Self {
+        Ok(Self {
             payload_type: auth_type,
             merchant_id: Some(merchant_id.to_string()),
             key_id: headers
-                .get("x-key-id")
+                .get(HEADER_KEY_ID)
                 .and_then(|v| v.to_str().ok())
                 .map(|v| v.to_string()),
         })
@@ -43,7 +74,7 @@ impl ExtractedPayload {
         secret: &[u8],
     ) -> bool {
         let output = || {
-            let checksum = headers.get("x-checksum")?.to_str().ok()?;
+            let checksum = headers.get(HEADER_CHECKSUM)?.to_str().ok()?;
             let payload = self.generate_payload();
 
             algo.verify_signature(secret, &hex::decode(checksum).ok()?, payload.as_bytes())

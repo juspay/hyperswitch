@@ -241,7 +241,14 @@ impl VerifySignature for HmacSha512 {
 ///
 /// Blake3
 #[derive(Debug)]
-pub struct Blake3(pub String);
+pub struct Blake3(String);
+
+impl Blake3 {
+    /// Create a new instance of Blake3 with a key
+    pub fn new(key: impl Into<String>) -> Self {
+        Self(key.into())
+    }
+}
 
 impl SignMessage for Blake3 {
     fn sign_message(
