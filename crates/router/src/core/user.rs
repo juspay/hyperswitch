@@ -21,7 +21,7 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{self, user::two_factor_auth as tfa_utils},
@@ -33,7 +33,7 @@ pub mod sample_data;
 
 #[cfg(feature = "email")]
 pub async fn signup_with_merchant_id(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignUpWithMerchantIdRequest,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
     let new_user = domain::NewUser::try_from(request.clone())?;
@@ -79,7 +79,7 @@ pub async fn signup_with_merchant_id(
 }
 
 pub async fn get_user_details(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let user = user_from_token.get_user_from_db(&state).await?;
@@ -101,7 +101,7 @@ pub async fn get_user_details(
 }
 
 pub async fn signup(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignUpResponse>> {
     let new_user = domain::NewUser::try_from(request)?;
@@ -130,7 +130,7 @@ pub async fn signup(
 }
 
 pub async fn signup_token_only_flow(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignUpResponse>> {
     let new_user = domain::NewUser::try_from(request)?;
@@ -165,7 +165,7 @@ pub async fn signup_token_only_flow(
 }
 
 pub async fn signin(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
     let user_from_db: domain::UserFromStorage = state
@@ -209,7 +209,7 @@ pub async fn signin(
 }
 
 pub async fn signin_token_only_flow(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
     let user_from_db: domain::UserFromStorage = state
@@ -235,7 +235,7 @@ pub async fn signin_token_only_flow(
 
 #[cfg(feature = "email")]
 pub async fn connect_account(
-    state: AppState,
+    state: SessionState,
     request: user_api::ConnectAccountRequest,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
     let find_user = state.store.find_user_by_email(&request.email).await;
@@ -326,7 +326,10 @@ pub async fn connect_account(
     }
 }
 
-pub async fn signout(state: AppState, user_from_token: auth::UserFromToken) -> UserResponse<()> {
+pub async fn signout(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<()> {
     tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
     tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
     tfa_utils::delete_totp_secret_from_redis(&state, &user_from_token.user_id).await?;
@@ -336,7 +339,7 @@ pub async fn signout(state: AppState, user_from_token: auth::UserFromToken) -> U
 }
 
 pub async fn change_password(
-    state: AppState,
+    state: SessionState,
     request: user_api::ChangePasswordRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<()> {
@@ -392,7 +395,7 @@ pub async fn change_password(
 
 #[cfg(feature = "email")]
 pub async fn forgot_password(
-    state: AppState,
+    state: SessionState,
     request: user_api::ForgotPasswordRequest,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
@@ -430,7 +433,7 @@ pub async fn forgot_password(
 }
 
 pub async fn rotate_password(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::RotatePasswordRequest,
     _req_state: ReqState,
@@ -469,7 +472,7 @@ pub async fn rotate_password(
 
 #[cfg(feature = "email")]
 pub async fn reset_password_token_only_flow(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
@@ -523,7 +526,7 @@ pub async fn reset_password_token_only_flow(
 
 #[cfg(feature = "email")]
 pub async fn reset_password(
-    state: AppState,
+    state: SessionState,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
     let token = request.token.expose();
@@ -575,7 +578,7 @@ pub async fn reset_password(
 }
 
 pub async fn invite_multiple_user(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     requests: Vec<user_api::InviteUserRequest>,
     req_state: ReqState,
@@ -604,7 +607,7 @@ pub async fn invite_multiple_user(
 }
 
 async fn handle_invitation(
-    state: &AppState,
+    state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: &ReqState,
@@ -662,7 +665,7 @@ async fn handle_invitation(
 
 //TODO: send email
 async fn handle_existing_user_invitation(
-    state: &AppState,
+    state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     invitee_user_from_db: domain::UserFromStorage,
@@ -733,7 +736,7 @@ async fn handle_existing_user_invitation(
 }
 
 async fn handle_new_user_invitation(
-    state: &AppState,
+    state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: ReqState,
@@ -845,7 +848,7 @@ async fn handle_new_user_invitation(
 
 #[cfg(feature = "email")]
 pub async fn resend_invite(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
     _req_state: ReqState,
@@ -907,7 +910,7 @@ pub async fn resend_invite(
 
 #[cfg(feature = "email")]
 pub async fn accept_invite_from_email(
-    state: AppState,
+    state: SessionState,
     request: user_api::AcceptInviteFromEmailRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let token = request.token.expose();
@@ -974,7 +977,7 @@ pub async fn accept_invite_from_email(
 
 #[cfg(feature = "email")]
 pub async fn accept_invite_from_email_token_only_flow(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::AcceptInviteFromEmailRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
@@ -1040,7 +1043,7 @@ pub async fn accept_invite_from_email_token_only_flow(
 }
 
 pub async fn create_internal_user(
-    state: AppState,
+    state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
     let new_user = domain::NewUser::try_from(request)?;
@@ -1103,7 +1106,7 @@ pub async fn create_internal_user(
 }
 
 pub async fn switch_merchant_id(
-    state: AppState,
+    state: SessionState,
     request: user_api::SwitchMerchantIdRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
@@ -1202,7 +1205,7 @@ pub async fn switch_merchant_id(
 }
 
 pub async fn create_merchant_account(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
 ) -> UserResponse<()> {
@@ -1233,7 +1236,7 @@ pub async fn create_merchant_account(
 }
 
 pub async fn list_merchants_for_user(
-    state: AppState,
+    state: SessionState,
     user_from_token: Box<dyn auth::GetUserIdFromAuth>,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
@@ -1266,7 +1269,7 @@ pub async fn list_merchants_for_user(
 }
 
 pub async fn get_user_details_in_merchant_account(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::GetUserRoleDetailsRequest,
     _req_state: ReqState,
@@ -1310,7 +1313,7 @@ pub async fn get_user_details_in_merchant_account(
 }
 
 pub async fn list_users_for_merchant_account(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::ListUsersResponse> {
     let users_and_user_roles = state
@@ -1358,7 +1361,7 @@ pub async fn list_users_for_merchant_account(
 
 #[cfg(feature = "email")]
 pub async fn verify_email(
-    state: AppState,
+    state: SessionState,
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::SignInResponse> {
     let token = req.token.clone().expose();
@@ -1417,7 +1420,7 @@ pub async fn verify_email(
 
 #[cfg(feature = "email")]
 pub async fn verify_email_token_only_flow(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
@@ -1475,7 +1478,7 @@ pub async fn verify_email_token_only_flow(
 
 #[cfg(feature = "email")]
 pub async fn send_verification_mail(
-    state: AppState,
+    state: SessionState,
     req: user_api::SendVerifyEmailRequest,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::try_from(req.email)?;
@@ -1515,7 +1518,7 @@ pub async fn send_verification_mail(
 
 #[cfg(feature = "recon")]
 pub async fn verify_token(
-    state: AppState,
+    state: SessionState,
     req: auth::ReconUser,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
     let user = state
@@ -1543,7 +1546,7 @@ pub async fn verify_token(
 }
 
 pub async fn update_user_details(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromToken,
     req: user_api::UpdateUserAccountDetailsRequest,
     _req_state: ReqState,
@@ -1588,7 +1591,7 @@ pub async fn update_user_details(
 
 #[cfg(feature = "email")]
 pub async fn user_from_email(
-    state: AppState,
+    state: SessionState,
     req: user_api::UserFromEmailRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let token = req.token.expose();
@@ -1622,7 +1625,7 @@ pub async fn user_from_email(
 }
 
 pub async fn begin_totp(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
 ) -> UserResponse<user_api::BeginTotpResponse> {
     let user_from_db: domain::UserFromStorage = state
@@ -1651,7 +1654,7 @@ pub async fn begin_totp(
 }
 
 pub async fn reset_totp(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromToken,
 ) -> UserResponse<user_api::BeginTotpResponse> {
     let user_from_db: domain::UserFromStorage = state
@@ -1684,7 +1687,7 @@ pub async fn reset_totp(
 }
 
 pub async fn verify_totp(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
@@ -1720,7 +1723,7 @@ pub async fn verify_totp(
 }
 
 pub async fn update_totp(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<()> {
@@ -1785,7 +1788,7 @@ pub async fn update_totp(
 }
 
 pub async fn generate_recovery_codes(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
 ) -> UserResponse<user_api::RecoveryCodes> {
     if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await? {
@@ -1817,7 +1820,7 @@ pub async fn generate_recovery_codes(
 }
 
 pub async fn verify_recovery_code(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyRecoveryCodeRequest,
 ) -> UserResponse<user_api::TokenResponse> {
@@ -1862,7 +1865,7 @@ pub async fn verify_recovery_code(
 }
 
 pub async fn terminate_two_factor_auth(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     skip_two_factor_auth: bool,
 ) -> UserResponse<user_api::TokenResponse> {
@@ -1914,7 +1917,7 @@ pub async fn terminate_two_factor_auth(
 }
 
 pub async fn check_two_factor_auth_status(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromToken,
 ) -> UserResponse<user_api::TwoFactorAuthStatusResponse> {
     Ok(ApplicationResponse::Json(

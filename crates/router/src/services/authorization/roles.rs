@@ -4,7 +4,7 @@ use common_enums::{PermissionGroup, RoleScope};
 use common_utils::errors::CustomResult;
 
 use super::{permission_groups::get_permissions_vec, permissions::Permission};
-use crate::{core::errors, routes::AppState};
+use crate::{core::errors, routes::SessionState};
 
 pub mod predefined_roles;
 
@@ -67,7 +67,7 @@ impl RoleInfo {
     }
 
     pub async fn from_role_id(
-        state: &AppState,
+        state: &SessionState,
         role_id: &str,
         merchant_id: &str,
         org_id: &str,

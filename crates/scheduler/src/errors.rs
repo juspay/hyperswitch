@@ -59,6 +59,8 @@ pub enum ProcessTrackerError {
     EEmailError(error_stack::Report<EmailError>),
     #[error("Type Conversion error")]
     TypeConversionError,
+    #[error("Tenant not found")]
+    TenantNotFound,
 }
 
 #[macro_export]

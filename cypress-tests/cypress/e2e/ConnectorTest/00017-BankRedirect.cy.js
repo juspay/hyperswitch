@@ -9,22 +9,15 @@ describe("Bank Redirect tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      console.log("seeding globalState -> " + JSON.stringify(globalState));
     });
   });
 
   after("flush global state", () => {
-    console.log("flushing globalState -> " + JSON.stringify(globalState));
     cy.task("setGlobalState", globalState.data);
   });
 
   afterEach("flush global state", () => {
-    console.log("flushing globalState -> " + JSON.stringify(globalState));
     cy.task("setGlobalState", globalState.data);
-    cy.task(
-      "cli_log",
-      " FLUSHING GLOBAL STATE -> " + JSON.stringify(globalState)
-    );
   });
 
   context("Blik Create and Confirm flow test", () => {
@@ -55,7 +48,6 @@ describe("Bank Redirect tests", () => {
     });
 
     it("payment_methods-call-test", () => {
-      cy.task("cli_log", "PM CALL ");
       cy.paymentMethodsCallTest(globalState);
     });
 
@@ -65,7 +57,6 @@ describe("Bank Redirect tests", () => {
       ]["blik"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.task("cli_log", "GLOBAL STATE -> " + JSON.stringify(globalState.data));
       cy.confirmBankRedirectCallTest(
         confirmBody,
         req_data,
@@ -105,7 +96,6 @@ describe("Bank Redirect tests", () => {
     });
 
     it("payment_methods-call-test", () => {
-      cy.task("cli_log", "PM CALL ");
       cy.paymentMethodsCallTest(globalState);
     });
 
@@ -115,7 +105,6 @@ describe("Bank Redirect tests", () => {
       ]["eps"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.task("cli_log", "GLOBAL STATE -> " + JSON.stringify(globalState.data));
       cy.confirmBankRedirectCallTest(
         confirmBody,
         req_data,
@@ -167,7 +156,6 @@ describe("Bank Redirect tests", () => {
     });
 
     it("payment_methods-call-test", () => {
-      cy.task("cli_log", "PM CALL ");
       cy.paymentMethodsCallTest(globalState);
     });
 
@@ -177,7 +165,6 @@ describe("Bank Redirect tests", () => {
       ]["ideal"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.task("cli_log", "GLOBAL STATE -> " + JSON.stringify(globalState.data));
       cy.confirmBankRedirectCallTest(
         confirmBody,
         req_data,
@@ -228,7 +215,6 @@ describe("Bank Redirect tests", () => {
     });
 
     it("payment_methods-call-test", () => {
-      cy.task("cli_log", "PM CALL ");
       cy.paymentMethodsCallTest(globalState);
     });
 
@@ -238,7 +224,6 @@ describe("Bank Redirect tests", () => {
       ]["giropay"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.task("cli_log", "GLOBAL STATE -> " + JSON.stringify(globalState.data));
       cy.confirmBankRedirectCallTest(
         confirmBody,
         req_data,
@@ -289,7 +274,6 @@ describe("Bank Redirect tests", () => {
     });
 
     it("payment_methods-call-test", () => {
-      cy.task("cli_log", "PM CALL ");
       cy.paymentMethodsCallTest(globalState);
     });
 
@@ -299,7 +283,6 @@ describe("Bank Redirect tests", () => {
       ]["sofort"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.task("cli_log", "GLOBAL STATE -> " + JSON.stringify(globalState.data));
       cy.confirmBankRedirectCallTest(
         confirmBody,
         req_data,
