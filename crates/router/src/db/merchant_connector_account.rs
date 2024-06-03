@@ -430,9 +430,6 @@ impl MerchantConnectorAccountInterface for Store {
                     cache::CacheKind::CGraph(
                         format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
                     ),
-                    cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", _merchant_id).into(),
-                    ),
                 ],
                 update_call,
             )
@@ -489,9 +486,6 @@ impl MerchantConnectorAccountInterface for Store {
                     ),
                     cache::CacheKind::CGraph(
                         format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
-                    ),
-                    cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", mca.merchant_id).into(),
                     ),
                 ],
                 delete_call,

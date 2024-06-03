@@ -454,27 +454,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         item: &NetceteraRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let now = common_utils::date_time::now();
-        let three_ds_req_auth_timestamp = common_utils::date_time::format_date(
-            now,
-            common_utils::date_time::DateFormat::YYYYMMDDHHmm,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
-            "Failed to format Date".to_string(),
-        ))?;
         let request = item.router_data.request.clone();
         let pre_authn_data = request.pre_authentication_data.clone();
         let three_ds_requestor = netcetera_types::ThreeDSRequestor {
             three_ds_requestor_authentication_ind:
                 netcetera_types::ThreeDSRequestorAuthenticationIndicator::Payment,
-            three_ds_requestor_authentication_info: Some(
-                netcetera_types::SingleOrListElement::new_single(
-                    netcetera_types::ThreeDSRequestorAuthenticationInformation {
-                        three_ds_req_auth_method: netcetera_types::ThreeDSReqAuthMethod::Guest,
-                        three_ds_req_auth_timestamp,
-                        three_ds_req_auth_data: None,
-                    },
-                ),
-            ),
+            three_ds_requestor_authentication_info: None,
             three_ds_requestor_challenge_ind: None,
             three_ds_requestor_prior_authentication_info: None,
             three_ds_requestor_dec_req_ind: None,
@@ -518,8 +503,8 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
                     ),
                 )?,
             ),
-            recurring_expiry: Some("20240401".to_string()),
-            recurring_frequency: Some(1),
+            recurring_expiry: None,
+            recurring_frequency: None,
             trans_type: None,
             recurring_amount: None,
             recurring_currency: None,
@@ -558,7 +543,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             }
             api_models::payments::DeviceChannel::App => None,
         };
-        let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
+        let sdk_information = match request.device_channel {
+            api_models::payments::DeviceChannel::App => {
+                request.sdk_information.map(netcetera_types::Sdk::from)
+            }
+            api_models::payments::DeviceChannel::Browser => None,
+        };
         let device_render_options = match request.device_channel {
             api_models::payments::DeviceChannel::App => {
                 Some(netcetera_types::DeviceRenderingOptionsSupported {
