@@ -52,7 +52,7 @@ impl Event for AuditEvent {
         let event_type = match &self.event_type {
             AuditEventType::Error { .. } => "error",
             AuditEventType::PaymentCreated => "payment_created",
-            AuditEventType::PaymentConfirmed { .. } => "payment_confirmed",
+            AuditEventType::PaymentConfirm { .. } => "payment_confirm",
             AuditEventType::ConnectorDecided => "connector_decided",
             AuditEventType::ConnectorCalled => "connector_called",
             AuditEventType::RefundCreated => "refund_created",
