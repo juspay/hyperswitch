@@ -8,7 +8,7 @@ pub use api_models::admin::{
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
     core::errors,
@@ -81,6 +81,10 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
                 })
                 .transpose()?,
             use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
+            extended_card_info_config: item
+                .extended_card_info_config
+                .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
+                .transpose()?,
         })
     }
 }
