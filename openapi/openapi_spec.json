@@ -8782,6 +8782,7 @@
         "enum": [
           "payments",
           "refunds",
+          "frm",
           "disputes",
           "mandates"
         ]
