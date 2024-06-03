@@ -8,7 +8,32 @@ const globalState = new State({
   connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
 });
 
-const connectorId = globalState.get("connectorId");
+const connectorId = normalise(globalState.get("connectorId"));
+
+function normalise(input) {
+  const exceptions = {
+    bankofamerica: "Bank of America",
+    nmi: "NMI",
+    // Add more known exceptions here
+  };
+
+  if (exceptions[input.toLowerCase()]) {
+    return exceptions[input.toLowerCase()];
+  }
+
+  // Split the input text based on changes from lowercase to uppercase or delimiters
+  const words = input.match(/[A-Z][a-z]+|[a-z]+/g);
+  if (!words) {
+    return input;
+  }
+
+  // Capitalize the first letter of each word and join them with spaces
+  const result = words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return result;
+}
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",

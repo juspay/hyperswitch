@@ -174,7 +174,7 @@ function bankRedirectRedirection(
                 cy.get("button.cookie-modal-deny-all.button-tertiary")
                   .should("be.visible")
                   .should("contain", "Reject All")
-                  .click({ force: true, multiple: true });
+                  .click({ force: true });
                 cy.get("div#TopBanks.top-banks-multistep")
                   .should("contain", "Demo Bank")
                   .as("btn")
