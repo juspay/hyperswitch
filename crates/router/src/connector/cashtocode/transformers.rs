@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 pub use common_utils::request::Method;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email, types::FloatMajorUnit};
+use common_utils::{
+    errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email, types::FloatMajorUnit,
+};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -50,7 +52,9 @@ fn get_mid(
 
 impl TryFrom<(&types::PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((item, amount): (&types::PaymentsAuthorizeRouterData, FloatMajorUnit)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (item, amount): (&types::PaymentsAuthorizeRouterData, FloatMajorUnit),
+    ) -> Result<Self, Self::Error> {
         let customer_id = item.get_customer_id()?;
         let url = item.request.get_router_return_url()?;
         let mid = get_mid(

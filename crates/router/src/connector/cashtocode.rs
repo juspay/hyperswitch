@@ -1,8 +1,10 @@
 pub mod transformers;
 
-
 use base64::Engine;
-use common_utils::{request::RequestContent, types::{FloatMajorUnit, AmountConvertor, FloatMajorUnitForConnector}};
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -237,8 +239,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount =
-            connector_utils::convert_amount(self.amount_converter, req.request.minor_amount, req.request.currency)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
         let connector_req = cashtocode::CashtocodePaymentsRequest::try_from((req, amount))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
