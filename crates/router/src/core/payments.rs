@@ -3922,13 +3922,15 @@ pub async fn payment_external_authentication(
         business_profile
             .authentication_connector_details
             .clone()
-            .get_required_value("authentication_details")
-            .attach_printable("authentication_details not configured by the merchant")?
-            .parse_value("AuthenticationDetails")
+            .get_required_value("authentication_connector_details")
+            .attach_printable("authentication_connector_details not configured by the merchant")?
+            .parse_value("AuthenticationConnectorDetails")
             .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Invalid data format found for authentication_details".into(),
+                message: "Invalid data format found for authentication_connector_details".into(),
             })
-            .attach_printable("Error while parsing authentication_details from business_profile")?;
+            .attach_printable(
+                "Error while parsing authentication_connector_details from business_profile",
+            )?;
 
     let authentication_response = Box::pin(authentication_core::perform_authentication(
         &state,
