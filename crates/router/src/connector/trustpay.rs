@@ -5,13 +5,14 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{
     crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector}
 };
 use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
 
 use super::utils::{
-    collect_and_sort_values_by_removing_signature, get_error_code_error_message_based_on_priority,
+    self as connector_utils, collect_and_sort_values_by_removing_signature, get_error_code_error_message_based_on_priority,
     ConnectorErrorType, ConnectorErrorTypeMapping, PaymentsPreProcessingData,
 };
 use crate::{
@@ -36,8 +37,18 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Trustpay;
+#[derive(Clone)]
+pub struct Trustpay {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Trustpay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Trustpay
 where
@@ -462,11 +473,16 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let currency = req.request.get_currency()?;
-        let amount = req.request.get_amount()?;
+        let req_currency = req.request.get_currency()?;
+        let req_amount = req.request.get_minor_amount()?;
+
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req_amount,
+            req_currency,
+        )?;
+
         let connector_router_data = trustpay::TrustpayRouterData::try_from((
-            &self.get_currency_unit(),
-            currency,
             amount,
             req,
         ))?;
@@ -576,10 +592,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = req.request.amount;
-        let connector_router_data = trustpay::TrustpayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
+        )?;
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
             amount,
             req,
         ))?;
@@ -686,10 +704,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = trustpay::TrustpayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
+        )?;
+
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
+            amount,
             req,
         ))?;
         let connector_req = trustpay::TrustpayRefundRequest::try_from(&connector_router_data)?;
