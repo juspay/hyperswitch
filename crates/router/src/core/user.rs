@@ -1715,7 +1715,7 @@ pub async fn verify_totp(
 
 pub async fn update_totp(
     state: AppState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserFromSinglePurposeOrLoginToken,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
