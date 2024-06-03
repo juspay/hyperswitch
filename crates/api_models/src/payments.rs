@@ -4083,6 +4083,7 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
+    #[schema(value_type = String, example = "38.02")]
     pub total_price: StringMajorUnit,
 }
 
@@ -4439,6 +4440,7 @@ pub struct AmountInfo {
     #[serde(rename = "type")]
     pub total_type: Option<String>,
     /// The total amount for the payment in majot unit string (Ex: 38.02)
+    #[schema(value_type = String, example = "38.02")]
     pub amount: StringMajorUnit,
 }
 
