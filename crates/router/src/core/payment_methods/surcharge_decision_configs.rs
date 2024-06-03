@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct VirInterpreterBackendCacheWrapper {
+pub struct VirInterpreterBackendCacheWrapper {
     cached_algorithm: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
     merchant_surcharge_configs: surcharge_decision_configs::MerchantSurchargeConfigs,
 }
