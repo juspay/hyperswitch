@@ -693,7 +693,7 @@ pub async fn totp_update(
         &req,
         json_payload.into_inner(),
         |state, user, req_body, _| user_core::update_totp(state, user, req_body),
-        &auth::SinglePurposeJWTAuth(TokenPurpose::TOTP),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP, None),
         api_locking::LockAction::NotApplicable,
     ))
     .await
