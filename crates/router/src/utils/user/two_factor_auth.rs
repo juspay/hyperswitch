@@ -116,7 +116,7 @@ pub async fn insert_recovery_code_in_redis(state: &SessionState, user_id: &str) 
         .change_context(UserErrors::InternalServerError)
 }
 
-pub async fn delete_totp_from_redis(state: &AppState, user_id: &str) -> UserResult<()> {
+pub async fn delete_totp_from_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
     redis_conn
@@ -126,7 +126,10 @@ pub async fn delete_totp_from_redis(state: &AppState, user_id: &str) -> UserResu
         .map(|_| ())
 }
 
-pub async fn delete_recovery_code_from_redis(state: &AppState, user_id: &str) -> UserResult<()> {
+pub async fn delete_recovery_code_from_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<()> {
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     redis_conn
