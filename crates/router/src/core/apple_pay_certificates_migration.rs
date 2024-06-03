@@ -75,7 +75,7 @@ pub async fn apple_pay_certificates_migration(
 
                 let updated_mca =
                     storage::MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
-                        connector_wallets_details: Some(encrypted_apple_pay_metadata),
+                        connector_wallets_details: encrypted_apple_pay_metadata,
                     };
                 let merchant_connector_account_response = db
                     .update_merchant_connector_account(

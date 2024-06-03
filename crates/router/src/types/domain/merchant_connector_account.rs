@@ -63,7 +63,7 @@ pub enum MerchantConnectorAccountUpdate {
         connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
     ConnectorWalletDetailsUpdate {
-        connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        connector_wallets_details: Encryptable<Secret<serde_json::Value>>,
     },
 }
 
@@ -224,7 +224,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
             } => Self {
-                connector_wallets_details: connector_wallets_details.map(Encryption::from),
+                connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
                 merchant_id: None,
                 connector_type: None,
                 connector_name: None,
