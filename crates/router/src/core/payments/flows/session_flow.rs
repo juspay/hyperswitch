@@ -1,8 +1,13 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent, types::{StringMajorUnitForConnector,AmountConvertor}};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnitForConnector},
+};
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
+
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
@@ -390,8 +395,8 @@ fn get_apple_pay_amount_info(
     label: &str,
     session_data: types::PaymentsSessionData,
 ) -> RouterResult<payment_types::AmountInfo> {
-    let converter = StringMajorUnitForConnector;
-    let apple_pay_amount = converter
+    let required_amount_type = StringMajorUnitForConnector;
+    let apple_pay_amount = required_amount_type
         .convert(session_data.minor_amount, session_data.currency)
         .change_context(errors::ApiErrorResponse::PreconditionFailed {
             message: "Failed to convert amount to string major unit for applePay".to_string(),
@@ -399,7 +404,7 @@ fn get_apple_pay_amount_info(
     let amount_info = payment_types::AmountInfo {
         label: label.to_string(),
         total_type: Some("final".to_string()),
-        amount: apple_pay_amount
+        amount: apple_pay_amount,
     };
 
     Ok(amount_info)
@@ -536,22 +541,21 @@ fn create_gpay_session_token(
                 },
             )
             .collect();
-
+        let required_amount_type = StringMajorUnitForConnector;
+        let google_pay_amount = required_amount_type
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert amount to string major unit for googlePay".to_string(),
+            })?;
         let session_data = router_data.request.clone();
         let transaction_info = payment_types::GpayTransactionInfo {
             country_code: session_data.country.unwrap_or_default(),
             currency_code: router_data.request.currency,
             total_price_status: "Final".to_string(),
-            total_price: router_data
-                .request
-                .currency
-                .to_currency_base_unit(router_data.request.amount)
-                .attach_printable(
-                    "Cannot convert given amount to base currency denomination".to_string(),
-                )
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "amount",
-                })?,
+            total_price: google_pay_amount,
         };
 
         let required_shipping_contact_fields =

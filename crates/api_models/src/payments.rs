@@ -11,7 +11,7 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode},
     id_type,
     pii::{self, Email},
-    types::{MinorUnit,StringMajorUnit}
+    types::{MinorUnit, StringMajorUnit},
 };
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -4083,7 +4083,7 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
-    pub total_price: String,
+    pub total_price: StringMajorUnit,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

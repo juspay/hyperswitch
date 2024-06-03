@@ -15,7 +15,7 @@ impl utils::Connector for TrustpayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Trustpay;
         api::ConnectorData {
-            connector: Box::new(&Trustpay),
+            connector: Box::new(Trustpay::new()),
             connector_name: types::Connector::Trustpay,
             get_token: api::GetToken::Connector,
             merchant_connector_id: None,

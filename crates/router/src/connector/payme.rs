@@ -4,7 +4,10 @@ use api_models::enums::AuthenticationType;
 use common_utils::{
     crypto,
     request::RequestContent,
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, MinorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, MinorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector,
+    },
 };
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
@@ -24,8 +27,9 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain, ErrorResponse, Response,
+        domain,
         transformers::ForeignTryFrom,
+        ErrorResponse, Response,
     },
     // transformers::{ForeignFrom, ForeignTryFrom},
     utils::{handle_json_response_deserialization_failure, BytesExt},
@@ -34,7 +38,8 @@ use crate::{
 #[derive(Clone)]
 pub struct Payme {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-    apple_pay_google_pay_amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync)
+    apple_pay_google_pay_amount_converter:
+        &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Payme {
@@ -349,18 +354,23 @@ impl
         let req_amount = data.request.get_minor_amount()?;
         let req_currency = data.request.get_currency()?;
 
-        let apple_pay_amount = connector_utils::convert_amount(self.apple_pay_google_pay_amount_converter, req_amount, req_currency)?;
+        let apple_pay_amount = connector_utils::convert_amount(
+            self.apple_pay_google_pay_amount_converter,
+            req_amount,
+            req_currency,
+        )?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::foreign_try_from((types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        },
-        apple_pay_amount
-    ))
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            apple_pay_amount,
+        ))
     }
 
     fn get_error_response(

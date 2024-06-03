@@ -469,12 +469,18 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
     }
 }
 
-impl ForeignTryFrom<(types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>, StringMajorUnit)>
-    for types::PaymentsSessionRouterData
+impl
+    ForeignTryFrom<(
+        types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>,
+        StringMajorUnit,
+    )> for types::PaymentsSessionRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        (item, apple_pay_amount): (types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>,StringMajorUnit)
+        (item, apple_pay_amount): (
+            types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>,
+            StringMajorUnit,
+        ),
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 

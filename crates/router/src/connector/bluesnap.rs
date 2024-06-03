@@ -33,8 +33,8 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
         transformers::ForeignTryFrom,
+        ErrorResponse, Response,
     },
     utils::BytesExt,
 };
@@ -44,7 +44,8 @@ pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merc
 #[derive(Clone)]
 pub struct Bluesnap {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    apple_pay_google_pay_amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync)
+    apple_pay_google_pay_amount_converter:
+        &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Bluesnap {
@@ -609,15 +610,20 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         let req_amount = data.request.minor_amount;
         let req_currency = data.request.currency;
 
-        let apple_pay_amount = connector_utils::convert_amount(self.apple_pay_google_pay_amount_converter, req_amount, req_currency)?;
+        let apple_pay_amount = connector_utils::convert_amount(
+            self.apple_pay_google_pay_amount_converter,
+            req_amount,
+            req_currency,
+        )?;
 
-        types::RouterData::foreign_try_from((types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        },
-        apple_pay_amount
-    ))
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            apple_pay_amount,
+        ))
     }
 
     fn get_error_response(
