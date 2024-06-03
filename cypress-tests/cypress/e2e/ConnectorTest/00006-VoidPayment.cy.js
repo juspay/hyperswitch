@@ -13,12 +13,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
         cy.task('getGlobalState').then((state) => {
             globalState = new State(state);
-            console.log("seeding globalState -> " + JSON.stringify(globalState));
         })
     })
 
     after("flush global state", () => {
-        console.log("flushing globalState -> " + JSON.stringify(globalState));
         cy.task('setGlobalState', globalState.data);
     })
 

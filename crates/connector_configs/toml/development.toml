@@ -1650,9 +1650,9 @@ merchant_secret="Source verification key"
 client_id="Client ID"
 
 [paypal_payout]
-[[paypal.wallet]]
+[[paypal_payout.wallet]]
   payment_method_type = "paypal"
-[[paypal.wallet]]
+[[paypal_payout.wallet]]
   payment_method_type = "venmo"
 [paypal_payout.connector_auth.BodyKey]
 api_key="Client Secret"
