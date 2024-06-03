@@ -48,6 +48,7 @@ pub async fn apple_pay_certificates_migration(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
+        let mut apple_pay_certificates_migration_flag = true;
         for connector_account in merchant_connector_accounts {
             let connector_apple_pay_metadata =
                 helpers::get_applepay_metadata(connector_account.clone().metadata)
@@ -59,7 +60,6 @@ pub async fn apple_pay_certificates_migration(
             )
                     })
                     .ok();
-
             if let Some(apple_pay_metadata) = connector_apple_pay_metadata {
                 let encrypted_apple_pay_metadata = domain_types::encrypt(
                     Secret::new(
@@ -94,13 +94,19 @@ pub async fn apple_pay_certificates_migration(
 
                 match merchant_connector_account_response {
                     Ok(_) => {
-                        migration_successful_merchant_ids.push(merchant_id.to_string());
+                        apple_pay_certificates_migration_flag = true;
                     }
                     Err(_) => {
-                        migration_failed_merchant_ids.push(merchant_id.to_string());
+                        apple_pay_certificates_migration_flag = false;
+                        break;
                     }
                 };
             }
+        }
+        if apple_pay_certificates_migration_flag {
+            migration_successful_merchant_ids.push(merchant_id.to_string());
+        } else {
+            migration_failed_merchant_ids.push(merchant_id.to_string());
         }
     }
 
