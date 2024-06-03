@@ -676,8 +676,7 @@ fn compile_accepted_countries_for_mca(
             }
             admin::AcceptedCountries::AllAccepted => return Ok(None),
         }
-    } else {
-        if let Some(config) = config
+    } else if let Some(config) = config
             .0
             .get(connector.as_str())
             .or_else(|| config.0.get("default"))
@@ -708,7 +707,6 @@ fn compile_accepted_countries_for_mca(
                 }
             }
         }
-    }
     Ok(None)
 }
 
@@ -855,8 +853,7 @@ fn compile_accepted_currency_for_mca(
             }
             admin::AcceptedCurrencies::AllAccepted => return Ok(None),
         }
-    } else {
-        if let Some(config) = config
+    } else if let Some(config) = config
             .0
             .get(connector.as_str())
             .or_else(|| config.0.get("default"))
@@ -888,6 +885,5 @@ fn compile_accepted_currency_for_mca(
                 }
             }
         }
-    }
     Ok(None)
 }
