@@ -945,6 +945,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             attempts: Some(attempts),
             billing: None,
             client_secret: None,
+            payout_link: None
         }
     }
 }

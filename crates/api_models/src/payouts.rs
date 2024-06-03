@@ -148,6 +148,33 @@ pub struct PayoutCreateRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+
+    /// Whether to get the payment link (if applicable)
+    #[schema(default = false, example = true)]
+    pub payout_link: Option<bool>,
+
+    /// custom payment link config for the particular payment
+    #[schema(value_type = Option<PayoutCreatePayoutLinkConfig>)]
+    pub payout_link_config: Option<PayoutCreatePayoutLinkConfig>,
+}
+
+#[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
+pub struct PayoutCreatePayoutLinkConfig {
+    /// The unique identifier for the collect link.
+    #[schema(value_type = Option<String>, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub payout_link_id: Option<String>,
+
+    #[serde(flatten)]
+    pub ui_config: Option<api_enums::CollectLinkConfig>,
+
+    /// Will be used to expire client secret after certain amount of time to be supplied in seconds
+    /// (900) for 15 mins
+    #[schema(value_type = Option<u32>, example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// List of payment methods shown on collect UI
+    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Option<Vec<api_enums::EnabledPaymentMethod>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -445,6 +472,9 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attempts: Option<Vec<PayoutAttemptResponse>>,
+
+    // If payout link is request, this represents response on
+    pub payout_link: Option<PayoutLinkResponse>,
 }
 
 #[derive(
@@ -651,4 +681,10 @@ pub struct PayoutListFilters {
     pub status: Vec<common_enums::PayoutStatus>,
     /// The list of available payment method filters
     pub payout_method: Vec<common_enums::PayoutType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PayoutLinkResponse {
+    pub link: Secret<String>,
+    pub payout_link_id: String,
 }

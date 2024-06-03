@@ -121,8 +121,13 @@ pub async fn initiate_pm_collect_link(
         .await?;
 
     // Create DB entries
-    let pm_collect_link =
-        create_pm_collect_db_entry(&state, &merchant_account, &pm_collect_link_data, &req).await?;
+    let pm_collect_link = create_pm_collect_db_entry(
+        &state,
+        &merchant_account,
+        &pm_collect_link_data,
+        req.return_url.clone(),
+    )
+    .await?;
 
     // Return response
     let response = payment_methods::PaymentMethodCollectLinkResponse {
@@ -141,7 +146,7 @@ pub async fn create_pm_collect_db_entry(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     pm_collect_link_data: &PaymentMethodCollectLinkData,
-    req: &payment_methods::PaymentMethodCollectLinkRequest,
+    return_url: Option<String>,
 ) -> RouterResult<PaymentMethodCollectLink> {
     let db: &dyn StorageInterface = &*state.store;
 
@@ -156,7 +161,7 @@ pub async fn create_pm_collect_db_entry(
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
         url: pm_collect_link_data.link.clone(),
-        return_url: req.return_url.clone(),
+        return_url,
         expiry: common_utils::date_time::now()
             + Duration::seconds(pm_collect_link_data.session_expiry.into()),
         ..Default::default()

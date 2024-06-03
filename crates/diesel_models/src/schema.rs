@@ -1042,6 +1042,8 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
+        #[max_length = 255]
+        payout_link_id -> Nullable<Varchar>,
     }
 }
 
