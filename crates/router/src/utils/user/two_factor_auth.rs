@@ -6,7 +6,7 @@ use totp_rs::{Algorithm, TOTP};
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
 };
 
 pub fn generate_default_totp(
@@ -32,7 +32,7 @@ pub fn generate_default_totp(
     .change_context(UserErrors::InternalServerError)
 }
 
-pub async fn check_totp_in_redis(state: &AppState, user_id: &str) -> UserResult<bool> {
+pub async fn check_totp_in_redis(state: &SessionState, user_id: &str) -> UserResult<bool> {
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
     redis_conn
@@ -41,7 +41,7 @@ pub async fn check_totp_in_redis(state: &AppState, user_id: &str) -> UserResult<
         .change_context(UserErrors::InternalServerError)
 }
 
-pub async fn check_recovery_code_in_redis(state: &AppState, user_id: &str) -> UserResult<bool> {
+pub async fn check_recovery_code_in_redis(state: &SessionState, user_id: &str) -> UserResult<bool> {
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     redis_conn
@@ -50,7 +50,7 @@ pub async fn check_recovery_code_in_redis(state: &AppState, user_id: &str) -> Us
         .change_context(UserErrors::InternalServerError)
 }
 
-pub async fn insert_totp_in_redis(state: &AppState, user_id: &str) -> UserResult<()> {
+pub async fn insert_totp_in_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
     redis_conn
@@ -64,7 +64,7 @@ pub async fn insert_totp_in_redis(state: &AppState, user_id: &str) -> UserResult
 }
 
 pub async fn insert_totp_secret_in_redis(
-    state: &AppState,
+    state: &SessionState,
     user_id: &str,
     secret: &masking::Secret<String>,
 ) -> UserResult<()> {
@@ -80,7 +80,7 @@ pub async fn insert_totp_secret_in_redis(
 }
 
 pub async fn get_totp_secret_from_redis(
-    state: &AppState,
+    state: &SessionState,
     user_id: &str,
 ) -> UserResult<Option<masking::Secret<String>>> {
     let redis_conn = super::get_redis_connection(state)?;
@@ -91,7 +91,7 @@ pub async fn get_totp_secret_from_redis(
         .map(|secret| secret.map(Into::into))
 }
 
-pub async fn delete_totp_secret_from_redis(state: &AppState, user_id: &str) -> UserResult<()> {
+pub async fn delete_totp_secret_from_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
     let redis_conn = super::get_redis_connection(state)?;
     redis_conn
         .delete_key(&get_totp_secret_key(user_id))
@@ -104,7 +104,7 @@ fn get_totp_secret_key(user_id: &str) -> String {
     format!("{}{}", consts::user::REDIS_TOTP_SECRET_PREFIX, user_id)
 }
 
-pub async fn insert_recovery_code_in_redis(state: &AppState, user_id: &str) -> UserResult<()> {
+pub async fn insert_recovery_code_in_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     redis_conn

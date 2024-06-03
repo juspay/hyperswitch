@@ -17,18 +17,18 @@ use crate::{
     core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
     errors, logger,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     types::{domain, storage},
 };
 
 pub struct OutgoingWebhookRetryWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
     #[instrument(skip_all)]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let delivery_attempt = storage::enums::WebhookDeliveryAttempt::AutomaticRetry;
@@ -207,7 +207,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
     #[instrument(skip_all)]
     async fn error_handler<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
         error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
@@ -313,7 +313,7 @@ pub(crate) async fn retry_webhook_delivery_task(
 
 #[instrument(skip_all)]
 async fn get_outgoing_webhook_content_and_event_type(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,

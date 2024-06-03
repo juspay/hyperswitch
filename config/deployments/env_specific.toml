@@ -230,7 +230,6 @@ recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authent
 
 # Server configuration
 [server]
-base_url = "https://server_base_url"
 workers = 8
 port = 8080
 host = "127.0.0.1"
@@ -253,3 +252,9 @@ encryption_manager = "aws_kms" # Encryption manager client to be used
 [encryption_management.aws_kms]
 key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
+
+[multitenancy]
+enabled = false
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = ""}
