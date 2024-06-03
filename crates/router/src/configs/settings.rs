@@ -120,7 +120,47 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
+    pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Multitenancy {
+    pub tenants: TenantConfig,
+    pub enabled: bool,
+}
+
+impl Multitenancy {
+    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+        &self.tenants.0
+    }
+    pub fn get_tenant_names(&self) -> Vec<String> {
+        self.tenants.0.keys().cloned().collect()
+    }
+    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+        self.tenants.0.get(tenant_id)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TenantConfig(pub HashMap<String, Tenant>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Tenant {
+    pub name: String,
+    pub base_url: String,
+    pub schema: String,
+    pub redis_key_prefix: String,
+}
+
+impl storage_impl::config::TenantConfig for Tenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -447,7 +487,6 @@ pub struct Server {
     pub workers: usize,
     pub host: String,
     pub request_body_limit: usize,
-    pub base_url: String,
     pub shutdown_timeout: u64,
 }
 

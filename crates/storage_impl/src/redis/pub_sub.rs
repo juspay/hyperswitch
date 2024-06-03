@@ -2,7 +2,9 @@ use error_stack::ResultExt;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
-use crate::redis::cache::{CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, ROUTING_CACHE};
+use crate::redis::cache::{
+    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, ROUTING_CACHE,
+};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
@@ -55,7 +57,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
 
     #[inline]
     async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
-        logger::debug!("Started on message");
+        logger::debug!("Started on message: {:?}", self.key_prefix);
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
             logger::debug!("Invalidating {message:?}");
@@ -71,26 +73,66 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
 
             let key = match key {
                 CacheKind::Config(key) => {
-                    CONFIG_CACHE.remove(key.as_ref()).await;
+                    CONFIG_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
                     key
                 }
                 CacheKind::Accounts(key) => {
-                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
+                    ACCOUNTS_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
                     key
                 }
                 CacheKind::CGraph(key) => {
-                    CGRAPH_CACHE.remove(key.as_ref()).await;
+                    CGRAPH_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
                     key
                 }
                 CacheKind::Routing(key) => {
-                    ROUTING_CACHE.remove(key.as_ref()).await;
+                    ROUTING_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
                     key
                 }
                 CacheKind::All(key) => {
-                    CONFIG_CACHE.remove(key.as_ref()).await;
-                    ACCOUNTS_CACHE.remove(key.as_ref()).await;
-                    CGRAPH_CACHE.remove(key.as_ref()).await;
-                    ROUTING_CACHE.remove(key.as_ref()).await;
+                    CONFIG_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    ACCOUNTS_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    CGRAPH_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    ROUTING_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
                     key
                 }
             };

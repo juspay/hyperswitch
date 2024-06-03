@@ -12,14 +12,14 @@ use masking::ExposeInterface;
 use super::errors::StorageErrorExt;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
-    routes::AppState,
+    routes::SessionState,
     types::{self as core_types, api, domain, storage},
     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
@@ -78,7 +78,7 @@ pub async fn perform_authentication(
 }
 
 pub async fn perform_post_authentication(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: storage::BusinessProfile,
     authentication_id: String,
@@ -117,7 +117,7 @@ pub async fn perform_post_authentication(
 }
 
 pub async fn perform_pre_authentication(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,

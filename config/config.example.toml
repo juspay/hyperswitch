@@ -629,3 +629,9 @@ disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
+
+[multitenancy]
+enabled = false
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = ""} # schema -> Postgres db schema, redis_key_prefix -> redis key distinguisher, base_url -> url of the tenant 

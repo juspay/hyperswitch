@@ -19,7 +19,7 @@ use crate::{
         errors::{ConnectorError, CustomResult, RouterResult},
         payments::{self, helpers},
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain, storage},
 };
@@ -28,7 +28,7 @@ use crate::{
 pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -42,7 +42,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 pub trait Feature<F, T> {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
@@ -55,7 +55,7 @@ pub trait Feature<F, T> {
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
@@ -66,7 +66,7 @@ pub trait Feature<F, T> {
 
     async fn add_payment_method_token<'a>(
         &mut self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>>
@@ -80,7 +80,7 @@ pub trait Feature<F, T> {
 
     async fn preprocessing_steps<'a>(
         self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Self>
     where
@@ -93,7 +93,7 @@ pub trait Feature<F, T> {
 
     async fn create_connector_customer<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Option<String>>
     where
@@ -107,7 +107,7 @@ pub trait Feature<F, T> {
     /// Returns the connector request and a bool which specifies whether to proceed with further
     async fn build_flow_specific_connector_request(
         &mut self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
