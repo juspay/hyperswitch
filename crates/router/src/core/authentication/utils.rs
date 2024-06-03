@@ -141,7 +141,10 @@ pub async fn update_trackers<F: Clone, Req>(
         Err(error) => storage::AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,
             authentication_status: common_enums::AuthenticationStatus::Failed,
-            error_message: Some(error.message),
+            error_message: error
+                .reason
+                .map(|reason| format!("message: {}, reason: {}", error.message, reason))
+                .or(Some(error.message)),
             error_code: Some(error.code),
         },
     };

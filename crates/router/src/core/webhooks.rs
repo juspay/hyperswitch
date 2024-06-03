@@ -1070,7 +1070,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     // may have an actix arbiter
     tokio::spawn(
         async move {
-            trigger_webhook_and_raise_event(
+            Box::pin(trigger_webhook_and_raise_event(
                 state,
                 business_profile,
                 &cloned_key_store,
@@ -1079,7 +1079,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 delivery_attempt,
                 Some(content),
                 process_tracker,
-            )
+            ))
             .await;
         }
         .in_current_span(),
