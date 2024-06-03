@@ -1,10 +1,10 @@
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
-    pii,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
+use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -272,10 +272,7 @@ pub struct AuthorizedotnetZeroMandateRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Profile {
-    merchant_customer_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    email: Option<pii::Email>,
+    description: String,
     payment_profiles: PaymentProfiles,
 }
 
@@ -317,9 +314,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
-                            merchant_customer_id: item.payment_id.clone(),
-                            description: item.description.clone(),
-                            email: item.request.email.clone(),
+                            description: item.payment_id.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
                                 payment: PaymentDetails::CreditCard(CreditCardDetails {
@@ -704,7 +699,11 @@ impl
                     create_profile: true,
                 })),
                 Some(CustomerDetails {
-                    id: item.router_data.payment_id.clone(),
+                    id: if item.router_data.payment_id.len() <= 20 {
+                        item.router_data.payment_id.clone()
+                    } else {
+                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                    },
                 }),
             )
         } else {
