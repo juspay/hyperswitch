@@ -196,7 +196,7 @@ pub struct UserFromToken {
     pub org_id: String,
 }
 
-pub struct UserFromSinglePurposeOrLoginToken {
+pub struct UserIdFromAuth {
     pub user_id: String,
 }
 
@@ -368,11 +368,14 @@ where
 
 #[cfg(feature = "olap")]
 #[derive(Debug)]
-pub struct SinglePurposeOrLoginTokenAuth(pub TokenPurpose, pub Option<Permission>);
+pub struct SinglePurposeOrLoginTokenAuth {
+    pub required_purpose: TokenPurpose,
+    pub required_permission: Option<Permission>,
+}
 
 #[cfg(feature = "olap")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<UserFromSinglePurposeOrLoginToken, A> for SinglePurposeOrLoginTokenAuth
+impl<A> AuthenticateAndFetch<UserIdFromAuth, A> for SinglePurposeOrLoginTokenAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -380,29 +383,32 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(UserFromSinglePurposeOrLoginToken, AuthenticationType)> {
+    ) -> RouterResult<(UserIdFromAuth, AuthenticationType)> {
         let payload =
             parse_jwt_payload::<A, SinglePurposeOrLoginToken>(request_headers, state).await?;
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        match (
-            payload.purpose.as_ref().map(|inner| inner == &self.0),
-            payload.permission == self.1,
-        ) {
-            (Some(true), _) | (None, true) => Ok((
-                UserFromSinglePurposeOrLoginToken {
-                    user_id: payload.user_id.clone(),
-                },
-                AuthenticationType::SinglePurposeOrLoginJwt {
-                    user_id: payload.user_id,
-                    purpose: payload.purpose,
-                    permission: payload.permission,
-                },
-            )),
-            _ => Err(errors::ApiErrorResponse::InvalidJwtToken.into()),
+        if payload
+            .purpose
+            .as_ref()
+            .is_some_and(|payload_purpose| payload_purpose != &self.required_purpose)
+            || payload.permission != self.required_permission
+        {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+
+        Ok((
+            UserIdFromAuth {
+                user_id: payload.user_id.clone(),
+            },
+            AuthenticationType::SinglePurposeOrLoginJwt {
+                user_id: payload.user_id,
+                purpose: payload.purpose,
+                permission: payload.permission,
+            },
+        ))
     }
 }
 
