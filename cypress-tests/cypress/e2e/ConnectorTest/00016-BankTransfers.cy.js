@@ -9,12 +9,10 @@ describe("Bank Transfers", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      console.log("seeding globalState -> " + JSON.stringify(globalState));
     });
   });
 
   after("flush global state", () => {
-    console.log("flushing globalState -> " + JSON.stringify(globalState));
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -46,7 +44,6 @@ describe("Bank Transfers", () => {
     });
 
     it("payment_methods-call-test", () => {
-      cy.task("cli_log", "PM CALL ");
       cy.paymentMethodsCallTest(globalState);
     });
 
@@ -56,7 +53,6 @@ describe("Bank Transfers", () => {
       ]["Pix"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.task("cli_log", "GLOBAL STATE -> " + JSON.stringify(globalState.data));
       cy.confirmBankTransferCallTest(
         confirmBody,
         req_data,
