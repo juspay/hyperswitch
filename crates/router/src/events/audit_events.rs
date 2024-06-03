@@ -14,7 +14,7 @@ pub enum AuditEventType {
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentConfirmed {
+    PaymentConfirm {
         client_src: Option<String>,
         client_ver: Option<String>,
         frm_message: Option<FraudCheck>,

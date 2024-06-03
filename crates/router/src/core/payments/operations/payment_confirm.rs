@@ -936,7 +936,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -1295,21 +1295,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
 
-        let client_src = header_payload
-            .client_source
-            .clone()
-            .or(payment_data.payment_attempt.client_source.clone());
 
-        let client_ver = header_payload
-            .client_version
-            .clone()
-            .or(payment_data.payment_attempt.client_version.clone());
+        let client_src = payment_data.payment_attempt.client_source.clone();
+        let client_ver = payment_data.payment_attempt.client_version.clone();
 
         let frm_message = payment_data.frm_message.clone();
-
-        _req_state
+        req_state
             .event_context
-            .event(AuditEvent::new(AuditEventType::PaymentConfirmed {
+            .event(AuditEvent::new(AuditEventType::PaymentConfirm {
                 client_src,
                 client_ver,
                 frm_message,
