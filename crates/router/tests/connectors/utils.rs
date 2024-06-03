@@ -11,7 +11,7 @@ use router::{
     core::{errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
-    types::{self, storage::enums, AccessToken, PaymentAddress, RouterData},
+    types::{self, storage::enums, AccessToken, MinorUnit, PaymentAddress, RouterData},
 };
 use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
@@ -414,15 +414,18 @@ pub trait ConnectorActions: Connector {
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
                 payment_amount: 1000,
+                minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
                 connector_transaction_id: "".to_string(),
                 webhook_url: None,
                 refund_amount: 100,
+                minor_refund_amount: MinorUnit::new(100),
                 connector_metadata: None,
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
+                charges: None,
             }),
             payment_info,
         );
@@ -479,7 +482,7 @@ pub trait ConnectorActions: Connector {
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
                 customer_details: Some(payments::CustomerDetails {
-                    customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
+                    customer_id: Some(common_utils::generate_customer_id_of_default_length()),
                     name: Some(Secret::new("John Doe".to_string())),
                     email: Email::from_str("john.doe@example").ok(),
                     phone: Some(Secret::new("620874518".to_string())),
@@ -499,7 +502,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
-            customer_id: Some(self.get_name()),
+            customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -914,6 +917,7 @@ impl Default for PaymentAuthorizeType {
         let data = types::PaymentsAuthorizeData {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
+            minor_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
@@ -942,6 +946,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1000,6 +1005,7 @@ impl Default for PaymentSyncType {
             connector_meta: None,
             payment_method_type: None,
             currency: enums::Currency::USD,
+            payment_experience: None,
         };
         Self(data)
     }
@@ -1009,15 +1015,18 @@ impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
             payment_amount: 100,
+            minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            minor_refund_amount: MinorUnit::new(100),
             webhook_url: None,
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
+            charges: None,
         };
         Self(data)
     }
@@ -1081,6 +1090,7 @@ pub fn get_connector_metadata(
             network_txn_id: _,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
+            charge_id: _,
         }) => connector_metadata,
         _ => None,
     }

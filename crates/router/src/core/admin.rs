@@ -1245,17 +1245,6 @@ pub async fn update_payment_connector(
         }
     }
 
-    // The purpose of this merchant account update is just to update the
-    // merchant account `modified_at` field for KGraph cache invalidation
-    db.update_specific_fields_in_merchant(
-        merchant_id,
-        storage::MerchantAccountUpdate::ModifiedAtUpdate,
-        &key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("error updating the merchant account when updating payment connector")?;
-
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
@@ -1944,10 +1933,11 @@ pub(crate) fn validate_auth_and_metadata_type(
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Gpayments => {
-        //     gpayments::transformers::GpaymentsAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Gpayments => {
+            gpayments::transformers::GpaymentsAuthType::try_from(val)?;
+            gpayments::transformers::GpaymentsMetaData::try_from(connector_meta_data)?;
+            Ok(())
+        }
         api_enums::Connector::Helcim => {
             helcim::transformers::HelcimAuthType::try_from(val)?;
             Ok(())
@@ -1958,6 +1948,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
+            klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Mollie => {
@@ -1999,6 +1990,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Paypal => {
             paypal::transformers::PaypalAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Payone => {
+            payone::transformers::PayoneAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Payu => {

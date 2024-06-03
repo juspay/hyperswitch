@@ -77,7 +77,6 @@ fn get_dir_value_payment_method(
 
         api_enums::PaymentMethodType::ClassicReward => Ok(dirval!(RewardType = ClassicReward)),
         api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
-        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
         api_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),
         api_enums::PaymentMethodType::GoPay => Ok(dirval!(WalletType = GoPay)),
         api_enums::PaymentMethodType::KakaoPay => Ok(dirval!(WalletType = KakaoPay)),
@@ -133,6 +132,8 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Oxxo => Ok(dirval!(VoucherType = Oxxo)),
         api_enums::PaymentMethodType::CardRedirect => Ok(dirval!(CardRedirectType = CardRedirect)),
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+        api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
+        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
     }
 }
 
@@ -716,7 +717,6 @@ mod tests {
                             api_enums::CardNetwork::Mastercard,
                         ]),
                         accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
-                            api_enums::Currency::USD,
                             api_enums::Currency::INR,
                         ])),
                         accepted_countries: None,
@@ -734,7 +734,6 @@ mod tests {
                         ]),
                         accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
                             api_enums::Currency::GBP,
-                            api_enums::Currency::PHP,
                         ])),
                         accepted_countries: None,
                         minimum_amount: Some(10),
@@ -752,14 +751,6 @@ mod tests {
             status: api_enums::ConnectorStatus::Inactive,
         };
 
-        let currency_country_flow_filter = kgraph_types::CurrencyCountryFlowFilter {
-            currency: Some(HashSet::from([api_enums::Currency::INR])),
-            country: Some(HashSet::from([api_enums::CountryAlpha2::IN])),
-            not_available_flows: Some(kgraph_types::NotAvailableFlows {
-                capture_method: Some(api_enums::CaptureMethod::Manual),
-            }),
-        };
-
         let config_map = kgraph_types::CountryCurrencyFilter {
             connector_configs: HashMap::from([(
                 api_enums::RoutableConnectors::Stripe,
@@ -768,13 +759,31 @@ mod tests {
                         kgraph_types::PaymentMethodFilterKey::PaymentMethodType(
                             api_enums::PaymentMethodType::Credit,
                         ),
-                        currency_country_flow_filter.clone(),
+                        kgraph_types::CurrencyCountryFlowFilter {
+                            currency: Some(HashSet::from([
+                                api_enums::Currency::INR,
+                                api_enums::Currency::USD,
+                            ])),
+                            country: Some(HashSet::from([api_enums::CountryAlpha2::IN])),
+                            not_available_flows: Some(kgraph_types::NotAvailableFlows {
+                                capture_method: Some(api_enums::CaptureMethod::Manual),
+                            }),
+                        },
                     ),
                     (
                         kgraph_types::PaymentMethodFilterKey::PaymentMethodType(
                             api_enums::PaymentMethodType::Debit,
                         ),
-                        currency_country_flow_filter,
+                        kgraph_types::CurrencyCountryFlowFilter {
+                            currency: Some(HashSet::from([
+                                api_enums::Currency::GBP,
+                                api_enums::Currency::PHP,
+                            ])),
+                            country: Some(HashSet::from([api_enums::CountryAlpha2::IN])),
+                            not_available_flows: Some(kgraph_types::NotAvailableFlows {
+                                capture_method: Some(api_enums::CaptureMethod::Manual),
+                            }),
+                        },
                     ),
                 ])),
             )]),
@@ -838,8 +847,8 @@ mod tests {
                 dirval!(Connector = Stripe),
                 dirval!(PaymentMethod = Card),
                 dirval!(CardType = Debit),
-                dirval!(CardNetwork = DinersClub),
-                dirval!(PaymentCurrency = GBP),
+                dirval!(CardNetwork = Maestro),
+                dirval!(PaymentCurrency = PHP),
                 dirval!(PaymentAmount = 100),
             ]),
             &mut Memoization::new(),

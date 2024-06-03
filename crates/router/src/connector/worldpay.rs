@@ -24,6 +24,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignTryFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -225,13 +226,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 Ok(types::PaymentsCancelRouterData {
                     status: enums::AttemptStatus::Voided,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::try_from(response.links)?,
+                        resource_id: types::ResponseId::foreign_try_from(response.links)?,
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                     ..data.clone()
                 })
@@ -336,6 +338,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..data.clone()
         })
@@ -392,13 +395,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 Ok(types::PaymentsCaptureRouterData {
                     status: enums::AttemptStatus::Charged,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::try_from(response.links)?,
+                        resource_id: types::ResponseId::foreign_try_from(response.links)?,
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                     ..data.clone()
                 })

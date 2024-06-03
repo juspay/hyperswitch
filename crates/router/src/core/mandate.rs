@@ -1,7 +1,7 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -235,7 +235,7 @@ pub async fn get_customer_mandates(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while finding mandate: merchant_id: {}, customer_id: {}",
+                "Failed while finding mandate: merchant_id: {}, customer_id: {:?}",
                 merchant_account.merchant_id, req.customer_id
             )
         })?;
@@ -344,7 +344,7 @@ where
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
     storage_scheme: MerchantStorageScheme,

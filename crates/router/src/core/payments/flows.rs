@@ -928,7 +928,6 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Aci,
-    connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Billwerk,
@@ -1029,7 +1028,6 @@ default_imp_for_payouts!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
-    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,
@@ -1294,7 +1292,6 @@ default_imp_for_payouts_fulfill!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
-    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Powertranz,

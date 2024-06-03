@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common_utils::pii::Email;
+use common_utils::{id_type, pii::Email};
 use error_stack::report;
 use masking::{ExposeInterface, Secret};
 use reqwest::Url;
@@ -311,7 +311,7 @@ pub struct BankRedirectionPMData {
     #[serde(rename = "customer.email")]
     customer_email: Option<Email>,
     #[serde(rename = "customer.merchantCustomerId")]
-    merchant_customer_id: Option<Secret<String>>,
+    merchant_customer_id: Option<Secret<id_type::CustomerId>>,
     merchant_transaction_id: Option<Secret<String>>,
 }
 
@@ -771,6 +771,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

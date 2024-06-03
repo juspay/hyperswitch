@@ -34,6 +34,19 @@ if (jsonData?.payment_id) {
   );
 }
 
+// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id
+if (jsonData?.mandate_id) {
+  pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
+  console.log(
+    "- use {{mandate_id}} as collection variable for value",
+    jsonData.mandate_id,
+  );
+} else {
+  console.log(
+    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
+  );
+}
+
 // pm.collectionVariables - Set client_secret as variable for jsonData.client_secret
 if (jsonData?.client_secret) {
   pm.collectionVariables.set("client_secret", jsonData.client_secret);
@@ -47,25 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "failed" for "status"
+// Response body should have value "requires_capture" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'failed'",
+    "[POST]::/payments - Content check if value for 'status' matches 'requires_capture'",
     function () {
-      pm.expect(jsonData.status).to.eql("failed");
+      pm.expect(jsonData.status).to.eql("requires_capture");
     },
   );
 }
-
-// Check if error code exists
-pm.test("[POST]::/payments - Content check if error code exists", function () {
-    pm.expect(jsonData.error_code).to.not.equal(null);;
-});
-
-// Check if error message exists
-pm.test("[POST]::/payments - Content check if error message exists", function () {
-    pm.expect(jsonData.error_message).to.not.equal(null);;
-});
-
-
-

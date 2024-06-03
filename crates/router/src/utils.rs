@@ -1,7 +1,6 @@
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
-pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
 #[cfg(feature = "kv_store")]
@@ -17,6 +16,7 @@ use std::fmt::Debug;
 
 use api_models::{enums, payments, webhooks};
 use base64::Engine;
+use common_utils::id_type;
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -160,7 +160,6 @@ impl<E> ConnectorResponseExt
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
 }
-
 #[derive(Debug)]
 pub struct QrImage {
     pub data: String,
@@ -574,7 +573,7 @@ pub trait CustomerAddress {
         &self,
         address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
@@ -642,7 +641,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         &self,
         address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
@@ -700,7 +699,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 
             Ok(domain::CustomerAddress {
                 address,
-                customer_id: customer_id.to_string(),
+                customer_id: customer_id.to_owned(),
             })
         }
         .await

@@ -34,10 +34,11 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::{
+pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
     router_data::RouterData,
+    router_request_types::CustomerDetails,
 };
 use masking::{ExposeInterface, Secret};
 use redis_interface::errors::RedisError;
@@ -1008,9 +1009,11 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
+                        api_models::payments::NextActionData::FetchQrCodeInformation{..} => None,
                         api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
+                        api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -1882,6 +1885,14 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
+    if !is_operation_complete_authorize(&operation)
+        && connector
+            .connector_name
+            .is_pre_processing_required_before_authorize()
+    {
+        router_data = router_data.preprocessing_steps(state, connector).await?;
+        return Ok((router_data, should_continue_payment));
+    }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
@@ -2486,15 +2497,6 @@ pub struct IncrementalAuthorizationDetails {
     pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct CustomerDetails {
-    pub customer_id: Option<String>,
-    pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
-    pub phone_country_code: Option<String>,
 }
 
 pub trait CustomerDetailsExt {
@@ -3170,6 +3172,34 @@ where
             {
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
+
+            #[cfg(feature = "retry")]
+            let should_do_retry =
+                retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
+
+            #[cfg(feature = "retry")]
+            if payment_data.payment_attempt.payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
+            {
+                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
+                    state,
+                    merchant_account,
+                    payment_data,
+                    key_store,
+                    connector_data.clone(),
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    choice.merchant_connector_id.clone().as_ref(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    return Ok(ConnectorCallType::Retryable(connector_data_list));
+                }
+            }
+
             return Ok(ConnectorCallType::PreDetermined(connector_data));
         }
     }
@@ -3192,7 +3222,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3250,7 +3279,6 @@ where
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
@@ -3680,7 +3708,6 @@ where
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
-        merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
         &transaction_data,
         eligible_connectors,
@@ -3795,7 +3822,7 @@ pub async fn payment_external_authentication(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
-                    format!("error while finding customer with customer_id {customer_id}")
+                    format!("error while finding customer with customer_id {customer_id:?}")
                 })?,
         ),
         None => None,
@@ -3899,8 +3926,23 @@ pub async fn payment_external_authentication(
             id: profile_id.to_string(),
         })?;
 
+    let authentication_details: api_models::admin::AuthenticationConnectorDetails =
+        business_profile
+            .authentication_connector_details
+            .clone()
+            .get_required_value("authentication_connector_details")
+            .attach_printable("authentication_connector_details not configured by the merchant")?
+            .parse_value("AuthenticationConnectorDetails")
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Invalid data format found for authentication_connector_details".into(),
+            })
+            .attach_printable(
+                "Error while parsing authentication_connector_details from business_profile",
+            )?;
+
     let authentication_response = Box::pin(authentication_core::perform_authentication(
         &state,
+        business_profile.merchant_id,
         authentication_connector,
         payment_method_details.0,
         payment_method_details.1,
@@ -3912,7 +3954,6 @@ pub async fn payment_external_authentication(
             })?,
         shipping_address.as_ref().map(|address| address.into()),
         browser_info,
-        business_profile,
         merchant_connector_account,
         Some(amount),
         Some(currency),
@@ -3924,6 +3965,7 @@ pub async fn payment_external_authentication(
         req.threeds_method_comp_ind,
         optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
         webhook_url,
+        authentication_details.three_ds_requestor_url.clone(),
     ))
     .await?;
     Ok(services::ApplicationResponse::Json(
@@ -3938,6 +3980,7 @@ pub async fn payment_external_authentication(
             acs_trans_id: authentication_response.acs_trans_id,
             three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,
             acs_signed_content: authentication_response.acs_signed_content,
+            three_ds_requestor_url: authentication_details.three_ds_requestor_url,
         },
     ))
 }

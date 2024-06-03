@@ -1,4 +1,4 @@
-use common_utils::pii::Email;
+use common_utils::{id_type, pii::Email};
 use diesel_models::enums;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct ShopperDetails {
-    reference: String,
+    reference: id_type::CustomerId,
     email: Option<Email>,
     first_name: Secret<String>,
     last_name: Secret<String>,
@@ -283,6 +283,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -364,6 +365,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data
@@ -404,6 +406,7 @@ impl<F, T>
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data
