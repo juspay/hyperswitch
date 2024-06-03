@@ -165,7 +165,10 @@ pub struct GetUserDetailsResponse {
     #[serde(skip_serializing)]
     pub user_id: String,
     pub org_id: String,
+    pub is_two_factor_auth_setup: bool,
+    pub recovery_codes_left: Option<usize>,
 }
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetUserRoleDetailsRequest {
     pub email: pii::Email,

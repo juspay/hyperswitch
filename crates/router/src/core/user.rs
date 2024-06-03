@@ -94,6 +94,8 @@ pub async fn get_user_details(
             verification_days_left,
             role_id: user_from_token.role_id,
             org_id: user_from_token.org_id,
+            is_two_factor_auth_setup: user.get_totp_status() == TotpStatus::Set,
+            recovery_codes_left: user.get_recovery_codes().map(|codes| codes.len()),
         },
     ))
 }
@@ -328,6 +330,10 @@ pub async fn signout(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<()> {
+    tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
+    tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
+    tfa_utils::delete_totp_secret_from_redis(&state, &user_from_token.user_id).await?;
+
     auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
     auth::cookies::remove_cookie_response()
 }
