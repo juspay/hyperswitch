@@ -1,4 +1,7 @@
-use common_utils::pii;
+use common_utils::{
+    pii,
+    types::{MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use masking::Secret;
 use reqwest::Url;
@@ -15,21 +18,13 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CryptopayRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for CryptopayRouterData<T> {
+impl<T> TryFrom<(StringMajorUnit, T)> for CryptopayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -39,7 +34,7 @@ impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for Crypto
 
 #[derive(Default, Debug, Serialize)]
 pub struct CryptopayPaymentsRequest {
-    price_amount: String,
+    price_amount: StringMajorUnit,
     price_currency: enums::Currency,
     pay_currency: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,7 +57,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
-                    price_amount: item.amount.to_owned(),
+                    price_amount: item.amount.clone(),
                     price_currency: item.router_data.request.currency,
                     pay_currency,
                     network: cryptodata.network.to_owned(),
@@ -140,20 +135,22 @@ impl From<CryptopayPaymentStatus> for enums::AttemptStatus {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CryptopayPaymentsResponse {
-    data: CryptopayPaymentResponseData,
+    pub data: CryptopayPaymentResponseData,
 }
 
 impl<F, T>
     ForeignTryFrom<(
         types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
         diesel_models::enums::Currency,
+        Option<MinorUnit>,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        (item, currency): (
+        (item, currency, amount_captured_core): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
             diesel_models::enums::Currency,
+            Option<MinorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
@@ -200,15 +197,19 @@ impl<F, T>
         match item.response.data.price_amount {
             Some(price_amount) => {
                 let amount_captured = Some(
-                    connector_utils::to_currency_lower_unit(price_amount, currency)?
-                        .parse::<i64>()
-                        .change_context(errors::ConnectorError::ParsingFailed)?,
+                    connector_utils::to_currency_lower_unit(
+                        price_amount.get_amount_as_string(),
+                        currency,
+                    )?
+                    .parse::<i64>()
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
                 );
 
                 Ok(Self {
                     status,
                     response,
                     amount_captured,
+                    minor_amount_captured: amount_captured_core,
                     ..item.data
                 })
             }
@@ -243,9 +244,9 @@ pub struct CryptopayPaymentResponseData {
     pub address: Option<Secret<String>>,
     pub network: Option<String>,
     pub uri: Option<String>,
-    pub price_amount: Option<String>,
+    pub price_amount: Option<StringMajorUnit>,
     pub price_currency: Option<String>,
-    pub pay_amount: Option<String>,
+    pub pay_amount: Option<StringMajorUnit>,
     pub pay_currency: Option<String>,
     pub fee: Option<String>,
     pub fee_currency: Option<String>,
