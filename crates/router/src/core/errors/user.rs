@@ -80,8 +80,6 @@ pub enum UserErrors {
     TwoFactorAuthNotSetup,
     #[error("TOTP secret not found")]
     TotpSecretNotFound,
-    #[error("Recovery codes exhausted")]
-    RecoveryCodesExhausted,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -206,9 +204,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::TotpSecretNotFound => {
                 AER::BadRequest(ApiError::new(sub_code, 42, self.get_error_message(), None))
             }
-            Self::RecoveryCodesExhausted => {
-                AER::BadRequest(ApiError::new(sub_code, 43, self.get_error_message(), None))
-            }
         }
     }
 }
@@ -252,7 +247,6 @@ impl UserErrors {
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",
-            Self::RecoveryCodesExhausted => "Recovery codes exhausted",
         }
     }
 }
