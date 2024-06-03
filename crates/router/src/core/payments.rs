@@ -3918,8 +3918,23 @@ pub async fn payment_external_authentication(
             id: profile_id.to_string(),
         })?;
 
+    let authentication_details: api_models::admin::AuthenticationConnectorDetails =
+        business_profile
+            .authentication_connector_details
+            .clone()
+            .get_required_value("authentication_connector_details")
+            .attach_printable("authentication_connector_details not configured by the merchant")?
+            .parse_value("AuthenticationConnectorDetails")
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Invalid data format found for authentication_connector_details".into(),
+            })
+            .attach_printable(
+                "Error while parsing authentication_connector_details from business_profile",
+            )?;
+
     let authentication_response = Box::pin(authentication_core::perform_authentication(
         &state,
+        business_profile.merchant_id,
         authentication_connector,
         payment_method_details.0,
         payment_method_details.1,
@@ -3931,7 +3946,6 @@ pub async fn payment_external_authentication(
             })?,
         shipping_address.as_ref().map(|address| address.into()),
         browser_info,
-        business_profile,
         merchant_connector_account,
         Some(amount),
         Some(currency),
@@ -3943,6 +3957,7 @@ pub async fn payment_external_authentication(
         req.threeds_method_comp_ind,
         optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
         webhook_url,
+        authentication_details.three_ds_requestor_url.clone(),
     ))
     .await?;
     Ok(services::ApplicationResponse::Json(
@@ -3957,6 +3972,7 @@ pub async fn payment_external_authentication(
             acs_trans_id: authentication_response.acs_trans_id,
             three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,
             acs_signed_content: authentication_response.acs_signed_content,
+            three_ds_requestor_url: authentication_details.three_ds_requestor_url,
         },
     ))
 }

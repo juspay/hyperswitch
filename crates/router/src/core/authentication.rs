@@ -20,13 +20,13 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &AppState,
+    merchant_id: String,
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
     billing_address: payments::Address,
     shipping_address: Option<payments::Address>,
     browser_details: Option<core_types::BrowserInformation>,
-    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<common_utils::types::MinorUnit>,
     currency: Option<Currency>,
@@ -38,8 +38,10 @@ pub async fn perform_authentication(
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
+    three_ds_requestor_url: String,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
+        merchant_id,
         authentication_connector.clone(),
         payment_method_data,
         payment_method,
@@ -50,7 +52,6 @@ pub async fn perform_authentication(
         currency,
         message_category,
         device_channel,
-        business_profile,
         merchant_connector_account,
         authentication_data.clone(),
         return_url,
@@ -58,6 +59,7 @@ pub async fn perform_authentication(
         threeds_method_comp_ind,
         email,
         webhook_url,
+        three_ds_requestor_url,
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
