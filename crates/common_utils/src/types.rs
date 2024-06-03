@@ -541,6 +541,11 @@ impl StringMajorUnit {
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
     }
+
+    /// Get string amount from struct to be removed in future
+    pub fn get_amount_as_string(&self) -> String {
+        self.0.clone()
+    }
 }
 
 #[cfg(test)]
