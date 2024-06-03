@@ -1467,6 +1467,8 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
+    router_data = router_data.add_session_token(state, &connector).await?;
+
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
