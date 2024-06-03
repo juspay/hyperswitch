@@ -66,9 +66,9 @@ if (jsonData?.client_secret) {
 // Response body should have value "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'succeeded'",
+    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'partially_captured'",
     function () {
-      pm.expect(jsonData.status).to.eql("succeeded");
+      pm.expect(jsonData.status).to.eql("partially_captured");
     },
   );
 }
@@ -88,7 +88,7 @@ if (jsonData?.amount_received) {
   pm.test(
     "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6000'",
     function () {
-      pm.expect(jsonData.amount_received).to.eql(6540);
+      pm.expect(jsonData.amount_received).to.eql(6000);
     },
   );
 }
