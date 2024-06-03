@@ -893,7 +893,7 @@ impl UserFromStorage {
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
         let master_key = state.store.get_master_key();
         let key_store_result = state
-            .store
+            .global_store
             .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
             .await;
 
@@ -917,7 +917,7 @@ impl UserFromStorage {
                 created_at: common_utils::date_time::now(),
             };
             state
-                .store
+                .global_store
                 .insert_user_key_store(key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -946,7 +946,7 @@ impl UserFromStorage {
         }
 
         let user_key_store = state
-            .store
+            .global_store
             .get_user_key_store_by_user_id(
                 self.get_user_id(),
                 &state.store.get_master_key().to_vec().into(),
