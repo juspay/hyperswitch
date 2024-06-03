@@ -54,7 +54,7 @@ pub fn validate_refund_amount(
             if refund.refund_status != enums::RefundStatus::Failure
                 && refund.refund_status != enums::RefundStatus::TransactionFailure
             {
-                Some(refund.refund_amount)
+                Some(refund.refund_amount.get_amount_as_i64())
             } else {
                 None
             }
@@ -132,9 +132,6 @@ pub fn validate_for_valid_refunds(
                     (
                         api_models::enums::Connector::Braintree,
                         diesel_models::enums::PaymentMethodType::Paypal,
-                    ) | (
-                        api_models::enums::Connector::Klarna,
-                        diesel_models::enums::PaymentMethodType::Klarna
                     )
                 ),
                 || {

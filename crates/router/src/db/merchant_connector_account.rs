@@ -203,7 +203,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id, connector_label),
                 find_call,
@@ -248,7 +248,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", profile_id, connector_name),
                 find_call,
@@ -322,7 +322,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id, merchant_connector_id),
                 find_call,
@@ -418,7 +418,7 @@ impl MerchantConnectorAccountInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             // Redact both the caches as any one or both might be used because of backwards compatibility
-            super::cache::publish_and_redact_multiple(
+            cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -429,9 +429,6 @@ impl MerchantConnectorAccountInterface for Store {
                     ),
                     cache::CacheKind::CGraph(
                         format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
-                    ),
-                    cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", _merchant_id).into(),
                     ),
                 ],
                 update_call,
@@ -481,7 +478,7 @@ impl MerchantConnectorAccountInterface for Store {
                 "profile_id".to_string(),
             ))?;
 
-            super::cache::publish_and_redact_multiple(
+            cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -489,9 +486,6 @@ impl MerchantConnectorAccountInterface for Store {
                     ),
                     cache::CacheKind::CGraph(
                         format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
-                    ),
-                    cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", mca.merchant_id).into(),
                     ),
                 ],
                 delete_call,
@@ -766,6 +760,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
 }
 
+#[cfg(feature = "accounts_cache")]
 #[cfg(test)]
 mod merchant_connector_account_cache_tests {
     use api_models::enums::CountryAlpha2;
@@ -774,7 +769,7 @@ mod merchant_connector_account_cache_tests {
     use error_stack::ResultExt;
     use masking::PeekInterface;
     use storage_impl::redis::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
+        cache::{self, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };
@@ -783,7 +778,7 @@ mod merchant_connector_account_cache_tests {
     use crate::{
         core::errors,
         db::{
-            cache, merchant_connector_account::MerchantConnectorAccountInterface,
+            merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
         },
         services,
