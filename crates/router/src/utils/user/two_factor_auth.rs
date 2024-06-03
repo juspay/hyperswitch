@@ -12,6 +12,7 @@ use crate::{
 pub fn generate_default_totp(
     email: pii::Email,
     secret: Option<masking::Secret<String>>,
+    issuer: String,
 ) -> UserResult<TOTP> {
     let secret = secret
         .map(|sec| totp_rs::Secret::Encoded(sec.expose()))
@@ -25,7 +26,7 @@ pub fn generate_default_totp(
         consts::user::TOTP_TOLERANCE,
         consts::user::TOTP_VALIDITY_DURATION_IN_SECONDS,
         secret,
-        Some(consts::user::TOTP_ISSUER_NAME.to_string()),
+        Some(issuer),
         email.expose().expose(),
     )
     .change_context(UserErrors::InternalServerError)

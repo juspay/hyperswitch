@@ -1635,7 +1635,11 @@ pub async fn begin_totp(
         }));
     }
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        None,
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
     let secret = totp.get_secret_base32().into();
     tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
@@ -1668,7 +1672,12 @@ pub async fn reset_totp(
         return Err(UserErrors::TwoFactorAuthRequired.into());
     }
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        None,
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
+
     let secret = totp.get_secret_base32().into();
     tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
@@ -1701,7 +1710,11 @@ pub async fn verify_totp(
         .await?
         .ok_or(UserErrors::InternalServerError)?;
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        Some(user_totp_secret),
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
 
     if totp
         .generate_current()
@@ -1732,7 +1745,11 @@ pub async fn update_totp(
         .await?
         .ok_or(UserErrors::TotpSecretNotFound)?;
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), Some(new_totp_secret))?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        Some(new_totp_secret),
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
 
     if totp
         .generate_current()
