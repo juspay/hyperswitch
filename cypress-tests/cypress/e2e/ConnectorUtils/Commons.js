@@ -13,26 +13,14 @@ const connectorId = normalise(globalState.get("connectorId"));
 function normalise(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
-    nmi: "NMI",
     // Add more known exceptions here
   };
 
   if (exceptions[input.toLowerCase()]) {
     return exceptions[input.toLowerCase()];
-  }
-
-  // Split the input text based on changes from lowercase to uppercase or delimiters
-  const words = input.match(/[A-Z][a-z]+|[a-z]+/g);
-  if (!words) {
+  } else {
     return input;
   }
-
-  // Capitalize the first letter of each word and join them with spaces
-  const result = words
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-
-  return result;
 }
 
 const successfulNo3DSCardDetails = {
