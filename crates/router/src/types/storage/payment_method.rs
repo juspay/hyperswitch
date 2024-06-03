@@ -54,6 +54,7 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
+    Null,
 }
 
 impl PaymentTokenData {

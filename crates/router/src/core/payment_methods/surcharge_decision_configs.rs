@@ -26,6 +26,7 @@ use crate::{
         storage::{self, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryFrom,
     },
+    utils::OptionExt,
     AppState,
 };
 
@@ -312,6 +313,12 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         .change_context(ConfigError::InputConstructionError)?;
 
     for customer_payment_method in customer_payment_method_list.iter_mut() {
+        let payment_token = customer_payment_method
+            .payment_token
+            .clone()
+            .get_required_value("payment_token")
+            .change_context(ConfigError::InputConstructionError)?;
+
         backend_input.payment_method.payment_method = Some(customer_payment_method.payment_method);
         backend_input.payment_method.payment_method_type =
             customer_payment_method.payment_method_type;
@@ -332,7 +339,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
                 payment_attempt,
                 (
                     &mut surcharge_metadata,
-                    types::SurchargeKey::Token(customer_payment_method.payment_token.clone()),
+                    types::SurchargeKey::Token(payment_token),
                 ),
             )?;
         customer_payment_method.surcharge_details = surcharge_details

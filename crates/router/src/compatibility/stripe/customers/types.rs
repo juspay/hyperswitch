@@ -219,10 +219,11 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
     }
 }
 
+// Check this in review
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
         Self {
-            id: item.payment_token,
+            id: item.payment_token.unwrap_or("".to_string()),
             object: "payment_method",
             card: item.card.map(From::from),
             created: item.created,

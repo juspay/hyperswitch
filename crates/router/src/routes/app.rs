@@ -404,6 +404,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
+                )
+                .service(
+                    web::resource("/v2/{payment_id}/saved_payment_methods").route(web::get().to(list_customer_payment_method_for_payment)),
                 );
         }
         route
@@ -702,6 +705,10 @@ impl Customers {
                         .route(web::get().to(customers_retrieve))
                         .route(web::post().to(customers_update))
                         .route(web::delete().to(customers_delete)),
+                )
+                .service(
+                    web::resource("/v2/{customer_id}/saved_payment_methods")
+                        .route(web::get().to(list_customer_payment_method_api_v2)),
                 );
         }
 

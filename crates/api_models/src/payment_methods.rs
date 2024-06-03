@@ -860,7 +860,7 @@ pub struct CustomerDefaultPaymentMethodResponse {
 pub struct CustomerPaymentMethod {
     /// Token for payment method in temporary card locker which gets refreshed often
     #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
-    pub payment_token: String,
+    pub payment_token: Option<String>,
     /// The unique identifier of the customer.
     #[schema(example = "pm_iouuy468iyuowqs")]
     pub payment_method_id: String,
