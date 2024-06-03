@@ -9,6 +9,7 @@ use self::{
     disputes::{DisputeDimensions, DisputeMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
+    frm::{FrmDimensions, FrmMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
 pub use crate::payments::TimeRange;
@@ -20,6 +21,7 @@ pub mod disputes;
 pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
+pub mod frm;
 pub mod sdk_events;
 pub mod search;
 
@@ -128,6 +130,20 @@ pub struct GetRefundMetricRequest {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetFrmMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<FrmDimensions>,
+    #[serde(default)]    
+    pub filters: frm::FrmFilters,
+    pub metrics: HashSet<FrmMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetSdkEventMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
@@ -197,6 +213,28 @@ pub struct RefundFiltersResponse {
 
 pub struct RefundFilterValue {
     pub dimension: RefundDimensions,
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GetFrmFilterRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<FrmDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FrmFiltersResponse {
+    pub query_data: Vec<FrmFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+
+pub struct FrmFilterValue {
+    pub dimension: FrmDimensions,
     pub values: Vec<String>,
 }
 

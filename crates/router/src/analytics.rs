@@ -14,7 +14,7 @@ pub mod routes {
         },
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
         GetAuthEventMetricRequest, GetDisputeMetricRequest, GetPaymentFiltersRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
+        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest, GetFrmMetricRequest, GetFrmFilterRequest,
         GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
@@ -47,11 +47,18 @@ pub mod routes {
                         web::resource("metrics/refunds").route(web::post().to(get_refunds_metrics)),
                     )
                     .service(
+                        web::resource("metrics/frm")
+                            .route(web::post().to(get_frm_metrics)),
+                    )
+                    .service(
                         web::resource("filters/payments")
                             .route(web::post().to(get_payment_filters)),
                     )
                     .service(
                         web::resource("filters/refunds").route(web::post().to(get_refund_filters)),
+                    )
+                    .service(
+                        web::resource("filters/frm").route(web::post().to(get_frm_filters)),
                     )
                     .service(web::resource("{domain}/info").route(web::get().to(get_info)))
                     .service(
@@ -209,6 +216,40 @@ pub mod routes {
         .await
     }
 
+    // TODO: To be implemented
+    // pub async fn get_frm_metrics(
+    //     state: web::Data<AppState>,
+    //     req: actix_web::HttpRequest,
+    //     json_payload: web::Json<[GetRefundMetricRequest; 1]>,
+    // ) -> impl Responder {
+    //     #[allow(clippy::expect_used)]
+    //     // safety: This shouldn't panic owing to the data type
+    //     let payload = json_payload
+    //         .into_inner()
+    //         .to_vec()
+    //         .pop()
+    //         .expect("Couldn't get GetRefundMetricRequest");
+    //     let flow = AnalyticsFlow::GetRefundsMetrics;
+    //     Box::pin(api::server_wrap(
+    //         flow,
+    //         state,
+    //         &req,
+    //         payload,
+    //         |state, auth: AuthenticationData, req, _| async move {
+    //             analytics::refunds::get_metrics(
+    //                 &state.pool,
+    //                 &auth.merchant_account.merchant_id,
+    //                 req,
+    //             )
+    //             .await
+    //             .map(ApplicationResponse::Json)
+    //         },
+    //         &auth::JWTAuth(Permission::Analytics),
+    //         api_locking::LockAction::NotApplicable,
+    //     ))
+    //     .await
+    // }
+
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetSdkEventMetricRequest` element.
@@ -321,6 +362,32 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
                 analytics::refunds::get_filters(
+                    &state.pool,
+                    req,
+                    &auth.merchant_account.merchant_id,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_frm_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetFrmFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetFrmFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
+                analytics::frm::get_filters(
                     &state.pool,
                     req,
                     &auth.merchant_account.merchant_id,

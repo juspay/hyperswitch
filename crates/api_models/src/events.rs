@@ -90,6 +90,7 @@ impl_misc_api_event_type!(
     GetPaymentFiltersRequest,
     PaymentFiltersResponse,
     GetRefundFilterRequest,
+    GetFrmFilterRequest,
     RefundFiltersResponse,
     GetSdkEventFiltersRequest,
     SdkEventFiltersResponse,
