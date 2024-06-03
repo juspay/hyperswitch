@@ -34,7 +34,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerEnableConfig},
+    configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -46,7 +46,7 @@ use crate::{
         pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
-    routes::{metrics, payment_methods as payment_methods_handler, AppState},
+    routes::{metrics, payment_methods as payment_methods_handler, SessionState},
     services,
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
@@ -427,7 +427,7 @@ pub async fn get_address_by_id(
 }
 
 pub async fn get_token_pm_type_mandate_details(
-    state: &AppState,
+    state: &SessionState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
@@ -579,7 +579,7 @@ pub async fn get_token_pm_type_mandate_details(
 }
 
 pub async fn get_token_for_recurring_mandate(
-    state: &AppState,
+    state: &SessionState,
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1023,16 +1023,13 @@ pub fn validate_customer_id_mandatory_cases(
 }
 
 pub fn create_startpay_url(
-    server: &Server,
+    base_url: &str,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> String {
     format!(
         "{}/payments/redirect/{}/{}/{}",
-        server.base_url,
-        payment_intent.payment_id,
-        payment_intent.merchant_id,
-        payment_attempt.attempt_id
+        base_url, payment_intent.payment_id, payment_intent.merchant_id, payment_attempt.attempt_id
     )
 }
 
@@ -1050,7 +1047,7 @@ pub fn create_redirect_url(
 }
 
 pub fn create_authentication_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
 ) -> String {
     format!(
@@ -1060,7 +1057,7 @@ pub fn create_authentication_url(
 }
 
 pub fn create_authorize_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
     connector_name: &String,
 ) -> String {
@@ -1205,7 +1202,7 @@ pub fn payment_intent_status_fsm(
 }
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -1494,7 +1491,7 @@ pub fn get_customer_details_from_request(
 }
 
 pub async fn get_connector_default(
-    _state: &AppState,
+    _state: &SessionState,
     request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
@@ -1676,7 +1673,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 }
 
 pub async fn retrieve_payment_method_with_temporary_token(
-    state: &AppState,
+    state: &SessionState,
     token: &str,
     payment_intent: &PaymentIntent,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1773,7 +1770,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 }
 
 pub async fn retrieve_card_with_permanent_token(
-    state: &AppState,
+    state: &SessionState,
     locker_id: &str,
     payment_method_id: &str,
     payment_intent: &PaymentIntent,
@@ -1838,7 +1835,7 @@ pub async fn retrieve_card_with_permanent_token(
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
-    state: &AppState,
+    state: &SessionState,
     token_data: &storage::PaymentTokenData,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::PaymentMethod>> {
@@ -1873,7 +1870,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 }
 
 pub async fn retrieve_payment_token_data(
-    state: &AppState,
+    state: &SessionState,
     token: String,
     payment_method: Option<storage_enums::PaymentMethod>,
 ) -> RouterResult<storage::PaymentTokenData> {
@@ -1924,7 +1921,7 @@ pub async fn retrieve_payment_token_data(
 
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
@@ -2021,7 +2018,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 }
 
 pub async fn store_in_vault_and_generate_ppmt(
-    state: &AppState,
+    state: &SessionState,
     payment_method_data: &api_models::payments::PaymentMethodData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -2057,7 +2054,7 @@ pub async fn store_in_vault_and_generate_ppmt(
 }
 
 pub async fn store_payment_method_data_in_vault(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
@@ -2541,7 +2538,7 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: AppState,
+    state: SessionState,
     customer_id: id_type::CustomerId,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
@@ -2563,7 +2560,7 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    state: AppState,
+    state: SessionState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let db = state.store.as_ref();
@@ -3207,7 +3204,7 @@ impl MerchantConnectorAccountType {
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
@@ -3962,7 +3959,7 @@ pub fn get_applepay_metadata(
 }
 
 pub async fn get_apple_pay_retryable_connectors<F>(
-    state: AppState,
+    state: SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
@@ -4067,7 +4064,7 @@ impl ApplePayData {
 
     pub async fn decrypt(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
         let merchant_id = self.merchant_id(state).await?;
         let shared_secret = self.shared_secret(state).await?;
@@ -4080,7 +4077,7 @@ impl ApplePayData {
 
     pub async fn merchant_id(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let cert_data = state
             .conf
@@ -4125,7 +4122,7 @@ impl ApplePayData {
 
     pub async fn shared_secret(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
@@ -4301,7 +4298,7 @@ pub fn validate_payment_link_request(
 }
 
 pub async fn get_gsm_record(
-    state: &AppState,
+    state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: String,
@@ -4438,7 +4435,7 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 }
 
 pub async fn get_payment_method_details_from_payment_token(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
@@ -4589,7 +4586,7 @@ pub enum PaymentExternalAuthenticationFlow {
 }
 
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: &storage::BusinessProfile,
     payment_data: &mut PaymentData<F>,
