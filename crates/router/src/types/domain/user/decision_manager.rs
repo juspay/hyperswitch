@@ -5,7 +5,7 @@ use masking::Secret;
 use super::UserFromStorage;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
     services::authentication as auth,
     utils,
 };
@@ -17,7 +17,7 @@ pub enum UserFlow {
 }
 
 impl UserFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &AppState) -> UserResult<bool> {
+    async fn is_required(&self, user: &UserFromStorage, state: &SessionState) -> UserResult<bool> {
         match self {
             Self::SPTFlow(flow) => flow.is_required(user, state).await,
             Self::JWTFlow(flow) => flow.is_required(user, state).await,
@@ -36,7 +36,7 @@ pub enum SPTFlow {
 }
 
 impl SPTFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &AppState) -> UserResult<bool> {
+    async fn is_required(&self, user: &UserFromStorage, state: &SessionState) -> UserResult<bool> {
         match self {
             // TOTP
             Self::TOTP => Ok(true),
@@ -54,7 +54,7 @@ impl SPTFlow {
 
     pub async fn generate_spt(
         self,
-        state: &AppState,
+        state: &SessionState,
         next_flow: &NextFlow,
     ) -> UserResult<Secret<String>> {
         auth::SinglePurposeToken::new_token(
@@ -74,13 +74,17 @@ pub enum JWTFlow {
 }
 
 impl JWTFlow {
-    async fn is_required(&self, _user: &UserFromStorage, _state: &AppState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        _user: &UserFromStorage,
+        _state: &SessionState,
+    ) -> UserResult<bool> {
         Ok(true)
     }
 
     pub async fn generate_jwt(
         self,
-        state: &AppState,
+        state: &SessionState,
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
@@ -183,7 +187,7 @@ impl CurrentFlow {
         })
     }
 
-    pub async fn next(&self, user: UserFromStorage, state: &AppState) -> UserResult<NextFlow> {
+    pub async fn next(&self, user: UserFromStorage, state: &SessionState) -> UserResult<NextFlow> {
         let flows = self.origin.get_flows();
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
         for flow in remaining_flows {
@@ -209,7 +213,7 @@ impl NextFlow {
     pub async fn from_origin(
         origin: Origin,
         user: UserFromStorage,
-        state: &AppState,
+        state: &SessionState,
     ) -> UserResult<Self> {
         let flows = origin.get_flows();
         for flow in flows {
@@ -228,7 +232,7 @@ impl NextFlow {
         self.next_flow
     }
 
-    pub async fn get_token(&self, state: &AppState) -> UserResult<Secret<String>> {
+    pub async fn get_token(&self, state: &SessionState) -> UserResult<Secret<String>> {
         match self.next_flow {
             UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(state, self).await,
             UserFlow::JWTFlow(jwt_flow) => {
@@ -251,7 +255,7 @@ impl NextFlow {
 
     pub async fn get_token_with_user_role(
         &self,
-        state: &AppState,
+        state: &SessionState,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
         match self.next_flow {

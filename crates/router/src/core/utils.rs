@@ -25,7 +25,7 @@ use crate::{
     consts,
     core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
-    routes::AppState,
+    routes::SessionState,
     types::{
         self, domain,
         storage::{self, enums},
@@ -45,7 +45,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn get_mca_for_payout<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -72,7 +72,7 @@ pub async fn get_mca_for_payout<'a>(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
-    state: &'a AppState,
+    state: &'a SessionState,
     connector_name: &api_models::enums::Connector,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -215,7 +215,7 @@ pub async fn construct_payout_router_data<'a, F>(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_refund_router_data<'a, F>(
-    state: &'a AppState,
+    state: &'a SessionState,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -264,7 +264,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let webhook_url = Some(helpers::create_webhook_url(
-        &state.conf.server.base_url.clone(),
+        &state.base_url.clone(),
         &merchant_account.merchant_id,
         &connector_id.to_string(),
     ));
@@ -515,7 +515,7 @@ pub fn validate_dispute_stage_and_dispute_status(
 
 #[instrument(skip_all)]
 pub async fn construct_accept_dispute_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
@@ -610,7 +610,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
 #[instrument(skip_all)]
 pub async fn construct_submit_evidence_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
@@ -705,7 +705,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_upload_file_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
@@ -804,7 +804,7 @@ pub async fn construct_upload_file_router_data<'a>(
 
 #[instrument(skip_all)]
 pub async fn construct_defend_dispute_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
@@ -901,7 +901,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
 #[instrument(skip_all)]
 pub async fn construct_retrieve_file_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     file_metadata: &diesel_models::file::FileMetadata,

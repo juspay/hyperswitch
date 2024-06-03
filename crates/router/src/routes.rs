@@ -62,7 +62,8 @@ pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, BusinessProfile, Cache, Cards, Configs,
     ConnectorOnboarding, Customers, Disputes, EphemeralKey, Files, Gsm, Health, Mandates,
     MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
-    Refunds, User, Webhooks,
+    Refunds, SessionState,
+    User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Routing, Verify, WebhookEvents};
