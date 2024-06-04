@@ -2097,7 +2097,7 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
 }
 
 fn decide_apple_pay_flow(
-    state: &AppState,
+    state: &SessionState,
     payment_method_type: &Option<enums::PaymentMethodType>,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<domain::ApplePayFlow> {
@@ -2110,7 +2110,7 @@ fn decide_apple_pay_flow(
 }
 
 fn check_apple_pay_metadata(
-    state: &AppState,
+    state: &SessionState,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<domain::ApplePayFlow> {
     merchant_connector_account.and_then(|mca| {

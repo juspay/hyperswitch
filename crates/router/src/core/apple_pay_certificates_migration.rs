@@ -8,13 +8,13 @@ use super::{
     payments::helpers,
 };
 use crate::{
-    routes::AppState,
+    routes::SessionState,
     services::{self, logger},
     types::{domain::types as domain_types, storage},
 };
 
 pub async fn apple_pay_certificates_migration(
-    state: AppState,
+    state: SessionState,
     req: &apple_pay_certificates_migration::ApplePayCertificatesMigrationRequest,
 ) -> CustomResult<
     services::ApplicationResponse<
