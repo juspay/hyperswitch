@@ -13,6 +13,8 @@ const connectorId = normalise(globalState.get("connectorId"));
 function normalise(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
+    cybersource: "Cybersource",
+    paypal: "Paypal",
     // Add more known exceptions here
   };
 
