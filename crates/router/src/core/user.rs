@@ -1237,11 +1237,11 @@ pub async fn create_merchant_account(
 
 pub async fn list_merchants_for_user(
     state: SessionState,
-    user_from_token: Box<dyn auth::GetUserIdFromAuth>,
+    user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_token.get_user_id().as_str())
+        .list_user_roles_by_user_id(user_from_token.user_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1697,7 +1697,7 @@ pub async fn reset_totp(
 
 pub async fn verify_totp(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
@@ -1737,7 +1737,7 @@ pub async fn verify_totp(
 
 pub async fn update_totp(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
@@ -1806,7 +1806,7 @@ pub async fn update_totp(
 
 pub async fn generate_recovery_codes(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
 ) -> UserResponse<user_api::RecoveryCodes> {
     if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await? {
         return Err(UserErrors::TotpRequired.into());
@@ -1838,7 +1838,7 @@ pub async fn generate_recovery_codes(
 
 pub async fn verify_recovery_code(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
     req: user_api::VerifyRecoveryCodeRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
