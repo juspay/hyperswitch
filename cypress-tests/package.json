@@ -9,5 +9,8 @@
     "cypress:ci": "npx cypress run --headless"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "jsqr": "^1.4.0"
+  }
 }

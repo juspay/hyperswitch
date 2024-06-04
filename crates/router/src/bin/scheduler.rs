@@ -1,5 +1,5 @@
 #![recursion_limit = "256"]
-use std::{str::FromStr, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
 use api_models::health_check::SchedulerHealthCheckResponse;
@@ -22,7 +22,7 @@ use router_env::{
 };
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
-    workflows::ProcessTrackerWorkflows, SchedulerAppState,
+    workflows::ProcessTrackerWorkflows, SchedulerSessionState,
 };
 use storage_impl::errors::ApplicationError;
 use tokio::sync::{mpsc, oneshot};
@@ -146,24 +146,54 @@ pub async fn deep_health_check(
     state: web::Data<routes::AppState>,
     service: web::Data<String>,
 ) -> impl actix_web::Responder {
-    let report = deep_health_check_func(state, service).await;
-    match report {
-        Ok(response) => services::http_response_json(
-            serde_json::to_string(&response)
-                .map_err(|err| {
-                    logger::error!(serialization_error=?err);
-                })
-                .unwrap_or_default(),
-        ),
-        Err(err) => api::log_and_return_error_response(err),
+    let mut checks = HashMap::new();
+    let stores = state.stores.clone();
+    let app_state = Arc::clone(&state.into_inner());
+    let service_name = service.into_inner();
+    for (tenant, _) in stores {
+        let session_state_res = app_state.clone().get_session_state(&tenant, || {
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "tenant_id",
+            }
+            .into()
+        });
+        let session_state = match session_state_res {
+            Ok(state) => state,
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        };
+        let report = deep_health_check_func(session_state, &service_name).await;
+        match report {
+            Ok(response) => {
+                checks.insert(
+                    tenant,
+                    serde_json::to_string(&response)
+                        .map_err(|err| {
+                            logger::error!(serialization_error=?err);
+                        })
+                        .unwrap_or_default(),
+                );
+            }
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        }
     }
+    services::http_response_json(
+        serde_json::to_string(&checks)
+            .map_err(|err| {
+                logger::error!(serialization_error=?err);
+            })
+            .unwrap_or_default(),
+    )
 }
 #[instrument(skip_all)]
 pub async fn deep_health_check_func(
-    state: web::Data<routes::AppState>,
-    service: web::Data<String>,
+    state: routes::SessionState,
+    service: &str,
 ) -> errors::RouterResult<SchedulerHealthCheckResponse> {
-    logger::info!("{} deep health check was called", service.into_inner());
+    logger::info!("{} deep health check was called", service);
 
     logger::debug!("Database health check begin");
 
@@ -215,10 +245,10 @@ pub async fn deep_health_check_func(
 pub struct WorkflowRunner;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
+impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
         &'a self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         process: storage::ProcessTracker,
     ) -> CustomResult<(), ProcessTrackerError> {
         let runner = process
@@ -233,7 +263,7 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             .attach_printable("Failed to parse workflow runner name")?;
 
         let get_operation = |runner: storage::ProcessTrackerRunner| -> CustomResult<
-            Box<dyn ProcessTrackerWorkflow<routes::AppState>>,
+            Box<dyn ProcessTrackerWorkflow<routes::SessionState>>,
             ProcessTrackerError,
         > {
             match runner {
@@ -286,7 +316,7 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
         let operation = get_operation(runner)?;
 
         let app_state = &state.clone();
-        let output = operation.execute_workflow(app_state, process.clone()).await;
+        let output = operation.execute_workflow(state, process.clone()).await;
         match output {
             Ok(_) => operation.success_handler(app_state, process).await,
             Err(error) => match operation
@@ -327,6 +357,10 @@ async fn start_scheduler(
         Arc::new(scheduler_settings),
         channel,
         WorkflowRunner {},
+        |state, tenant| {
+            Arc::new(state.clone())
+                .get_session_state(tenant, || ProcessTrackerError::TenantNotFound.into())
+        },
     )
     .await
 }
