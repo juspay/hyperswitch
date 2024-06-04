@@ -1,4 +1,4 @@
-use std::{any::Any, borrow::Cow, sync::Arc};
+use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
 
 use common_utils::{
     errors::{self, CustomResult},
@@ -8,7 +8,7 @@ use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
-use redis_interface::{errors::RedisError, RedisValue};
+use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
 use router_env::tracing::{self, instrument};
 
 use crate::{
@@ -118,6 +118,23 @@ pub struct Cache {
     inner: MokaCache<String, Arc<dyn Cacheable>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CacheKey {
+    pub key: String,
+    // #TODO: make it usage specific enum Eg: CacheKind { Tenant(String), NoTenant, Partition(String) }
+    pub prefix: String,
+}
+
+impl From<CacheKey> for String {
+    fn from(val: CacheKey) -> Self {
+        if val.prefix.is_empty() {
+            val.key
+        } else {
+            format!("{}:{}", val.prefix, val.key)
+        }
+    }
+}
+
 impl Cache {
     /// With given `time_to_live` and `time_to_idle` creates a moka cache.
     ///
@@ -138,44 +155,38 @@ impl Cache {
         }
     }
 
-    pub async fn push<T: Cacheable>(&self, key: String, val: T) {
-        self.inner.insert(key, Arc::new(val)).await;
+    pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
+        self.inner.insert(key.into(), Arc::new(val)).await;
     }
 
-    pub async fn get_val<T: Clone + Cacheable>(&self, key: &str) -> Option<T> {
-        let val = self.inner.get(key).await?;
+    pub async fn get_val<T: Clone + Cacheable>(&self, key: CacheKey) -> Option<T> {
+        let val = self.inner.get::<String>(&key.into()).await?;
         (*val).as_any().downcast_ref::<T>().cloned()
     }
 
     /// Check if a key exists in cache
-    pub async fn exists(&self, key: &str) -> bool {
-        self.inner.contains_key(key)
+    pub async fn exists(&self, key: CacheKey) -> bool {
+        self.inner.contains_key::<String>(&key.into())
     }
 
-    pub async fn remove(&self, key: &str) {
-        self.inner.invalidate(key).await;
+    pub async fn remove(&self, key: CacheKey) {
+        self.inner.invalidate::<String>(&key.into()).await;
     }
 }
 
 #[instrument(skip_all)]
 pub async fn get_or_populate_redis<T, F, Fut>(
-    store: &(dyn RedisConnInterface + Send + Sync),
+    redis: &Arc<RedisConnectionPool>,
     key: impl AsRef<str>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
-    T: serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug,
+    T: serde::Serialize + serde::de::DeserializeOwned + Debug,
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
-    let redis = &store
-        .get_redis_conn()
-        .change_context(StorageError::RedisError(
-            RedisError::RedisConnectionError.into(),
-        ))
-        .attach_printable("Failed to get redis connection")?;
     let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
     let get_data_set_redis = || async {
         let data = fun().await?;
@@ -206,16 +217,35 @@ pub async fn get_or_populate_in_memory<T, F, Fut>(
     cache: &Cache,
 ) -> CustomResult<T, StorageError>
 where
-    T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone,
+    T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
-    let cache_val = cache.get_val::<T>(key).await;
+    let redis = &store
+        .get_redis_conn()
+        .change_context(StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
+    let cache_val = cache
+        .get_val::<T>(CacheKey {
+            key: key.to_string(),
+            prefix: redis.key_prefix.clone(),
+        })
+        .await;
     if let Some(val) = cache_val {
         Ok(val)
     } else {
-        let val = get_or_populate_redis(store, key, fun).await?;
-        cache.push(key.to_string(), val.clone()).await;
+        let val = get_or_populate_redis(redis, key, fun).await?;
+        cache
+            .push(
+                CacheKey {
+                    key: key.to_string(),
+                    prefix: redis.key_prefix.clone(),
+                },
+                val.clone(),
+            )
+            .await;
         Ok(val)
     }
 }
@@ -223,7 +253,7 @@ where
 #[instrument(skip_all)]
 pub async fn redact_cache<T, F, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
-    key: &str,
+    key: &'static str,
     fun: F,
     in_memory: Option<&Cache>,
 ) -> CustomResult<T, StorageError>
@@ -232,7 +262,6 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let data = fun().await?;
-    in_memory.async_map(|cache| cache.remove(key)).await;
 
     let redis_conn = store
         .get_redis_conn()
@@ -240,6 +269,11 @@ where
             RedisError::RedisConnectionError.into(),
         ))
         .attach_printable("Failed to get redis connection")?;
+    let tenant_key = CacheKey {
+        key: key.to_string(),
+        prefix: redis_conn.key_prefix.clone(),
+    };
+    in_memory.async_map(|cache| cache.remove(tenant_key)).await;
 
     redis_conn
         .delete_key(key)
@@ -312,9 +346,22 @@ mod cache_tests {
     #[tokio::test]
     async fn construct_and_get_cache() {
         let cache = Cache::new(1800, 1800, None);
-        cache.push("key".to_string(), "val".to_string()).await;
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
         assert_eq!(
-            cache.get_val::<String>("key").await,
+            cache
+                .get_val::<String>(CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string()
+                })
+                .await,
             Some(String::from("val"))
         );
     }
@@ -322,25 +369,78 @@ mod cache_tests {
     #[tokio::test]
     async fn eviction_on_size_test() {
         let cache = Cache::new(2, 2, Some(0));
-        cache.push("key".to_string(), "val".to_string()).await;
-        assert_eq!(cache.get_val::<String>("key").await, None);
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
+        assert_eq!(
+            cache
+                .get_val::<String>(CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string()
+                })
+                .await,
+            None
+        );
     }
 
     #[tokio::test]
     async fn invalidate_cache_for_key() {
         let cache = Cache::new(1800, 1800, None);
-        cache.push("key".to_string(), "val".to_string()).await;
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
 
-        cache.remove("key").await;
+        cache
+            .remove(CacheKey {
+                key: "key".to_string(),
+                prefix: "prefix".to_string(),
+            })
+            .await;
 
-        assert_eq!(cache.get_val::<String>("key").await, None);
+        assert_eq!(
+            cache
+                .get_val::<String>(CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string()
+                })
+                .await,
+            None
+        );
     }
 
     #[tokio::test]
     async fn eviction_on_time_test() {
         let cache = Cache::new(2, 2, None);
-        cache.push("key".to_string(), "val".to_string()).await;
+        cache
+            .push(
+                CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string(),
+                },
+                "val".to_string(),
+            )
+            .await;
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-        assert_eq!(cache.get_val::<String>("key").await, None);
+        assert_eq!(
+            cache
+                .get_val::<String>(CacheKey {
+                    key: "key".to_string(),
+                    prefix: "prefix".to_string()
+                })
+                .await,
+            None
+        );
     }
 }

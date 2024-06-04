@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{
     core::{files, payments, utils as core_utils},
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         api::{self, disputes},
@@ -24,7 +24,7 @@ use crate::{
 
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
@@ -41,7 +41,7 @@ pub async fn retrieve_dispute(
 
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     constraints: api_models::disputes::DisputeListConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
@@ -60,7 +60,7 @@ pub async fn retrieve_disputes_list(
 
 #[instrument(skip(state))]
 pub async fn accept_dispute(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
@@ -161,7 +161,7 @@ pub async fn accept_dispute(
 
 #[instrument(skip(state))]
 pub async fn submit_evidence(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
@@ -324,7 +324,7 @@ pub async fn submit_evidence(
 }
 
 pub async fn attach_evidence(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     attach_evidence_request: api::AttachEvidenceRequest,
@@ -401,7 +401,7 @@ pub async fn attach_evidence(
 
 #[instrument(skip(state))]
 pub async fn retrieve_dispute_evidence(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
@@ -424,7 +424,7 @@ pub async fn retrieve_dispute_evidence(
 }
 
 pub async fn delete_evidence(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     delete_evidence_request: dispute_models::DeleteEvidenceRequest,
 ) -> RouterResponse<serde_json::Value> {

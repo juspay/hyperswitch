@@ -28,7 +28,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -55,7 +55,7 @@ impl
 impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
@@ -81,7 +81,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 
     async fn add_access_token<'a>(
         &self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -123,7 +123,7 @@ fn is_dynamic_fields_required(
 }
 
 fn build_apple_pay_session_request(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     request: payment_types::ApplepaySessionRequest,
     apple_pay_merchant_cert: masking::Secret<String>,
     apple_pay_merchant_cert_key: masking::Secret<String>,
@@ -147,7 +147,7 @@ fn build_apple_pay_session_request(
 }
 
 async fn create_applepay_session_token(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     business_profile: &storage::business_profile::BusinessProfile,
@@ -467,7 +467,7 @@ fn create_apple_pay_session_response(
 }
 
 fn create_gpay_session_token(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     business_profile: &storage::business_profile::BusinessProfile,
@@ -598,7 +598,10 @@ fn create_gpay_session_token(
     }
 }
 
-fn is_session_response_delayed(state: &routes::AppState, connector: &api::ConnectorData) -> bool {
+fn is_session_response_delayed(
+    state: &routes::SessionState,
+    connector: &api::ConnectorData,
+) -> bool {
     let connectors_with_delayed_response = &state
         .conf
         .delayed_session_response
@@ -626,7 +629,7 @@ where
 {
     async fn decide_flow<'a, 'b>(
         &'b self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
@@ -635,7 +638,7 @@ where
 }
 
 fn create_paypal_sdk_session_token(
-    _state: &routes::AppState,
+    _state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     _business_profile: &storage::business_profile::BusinessProfile,
@@ -674,7 +677,7 @@ fn create_paypal_sdk_session_token(
 impl RouterDataSession for types::PaymentsSessionRouterData {
     async fn decide_flow<'a, 'b>(
         &'b self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
