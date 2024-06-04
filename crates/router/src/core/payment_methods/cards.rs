@@ -2575,7 +2575,7 @@ pub async fn list_payment_methods(
     let merchant_surcharge_configs =
         if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
             .as_ref()
-            .zip(payment_intent)
+            .zip(payment_intent.clone())
             .zip(business_profile)
             .map(|((pa, pi), bp)| (pa, pi, bp))
         {
@@ -2627,6 +2627,9 @@ pub async fn list_payment_methods(
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
             currency,
+            request_external_three_ds_authentication: payment_intent
+                .and_then(|intent| intent.request_external_three_ds_authentication)
+                .unwrap_or(false),
         },
     ))
 }
