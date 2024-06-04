@@ -8,7 +8,7 @@ const globalState = new State({
   connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
 });
 
-const connectorId = normalise(globalState.get("connectorId"));
+const connectorName = normalise(globalState.get("connectorId"));
 
 function normalise(input) {
   const exceptions = {
@@ -57,7 +57,7 @@ const getDefaultExchange = () => ({
     body: {
       error: {
         type: "invalid_request",
-        message: `Selected payment method through ${connectorId} is not implemented`,
+        message: `Selected payment method through ${connectorName} is not implemented`,
         code: "IR_00",
       },
     },
