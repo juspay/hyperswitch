@@ -127,7 +127,12 @@ pub trait StorageInterface:
 
 #[async_trait::async_trait]
 pub trait GlobalStorageInterface:
-    Send + Sync + dyn_clone::DynClone + user::UserInterface + user_key_store::UserKeyStoreInterface+ 'static
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + user::UserInterface
+    + user_key_store::UserKeyStoreInterface
+    + 'static
 {
 }
 
