@@ -101,7 +101,13 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                     key
                 }
                 CacheKind::PmFiltersCGraph(key) => {
-                    PM_FILTERS_CGRAPH_CACHE.remove(key.as_ref()).await;
+                    PM_FILTERS_CGRAPH_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+
                     key
                 }
                 CacheKind::Routing(key) => {

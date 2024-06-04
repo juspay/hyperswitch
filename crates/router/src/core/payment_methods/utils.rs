@@ -9,9 +9,9 @@ use common_enums::enums;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
-use storage_impl::redis::cache::PM_FILTERS_CGRAPH_CACHE;
+use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-use crate::configs::settings;
+use crate::{configs::settings, routes::SessionState};
 
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<'_, dir::DirValue>,
@@ -38,20 +38,33 @@ pub fn make_pm_graph(
 }
 
 pub async fn get_merchant_pm_filter_graph<'a>(
+    state: &SessionState,
     key: &str,
 ) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>>> {
     PM_FILTERS_CGRAPH_CACHE
-        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>>>(key)
+        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>>>(
+            CacheKey {
+                key: key.to_string(),
+                prefix: state.tenant.clone(),
+            },
+        )
         .await
 }
 
 pub async fn refresh_pm_filters_cache(
+    state: &SessionState,
     key: &str,
     graph: cgraph::ConstraintGraph<'static, dir::DirValue>,
 ) -> Arc<hyperswitch_constraint_graph::ConstraintGraph<'static, dir::DirValue>> {
     let pm_filter_graph = Arc::new(graph);
     PM_FILTERS_CGRAPH_CACHE
-        .push(key.to_string(), pm_filter_graph.clone())
+        .push(
+            CacheKey {
+                key: key.to_string(),
+                prefix: state.tenant.clone(),
+            },
+            pm_filter_graph.clone(),
+        )
         .await;
     pm_filter_graph
 }
@@ -536,8 +549,9 @@ fn compile_accepted_countries_for_mca(
     connector: String,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
+
+    // Country from the MCA
     if let Some(pm_obj_countries) = pm_countries {
-        // Country from the MCA
         match pm_obj_countries {
             admin::AcceptedCountries::EnableOnly(countries) => {
                 let pm_object_country_value_node = builder
@@ -583,7 +597,10 @@ fn compile_accepted_countries_for_mca(
             }
             admin::AcceptedCountries::AllAccepted => return Ok(None),
         }
-    } else if let Some(config) = config
+    }
+
+    // country from config
+    if let Some(config) = config
         .0
         .get(connector.as_str())
         .or_else(|| config.0.get("default"))
@@ -594,7 +611,6 @@ fn compile_accepted_countries_for_mca(
                 *payment_method_type,
             ))
         {
-            // country from config
             if let Some(config_countries) = value.country.as_ref() {
                 let config_countries: Vec<common_enums::Country> = Vec::from_iter(config_countries)
                     .into_iter()
@@ -632,8 +648,8 @@ fn compile_accepted_currency_for_mca(
     connector: String,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
+    // Currency from the MCA
     if let Some(pm_obj_currency) = pm_currency {
-        // Currency from the MCA
         match pm_obj_currency {
             admin::AcceptedCurrencies::EnableOnly(currency) => {
                 let pm_object_currency_value_node = builder
@@ -671,7 +687,10 @@ fn compile_accepted_currency_for_mca(
             }
             admin::AcceptedCurrencies::AllAccepted => return Ok(None),
         }
-    } else if let Some(config) = config
+    }
+
+    // country from config
+    if let Some(config) = config
         .0
         .get(connector.as_str())
         .or_else(|| config.0.get("default"))
