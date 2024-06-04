@@ -8303,7 +8303,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.crypto.network".to_string(),
                                                     display_name: "network".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserCryptoCurrencyNetwork,
                                                     value: None,
                                                 }
                                             ),
