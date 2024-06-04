@@ -144,6 +144,9 @@ where
 
         Box::pin(
             async move {
+                if let Some(tenant_id) = req.headers().get("x-tenant-id").and_then(|i| i.to_str().ok()) {
+                    router_env::tracing::Span::current().record("tenant_id", &tenant_id);
+                }
                 let response = response_fut.await;
                 router_env::tracing::Span::current().record("golden_log_line", true);
                 response
@@ -157,7 +160,7 @@ where
                     payment_method = Empty,
                     status_code = Empty,
                     flow = "UNKNOWN",
-                    golden_log_line = Empty
+                    golden_log_line = Empty,
                 )
                 .or_current(),
             ),
