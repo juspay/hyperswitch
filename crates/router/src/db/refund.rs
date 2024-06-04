@@ -1,6 +1,8 @@
 #[cfg(feature = "olap")]
 use std::collections::HashSet;
 
+#[cfg(feature = "olap")]
+use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 use error_stack::ResultExt;
 
@@ -394,6 +396,7 @@ mod storage {
                         profile_id: new.profile_id.clone(),
                         updated_by: new.updated_by.clone(),
                         merchant_connector_id: new.merchant_connector_id.clone(),
+                        charges: new.charges.clone(),
                     };
 
                     let field = format!(
@@ -848,6 +851,7 @@ impl RefundInterface for MockDb {
             profile_id: new.profile_id,
             updated_by: new.updated_by,
             merchant_connector_id: new.merchant_connector_id,
+            charges: new.charges,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -1022,8 +1026,10 @@ impl RefundInterface for MockDb {
                     .amount_filter
                     .as_ref()
                     .map_or(true, |amount| {
-                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
-                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                        refund.refund_amount
+                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                            && refund.refund_amount
+                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
                     })
             })
             .filter(|refund| {
@@ -1171,8 +1177,10 @@ impl RefundInterface for MockDb {
                     .amount_filter
                     .as_ref()
                     .map_or(true, |amount| {
-                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
-                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                        refund.refund_amount
+                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                            && refund.refund_amount
+                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
                     })
             })
             .filter(|refund| {

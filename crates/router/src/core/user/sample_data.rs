@@ -7,13 +7,13 @@ pub type SampleDataApiResponse<T> = SampleDataResult<ApplicationResponse<T>>;
 
 use crate::{
     core::errors::sample_data::SampleDataResult,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     utils::user::sample_data::generate_sample_data,
 };
 
 pub async fn generate_sample_data_for_user(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     req: SampleDataRequest,
     _req_state: ReqState,
@@ -57,7 +57,7 @@ pub async fn generate_sample_data_for_user(
 }
 
 pub async fn delete_sample_data_for_user(
-    state: AppState,
+    state: SessionState,
     user_from_token: UserFromToken,
     _req: SampleDataRequest,
     _req_state: ReqState,

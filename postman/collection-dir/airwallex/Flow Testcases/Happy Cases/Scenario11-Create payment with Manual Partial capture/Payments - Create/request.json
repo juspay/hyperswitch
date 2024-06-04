@@ -21,22 +21,11 @@
       "amount": 6540,
       "currency": "USD",
       "confirm": true,
-      "business_country": "US",
-      "business_label": "default",
-      "capture_method": "automatic",
+      "capture_method": "manual",
       "capture_on": "2022-09-10T10:11:12Z",
       "amount_to_capture": 6540,
-      "customer_id": "{{customer_id}}",
+      "customer_id": "AirwallexCustomer",
       "email": "guest@example.com",
-      "setup_future_usage": "on_session",
-      "customer_acceptance": {
-        "acceptance_type": "offline",
-        "accepted_at": "1963-05-03T04:07:52.723Z",
-        "online": {
-          "ip_address": "127.0.0.1",
-          "user_agent": "amet irure esse"
-        }
-      },
       "name": "John Doe",
       "phone": "999999999",
       "phone_country_code": "+65",
@@ -44,12 +33,11 @@
       "authentication_type": "no_three_ds",
       "return_url": "https://duck.com",
       "payment_method": "card",
-      "payment_method_type": "debit",
       "payment_method_data": {
         "card": {
-          "card_number": "412345678912345678914",
-          "card_exp_month": "01",
-          "card_exp_year": "25",
+          "card_number": "4035501000000008",
+          "card_exp_month": "10",
+          "card_exp_year": "2025",
           "card_holder_name": "joseph Doe",
           "card_cvc": "123"
         }
@@ -63,8 +51,7 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "sundari",
-          "last_name": "sundari"
+          "first_name": "PiX"
         }
       },
       "shipping": {
@@ -76,15 +63,15 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "sundari",
-          "last_name": "sundari"
+          "first_name": "PiX"
         }
       },
       "statement_descriptor_name": "joseph",
       "statement_descriptor_suffix": "JS",
       "metadata": {
-        "count_tickets": 1,
-        "transaction_number": "5590045"
+        "udf1": "value1",
+        "new_customer": "true",
+        "login_date": "2019-09-10T10:11:12Z"
       }
     }
   },

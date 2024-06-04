@@ -118,6 +118,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     session_expiry: new.session_expiry,
                     request_external_three_ds_authentication: new
                         .request_external_three_ds_authentication,
+                    charges: new.charges.clone(),
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -849,6 +850,7 @@ impl DataModelExt for PaymentIntentNew {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
         }
     }
 
@@ -897,6 +899,7 @@ impl DataModelExt for PaymentIntentNew {
             session_expiry: storage_model.session_expiry,
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
+            charges: storage_model.charges,
         }
     }
 }
@@ -948,6 +951,7 @@ impl DataModelExt for PaymentIntent {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
             frm_metadata: self.frm_metadata,
         }
     }
@@ -997,6 +1001,7 @@ impl DataModelExt for PaymentIntent {
             session_expiry: storage_model.session_expiry,
             request_external_three_ds_authentication: storage_model
                 .request_external_three_ds_authentication,
+            charges: storage_model.charges,
             frm_metadata: storage_model.frm_metadata,
         }
     }

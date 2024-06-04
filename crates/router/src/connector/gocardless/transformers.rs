@@ -2,7 +2,10 @@ use api_models::{
     enums::{CountryAlpha2, UsStatesAbbreviation},
     payments::AddressDetails,
 };
-use common_utils::pii::{self, IpAddress};
+use common_utils::{
+    id_type,
+    pii::{self, IpAddress},
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -59,7 +62,7 @@ pub struct GocardlessCustomer {
 
 #[derive(Default, Debug, Serialize)]
 pub struct CustomerMetaData {
-    crm_id: Option<Secret<String>>,
+    crm_id: Option<Secret<id_type::CustomerId>>,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest {
@@ -512,6 +515,7 @@ impl<F>
                 redirection_data: None,
                 mandate_reference,
                 network_txn_id: None,
+                charge_id: None,
             }),
             status: enums::AttemptStatus::Charged,
             ..item.data
@@ -664,6 +668,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -699,6 +704,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
