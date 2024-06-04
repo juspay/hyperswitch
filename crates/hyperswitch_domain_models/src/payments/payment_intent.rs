@@ -20,7 +20,7 @@ pub trait PaymentIntentInterface {
 
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        new: PaymentIntent,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 

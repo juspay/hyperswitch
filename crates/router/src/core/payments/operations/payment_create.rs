@@ -964,8 +964,8 @@ impl PaymentCreate {
         active_attempt_id: String,
         profile_id: String,
         session_expiry: PrimitiveDateTime,
-    ) -> RouterResult<storage::PaymentIntentNew> {
-        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
+    ) -> RouterResult<storage::PaymentIntent> {
+        let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
         let status = helpers::payment_intent_status_fsm(
             request
@@ -1021,7 +1021,7 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
-        Ok(storage::PaymentIntentNew {
+        Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
             status,
@@ -1030,7 +1030,7 @@ impl PaymentCreate {
             description: request.description.clone(),
             created_at,
             modified_at,
-            last_synced,
+            last_synced: Some(last_synced),
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,

@@ -4,7 +4,7 @@ use api_models::payments::AmountFilter;
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
 use common_utils::errors::ReportSwitchExt;
-use common_utils::{date_time, ext_traits::Encode};
+use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
@@ -24,7 +24,9 @@ use diesel_models::{
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
+
 use hyperswitch_domain_models::{
+    behaviour::Conversion,
     errors::StorageError,
     payments::{
         payment_attempt::PaymentAttempt,
@@ -52,12 +54,12 @@ use crate::{
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        payment_intent: PaymentIntent,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
-        let merchant_id = new.merchant_id.clone();
-        let payment_id = new.payment_id.clone();
-        let field = format!("pi_{}", new.payment_id);
+        let merchant_id = payment_intent.merchant_id.clone();
+        let payment_id = payment_intent.payment_id.clone();
+        let field = format!("pi_{}", payment_intent.payment_id);
         let key = PartitionKey::MerchantIdPaymentId {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
@@ -67,70 +69,35 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .insert_payment_intent(new, storage_scheme)
+                    .insert_payment_intent(payment_intent, storage_scheme)
                     .await
             }
 
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
-                let created_intent = PaymentIntent {
-                    id: 0i32,
-                    payment_id: new.payment_id.clone(),
-                    merchant_id: new.merchant_id.clone(),
-                    status: new.status,
-                    amount: new.amount,
-                    currency: new.currency,
-                    amount_captured: new.amount_captured,
-                    customer_id: new.customer_id.clone(),
-                    description: new.description.clone(),
-                    return_url: new.return_url.clone(),
-                    metadata: new.metadata.clone(),
-                    frm_metadata: new.frm_metadata.clone(),
-                    connector_id: new.connector_id.clone(),
-                    shipping_address_id: new.shipping_address_id.clone(),
-                    billing_address_id: new.billing_address_id.clone(),
-                    statement_descriptor_name: new.statement_descriptor_name.clone(),
-                    statement_descriptor_suffix: new.statement_descriptor_suffix.clone(),
-                    created_at: new.created_at.unwrap_or_else(date_time::now),
-                    modified_at: new.created_at.unwrap_or_else(date_time::now),
-                    last_synced: new.last_synced,
-                    setup_future_usage: new.setup_future_usage,
-                    off_session: new.off_session,
-                    client_secret: new.client_secret.clone(),
-                    business_country: new.business_country,
-                    business_label: new.business_label.clone(),
-                    active_attempt: new.active_attempt.clone(),
-                    order_details: new.order_details.clone(),
-                    allowed_payment_method_types: new.allowed_payment_method_types.clone(),
-                    connector_metadata: new.connector_metadata.clone(),
-                    feature_metadata: new.feature_metadata.clone(),
-                    attempt_count: new.attempt_count,
-                    profile_id: new.profile_id.clone(),
-                    merchant_decision: new.merchant_decision.clone(),
-                    payment_link_id: new.payment_link_id.clone(),
-                    payment_confirm_source: new.payment_confirm_source,
-                    updated_by: storage_scheme.to_string(),
-                    surcharge_applicable: new.surcharge_applicable,
-                    request_incremental_authorization: new.request_incremental_authorization,
-                    incremental_authorization_allowed: new.incremental_authorization_allowed,
-                    authorization_count: new.authorization_count,
-                    fingerprint_id: new.fingerprint_id.clone(),
-                    session_expiry: new.session_expiry,
-                    request_external_three_ds_authentication: new
-                        .request_external_three_ds_authentication,
-                    charges: new.charges.clone(),
-                };
+                let new_payment_intent = payment_intent
+                    .clone()
+                    .construct_new()
+                    .await
+                    .change_context(StorageError::EncryptionError)?;
+
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::PaymentIntent(new.to_storage_model()),
+                        insertable: kv::Insertable::PaymentIntent(new_payment_intent),
                     },
                 };
+
+                let diesel_payment_intent = payment_intent
+                    .clone()
+                    .convert()
+                    .await
+                    .change_context(StorageError::EncryptionError)?;
 
                 match kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
-                        &created_intent.clone().to_storage_model(),
+                        &diesel_payment_intent,
                         redis_entry,
                     ),
                     key,
@@ -144,7 +111,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         key: Some(key_str),
                     }
                     .into()),
-                    Ok(HsetnxReply::KeySet) => Ok(created_intent),
+                    Ok(HsetnxReply::KeySet) => Ok(payment_intent),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
             }
@@ -352,11 +319,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_payment_intent(
         &self,
-        new: PaymentIntentNew,
+        payment_intent: PaymentIntent,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        new.to_storage_model()
+        payment_intent
+            .construct_new()
+            .await
+            .change_context(StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(|er| {
@@ -909,7 +879,6 @@ impl DataModelExt for PaymentIntent {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentIntent {
-            id: self.id,
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             status: self.status,
@@ -958,7 +927,6 @@ impl DataModelExt for PaymentIntent {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
-            id: storage_model.id,
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             status: storage_model.status,

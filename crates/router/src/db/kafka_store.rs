@@ -1335,7 +1335,7 @@ impl PaymentIntentInterface for KafkaStore {
 
     async fn insert_payment_intent(
         &self,
-        new: storage::PaymentIntentNew,
+        new: storage::PaymentIntent,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::DataStorageError> {
         logger::debug!("Inserting PaymentIntent Via KafkaStore");

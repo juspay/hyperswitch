@@ -2937,7 +2937,6 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_not_expired() {
         let payment_intent = PaymentIntent {
-            id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
@@ -2997,7 +2996,6 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_expired() {
         let payment_intent = PaymentIntent {
-            id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
@@ -3056,7 +3054,6 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
-            id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
