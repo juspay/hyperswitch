@@ -543,7 +543,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait GetAddressDetails {
     fn get_email(&self) -> Result<Email, Error>;
-    fn get_phone(&self) -> Result<Secret<String>, Error>;
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl GetAddressDetails for api::Address {
@@ -551,7 +551,7 @@ impl GetAddressDetails for api::Address {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
 
-    fn get_phone(&self) -> Result<Secret<String>, Error> {
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error> {
         self.phone
             .clone()
             .map(|phone_details| phone_details.get_number_with_country_code())

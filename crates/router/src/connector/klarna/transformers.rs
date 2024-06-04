@@ -222,7 +222,7 @@ fn get_address_info(
                     street_address2: address_details.get_optional_line2(),
                     given_name: address_details.get_first_name()?.to_owned(),
                     family_name: address_details.get_last_name()?.to_owned(),
-                    phone: add.get_phone()?.to_owned(),
+                    phone: add.get_phone_with_country_code()?.to_owned(),
                 })
             },
         )
