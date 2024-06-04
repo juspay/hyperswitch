@@ -29,8 +29,8 @@ use super::payouts;
 use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
-#[cfg(feature = "payouts")]
-use crate::types::storage::PayoutAttemptUpdate;
+#[cfg(not(feature = "payouts"))]
+use crate::routes::AppState;
 use crate::{
     consts,
     core::{
@@ -48,7 +48,6 @@ use crate::{
         app::{AppStateInfo, ReqState},
         lock_utils,
         metrics::request::add_attributes,
-        AppState,
     },
     services::{self, authentication as auth},
     types::{
@@ -60,6 +59,8 @@ use crate::{
     utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
     workflows::outgoing_webhook_retry,
 };
+#[cfg(feature = "payouts")]
+use crate::{routes::AppState, types::storage::PayoutAttemptUpdate};
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
