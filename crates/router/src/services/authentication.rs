@@ -71,7 +71,7 @@ pub enum AuthenticationType {
     SinglePurposeOrLoginJwt {
         user_id: String,
         purpose: Option<TokenPurpose>,
-        permission: Option<Permission>,
+        role_id: Option<String>,
     },
     MerchantId {
         merchant_id: String,
@@ -203,7 +203,7 @@ pub struct UserIdFromAuth {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SinglePurposeOrLoginToken {
     pub user_id: String,
-    pub permission: Option<Permission>,
+    pub role_id: Option<String>,
     pub purpose: Option<TokenPurpose>,
     pub exp: u64,
 }
@@ -367,10 +367,7 @@ where
 
 #[cfg(feature = "olap")]
 #[derive(Debug)]
-pub struct SinglePurposeOrLoginTokenAuth {
-    pub required_purpose: TokenPurpose,
-    pub required_permission: Option<Permission>,
-}
+pub struct SinglePurposeOrLoginTokenAuth(pub TokenPurpose);
 
 #[cfg(feature = "olap")]
 #[async_trait]
@@ -389,25 +386,28 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        if payload
+        let is_purpose_equal = payload
             .purpose
             .as_ref()
-            .is_some_and(|payload_purpose| payload_purpose != &self.required_purpose)
-            || payload.permission != self.required_permission
-        {
-            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
-        }
+            .is_some_and(|purpose| purpose == &self.0);
 
-        Ok((
-            UserIdFromAuth {
-                user_id: payload.user_id.clone(),
-            },
-            AuthenticationType::SinglePurposeOrLoginJwt {
-                user_id: payload.user_id,
-                purpose: payload.purpose,
-                permission: payload.permission,
-            },
-        ))
+        let purpose_exists = payload.purpose.is_some();
+        let role_id_exists = payload.role_id.is_some();
+
+        if is_purpose_equal && !role_id_exists || role_id_exists && !purpose_exists {
+            Ok((
+                UserIdFromAuth {
+                    user_id: payload.user_id.clone(),
+                },
+                AuthenticationType::SinglePurposeOrLoginJwt {
+                    user_id: payload.user_id,
+                    purpose: payload.purpose,
+                    role_id: payload.role_id,
+                },
+            ))
+        } else {
+            Err(errors::ApiErrorResponse::InvalidJwtToken.into())
+        }
     }
 }
 
