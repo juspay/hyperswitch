@@ -4,12 +4,12 @@ use api_models::{
     enums::{DisputeStatus, MandateStatus},
     webhooks::{self as api},
 };
+#[cfg(feature = "payouts")]
 use common_utils::{
-    crypto::{Encryptable, SignMessage},
-    date_time,
-    ext_traits::Encode,
+    crypto::Encryptable,
     pii::{self, Email},
 };
+use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 use error_stack::ResultExt;
 use router_env::logger;
 use serde::Serialize;
@@ -138,7 +138,7 @@ pub enum StripePayoutStatus {
     PayoutFailure,
     PayoutProcessing,
     PayoutCancelled,
-    PayoutIntiated,
+    PayoutInitiated,
     PayoutExpired,
     PayoutReversed,
 }
@@ -150,7 +150,7 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
             common_enums::PayoutStatus::Success => Self::PayoutSuccess,
             common_enums::PayoutStatus::Failed => Self::PayoutFailure,
             common_enums::PayoutStatus::Cancelled => Self::PayoutCancelled,
-            common_enums::PayoutStatus::Initiated => Self::PayoutIntiated,
+            common_enums::PayoutStatus::Initiated => Self::PayoutInitiated,
             common_enums::PayoutStatus::Expired => Self::PayoutExpired,
             common_enums::PayoutStatus::Reversed => Self::PayoutReversed,
             common_enums::PayoutStatus::Pending
