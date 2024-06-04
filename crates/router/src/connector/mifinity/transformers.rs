@@ -1,6 +1,6 @@
 use common_utils::pii::{self, Email};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -35,7 +35,7 @@ pub mod auth_headers {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MifinityConnectorMetadataObject {
-    pub brand_id: String,
+    pub brand_id: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject {
@@ -53,7 +53,7 @@ fn get_brand_id(
     connector_metadata: &Option<pii::SecretSerdeValue>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let mifinity_metadata = MifinityConnectorMetadataObject::try_from(connector_metadata)?;
-    let brand_id = mifinity_metadata.brand_id;
+    let brand_id = mifinity_metadata.brand_id.clone().expose();
     Ok(brand_id)
 }
 
