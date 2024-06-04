@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::enums::PaymentMethod;
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{errors::CustomResult, ext_traits::Encode, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
@@ -35,16 +35,16 @@ impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
 }
 #[derive(Debug, Serialize)]
 pub struct IatapayRouterData<T> {
-    amount: f64,
+    amount: FloatMajorUnit,
     router_data: T,
 }
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for IatapayRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for IatapayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (amount, item):(FloatMajorUnit, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
+            amount,
             router_data: item,
         })
     }
@@ -97,7 +97,7 @@ pub enum PreferredCheckoutMethod {
 pub struct IatapayPaymentsRequest {
     merchant_id: Secret<String>,
     merchant_payment_id: Option<String>,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: String,
     country: String,
     locale: String,
@@ -266,7 +266,7 @@ pub struct IatapayPaymentsResponse {
     pub iata_refund_id: Option<String>,
     pub merchant_id: Option<Secret<String>>,
     pub merchant_payment_id: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub checkout_methods: Option<CheckoutMethod>,
     pub failure_code: Option<String>,
@@ -388,7 +388,7 @@ impl<F, T>
 pub struct IatapayRefundRequest {
     pub merchant_id: Secret<String>,
     pub merchant_refund_id: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub bank_transfer_description: Option<String>,
     pub notification_url: String,
@@ -445,7 +445,7 @@ pub struct RefundResponse {
     iata_refund_id: String,
     status: RefundStatus,
     merchant_refund_id: String,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: String,
     bank_transfer_description: Option<String>,
     failure_code: Option<String>,
@@ -457,7 +457,7 @@ pub struct RefundResponse {
     clearance_date_time: Option<String>,
     iata_payment_id: Option<String>,
     merchant_payment_id: Option<String>,
-    payment_amount: Option<f64>,
+    payment_amount: Option<FloatMajorUnit>,
     merchant_id: Option<Secret<String>>,
     account_country: Option<String>,
 }
@@ -559,7 +559,7 @@ pub struct IatapayPaymentWebhookBody {
     pub merchant_payment_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub checkout_methods: Option<CheckoutMethod>,
 }
@@ -572,7 +572,7 @@ pub struct IatapayRefundWebhookBody {
     pub merchant_refund_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: String,
 }
 

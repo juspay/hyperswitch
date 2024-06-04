@@ -15,7 +15,7 @@ impl Connector for IatapayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Iatapay;
         api::ConnectorData {
-            connector: Box::new(&Iatapay),
+            connector: Box::new(Iatapay::new()),
             connector_name: types::Connector::Iatapay,
             get_token: api::GetToken::Connector,
             merchant_connector_id: None,

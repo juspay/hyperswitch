@@ -827,10 +827,6 @@ mod test {
             );
             key_names.insert(key, display_str);
         }
-        // let amount = DirValue::PaymentAmount(types::NumValue {
-        //     number:MinorUnit::new(100),
-        //     refinement:None
-        // });
 
         let values = vec![
             dirval!(PaymentMethod = Card),
