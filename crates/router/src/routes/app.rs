@@ -288,9 +288,7 @@ impl AppState {
                 .get_storage_interface();
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
-                let pool =
-                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant)
-                        .await;
+                let pool = AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant).await;
                 #[cfg(feature = "olap")]
                 pools.insert(tenant_name.clone(), pool);
             }

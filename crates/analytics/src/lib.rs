@@ -601,9 +601,14 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(config: &AnalyticsConfig, tenant: &dyn storage_impl::config::TenantConfig) -> Self {
+    pub async fn from_conf(
+        config: &AnalyticsConfig,
+        tenant: &dyn storage_impl::config::TenantConfig,
+    ) -> Self {
         match config {
-            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx, tenant.get_schema()).await),
+            AnalyticsConfig::Sqlx { sqlx } => {
+                Self::Sqlx(SqlxClient::from_conf(sqlx, tenant.get_schema()).await)
+            }
             AnalyticsConfig::Clickhouse { clickhouse } => Self::Clickhouse(ClickhouseClient {
                 config: Arc::new(clickhouse.clone()),
                 database: tenant.get_clickhouse_database().to_string(),
