@@ -351,8 +351,9 @@ email_role_arn = ""        # The amazon resource name ( arn ) of the role which 
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
 [user]
-password_validity_in_days = 90       # Number of days after which password should be updated
-two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should be done again if doing update/change from inside
+password_validity_in_days = 90             # Number of days after which password should be updated
+two_factor_auth_expiry_in_secs = 300       # Number of seconds after which 2FA should be done again if doing update/change from inside
+totp_issuer_name = "Hyperswitch"           # Name of the issuer for TOTP
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -629,3 +630,9 @@ disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
+
+[multitenancy]
+enabled = false
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = ""} # schema -> Postgres db schema, redis_key_prefix -> redis key distinguisher, base_url -> url of the tenant 

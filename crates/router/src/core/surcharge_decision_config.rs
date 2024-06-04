@@ -15,14 +15,14 @@ use super::routing::helpers::{
 };
 use crate::{
     core::errors::{self, RouterResponse},
-    routes::AppState,
+    routes::SessionState,
     services::api as service_api,
     types::domain,
     utils::OptionExt,
 };
 
 pub async fn upsert_surcharge_decision_config(
-    state: AppState,
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
     request: SurchargeDecisionConfigReq,
@@ -139,7 +139,7 @@ pub async fn upsert_surcharge_decision_config(
 }
 
 pub async fn delete_surcharge_decision_config(
-    state: AppState,
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
@@ -167,7 +167,7 @@ pub async fn delete_surcharge_decision_config(
 }
 
 pub async fn retrieve_surcharge_decision_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<SurchargeDecisionManagerResponse> {
     let db = state.store.as_ref();

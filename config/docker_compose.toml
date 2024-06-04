@@ -54,6 +54,7 @@ recon_admin_api_key = "recon_test_admin"
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
+totp_issuer_name = "Hyperswitch"
 
 [locker]
 host = ""
@@ -492,3 +493,9 @@ disputes = "hyperswitch-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
+
+[multitenancy]
+enabled = false
+
+[multitenancy.tenants]
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = ""}
