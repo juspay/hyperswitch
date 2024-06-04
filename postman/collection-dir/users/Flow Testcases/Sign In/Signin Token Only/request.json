@@ -1,0 +1,41 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Authorization",
+      "value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiZDM2NzMyMTUtYWU3NS00NGMzLWJiYzEtMGY3YmMxYmYwMjdmIiwibWVyY2hhbnRfaWQiOiJtZXJjaGFudF8xNzEyMjE0NDE5Iiwicm9sZV9pZCI6Im9yZ19hZG1pbiIsImV4cCI6MTcxMjM4NzMyOSwib3JnX2lkIjoib3JnXzhLb2lWNmhrcG9KSGZNcllER1ZhIn0.H2G9oGp_JBoz3k5S7fMvaaJ9T0cG5VtUjM0hU3ltM3g"
+    },
+    {
+      "key": "Cookie",
+      "value": "Cookie_1=value"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw_json_formatted": {
+      "email": "{{user_email}}",
+      "password": "{{user_password}}"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/user/v2/signin?token_only=true",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "user",
+      "v2",
+      "signin"
+    ],
+    "query": [
+      {
+        "key": "token_only",
+        "value": "true"
+      }
+    ]
+  }
+}
