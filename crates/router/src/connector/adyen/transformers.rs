@@ -3570,7 +3570,7 @@ pub fn get_redirection_error_response(
         message: response
             .refusal_reason
             .clone()
-            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: response.refusal_reason,
         status_code,
         attempt_status: None,
