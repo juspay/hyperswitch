@@ -323,9 +323,7 @@ impl<F, T>
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending, // Redirect is always expected after success response
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            item.response.mer_ref.clone(),
-                        ),
+                        resource_id: types::ResponseId::NoResponseId,
                         redirection_data: Some(services::RedirectForm::Form {
                             endpoint: redirect_url,
                             method: services::Method::Get,
@@ -447,7 +445,7 @@ impl<F>
                 amount_captured: Some(paid_amount),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.mer_ref.clone(),
+                        item.response.txn_id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
