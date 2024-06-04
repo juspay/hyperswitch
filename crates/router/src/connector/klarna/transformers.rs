@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
+        self, AddressDetailsData, GetAddressDetails, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -211,28 +211,18 @@ fn get_address_info(
 ) -> Option<Result<KlarnaShippingAddress, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
         add.address.as_ref().map(
-            |a| -> Result<KlarnaShippingAddress, error_stack::Report<errors::ConnectorError>> {
+            |address_details| -> Result<KlarnaShippingAddress, error_stack::Report<errors::ConnectorError>> {
                 Ok(KlarnaShippingAddress {
-                    city: a.get_city()?.to_owned(),
-                    country: a.get_country()?.to_owned(),
-                    email: add.email.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "email",
-                        },
-                    )?,
-                    postal_code: a.get_zip()?.to_owned(),
-                    region: a.get_state()?.to_owned(),
-                    street_address: a.get_line1()?.to_owned(),
-                    street_address2: a.get_optional_line2(),
-                    given_name: a.get_first_name()?.to_owned(),
-                    family_name: a.get_last_name()?.to_owned(),
-                    phone: add
-                        .phone
-                        .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "phone",
-                        })?
-                        .get_number_with_country_code()?,
+                    city: address_details.get_city()?.to_owned(),
+                    country: address_details.get_country()?.to_owned(),
+                    email: add.get_email()?.to_owned(),
+                    postal_code: address_details.get_zip()?.to_owned(),
+                    region: address_details.to_state_code()?.to_owned(),
+                    street_address: address_details.get_line1()?.to_owned(),
+                    street_address2: address_details.get_optional_line2(),
+                    given_name: address_details.get_first_name()?.to_owned(),
+                    family_name: address_details.get_last_name()?.to_owned(),
+                    phone: add.get_phone()?.to_owned(),
                 })
             },
         )
