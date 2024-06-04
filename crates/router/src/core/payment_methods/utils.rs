@@ -676,7 +676,6 @@ fn compile_accepted_currency_for_mca(
         .get(connector.as_str())
         .or_else(|| config.0.get("default"))
     {
-        // Currency from config
         if let Some(value) = config
             .0
             .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
