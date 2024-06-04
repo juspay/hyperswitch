@@ -6,7 +6,9 @@
   "scripts": {
     "cypress": "npx cypress open",
     "cypress-e2e": "npx cypress run --e2e",
-    "cypress:ci": "npx cypress run --headless"
+    "cypress:ci": "npx cypress run --headless",
+    "cypress:payments": "cypress run --spec 'cypress/e2e/PaymentTest/**/*'",
+    "cypress:payouts": "cypress run --spec 'cypress/e2e/PayoutTest/**/*'"
   },
   "author": "",
   "license": "ISC",
