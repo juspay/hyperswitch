@@ -1575,14 +1575,7 @@ impl<F, T>
 
         let error_info = error_response.error_information.message.clone();
 
-        let error_reason = match (detailed_error_info, error_info) {
-            (Some(details), Some(message)) => {
-                format!("{}, {}", message, details)
-            }
-            (Some(details), None) => details,
-            (None, Some(message)) => message,
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
+        let error_reason = get_error_reason(error_info, detailed_error_info, None);
 
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
@@ -1590,7 +1583,7 @@ impl<F, T>
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason),
+            reason: error_reason,
             status_code: item.http_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
@@ -1738,14 +1731,7 @@ impl<F, T>
 
                 let error_info = error_response.error_information.message;
 
-                let error_reason = match (detailed_error_info, error_info) {
-                    (Some(details), Some(message)) => {
-                        format!("{}, {}", message, details)
-                    }
-                    (Some(details), None) => details,
-                    (None, Some(message)) => message,
-                    (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-                };
+                let error_reason = get_error_reason(error_info, detailed_error_info, None);
 
                 let error_message = error_response.error_information.reason;
 
@@ -1755,7 +1741,7 @@ impl<F, T>
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                        reason: Some(error_reason),
+                        reason: error_reason,
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
@@ -2885,20 +2871,11 @@ impl
             })
         });
 
-        let error_info = error_data.clone().and_then(|error_details| {
-            error_details
-                .message
-                .map(|message| message + &avs_message.unwrap_or("".to_string()))
-        });
+        let error_info = error_data
+            .clone()
+            .and_then(|error_details| error_details.message);
 
-        let error_reason = match (detailed_error_info, error_info) {
-            (Some(details), Some(message)) => {
-                format!("{}, {}", message, details)
-            }
-            (Some(details), None) => details,
-            (None, Some(message)) => message,
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
+        let error_reason = get_error_reason(error_info, detailed_error_info, avs_message);
 
         let error_message = error_data
             .clone()
@@ -2911,7 +2888,7 @@ impl
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason.clone()),
+            reason: error_reason.clone(),
             status_code,
             attempt_status,
             connector_transaction_id: Some(transaction_id.clone()),
@@ -3153,14 +3130,7 @@ impl ForeignFrom<(&BankOfAmericaErrorInformationResponse, u16)> for types::Error
 
         let error_info = error_response.error_information.message.to_owned();
 
-        let error_reason = match (detailed_error_info, error_info) {
-            (Some(details), Some(message)) => {
-                format!("{}, {}", message, details)
-            }
-            (Some(details), None) => details,
-            (None, Some(message)) => message,
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
+        let error_reason = get_error_reason(error_info, detailed_error_info, None);
 
         let error_message = error_response.error_information.reason.to_owned();
         Self {
@@ -3168,7 +3138,7 @@ impl ForeignFrom<(&BankOfAmericaErrorInformationResponse, u16)> for types::Error
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason),
+            reason: error_reason,
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
@@ -3221,4 +3191,31 @@ fn is_customer_initiated_mandate_payment(item: &types::CompleteAuthorizeData) ->
         matches!(future_usage, common_enums::FutureUsage::OffSession)
     })
     // add check for customer_acceptance
+}
+
+pub fn get_error_reason(
+    error_info: Option<String>,
+    detailed_error_info: Option<String>,
+    avs_error_info: Option<String>,
+) -> Option<String> {
+    match (error_info, detailed_error_info, avs_error_info) {
+        (Some(message), Some(details), Some(avs_message)) => Some(format!(
+            "{}, detailed_error_information: {}, avs_message: {}",
+            message, details, avs_message
+        )),
+        (Some(message), Some(details), None) => Some(format!(
+            "{}, detailed_error_information: {}",
+            message, details
+        )),
+        (Some(message), None, Some(avs_message)) => {
+            Some(format!("{}, avs_message: {}", message, avs_message))
+        }
+        (None, Some(details), Some(avs_message)) => {
+            Some(format!("{}, avs_message: {}", details, avs_message))
+        }
+        (Some(message), None, None) => Some(message),
+        (None, Some(details), None) => Some(details),
+        (None, None, Some(avs_message)) => Some(avs_message),
+        (None, None, None) => None,
+    }
 }

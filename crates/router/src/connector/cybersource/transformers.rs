@@ -1813,28 +1813,22 @@ impl<F, T>
             Option<enums::AttemptStatus>,
         ),
     ) -> Self {
-        let error_details = error_response
-            .error_information
-            .details
-            .to_owned()
-            .map(|details| {
-                details
-                    .iter()
-                    .map(|details| format!("{} : {}", details.field, details.reason))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            });
+        let detailed_error_info =
+            error_response
+                .error_information
+                .details
+                .to_owned()
+                .map(|details| {
+                    details
+                        .iter()
+                        .map(|details| format!("{} : {}", details.field, details.reason))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                });
 
         let error_info = error_response.error_information.message.clone();
 
-        let error_reason = match (error_details, error_info) {
-            (Some(details), Some(message)) => {
-                format!("{}, {}", message, details)
-            }
-            (Some(details), None) => details,
-            (None, Some(message)) => message,
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
+        let error_reason = get_error_reason(error_info, detailed_error_info, None);
 
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
@@ -1842,7 +1836,7 @@ impl<F, T>
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason),
+            reason: error_reason,
             status_code: item.http_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
@@ -2027,10 +2021,23 @@ impl<F>
                 ..item.data
             }),
             CybersourceAuthSetupResponse::ErrorInformation(error_response) => {
-                let error_reason = error_response
-                    .error_information
-                    .message
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let error_info = error_response.error_information.message;
+
+                let error_reason = get_error_reason(error_info, detailed_error_info, None);
+
                 let error_message = error_response.error_information.reason;
                 Ok(Self {
                     response: Err(types::ErrorResponse {
@@ -2038,7 +2045,7 @@ impl<F>
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                        reason: Some(error_reason),
+                        reason: error_reason,
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
@@ -2407,7 +2414,7 @@ impl<F>
                 }
             }
             CybersourcePreProcessingResponse::ErrorInformation(error_response) => {
-                let error_details =
+                let detailed_error_info =
                     error_response
                         .error_information
                         .details
@@ -2422,14 +2429,7 @@ impl<F>
 
                 let error_info = error_response.error_information.message;
 
-                let error_reason = match (error_details, error_info) {
-                    (Some(details), Some(message)) => {
-                        format!("{}, {}", message, details)
-                    }
-                    (Some(details), None) => details,
-                    (None, Some(message)) => message,
-                    (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-                };
+                let error_reason = get_error_reason(error_info, detailed_error_info, None);
 
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
@@ -2437,7 +2437,7 @@ impl<F>
                         .clone()
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(error_reason),
+                    reason: error_reason,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
@@ -2668,7 +2668,7 @@ impl<F, T>
                 })
             }
             CybersourceSetupMandatesResponse::ErrorInformation(error_response) => {
-                let error_details =
+                let detailed_error_info =
                     error_response
                         .error_information
                         .details
@@ -2683,14 +2683,7 @@ impl<F, T>
 
                 let error_info = error_response.error_information.clone().message;
 
-                let error_reason = match (error_details, error_info) {
-                    (Some(details), Some(message)) => {
-                        format!("{}, {}", message, details)
-                    }
-                    (Some(details), None) => details,
-                    (None, Some(message)) => message,
-                    (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-                };
+                let error_reason = get_error_reason(error_info, detailed_error_info, None);
 
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
@@ -2698,7 +2691,7 @@ impl<F, T>
                         .clone()
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(error_reason),
+                    reason: error_reason,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
@@ -3343,7 +3336,7 @@ impl
             })
             .unwrap_or(Some("".to_string()));
 
-        let error_details = error_data
+        let detailed_error_info = error_data
             .clone()
             .map(|error_data| match error_data.details {
                 Some(details) => details
@@ -3354,20 +3347,9 @@ impl
                 None => "".to_string(),
             });
 
-        let error_info = error_data.clone().and_then(|error_info| {
-            error_info
-                .message
-                .map(|error_msg| error_msg + &avs_message.unwrap_or("".to_string()))
-        });
+        let error_info = error_data.clone().and_then(|error_info| error_info.message);
 
-        let error_reason = match (error_details, error_info) {
-            (Some(details), Some(message)) => {
-                format!("{}, {}", message, details)
-            }
-            (Some(details), None) => details,
-            (None, Some(message)) => message,
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
+        let error_reason = get_error_reason(error_info, detailed_error_info, avs_message);
 
         let error_message = error_data.clone().and_then(|error_info| error_info.reason);
 
@@ -3378,10 +3360,37 @@ impl
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason.clone()),
+            reason: error_reason.clone(),
             status_code,
             attempt_status,
             connector_transaction_id: Some(transaction_id.clone()),
         }
+    }
+}
+
+pub fn get_error_reason(
+    error_info: Option<String>,
+    detailed_error_info: Option<String>,
+    avs_error_info: Option<String>,
+) -> Option<String> {
+    match (error_info, detailed_error_info, avs_error_info) {
+        (Some(message), Some(details), Some(avs_message)) => Some(format!(
+            "{}, detailed_error_information: {}, avs_message: {}",
+            message, details, avs_message
+        )),
+        (Some(message), Some(details), None) => Some(format!(
+            "{}, detailed_error_information: {}",
+            message, details
+        )),
+        (Some(message), None, Some(avs_message)) => {
+            Some(format!("{}, avs_message: {}", message, avs_message))
+        }
+        (None, Some(details), Some(avs_message)) => {
+            Some(format!("{}, avs_message: {}", details, avs_message))
+        }
+        (Some(message), None, None) => Some(message),
+        (None, Some(details), None) => Some(details),
+        (None, None, Some(avs_message)) => Some(avs_message),
+        (None, None, None) => None,
     }
 }

@@ -135,9 +135,10 @@ impl ConnectorCommon for Cybersource {
                 event_builder.map(|i| i.set_error_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                let (code, connector_reason) = match response.error_information {
+                let (error_code, error_message, connector_reason) = match response.error_information
+                {
                     Some(ref error_info) => {
-                        let error_details = error_info.details.as_ref().map(|details| {
+                        let detailed_error_info = error_info.details.as_ref().map(|details| {
                             details
                                 .iter()
                                 .map(|det| format!("{} : {}", det.field, det.reason))
@@ -146,13 +147,16 @@ impl ConnectorCommon for Cybersource {
                         });
                         (
                             error_info.reason.clone(),
-                            error_details.map_or(error_info.message.clone(), |details| {
-                                format!("{}, {}", error_info.message.clone(), details)
-                            }),
+                            error_info.reason.clone(),
+                            transformers::get_error_reason(
+                                Some(error_info.message.clone()),
+                                detailed_error_info,
+                                None,
+                            ),
                         )
                     }
                     None => {
-                        let error_details = response.details.map(|details| {
+                        let detailed_error_info = response.details.map(|details| {
                             details
                                 .iter()
                                 .map(|det| format!("{} : {}", det.field, det.reason))
@@ -162,26 +166,27 @@ impl ConnectorCommon for Cybersource {
                         (
                             response
                                 .reason
+                                .clone()
                                 .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
                                     reason.to_string()
                                 }),
-                            match (error_details, response.message) {
-                                (Some(details), Some(message)) => {
-                                    format!("{}, {}", message, details)
-                                }
-                                (Some(details), None) => details,
-                                (None, Some(message)) => message,
-                                (None, None) => error_message.to_string(),
-                            },
+                            response
+                                .reason
+                                .map_or(error_message.to_string(), |reason| reason.to_string()),
+                            transformers::get_error_reason(
+                                response.message,
+                                detailed_error_info,
+                                None,
+                            ),
                         )
                     }
                 };
 
                 Ok(types::ErrorResponse {
                     status_code: res.status_code,
-                    code,
-                    message: connector_reason.clone(),
-                    reason: Some(connector_reason),
+                    code: error_code,
+                    message: error_message,
+                    reason: connector_reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
