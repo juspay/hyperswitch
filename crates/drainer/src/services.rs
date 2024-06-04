@@ -2,16 +2,18 @@ use std::sync::Arc;
 
 use actix_web::{body, HttpResponse, ResponseError};
 use error_stack::Report;
+use redis_interface::RedisConnectionPool;
 
 use crate::{
     connection::{diesel_make_pg_pool, PgPool},
     logger,
+    settings::Tenant,
 };
 
 #[derive(Clone)]
 pub struct Store {
     pub master_pool: PgPool,
-    pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
+    pub redis_conn: Arc<RedisConnectionPool>,
     pub config: StoreConfig,
     pub request_id: Option<String>,
 }
@@ -28,11 +30,19 @@ impl Store {
     /// Panics if there is a failure while obtaining the HashiCorp client using the provided configuration.
     /// This panic indicates a critical failure in setting up external services, and the application cannot proceed without a valid HashiCorp client.
     ///
-    pub async fn new(config: &crate::Settings, test_transaction: bool) -> Self {
+    pub async fn new(config: &crate::Settings, test_transaction: bool, tenant: &Tenant) -> Self {
+        let redis_conn = crate::connection::redis_connection(config).await;
         Self {
-            master_pool: diesel_make_pg_pool(config.master_database.get_inner(), test_transaction)
-                .await,
-            redis_conn: Arc::new(crate::connection::redis_connection(config).await),
+            master_pool: diesel_make_pg_pool(
+                config.master_database.get_inner(),
+                test_transaction,
+                &tenant.schema,
+            )
+            .await,
+            redis_conn: Arc::new(RedisConnectionPool::clone(
+                &redis_conn,
+                &tenant.redis_key_prefix,
+            )),
             config: StoreConfig {
                 drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,

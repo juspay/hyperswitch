@@ -1,16 +1,15 @@
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
-    id_type, pii,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
+use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, missing_field_err, CardData, PaymentsSyncRequestData, RefundsRequestData, RouterData,
-        WalletData,
+        self, CardData, PaymentsSyncRequestData, RefundsRequestData, RouterData, WalletData,
     },
     core::errors,
     services,
@@ -179,7 +178,7 @@ struct PaymentProfileDetails {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomerDetails {
-    id: id_type::CustomerId,
+    id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -273,10 +272,7 @@ pub struct AuthorizedotnetZeroMandateRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Profile {
-    merchant_customer_id: id_type::CustomerId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    email: Option<pii::Email>,
+    description: String,
     payment_profiles: PaymentProfiles,
 }
 
@@ -318,12 +314,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
-                            merchant_customer_id: item
-                                .customer_id
-                                .clone()
-                                .ok_or_else(missing_field_err("customer_id"))?,
-                            description: item.description.clone(),
-                            email: item.request.email.clone(),
+                            //The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                            description: item.payment_id.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
                                 payment: PaymentDetails::CreditCard(CreditCardDetails {
@@ -393,16 +385,18 @@ impl<F, T>
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
                     redirection_data: None,
-                    mandate_reference: item.response.customer_profile_id.map(|mandate_id| {
-                        types::MandateReference {
-                            connector_mandate_id: Some(mandate_id),
-                            payment_method_id: item
+                    mandate_reference: item.response.customer_profile_id.map(
+                        |customer_profile_id| types::MandateReference {
+                            connector_mandate_id: item
                                 .response
                                 .customer_payment_profile_id_list
                                 .first()
-                                .cloned(),
-                        }
-                    }),
+                                .map(|payment_profile_id| {
+                                    format!("{customer_profile_id}-{payment_profile_id}")
+                                }),
+                            payment_method_id: None,
+                        },
+                    ),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -635,27 +629,24 @@ impl
             api_models::payments::ConnectorMandateReferenceId,
         ),
     ) -> Result<Self, Self::Error> {
+        let mandate_id = connector_mandate_id
+            .connector_mandate_id
+            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
             currency_code: item.router_data.request.currency,
             payment: None,
-            profile: Some(ProfileDetails::CustomerProfileDetails(
-                CustomerProfileDetails {
-                    customer_profile_id: Secret::from(
-                        connector_mandate_id
-                            .connector_mandate_id
-                            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-                    ),
-                    payment_profile: PaymentProfileDetails {
-                        payment_profile_id: Secret::from(
-                            connector_mandate_id
-                                .payment_method_id
-                                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-                        ),
-                    },
-                },
-            )),
+            profile: mandate_id
+                .split_once('-')
+                .map(|(customer_profile_id, payment_profile_id)| {
+                    ProfileDetails::CustomerProfileDetails(CustomerProfileDetails {
+                        customer_profile_id: Secret::from(customer_profile_id.to_string()),
+                        payment_profile: PaymentProfileDetails {
+                            payment_profile_id: Secret::from(payment_profile_id.to_string()),
+                        },
+                    })
+                }),
             order: Order {
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -709,11 +700,13 @@ impl
                     create_profile: true,
                 })),
                 Some(CustomerDetails {
-                    id: item
-                        .router_data
-                        .customer_id
-                        .clone()
-                        .ok_or_else(missing_field_err("customer_id"))?,
+                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                    id: if item.router_data.payment_id.len() <= 20 {
+                        item.router_data.payment_id.clone()
+                    } else {
+                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                    },
                 }),
             )
         } else {
@@ -1087,6 +1080,24 @@ impl<F, T>
                     .and_then(|x| x.secure_acceptance_url.to_owned());
                 let redirection_data =
                     url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
+                let mandate_reference = item.response.profile_response.map(|profile_response| {
+                    let payment_profile_id = profile_response
+                        .customer_payment_profile_id_list
+                        .and_then(|customer_payment_profile_id_list| {
+                            customer_payment_profile_id_list.first().cloned()
+                        });
+                    types::MandateReference {
+                        connector_mandate_id: profile_response.customer_profile_id.and_then(
+                            |customer_profile_id| {
+                                payment_profile_id.map(|payment_profile_id| {
+                                    format!("{customer_profile_id}-{payment_profile_id}")
+                                })
+                            },
+                        ),
+                        payment_method_id: None,
+                    }
+                });
+
                 Ok(Self {
                     status,
                     response: match error {
@@ -1096,16 +1107,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             redirection_data,
-                            mandate_reference: item.response.profile_response.map(
-                                |profile_response| types::MandateReference {
-                                    connector_mandate_id: profile_response.customer_profile_id,
-                                    payment_method_id: profile_response
-                                        .customer_payment_profile_id_list
-                                        .and_then(|customer_payment_profile_id_list| {
-                                            customer_payment_profile_id_list.first().cloned()
-                                        }),
-                                },
-                            ),
+                            mandate_reference,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id

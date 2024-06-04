@@ -26,7 +26,7 @@ use crate::{
         storage::{self, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryFrom,
     },
-    AppState,
+    SessionState,
 };
 
 static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
@@ -95,7 +95,7 @@ impl SurchargeSource {
 }
 
 pub async fn perform_surcharge_decision_management_for_payment_method_list(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
@@ -215,7 +215,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
 }
 
 pub async fn perform_surcharge_decision_management_for_session_flow<O>(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_data: &mut PaymentData<O>,
     payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
@@ -276,7 +276,7 @@ where
     Ok(surcharge_metadata)
 }
 pub async fn perform_surcharge_decision_management_for_saved_cards(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,

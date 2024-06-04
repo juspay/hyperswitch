@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
-    errors as sch_errors, utils as scheduler_utils, SchedulerAppState,
+    errors as sch_errors, utils as scheduler_utils,
 };
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
     },
     db::StorageInterface,
     errors,
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         api,
@@ -26,10 +26,10 @@ use crate::{
 pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         let db: &dyn StorageInterface = &*state.store;
@@ -87,7 +87,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
                 state
-                    .get_db()
+                    .store
                     .as_scheduler()
                     .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                     .await?
@@ -192,7 +192,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
         error: sch_errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError> {

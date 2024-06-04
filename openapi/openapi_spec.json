@@ -14594,7 +14594,8 @@
       "PaymentsExternalAuthenticationResponse": {
         "type": "object",
         "required": [
-          "trans_status"
+          "trans_status",
+          "three_ds_requestor_url"
         ],
         "properties": {
           "trans_status": {
@@ -14629,6 +14630,10 @@
             "type": "string",
             "description": "Contains the JWS object created by the ACS for the ARes message",
             "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL"
           }
         }
       },

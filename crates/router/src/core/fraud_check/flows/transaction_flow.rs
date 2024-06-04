@@ -18,7 +18,7 @@ use crate::{
         storage::enums as storage_enums,
         ConnectorAuthType, ResponseId, RouterData,
     },
-    AppState,
+    SessionState,
 };
 
 #[async_trait]
@@ -31,7 +31,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -123,7 +123,7 @@ impl
 impl FeatureFrm<frm_api::Transaction, FraudCheckTransactionData> for FrmTransactionRouterData {
     async fn decide_frm_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &frm_api::FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
@@ -141,7 +141,7 @@ impl FeatureFrm<frm_api::Transaction, FraudCheckTransactionData> for FrmTransact
 
 pub async fn decide_frm_flow<'a, 'b>(
     router_data: &'b mut FrmTransactionRouterData,
-    state: &'a AppState,
+    state: &'a SessionState,
     connector: &frm_api::FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

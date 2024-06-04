@@ -26,6 +26,7 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
 
 #[allow(clippy::too_many_arguments)]
 pub fn construct_authentication_router_data(
+    merchant_id: String,
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: PaymentMethod,
@@ -36,7 +37,6 @@ pub fn construct_authentication_router_data(
     currency: Option<common_enums::Currency>,
     message_category: types::api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
-    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: storage::Authentication,
     return_url: Option<String>,
@@ -44,18 +44,8 @@ pub fn construct_authentication_router_data(
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
+    three_ds_requestor_url: String,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
-    let authentication_details: api_models::admin::AuthenticationConnectorDetails =
-        business_profile
-            .authentication_connector_details
-            .clone()
-            .get_required_value("authentication_details")
-            .attach_printable("authentication_details not configured by the merchant")?
-            .parse_value("AuthenticationDetails")
-            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Invalid data format found for authentication_details".into(),
-            })
-            .attach_printable("Error while parsing authentication_details from merchant_account")?;
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
         payment_method_data: From::from(payment_method_data),
         billing_address,
@@ -71,14 +61,14 @@ pub fn construct_authentication_router_data(
         return_url,
         sdk_information,
         email,
-        three_ds_requestor_url: authentication_details.three_ds_requestor_url,
+        three_ds_requestor_url,
         threeds_method_comp_ind,
         webhook_url,
     };
     construct_router_data(
         authentication_connector,
         payment_method,
-        business_profile.merchant_id.clone(),
+        merchant_id.clone(),
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,

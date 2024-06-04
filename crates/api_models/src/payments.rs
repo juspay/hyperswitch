@@ -4595,6 +4595,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub three_dsserver_trans_id: Option<String>,
     /// Contains the JWS object created by the ACS for the ARes message
     pub acs_signed_content: Option<String>,
+    /// Three DS Requestor URL
+    pub three_ds_requestor_url: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

@@ -5,7 +5,7 @@ use diesel_models::configs;
 use error_stack::ResultExt;
 use masking::StrongSecret;
 
-use super::{errors, transformers::generate_fingerprint, AppState};
+use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
     consts,
     core::{
@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub async fn delete_entry_from_blocklist(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
@@ -44,7 +44,7 @@ pub async fn delete_entry_from_blocklist(
 }
 
 pub async fn toggle_blocklist_guard_for_merchant(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
@@ -94,7 +94,7 @@ pub fn get_blocklist_guard_key(merchant_id: &str) -> String {
 }
 
 pub async fn list_blocklist_entries_for_merchant(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResult<Vec<api_blocklist::BlocklistResponse>> {
@@ -138,7 +138,7 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
 }
 
 pub async fn insert_entry_into_blocklist(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
@@ -207,7 +207,7 @@ pub async fn insert_entry_into_blocklist(
 }
 
 pub async fn get_merchant_fingerprint_secret(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
 ) -> RouterResult<String> {
     let key = get_merchant_fingerprint_secret_key(merchant_id);
@@ -246,7 +246,7 @@ fn get_merchant_fingerprint_secret_key(merchant_id: &str) -> String {
 
 async fn duplicate_check_insert_bin(
     bin: &str,
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     data_kind: common_enums::BlocklistDataKind,
 ) -> RouterResult<storage::Blocklist> {
@@ -287,7 +287,7 @@ async fn duplicate_check_insert_bin(
 }
 
 async fn delete_card_bin_blocklist_entry(
-    state: &AppState,
+    state: &SessionState,
     bin: &str,
     merchant_id: &str,
 ) -> RouterResult<storage::Blocklist> {
@@ -301,7 +301,7 @@ async fn delete_card_bin_blocklist_entry(
 }
 
 pub async fn validate_data_for_blocklist<F>(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
@@ -452,7 +452,7 @@ where
 }
 
 pub async fn generate_payment_fingerprint(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     payment_method_data: Option<crate::types::api::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {

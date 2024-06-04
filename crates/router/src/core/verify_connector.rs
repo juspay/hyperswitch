@@ -13,11 +13,11 @@ use crate::{
         transformers::ForeignInto,
     },
     utils::verify_connector as utils,
-    AppState,
+    SessionState,
 };
 
 pub async fn verify_connector_credentials(
-    state: AppState,
+    state: SessionState,
     req: VerifyConnectorRequest,
 ) -> errors::RouterResponse<()> {
     let boxed_connector = api::ConnectorData::get_connector_by_name(

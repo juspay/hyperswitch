@@ -665,6 +665,7 @@ impl
             req,
         ))?;
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

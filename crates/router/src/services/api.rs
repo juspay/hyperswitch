@@ -1,14 +1,16 @@
 pub mod client;
 pub mod request;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     error::Error,
     fmt::Debug,
     future::Future,
     str,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
+use actix_http::header::HeaderMap;
 use actix_web::{
     body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
     ResponseError,
@@ -45,9 +47,9 @@ use crate::{
     },
     logger,
     routes::{
-        app::{AppStateInfo, ReqState},
+        app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics::{self, request as metrics_request},
-        AppState,
+        AppState, SessionState,
     },
     types::{
         self,
@@ -174,7 +176,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     async fn execute_pretasks(
         &self,
         _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
+        _app_state: &SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
     }
@@ -184,7 +186,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     async fn execute_posttasks(
         &self,
         _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
+        _app_state: &SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
     }
@@ -297,7 +299,7 @@ pub async fn execute_connector_processing_step<
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    state: &'b AppState,
+    state: &'b SessionState,
     connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
@@ -555,7 +557,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn call_connector_api(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
     flow_name: &str,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
@@ -591,7 +593,7 @@ pub async fn call_connector_api(
 
 #[instrument(skip_all)]
 pub async fn send_request(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
@@ -915,15 +917,16 @@ pub enum AuthFlow {
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
+    incoming_request_header: &HeaderMap,
     mut request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a + ApiEventMetric,
@@ -945,17 +948,49 @@ where
 
     let mut app_state = state.get_ref().clone();
 
-    app_state.add_request_id(request_id);
     let start_instant = Instant::now();
     let serialized_request = masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
+    let tenants: HashSet<_> = state
+        .conf
+        .multitenancy
+        .get_tenant_names()
+        .into_iter()
+        .collect();
+    let tenant_id = if !state.conf.multitenancy.enabled {
+        common_utils::consts::DEFAULT_TENANT.to_string()
+    } else {
+        incoming_request_header
+            .get("x-tenant-id")
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
+            .map(|req_tenant_id| {
+                if !tenants.contains(req_tenant_id) {
+                    Err(errors::ApiErrorResponse::InvalidTenant {
+                        tenant_id: req_tenant_id.to_string(),
+                    }
+                    .switch())
+                } else {
+                    Ok(req_tenant_id.to_string())
+                }
+            })??
+    };
+    // let tenant_id = "public".to_string();
+    let mut session_state =
+        Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.clone(),
+            }
+            .switch()
+        })?;
+    session_state.add_request_id(request_id);
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
-        .authenticate_and_fetch(request.headers(), &app_state)
+        .authenticate_and_fetch(request.headers(), &session_state)
         .await
         .switch()?;
 
@@ -975,14 +1010,14 @@ where
     let output = {
         lock_action
             .clone()
-            .perform_locking_action(&app_state, merchant_id.to_owned())
+            .perform_locking_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
-        let res = func(app_state.clone(), auth_out, payload, request_state)
+        let res = func(session_state.clone(), auth_out, payload, request_state)
             .await
             .switch();
         lock_action
-            .free_lock_action(&app_state, merchant_id.to_owned())
+            .free_lock_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
         res
@@ -1064,11 +1099,11 @@ pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + ApiEventMetric + 'a,
     T: Debug + Serialize + ApiEventMetric,
@@ -1109,6 +1144,7 @@ where
         server_wrap_util(
             &flow,
             state.clone(),
+            incoming_request_header,
             req_state,
             request,
             payload,

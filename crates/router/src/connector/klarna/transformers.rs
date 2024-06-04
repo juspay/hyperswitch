@@ -75,6 +75,7 @@ pub struct KlarnaPaymentsRequest {
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
     merchant_reference1: Option<String>,
+    shipping_address: Option<KlarnaShippingAddress>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -90,6 +91,21 @@ pub struct KlarnaSessionRequest {
     purchase_currency: enums::Currency,
     order_amount: i64,
     order_lines: Vec<OrderLines>,
+    shipping_address: Option<KlarnaShippingAddress>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct KlarnaShippingAddress {
+    city: Option<String>,
+    country: Option<enums::CountryAlpha2>,
+    email: Option<pii::Email>,
+    given_name: Option<Secret<String>>,
+    family_name: Option<Secret<String>>,
+    phone: Option<Secret<String>>,
+    postal_code: Option<Secret<String>>,
+    region: Option<Secret<String>>,
+    street_address: Option<Secret<String>>,
+    street_address2: Option<Secret<String>>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -123,6 +139,18 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
                     .collect(),
+                shipping_address: Some(KlarnaShippingAddress {
+                    city: item.router_data.get_optional_shipping_city(),
+                    country: item.router_data.get_optional_shipping_country(),
+                    email: item.router_data.get_optional_shipping_email(),
+                    given_name: item.router_data.get_optional_shipping_first_name(),
+                    family_name: item.router_data.get_optional_shipping_last_name(),
+                    phone: item.router_data.get_optional_shipping_phone_number(),
+                    postal_code: item.router_data.get_optional_shipping_zip(),
+                    region: item.router_data.get_optional_shipping_state(),
+                    street_address: item.router_data.get_optional_shipping_line1(),
+                    street_address2: item.router_data.get_optional_shipping_line2(),
+                }),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details",
@@ -176,6 +204,18 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
                 auto_capture: request.is_auto_capture()?,
+                shipping_address: Some(KlarnaShippingAddress {
+                    city: item.router_data.get_optional_shipping_city(),
+                    country: item.router_data.get_optional_shipping_country(),
+                    email: item.router_data.get_optional_shipping_email(),
+                    given_name: item.router_data.get_optional_shipping_first_name(),
+                    family_name: item.router_data.get_optional_shipping_last_name(),
+                    phone: item.router_data.get_optional_shipping_phone_number(),
+                    postal_code: item.router_data.get_optional_shipping_zip(),
+                    region: item.router_data.get_optional_shipping_state(),
+                    street_address: item.router_data.get_optional_shipping_line1(),
+                    street_address2: item.router_data.get_optional_shipping_line2(),
+                }),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details"

@@ -12,14 +12,14 @@ use router_env::logger;
 use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
 
 pub async fn set_metadata(
-    state: AppState,
+    state: SessionState,
     user: UserFromToken,
     request: api::SetMetaDataRequest,
     _req_state: ReqState,
@@ -33,7 +33,7 @@ pub async fn set_metadata(
 }
 
 pub async fn get_multiple_metadata(
-    state: AppState,
+    state: SessionState,
     user: UserFromToken,
     request: GetMultipleMetaDataPayload,
     _req_state: ReqState,
@@ -230,7 +230,7 @@ fn into_response(
 }
 
 async fn insert_metadata(
-    state: &AppState,
+    state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     metadata_value: types::MetaData,
@@ -571,7 +571,7 @@ async fn insert_metadata(
 }
 
 async fn fetch_metadata(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromToken,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
@@ -606,7 +606,7 @@ async fn fetch_metadata(
 }
 
 pub async fn backfill_metadata(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromToken,
     key: &DBEnum,
 ) -> UserResult<Option<DashboardMetadata>> {
@@ -705,7 +705,7 @@ pub async fn backfill_metadata(
 }
 
 pub async fn get_merchant_connector_account_by_name(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     connector_name: &str,
     key_store: &MerchantKeyStore,

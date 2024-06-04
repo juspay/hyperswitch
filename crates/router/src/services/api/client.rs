@@ -15,7 +15,7 @@ use crate::{
         errors::{ApiClientError, CustomResult},
         payments,
     },
-    routes::AppState,
+    routes::SessionState,
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -165,7 +165,7 @@ where
 
     async fn send_request(
         &self,
-        state: &AppState,
+        state: &SessionState,
         request: Request,
         option_timeout_secs: Option<u64>,
         forward_to_kafka: bool,
@@ -340,7 +340,7 @@ impl ApiClient for ProxyClient {
     }
     async fn send_request(
         &self,
-        state: &AppState,
+        state: &SessionState,
         request: Request,
         option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
@@ -392,7 +392,7 @@ impl ApiClient for MockApiClient {
 
     async fn send_request(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _request: Request,
         _option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,

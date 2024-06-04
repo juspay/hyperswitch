@@ -105,8 +105,8 @@ impl
             NetceteraPreAuthenticationResponse::Failure(error_response) => {
                 Err(types::ErrorResponse {
                     code: error_response.error_details.error_code,
-                    message: error_response.error_details.error_detail,
-                    reason: Some(error_response.error_details.error_description),
+                    message: error_response.error_details.error_description,
+                    reason: error_response.error_details.error_detail,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -174,8 +174,8 @@ impl
             }
             NetceteraAuthenticationResponse::Error(error_response) => Err(types::ErrorResponse {
                 code: error_response.error_details.error_code,
-                message: error_response.error_details.error_detail,
-                reason: Some(error_response.error_details.error_description),
+                message: error_response.error_details.error_description,
+                reason: error_response.error_details.error_detail,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
@@ -235,20 +235,20 @@ pub struct NetceteraErrorDetails {
     pub error_code: String,
 
     /// Code indicating the 3-D Secure component that identified the error.
-    pub error_component: String,
+    pub error_component: Option<String>,
 
     /// Text describing the problem identified.
     pub error_description: String,
 
     /// Additional detail regarding the problem identified.
-    pub error_detail: String,
+    pub error_detail: Option<String>,
 
     /// Universally unique identifier for the transaction assigned by the 3DS SDK.
     #[serde(rename = "sdkTransID")]
     pub sdk_trans_id: Option<String>,
 
     /// The Message Type that was identified as erroneous.
-    pub error_message_type: String,
+    pub error_message_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

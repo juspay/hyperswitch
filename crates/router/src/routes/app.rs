@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
@@ -14,7 +14,7 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::MockDb;
+use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 #[cfg(feature = "olap")]
@@ -43,7 +43,8 @@ use super::{ephemeral_key::*, webhooks::*};
 use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
-use crate::configs::secrets_transformers;
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsProvider;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -56,7 +57,11 @@ pub use crate::{
     db::{StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
-    services::get_store,
+    services::{get_cache_store, get_store},
+};
+use crate::{
+    configs::{secrets_transformers, Settings},
+    db::kafka_store::{KafkaStore, TenantID},
 };
 
 #[derive(Clone)]
@@ -65,32 +70,86 @@ pub struct ReqState {
 }
 
 #[derive(Clone)]
+pub struct SessionState {
+    pub store: Box<dyn StorageInterface>,
+    pub conf: Arc<settings::Settings<RawSecret>>,
+    pub api_client: Box<dyn crate::services::ApiClient>,
+    pub event_handler: EventsHandler,
+    #[cfg(feature = "email")]
+    pub email_client: Arc<dyn EmailService>,
+    #[cfg(feature = "olap")]
+    pub pool: AnalyticsProvider,
+    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub request_id: Option<RequestId>,
+    pub base_url: String,
+    pub tenant: String,
+    #[cfg(feature = "olap")]
+    pub opensearch_client: Arc<OpenSearchClient>,
+}
+impl scheduler::SchedulerSessionState for SessionState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
+}
+impl SessionState {
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
+}
+
+pub trait SessionStateInfo {
+    fn conf(&self) -> settings::Settings<RawSecret>;
+    fn store(&self) -> Box<dyn StorageInterface>;
+    fn event_handler(&self) -> EventsHandler;
+    fn get_request_id(&self) -> Option<String>;
+    fn add_request_id(&mut self, request_id: RequestId);
+}
+
+impl SessionStateInfo for SessionState {
+    fn store(&self) -> Box<dyn StorageInterface> {
+        self.store.to_owned()
+    }
+    fn conf(&self) -> settings::Settings<RawSecret> {
+        self.conf.as_ref().to_owned()
+    }
+    fn event_handler(&self) -> EventsHandler {
+        self.event_handler.clone()
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.api_client.add_request_id(request_id);
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
+    }
+}
+#[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
-    pub store: Box<dyn StorageInterface>,
+    pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
-    pub pool: crate::analytics::AnalyticsProvider,
+    pub pools: HashMap<String, AnalyticsProvider>,
     #[cfg(feature = "olap")]
-    pub opensearch_client: OpenSearchClient,
+    pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub encryption_client: Box<dyn EncryptionManagementInterface>,
 }
-
 impl scheduler::SchedulerAppState for AppState {
-    fn get_db(&self) -> Box<dyn SchedulerInterface> {
-        self.store.get_scheduler_db()
+    fn get_tenants(&self) -> Vec<String> {
+        self.conf.multitenancy.get_tenant_names()
     }
 }
-
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
-    fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
@@ -104,9 +163,6 @@ impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings<RawSecret> {
         self.conf.as_ref().to_owned()
     }
-    fn store(&self) -> Box<dyn StorageInterface> {
-        self.store.to_owned()
-    }
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService> {
         self.email_client.to_owned()
@@ -116,7 +172,6 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
-        self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
@@ -183,43 +238,38 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let opensearch_client = conf
-                .opensearch
-                .get_opensearch_client()
-                .await
-                .expect("Failed to create opensearch client");
-
-            let store: Box<dyn StorageInterface> = match storage_impl {
-                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
-                    EventsHandler::Kafka(kafka_client) => Box::new(
-                        crate::db::KafkaStore::new(
-                            #[allow(clippy::expect_used)]
-                            get_store(&conf.clone(), shut_down_signal, testable)
-                                .await
-                                .expect("Failed to create store"),
-                            kafka_client.clone(),
-                            crate::db::kafka_store::TenantID("default".to_string()),
-                        )
-                        .await,
-                    ),
-                    EventsHandler::Logs(_) => Box::new(
-                        #[allow(clippy::expect_used)]
-                        get_store(&conf, shut_down_signal, testable)
-                            .await
-                            .expect("Failed to create store"),
-                    ),
-                },
-                #[allow(clippy::expect_used)]
-                StorageImpl::Mock => Box::new(
-                    MockDb::new(&conf.redis)
-                        .await
-                        .expect("Failed to create mock store"),
-                ),
-            };
+            let opensearch_client = Arc::new(
+                conf.opensearch
+                    .get_opensearch_client()
+                    .await
+                    .expect("Failed to create opensearch client"),
+            );
 
             #[cfg(feature = "olap")]
-            let pool =
-                crate::analytics::AnalyticsProvider::from_conf(conf.analytics.get_inner()).await;
+            let mut pools: HashMap<String, AnalyticsProvider> = HashMap::new();
+            let mut stores = HashMap::new();
+            #[allow(clippy::expect_used)]
+            let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
+                .await
+                .expect("Failed to create store");
+            for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
+                let store: Box<dyn StorageInterface> = Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                )
+                .await;
+                stores.insert(tenant_name.clone(), store);
+                #[cfg(feature = "olap")]
+                let pool =
+                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
+                        .await;
+                #[cfg(feature = "olap")]
+                pools.insert(tenant_name.clone(), pool);
+            }
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
@@ -228,14 +278,14 @@ impl AppState {
 
             Self {
                 flow_name: String::from("default"),
-                store,
+                stores,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
                 api_client,
                 event_handler,
                 #[cfg(feature = "olap")]
-                pool,
+                pools,
                 #[cfg(feature = "olap")]
                 opensearch_client,
                 request_id: None,
@@ -244,6 +294,43 @@ impl AppState {
             }
         })
         .await
+    }
+
+    async fn get_store_interface(
+        storage_impl: &StorageImpl,
+        event_handler: &EventsHandler,
+        conf: &Settings,
+        tenant: &settings::Tenant,
+        cache_store: Arc<RedisStore>,
+        testable: bool,
+    ) -> Box<dyn StorageInterface> {
+        match storage_impl {
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
+                EventsHandler::Kafka(kafka_client) => Box::new(
+                    KafkaStore::new(
+                        #[allow(clippy::expect_used)]
+                        get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
+                            .await
+                            .expect("Failed to create store"),
+                        kafka_client.clone(),
+                        TenantID(tenant.get_schema().to_string()),
+                    )
+                    .await,
+                ),
+                EventsHandler::Logs(_) => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(conf, tenant, Arc::clone(&cache_store), testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
+            },
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
+        }
     }
 
     pub async fn new(
@@ -264,6 +351,34 @@ impl AppState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
+    }
+    pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
+    where
+        F: FnOnce() -> E + Copy,
+    {
+        Ok(SessionState {
+            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            conf: Arc::clone(&self.conf),
+            api_client: self.api_client.clone(),
+            event_handler: self.event_handler.clone(),
+            #[cfg(feature = "olap")]
+            pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
+            file_storage_client: self.file_storage_client.clone(),
+            request_id: self.request_id,
+            base_url: self
+                .conf
+                .multitenancy
+                .get_tenant(tenant)
+                .ok_or_else(err)?
+                .clone()
+                .base_url
+                .clone(),
+            tenant: tenant.to_string().clone(),
+            #[cfg(feature = "email")]
+            email_client: Arc::clone(&self.email_client),
+            #[cfg(feature = "olap")]
+            opensearch_client: Arc::clone(&self.opensearch_client),
+        })
     }
 }
 

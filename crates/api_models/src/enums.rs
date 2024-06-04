@@ -249,6 +249,9 @@ impl Connector {
             Self::Checkout | Self::Nmi| Self::Cybersource => true,
         }
     }
+    pub fn is_pre_processing_required_before_authorize(&self) -> bool {
+        matches!(self, Self::Airwallex)
+    }
 }
 
 #[derive(

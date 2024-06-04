@@ -681,6 +681,7 @@ pub async fn payments_redirect_response(
                 auth.merchant_account,
                 auth.key_store,
                 req,
+
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -742,6 +743,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
                 auth.merchant_account,
                 auth.key_store,
                 req,
+
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -786,6 +788,7 @@ pub async fn payments_complete_authorize_redirect(
                 auth.merchant_account,
                 auth.key_store,
                 req,
+
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -1142,7 +1145,7 @@ pub async fn payments_reject(
 #[allow(clippy::too_many_arguments)]
 async fn authorize_verify_select<Op>(
     operation: Op,
-    state: app::AppState,
+    state: app::SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,

@@ -1,6 +1,8 @@
 #![allow(clippy::unwrap_used)]
+use std::sync::Arc;
+
 use router::{configs::settings::Settings, routes, services};
-use storage_impl::redis::cache;
+use storage_impl::redis::cache::{self, CacheKey};
 
 mod utils;
 
@@ -9,13 +11,15 @@ async fn invalidate_existing_cache_success() {
     // Arrange
     Box::pin(utils::setup()).await;
     let (tx, _) = tokio::sync::oneshot::channel();
-    let state = Box::pin(routes::AppState::new(
+    let app_state = Box::pin(routes::AppState::new(
         Settings::default(),
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
-
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
     let cache_key = "cacheKey".to_string();
     let cache_key_value = "val".to_string();
     let _ = state
@@ -29,11 +33,23 @@ async fn invalidate_existing_cache_success() {
     let client = awc::Client::default();
 
     cache::CONFIG_CACHE
-        .push(cache_key.clone(), cache_key_value.clone())
+        .push(
+            CacheKey {
+                key: cache_key.clone(),
+                prefix: String::default(),
+            },
+            cache_key_value.clone(),
+        )
         .await;
 
     cache::ACCOUNTS_CACHE
-        .push(cache_key.clone(), cache_key_value.clone())
+        .push(
+            CacheKey {
+                key: cache_key.clone(),
+                prefix: String::default(),
+            },
+            cache_key_value.clone(),
+        )
         .await;
 
     // Act
@@ -51,11 +67,17 @@ async fn invalidate_existing_cache_success() {
     println!("invalidate Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
     assert!(cache::CONFIG_CACHE
-        .get_val::<String>(&cache_key)
+        .get_val::<String>(CacheKey {
+            key: cache_key.clone(),
+            prefix: String::default()
+        })
         .await
         .is_none());
     assert!(cache::ACCOUNTS_CACHE
-        .get_val::<String>(&cache_key)
+        .get_val::<String>(CacheKey {
+            key: cache_key,
+            prefix: String::default()
+        })
         .await
         .is_none());
 }

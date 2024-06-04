@@ -1,7 +1,4 @@
-use std::{
-    sync::{self, atomic},
-    time as std_time,
-};
+use std::sync;
 
 use common_utils::errors::CustomResult;
 use diesel_models::enums::{self, ProcessTrackerStatus};
@@ -17,7 +14,7 @@ use super::{
 };
 use crate::{
     configs::settings::SchedulerSettings, consumer::types::ProcessTrackerBatch, errors,
-    flow::SchedulerFlow, metrics, SchedulerAppState, SchedulerInterface,
+    flow::SchedulerFlow, metrics, SchedulerInterface, SchedulerSessionState,
 };
 
 pub async fn divide_and_append_tasks<T>(
@@ -258,26 +255,16 @@ pub async fn consumer_operation_handler<E, T>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
-    consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
-    T: SchedulerAppState + Send + Sync + 'static,
+    T: SchedulerSessionState + Send + Sync + 'static,
 {
-    consumer_operation_counter.fetch_add(1, atomic::Ordering::SeqCst);
-    let start_time = std_time::Instant::now();
-
     match consumer::consumer_operations(&state, &settings, workflow_selector).await {
         Ok(_) => (),
         Err(err) => error_handler_fun(err),
     }
-    let end_time = std_time::Instant::now();
-    let duration = end_time.saturating_duration_since(start_time).as_secs_f64();
-    logger::debug!("Time taken to execute consumer_operation: {}s", duration);
-
-    let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::SeqCst);
-    logger::info!("Current tasks being executed: {}", current_count);
 }
 
 pub fn add_histogram_metrics(
