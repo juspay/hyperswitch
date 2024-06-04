@@ -18,4 +18,4 @@ pub const MIN_PASSWORD_LENGTH: usize = 8;
 pub const REDIS_TOTP_PREFIX: &str = "TOTP_";
 pub const REDIS_RECOVERY_CODE_PREFIX: &str = "RC_";
 pub const REDIS_TOTP_SECRET_PREFIX: &str = "TOTP_SEC_";
-pub const REDIS_TOTP_SECRET_TTL_IN_SECS: i64 = 5 * 60; // 5 minutes
+pub const REDIS_TOTP_SECRET_TTL_IN_SECS: i64 = 15 * 60; // 15 minutes
