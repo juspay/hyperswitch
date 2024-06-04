@@ -11,7 +11,6 @@ impl Default for super::settings::Server {
             workers: num_cpus::get_physical(),
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
-            base_url: "http://localhost:8080".into(),
             shutdown_timeout: 30,
         }
     }
@@ -68,6 +67,8 @@ impl Default for super::settings::Locker {
             locker_signing_key_id: "1".into(),
             //true or false
             locker_enabled: true,
+            //Time to live for storage entries in locker
+            ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
         }
     }
 }
@@ -8195,12 +8196,20 @@ impl Default for super::settings::RequiredFields {
                                                             "TRX".to_string(),
                                                             "DOGE".to_string(),
                                                             "BNB".to_string(),
-                                                            "BUSD".to_string(),
                                                             "USDT".to_string(),
                                                             "USDC".to_string(),
                                                             "DAI".to_string(),
                                                         ]
                                                     },
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.crypto.network".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.crypto.network".to_string(),
+                                                    display_name: "network".to_string(),
+                                                    field_type: enums::FieldType::Text,
                                                     value: None,
                                                 }
                                             ),

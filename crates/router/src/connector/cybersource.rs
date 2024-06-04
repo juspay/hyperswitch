@@ -901,6 +901,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if req.is_three_ds()
             && req.request.is_card()
             && req.request.connector_mandate_id().is_none()
+            && req.request.authentication_data.is_none()
         {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
@@ -928,6 +929,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if req.is_three_ds()
             && req.request.is_card()
             && req.request.connector_mandate_id().is_none()
+            && req.request.authentication_data.is_none()
         {
             let connector_req =
                 cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
@@ -968,6 +970,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if data.is_three_ds()
             && data.request.is_card()
             && data.request.connector_mandate_id().is_none()
+            && data.request.authentication_data.is_none()
         {
             let response: cybersource::CybersourceAuthSetupResponse = res
                 .response

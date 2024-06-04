@@ -9,7 +9,7 @@ use crate::{
         errors::{self, RouterResult},
         payments,
     },
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::{self, logger},
     types::{self, api as api_types, domain},
 };
@@ -53,7 +53,7 @@ pub async fn add_access_token<
     Req: Debug + Clone + 'static,
     Res: Debug + Clone + 'static,
 >(
-    state: &AppState,
+    state: &SessionState,
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
@@ -194,7 +194,7 @@ pub async fn add_access_token<
 }
 
 pub async fn refresh_connector_auth(
-    state: &AppState,
+    state: &SessionState,
     connector: &api_types::ConnectorData,
     _merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<

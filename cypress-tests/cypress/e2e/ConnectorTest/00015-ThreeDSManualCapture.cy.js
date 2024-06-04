@@ -10,16 +10,17 @@ let globalState;
 
 describe("Card - ThreeDS Manual payment flow test", () => {
 
+  
     before("seed global state", () => {
-        cy.task('getGlobalState').then((state) => {
-            globalState = new State(state);
-            console.log("seeding globalState -> " + JSON.stringify(globalState));
-        })
+  
+      cy.task('getGlobalState').then((state) => {
+        globalState = new State(state);
+      })
+  
     })
 
-    after("flush global state", () => {
-        console.log("flushing globalState -> " + JSON.stringify(globalState));
-        cy.task('setGlobalState', globalState.data);
+    afterEach("flush global state", () => {
+      cy.task('setGlobalState', globalState.data);
     })
 
     context("Card - ThreeDS Manual Full Capture payment flow test", () => {

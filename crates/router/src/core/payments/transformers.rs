@@ -15,7 +15,7 @@ use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
+    configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -23,7 +23,7 @@ use crate::{
         utils as core_utils,
     },
     headers::X_PAYMENT_CONFIRM_SOURCE,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
         self, api, domain,
@@ -36,7 +36,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn construct_payment_router_data<'a, F, T>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
@@ -93,7 +93,7 @@ where
     });
 
     let additional_data = PaymentAdditionalData {
-        router_base_url: state.conf.server.base_url.clone(),
+        router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
@@ -204,7 +204,7 @@ where
         data: D,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &str,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -223,7 +223,7 @@ where
         payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &str,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -253,7 +253,7 @@ where
             captures,
             customer,
             auth_flow,
-            server,
+            base_url,
             &operation,
             connector_request_reference_id_config,
             connector_http_status_code,
@@ -273,7 +273,7 @@ where
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &str,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -305,7 +305,7 @@ where
         data: PaymentData<F>,
         customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &str,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -361,7 +361,7 @@ pub fn payments_to_payments_response<Op, F: Clone>(
     captures: Option<Vec<storage::Capture>>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
-    server: &Server,
+    base_url: &str,
     operation: &Op,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
@@ -541,6 +541,9 @@ where
 
         let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_containing_fetch_qr_code_url =
+            fetch_qr_code_url_next_steps_check(payment_attempt.clone())?;
+
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
@@ -550,6 +553,7 @@ where
             || next_action_containing_qr_code_url.is_some()
             || next_action_containing_wait_screen.is_some()
             || papal_sdk_next_action.is_some()
+            || next_action_containing_fetch_qr_code_url.is_some()
             || payment_data.authentication.is_some()
         {
             next_action_response = bank_transfer_next_steps
@@ -566,6 +570,11 @@ where
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
                             api_models::payments::NextActionData::foreign_from(qr_code_data)
                         }))
+                        .or(next_action_containing_fetch_qr_code_url.map(|fetch_qr_code_data| {
+                            api_models::payments::NextActionData::FetchQrCodeInformation {
+                                qr_code_fetch_url: fetch_qr_code_data.qr_code_fetch_url
+                            }
+                        }))
                         .or(papal_sdk_next_action.map(|paypal_next_action_data| {
                             api_models::payments::NextActionData::InvokeSdkClient{
                                 next_action_data: paypal_next_action_data
@@ -580,7 +589,7 @@ where
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {
                             api_models::payments::NextActionData::RedirectToUrl {
                                 redirect_to_url: helpers::create_startpay_url(
-                                    server,
+                                    base_url,
                                     &payment_attempt,
                                     &payment_intent,
                                 ),
@@ -597,9 +606,9 @@ where
                                         .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: helpers::create_authentication_url(&server.base_url, &payment_attempt),
+                                            three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
                                             three_ds_authorize_url: helpers::create_authorize_url(
-                                                &server.base_url,
+                                                base_url,
                                                 &payment_attempt,
                                                 payment_connector_name,
                                             ),
@@ -899,6 +908,18 @@ pub fn paypal_sdk_next_steps_check(
     Ok(paypal_next_steps)
 }
 
+pub fn fetch_qr_code_url_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::FetchQrCodeInformation>> {
+    let qr_code_steps: Option<Result<api_models::payments::FetchQrCodeInformation, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("FetchQrCodeInformation"));
+
+    let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
+    Ok(qr_code_fetch_url)
+}
+
 pub fn wait_screen_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::WaitScreenInstructions>> {
@@ -1108,8 +1129,8 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 display_to_timestamp,
             } => Self::QrCodeInformation {
                 qr_code_url: Some(qr_code_url),
-                display_to_timestamp,
                 image_data_url: None,
+                display_to_timestamp,
             },
         }
     }
@@ -1123,7 +1144,7 @@ where
     router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
-    state: &'a AppState,
+    state: &'a SessionState,
     customer_data: &'a Option<domain::Customer>,
 }
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
@@ -1239,6 +1260,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
+            minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1399,12 +1421,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
+            minor_amount_to_capture: amount_to_capture,
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
+            minor_payment_amount: amount,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             multiple_capture_data: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => Some(MultipleCaptureRequestData {
@@ -1596,10 +1620,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
     }
 }
 
-impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
+impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(capture_sync_response: types::CaptureSyncResponse) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        capture_sync_response: types::CaptureSyncResponse,
+    ) -> Result<Self, Self::Error> {
         match capture_sync_response {
             types::CaptureSyncResponse::Success {
                 resource_id,
@@ -1679,6 +1705,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(), // need to change once we move to connector module
+            minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,

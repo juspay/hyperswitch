@@ -9,7 +9,7 @@ use router_env::logger;
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
 };
@@ -73,7 +73,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 }
 
 pub async fn validate_role_name(
-    state: &AppState,
+    state: &SessionState,
     role_name: &domain::RoleName,
     merchant_id: &str,
     org_id: &str,
@@ -101,7 +101,7 @@ pub async fn validate_role_name(
 }
 
 pub async fn set_role_permissions_in_cache_by_user_role(
-    state: &AppState,
+    state: &SessionState,
     user_role: &UserRole,
 ) -> bool {
     set_role_permissions_in_cache_if_required(
@@ -116,7 +116,7 @@ pub async fn set_role_permissions_in_cache_by_user_role(
 }
 
 pub async fn set_role_permissions_in_cache_if_required(
-    state: &AppState,
+    state: &SessionState,
     role_id: &str,
     merchant_id: &str,
     org_id: &str,
@@ -143,7 +143,7 @@ pub async fn set_role_permissions_in_cache_if_required(
 }
 
 pub async fn get_multiple_role_info_for_user_roles(
-    state: &AppState,
+    state: &SessionState,
     user_roles: &[UserRole],
 ) -> UserResult<Vec<roles::RoleInfo>> {
     futures::future::try_join_all(user_roles.iter().map(|user_role| async {

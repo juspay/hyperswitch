@@ -526,7 +526,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &crate::routes::AppState,
+        app_state: &crate::routes::SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
         let integ: Box<
             &(dyn ConnectorIntegration<
@@ -539,7 +539,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         > = Box::new(&Self);
         let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
             &router_data.to_owned(),
-            types::AuthorizeSessionTokenData::from(&router_data),
+            types::AuthorizeSessionTokenData::foreign_from(&router_data),
         ));
         let resp = services::execute_connector_processing_step(
             app_state,

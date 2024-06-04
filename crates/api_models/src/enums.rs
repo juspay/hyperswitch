@@ -95,7 +95,7 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
-    // Gpayments, Added as template code for future usage
+    Gpayments,
     Helcim,
     Iatapay,
     Klarna,
@@ -111,7 +111,7 @@ pub enum Connector {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
-    // Payone, added as template code for future usage
+    Payone,
     Paypal,
     Payu,
     Placetopay,
@@ -210,7 +210,7 @@ impl Connector {
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
-            // | Self::Gpayments  Added as template code for future usage
+            | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
             | Self::Klarna
@@ -221,7 +221,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
-            // | Self::Payone  Added as a template code for future usage
+            | Self::Payone
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -244,11 +244,13 @@ impl Connector {
             | Self::Riskified
             | Self::Threedsecureio
             | Self::Netcetera
-            | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi => true,
+            Self::Checkout | Self::Nmi| Self::Cybersource => true,
         }
+    }
+    pub fn is_pre_processing_required_before_authorize(&self) -> bool {
+        matches!(self, Self::Airwallex)
     }
 }
 
@@ -301,10 +303,11 @@ impl AuthenticationConnectors {
 pub enum PayoutConnectors {
     Adyen,
     Stripe,
-    Wise,
+    Payone,
     Paypal,
     Ebanx,
     Cybersource,
+    Wise,
 }
 
 #[cfg(feature = "payouts")]
@@ -313,10 +316,11 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Wise => Self::Wise,
         }
     }
 }
@@ -327,10 +331,11 @@ impl From<PayoutConnectors> for Connector {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Stripe => Self::Stripe,
-            PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Wise => Self::Wise,
         }
     }
 }
@@ -346,6 +351,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Payone => Ok(Self::Payone),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }
