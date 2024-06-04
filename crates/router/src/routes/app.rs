@@ -268,6 +268,7 @@ impl AppState {
                 &settings::GlobalTenant {
                     schema: global_tenant.to_string(),
                     redis_key_prefix: String::default(),
+                    clickhouse_database: String::default(),
                 },
                 Arc::clone(&cache_store),
                 testable,
@@ -288,7 +289,7 @@ impl AppState {
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
                 let pool =
-                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
+                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant)
                         .await;
                 #[cfg(feature = "olap")]
                 pools.insert(tenant_name.clone(), pool);

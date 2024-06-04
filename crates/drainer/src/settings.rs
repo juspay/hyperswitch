@@ -143,6 +143,7 @@ pub struct Tenant {
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
