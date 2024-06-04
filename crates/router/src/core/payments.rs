@@ -3185,6 +3185,7 @@ where
                 .await?;
 
                 if let Some(connector_data_list) = retryable_connector_data {
+                    logger::info!("Constructed apple pay retryable connector list");
                     return Ok(ConnectorCallType::Retryable(connector_data_list));
                 }
             }

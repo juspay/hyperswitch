@@ -4044,8 +4044,11 @@ where
             &api_enums::TransactionType::Payment,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get merchant default fallback connectors config")?;
 
+        // connector_data_list is the list of connectors for which Apple Pay simplified flow is configured.
+        // This list is arranged in the same order as the merchant's default fallback connectors configuration.
         let mut ordered_connector_data_list = vec![decided_connector_data.clone()];
         fallback_connetors_list
             .iter()
