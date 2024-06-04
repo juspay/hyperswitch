@@ -7054,9 +7054,10 @@
         "type": "object",
         "required": [
           "card_number",
-          "expiry_month",
-          "expiry_year",
-          "card_holder_name"
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
         ],
         "properties": {
           "card_number": {
@@ -7064,18 +7065,60 @@
             "description": "The card number",
             "example": "4242424242424242"
           },
-          "expiry_month": {
+          "card_exp_month": {
             "type": "string",
-            "description": "The card's expiry month"
+            "description": "The card's expiry month",
+            "example": "24"
           },
-          "expiry_year": {
+          "card_exp_year": {
             "type": "string",
-            "description": "The card's expiry year"
+            "description": "The card's expiry year",
+            "example": "24"
           },
           "card_holder_name": {
             "type": "string",
             "description": "The card holder's name",
-            "example": "John Doe"
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
           }
         }
       },
@@ -7255,6 +7298,35 @@
           "RuPay",
           "Maestro"
         ]
+      },
+      "CardPayout": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          }
+        }
       },
       "CardRedirectData": {
         "oneOf": [
@@ -16752,7 +16824,7 @@
             ],
             "properties": {
               "card": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardPayout"
               }
             }
           },
