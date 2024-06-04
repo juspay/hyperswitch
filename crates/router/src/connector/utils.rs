@@ -1519,9 +1519,14 @@ pub trait AddressDetailsData {
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
+    fn get_optional_line2(&self) -> Option<Secret<String>>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
+    fn get_optional_line2(&self) -> Option<Secret<String>> {
+        self.line2.clone()
+    }
+
     fn get_first_name(&self) -> Result<&Secret<String>, Error> {
         self.first_name
             .as_ref()

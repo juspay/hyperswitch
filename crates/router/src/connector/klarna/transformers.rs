@@ -5,7 +5,9 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
+    },
     core::errors,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
@@ -96,15 +98,15 @@ pub struct KlarnaSessionRequest {
 
 #[derive(Debug, Serialize)]
 pub struct KlarnaShippingAddress {
-    city: Option<String>,
-    country: Option<enums::CountryAlpha2>,
-    email: Option<pii::Email>,
-    given_name: Option<Secret<String>>,
-    family_name: Option<Secret<String>>,
-    phone: Option<Secret<String>>,
-    postal_code: Option<Secret<String>>,
-    region: Option<Secret<String>>,
-    street_address: Option<Secret<String>>,
+    city: String,
+    country: enums::CountryAlpha2,
+    email: pii::Email,
+    given_name: Secret<String>,
+    family_name: Secret<String>,
+    phone: Secret<String>,
+    postal_code: Secret<String>,
+    region: Secret<String>,
+    street_address: Secret<String>,
     street_address2: Option<Secret<String>>,
 }
 
@@ -139,18 +141,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
                     .collect(),
-                shipping_address: Some(KlarnaShippingAddress {
-                    city: item.router_data.get_optional_shipping_city(),
-                    country: item.router_data.get_optional_shipping_country(),
-                    email: item.router_data.get_optional_shipping_email(),
-                    given_name: item.router_data.get_optional_shipping_first_name(),
-                    family_name: item.router_data.get_optional_shipping_last_name(),
-                    phone: item.router_data.get_optional_shipping_phone_number(),
-                    postal_code: item.router_data.get_optional_shipping_zip(),
-                    region: item.router_data.get_optional_shipping_state(),
-                    street_address: item.router_data.get_optional_shipping_line1(),
-                    street_address2: item.router_data.get_optional_shipping_line2(),
-                }),
+                shipping_address: get_address_info(item.router_data.get_optional_shipping())
+                    .transpose()?,
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details",
@@ -204,24 +196,47 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
                 auto_capture: request.is_auto_capture()?,
-                shipping_address: Some(KlarnaShippingAddress {
-                    city: item.router_data.get_optional_shipping_city(),
-                    country: item.router_data.get_optional_shipping_country(),
-                    email: item.router_data.get_optional_shipping_email(),
-                    given_name: item.router_data.get_optional_shipping_first_name(),
-                    family_name: item.router_data.get_optional_shipping_last_name(),
-                    phone: item.router_data.get_optional_shipping_phone_number(),
-                    postal_code: item.router_data.get_optional_shipping_zip(),
-                    region: item.router_data.get_optional_shipping_state(),
-                    street_address: item.router_data.get_optional_shipping_line1(),
-                    street_address2: item.router_data.get_optional_shipping_line2(),
-                }),
+                shipping_address: get_address_info(item.router_data.get_optional_shipping())
+                    .transpose()?,
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details"
             })),
         }
     }
+}
+
+fn get_address_info(
+    address: Option<&payments::Address>,
+) -> Option<Result<KlarnaShippingAddress, error_stack::Report<errors::ConnectorError>>> {
+    address.and_then(|add| {
+        add.address.as_ref().map(
+            |a| -> Result<KlarnaShippingAddress, error_stack::Report<errors::ConnectorError>> {
+                Ok(KlarnaShippingAddress {
+                    city: a.get_city()?.to_owned(),
+                    country: a.get_country()?.to_owned(),
+                    email: add.email.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "email",
+                        },
+                    )?,
+                    postal_code: a.get_zip()?.to_owned(),
+                    region: a.get_state()?.to_owned(),
+                    street_address: a.get_line1()?.to_owned(),
+                    street_address2: a.get_optional_line2(),
+                    given_name: a.get_first_name()?.to_owned(),
+                    family_name: a.get_last_name()?.to_owned(),
+                    phone: add
+                        .phone
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "phone",
+                        })?
+                        .get_number_with_country_code()?,
+                })
+            },
+        )
+    })
 }
 
 impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
