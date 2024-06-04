@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, GetAddressDetails, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, transformers::ForeignFrom},
