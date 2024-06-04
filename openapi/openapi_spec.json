@@ -7391,6 +7391,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -16210,11 +16211,12 @@
         "type": "string",
         "enum": [
           "adyen",
-          "stripe",
+          "adyenplatform",
+          "cybersource",
+          "ebanx",
           "payone",
           "paypal",
-          "ebanx",
-          "cybersource",
+          "stripe",
           "wise"
         ]
       },
@@ -16386,6 +16388,14 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.PayoutSendPriority"
+              }
+            ],
             "nullable": true
           }
         },
@@ -16851,6 +16861,17 @@
             "nullable": true
           }
         }
+      },
+      "PayoutSendPriority": {
+        "type": "string",
+        "enum": [
+          "instant",
+          "fast",
+          "regular",
+          "wire",
+          "crossBorder",
+          "internal"
+        ]
       },
       "PayoutStatus": {
         "type": "string",
@@ -17808,6 +17829,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",

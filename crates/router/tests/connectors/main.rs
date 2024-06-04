@@ -8,6 +8,7 @@ use test_utils::connector_auth;
 
 mod aci;
 mod adyen;
+mod adyenplatform;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;

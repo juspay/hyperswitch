@@ -461,6 +461,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::PayoutMethodData,
         api_models::payouts::Bank,
         api_models::enums::PayoutEntityType,
+        api_models::enums::PayoutSendPriority,
         api_models::enums::PayoutStatus,
         api_models::enums::PayoutType,
         api_models::enums::TransactionType,

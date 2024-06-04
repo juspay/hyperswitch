@@ -151,7 +151,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
-        customer_id: None,
+        customer_id: customer_details.to_owned().map(|c| c.customer_id),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
         payment_id: "".to_string(),
@@ -175,6 +175,7 @@ pub async fn construct_payout_router_data<'a, F>(
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
             vendor_details,
+            priority: payouts.priority,
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {

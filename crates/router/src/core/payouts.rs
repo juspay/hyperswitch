@@ -1992,6 +1992,7 @@ pub async fn payout_create_db_entries(
         attempt_count: 1,
         metadata: req.metadata.clone(),
         confirm: req.confirm,
+        priority: req.priority,
         ..Default::default()
     };
     let payouts = db

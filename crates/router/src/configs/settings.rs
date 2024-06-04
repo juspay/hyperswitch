@@ -495,6 +495,8 @@ pub struct Connectors {
     pub aci: ConnectorParams,
     #[cfg(feature = "payouts")]
     pub adyen: ConnectorParamsWithSecondaryBaseUrl,
+    #[cfg(feature = "payouts")]
+    pub adyenplatform: ConnectorParams,
     #[cfg(not(feature = "payouts"))]
     pub adyen: ConnectorParams,
     pub airwallex: ConnectorParams,

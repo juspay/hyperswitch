@@ -1023,6 +1023,8 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
+        #[max_length = 32]
+        priority -> Nullable<Varchar>,
     }
 }
 

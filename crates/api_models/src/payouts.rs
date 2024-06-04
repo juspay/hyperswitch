@@ -148,6 +148,9 @@ pub struct PayoutCreateRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+
+    /// The send method for processing payouts
+    pub priority: Option<api_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
