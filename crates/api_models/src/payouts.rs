@@ -150,6 +150,7 @@ pub struct PayoutCreateRequest {
     pub profile_id: Option<String>,
 
     /// The send method for processing payouts
+    #[schema(value_type = PayoutSendPriority, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
 }
 

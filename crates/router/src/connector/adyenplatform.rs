@@ -11,7 +11,6 @@ use self::transformers as adyenplatform;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -20,40 +19,14 @@ use crate::{
     },
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        api::{self, ConnectorCommon},
     },
-    utils::BytesExt,
 };
+#[cfg(feature = "payouts")]
+use crate::{events::connector_api_logs::ConnectorEvent, utils::BytesExt};
 
 #[derive(Debug, Clone)]
 pub struct Adyenplatform;
-
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Adyenplatform
-where
-    Self: services::ConnectorIntegration<Flow, Request, Response>,
-{
-    #[cfg(feature = "payouts")]
-    fn build_headers(
-        &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PayoutQuoteType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let auth = adyenplatform::AdyenplatformAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut api_key = vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
-        )];
-        header.append(&mut api_key);
-        Ok(header)
-    }
-}
 
 impl ConnectorCommon for Adyenplatform {
     fn id(&self) -> &'static str {
@@ -76,6 +49,7 @@ impl ConnectorCommon for Adyenplatform {
         connectors.adyenplatform.base_url.as_ref()
     }
 
+    #[cfg(feature = "payouts")]
     fn build_error_response(
         &self,
         res: types::Response,
@@ -203,9 +177,22 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     fn get_headers(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PayoutFulfillType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let auth = adyenplatform::AdyenplatformAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let mut api_key = vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.into_masked(),
+        )];
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_request_body(

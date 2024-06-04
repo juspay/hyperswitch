@@ -1,1 +1,1 @@
-ALTER TABLE payout DROP COLUMN IF EXISTS priority;
+ALTER TABLE payouts DROP COLUMN IF EXISTS priority;
