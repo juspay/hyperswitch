@@ -12,5 +12,8 @@
   "license": "ISC",
   "dependencies": {
     "jsqr": "^1.4.0"
+  },
+  "devDependencies": {
+    "cypress": "^13.10.0"
   }
 }
