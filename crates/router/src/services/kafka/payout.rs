@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{id_type, pii};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payouts::{payout_attempt::PayoutAttempt, payouts::Payouts};
 use time::OffsetDateTime;
@@ -8,7 +8,7 @@ pub struct KafkaPayout<'a> {
     pub payout_id: &'a String,
     pub payout_attempt_id: &'a String,
     pub merchant_id: &'a String,
-    pub customer_id: &'a String,
+    pub customer_id: &'a id_type::CustomerId,
     pub address_id: &'a String,
     pub profile_id: &'a String,
     pub payout_method_id: Option<&'a String>,

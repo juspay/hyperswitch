@@ -11,7 +11,7 @@ use crate::{
         errors::RouterResult,
         payments::{self, flows::ConstructFlowSpecificData},
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         api::{Connector, FraudCheckConnectorData},
@@ -24,7 +24,7 @@ use crate::{
 pub trait FeatureFrm<F, T> {
     async fn decide_frm_flows<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,

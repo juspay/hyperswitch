@@ -5,6 +5,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::XmlExt,
     pii::{self, Email},
+    types::FloatMajorUnit,
 };
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -57,25 +58,16 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct NmiRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for NmiRouterData<T> {
-    type Error = Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: utils::to_currency_base_unit_asf64(amount, currency)?,
+impl<T> From<(FloatMajorUnit, T)> for NmiRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
+        Self {
+            amount,
             router_data,
-        })
+        }
     }
 }
 
@@ -251,7 +243,7 @@ impl
 
 #[derive(Debug, Serialize)]
 pub struct NmiCompleteRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     security_key: Secret<String>,
@@ -422,7 +414,7 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
 pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
-    amount: f64,
+    amount: FloatMajorUnit,
     security_key: Secret<String>,
     currency: enums::Currency,
     #[serde(flatten)]
@@ -675,7 +667,7 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
         Ok(Self {
             transaction_type: TransactionType::Validate,
             security_key: auth_type.api_key,
-            amount: 0.0,
+            amount: FloatMajorUnit::zero(),
             currency: item.request.currency,
             payment_method,
             merchant_defined_field: None,
@@ -707,7 +699,7 @@ pub struct NmiCaptureRequest {
     pub transaction_type: TransactionType,
     pub security_key: Secret<String>,
     pub transactionid: String,
-    pub amount: Option<f64>,
+    pub amount: Option<FloatMajorUnit>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCaptureRouterData>> for NmiCaptureRequest {
@@ -1062,7 +1054,7 @@ pub struct NmiRefundRequest {
     security_key: Secret<String>,
     transactionid: String,
     orderid: String,
-    amount: f64,
+    amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&NmiRouterData<&types::RefundsRouterData<F>>> for NmiRefundRequest {

@@ -28,7 +28,7 @@ pub enum PayoutRetryType {
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_multiple_connector_actions(
-    state: &app::AppState,
+    state: &app::SessionState,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
@@ -95,7 +95,7 @@ pub async fn do_gsm_multiple_connector_actions(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_single_connector_actions(
-    state: &app::AppState,
+    state: &app::SessionState,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
@@ -158,7 +158,7 @@ pub async fn do_gsm_single_connector_actions(
 
 #[instrument(skip_all)]
 pub async fn get_retries(
-    state: &app::AppState,
+    state: &app::SessionState,
     retries: Option<i32>,
     merchant_id: &str,
     retry_type: PayoutRetryType,
@@ -196,7 +196,7 @@ pub async fn get_retries(
 
 #[instrument(skip_all)]
 pub async fn get_gsm(
-    state: &app::AppState,
+    state: &app::SessionState,
     original_connector_data: &api::ConnectorData,
     payout_data: &PayoutData,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
@@ -236,7 +236,7 @@ pub fn get_gsm_decision(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn do_retry(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -251,7 +251,7 @@ pub async fn do_retry(
 
 #[instrument(skip_all)]
 pub async fn modify_trackers(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,

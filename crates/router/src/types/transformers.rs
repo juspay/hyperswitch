@@ -1229,7 +1229,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
-impl ForeignFrom<&domain::Customer> for payments::CustomerDetails {
+impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
             id: customer.customer_id.clone(),
