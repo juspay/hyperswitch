@@ -66,7 +66,7 @@ pub trait Feature<F, T> {
 
     async fn add_session_token<'a>(
         self,
-        _state: &AppState,
+        _state: &SessionState,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Self>
     where
