@@ -351,8 +351,9 @@ email_role_arn = ""        # The amazon resource name ( arn ) of the role which 
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
 [user]
-password_validity_in_days = 90       # Number of days after which password should be updated
-two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should be done again if doing update/change from inside
+password_validity_in_days = 90             # Number of days after which password should be updated
+two_factor_auth_expiry_in_secs = 300       # Number of seconds after which 2FA should be done again if doing update/change from inside
+totp_issuer_name = "Hyperswitch"           # Name of the issuer for TOTP
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

@@ -96,6 +96,8 @@ pub async fn get_user_details(
             verification_days_left,
             role_id: user_from_token.role_id,
             org_id: user_from_token.org_id,
+            is_two_factor_auth_setup: user.get_totp_status() == TotpStatus::Set,
+            recovery_codes_left: user.get_recovery_codes().map(|codes| codes.len()),
         },
     ))
 }
@@ -330,6 +332,10 @@ pub async fn signout(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<()> {
+    tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
+    tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
+    tfa_utils::delete_totp_secret_from_redis(&state, &user_from_token.user_id).await?;
+
     auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
     auth::cookies::remove_cookie_response()
 }
@@ -1233,11 +1239,11 @@ pub async fn create_merchant_account(
 
 pub async fn list_merchants_for_user(
     state: SessionState,
-    user_from_token: Box<dyn auth::GetUserIdFromAuth>,
+    user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_token.get_user_id().as_str())
+        .list_user_roles_by_user_id(user_from_token.user_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1658,7 +1664,11 @@ pub async fn begin_totp(
         }));
     }
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        None,
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
     let secret = totp.get_secret_base32().into();
     tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
@@ -1691,7 +1701,12 @@ pub async fn reset_totp(
         return Err(UserErrors::TwoFactorAuthRequired.into());
     }
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), None)?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        None,
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
+
     let secret = totp.get_secret_base32().into();
     tfa_utils::insert_totp_secret_in_redis(&state, &user_token.user_id, &secret).await?;
 
@@ -1705,7 +1720,7 @@ pub async fn reset_totp(
 
 pub async fn verify_totp(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
@@ -1724,7 +1739,11 @@ pub async fn verify_totp(
         .await?
         .ok_or(UserErrors::InternalServerError)?;
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), Some(user_totp_secret))?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        Some(user_totp_secret),
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
 
     if totp
         .generate_current()
@@ -1741,7 +1760,7 @@ pub async fn verify_totp(
 
 pub async fn update_totp(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
     req: user_api::VerifyTotpRequest,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
@@ -1755,7 +1774,11 @@ pub async fn update_totp(
         .await?
         .ok_or(UserErrors::TotpSecretNotFound)?;
 
-    let totp = tfa_utils::generate_default_totp(user_from_db.get_email(), Some(new_totp_secret))?;
+    let totp = tfa_utils::generate_default_totp(
+        user_from_db.get_email(),
+        Some(new_totp_secret),
+        state.conf.user.totp_issuer_name.clone(),
+    )?;
 
     if totp
         .generate_current()
@@ -1806,7 +1829,7 @@ pub async fn update_totp(
 
 pub async fn generate_recovery_codes(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
 ) -> UserResponse<user_api::RecoveryCodes> {
     if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await? {
         return Err(UserErrors::TotpRequired.into());
@@ -1838,7 +1861,7 @@ pub async fn generate_recovery_codes(
 
 pub async fn verify_recovery_code(
     state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserIdFromAuth,
     req: user_api::VerifyRecoveryCodeRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state

@@ -510,7 +510,8 @@ pub fn make_new_payment_attempt(
         mandate_id: old_payment_attempt.mandate_id,
         browser_info: old_payment_attempt.browser_info,
         payment_token: old_payment_attempt.payment_token,
-
+        client_source: old_payment_attempt.client_source,
+        client_version: old_payment_attempt.client_version,
         created_at,
         modified_at,
         last_synced,
