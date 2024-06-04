@@ -1202,7 +1202,7 @@ pub trait CardData {
 }
 
 #[cfg(feature = "payouts")]
-impl CardData for payouts::Card {
+impl CardData for payouts::CardPayout {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.expiry_year.clone();
         let year = binding.peek();

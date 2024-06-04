@@ -12,6 +12,7 @@ use crate::{
 pub fn generate_default_totp(
     email: pii::Email,
     secret: Option<masking::Secret<String>>,
+    issuer: String,
 ) -> UserResult<TOTP> {
     let secret = secret
         .map(|sec| totp_rs::Secret::Encoded(sec.expose()))
@@ -25,7 +26,7 @@ pub fn generate_default_totp(
         consts::user::TOTP_TOLERANCE,
         consts::user::TOTP_VALIDITY_DURATION_IN_SECONDS,
         secret,
-        Some(consts::user::TOTP_ISSUER_NAME.to_string()),
+        Some(issuer),
         email.expose().expose(),
     )
     .change_context(UserErrors::InternalServerError)
@@ -114,4 +115,27 @@ pub async fn insert_recovery_code_in_redis(state: &SessionState, user_id: &str) 
         )
         .await
         .change_context(UserErrors::InternalServerError)
+}
+
+pub async fn delete_totp_from_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection(state)?;
+    let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
+    redis_conn
+        .delete_key(&key)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|_| ())
+}
+
+pub async fn delete_recovery_code_from_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection(state)?;
+    let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
+    redis_conn
+        .delete_key(&key)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|_| ())
 }
