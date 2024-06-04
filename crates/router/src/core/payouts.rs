@@ -1440,7 +1440,7 @@ pub async fn create_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: None,
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1563,7 +1563,7 @@ pub async fn create_recipient_disburse_account(
         }
         Err(err) => {
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: None,
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status: storage_enums::PayoutStatus::Failed,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1659,7 +1659,7 @@ pub async fn cancel_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: None,
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1799,7 +1799,7 @@ pub async fn fulfill_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: None,
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),

@@ -311,7 +311,7 @@ pub async fn payouts_incoming_webhook_flow(
                 business_profile,
                 &key_store,
                 outgoing_event_type,
-                enums::EventClass::Refunds,
+                enums::EventClass::Payouts,
                 updated_payout_attempt.payout_id.clone(),
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(payout_create_response),
