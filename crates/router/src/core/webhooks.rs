@@ -30,7 +30,7 @@ use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
 #[cfg(not(feature = "payouts"))]
-use crate::routes::AppState;
+use crate::routes::SessionState;
 use crate::{
     consts,
     core::{
@@ -48,7 +48,6 @@ use crate::{
         app::{ReqState, SessionStateInfo},
         lock_utils,
         metrics::request::add_attributes,
-        SessionState,
     },
     services::{self, authentication as auth},
     types::{
@@ -61,7 +60,7 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 #[cfg(feature = "payouts")]
-use crate::{routes::AppState, types::storage::PayoutAttemptUpdate};
+use crate::{routes::SessionState, types::storage::PayoutAttemptUpdate};
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
@@ -211,7 +210,7 @@ pub async fn payments_incoming_webhook_flow(
 
 #[cfg(feature = "payouts")]
 pub async fn payouts_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: domain::MerchantKeyStore,
