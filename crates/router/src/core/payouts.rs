@@ -1248,7 +1248,7 @@ pub async fn check_payout_eligibility(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: None,
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1298,7 +1298,7 @@ pub async fn complete_create_payout(
             let db = &*state.store;
             let payout_attempt = &payout_data.payout_attempt;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: None,
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status: storage::enums::PayoutStatus::RequiresFulfillment,
                 error_code: None,
                 error_message: None,
