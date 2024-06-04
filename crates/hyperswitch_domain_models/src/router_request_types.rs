@@ -644,6 +644,9 @@ pub struct PayoutsData {
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+
+    // New minor amount for amount framework
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Default, Clone)]

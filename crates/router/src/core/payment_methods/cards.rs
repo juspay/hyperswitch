@@ -25,6 +25,7 @@ use common_utils::{
     consts,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
+    types::MinorUnit,
 };
 use diesel_models::{business_profile::BusinessProfile, encryption::Encryption, payment_method};
 use domain::CustomerUpdate;
@@ -2865,11 +2866,7 @@ pub async fn filter_payment_methods(
                         &payment_method_type_info,
                         req.installment_payment_enabled,
                     )
-                    && filter_amount_based(
-                        &payment_method_type_info,
-                        req.amount
-                            .map(|minor_amount| minor_amount.get_amount_as_i64()),
-                    )
+                    && filter_amount_based(&payment_method_type_info, req.amount)
                 {
                     let payment_method_object = payment_method_type_info.clone();
 
@@ -3029,22 +3026,17 @@ fn filter_pm_based_on_allowed_types(
     allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
 }
 
-fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Option<i64>) -> bool {
+fn filter_amount_based(
+    payment_method: &RequestPaymentMethodTypes,
+    amount: Option<MinorUnit>,
+) -> bool {
     let min_check = amount
-        .and_then(|amt| {
-            payment_method
-                .minimum_amount
-                .map(|min_amt| amt >= min_amt.into())
-        })
+        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
         .unwrap_or(true);
     let max_check = amount
-        .and_then(|amt| {
-            payment_method
-                .maximum_amount
-                .map(|max_amt| amt <= max_amt.into())
-        })
+        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
         .unwrap_or(true);
-    (min_check && max_check) || amount == Some(0)
+    (min_check && max_check) || amount == Some(MinorUnit::zero())
 }
 
 fn filter_recurring_based(

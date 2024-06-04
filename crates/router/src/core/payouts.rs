@@ -367,8 +367,8 @@ pub async fn payouts_update_core(
     }
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
-    let amount = MinorUnit::from(req.amount.unwrap_or(MinorUnit::new(payouts.amount).into()))
-        .get_amount_as_i64();
+    let amount_from_db = api_models::payments::Amount::from(payouts.amount);
+    let amount = req.amount.unwrap_or(amount_from_db).into();
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
         destination_currency: req.currency.unwrap_or(payouts.destination_currency),
@@ -1872,7 +1872,7 @@ pub async fn response_handler(
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.merchant_id.to_owned(),
-        amount: payouts.amount.to_owned(),
+        amount: payouts.amount,
         currency: payouts.destination_currency.to_owned(),
         connector: payout_attempt.connector.to_owned(),
         payout_type: payouts.payout_type.to_owned(),
@@ -1972,7 +1972,7 @@ pub async fn payout_create_db_entries(
     } else {
         None
     };
-    let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero)).get_amount_as_i64();
+    let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_string(),

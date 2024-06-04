@@ -365,6 +365,11 @@ impl MinorUnit {
         self.0
     }
 
+    /// forms a new minor default unit i.e zero
+    pub fn zero() -> Self {
+        Self(0)
+    }
+
     /// forms a new minor unit from amount
     pub fn new(value: i64) -> Self {
         Self(value)
