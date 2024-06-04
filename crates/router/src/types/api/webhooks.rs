@@ -146,7 +146,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn verify_webhook_source_verification_call(
         &self,
-        state: &crate::routes::AppState,
+        state: &crate::routes::SessionState,
         merchant_account: &domain::MerchantAccount,
         merchant_connector_account: domain::MerchantConnectorAccount,
         connector_name: &str,

@@ -12,14 +12,14 @@ use super::routing::helpers::{
 };
 use crate::{
     core::errors::{self, RouterResponse},
-    routes::AppState,
+    routes::SessionState,
     services::api as service_api,
     types::domain,
     utils::OptionExt,
 };
 
 pub async fn upsert_conditional_config(
-    state: AppState,
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
     request: DecisionManager,
@@ -149,7 +149,7 @@ pub async fn upsert_conditional_config(
 }
 
 pub async fn delete_conditional_config(
-    state: AppState,
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
@@ -177,7 +177,7 @@ pub async fn delete_conditional_config(
 }
 
 pub async fn retrieve_conditional_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<DecisionManagerResponse> {
     let db = state.store.as_ref();

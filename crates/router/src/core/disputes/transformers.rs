@@ -4,7 +4,7 @@ use error_stack::ResultExt;
 
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
-    routes::AppState,
+    routes::SessionState,
     types::{
         api::{self, DisputeEvidence},
         domain,
@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub async fn get_evidence_request_data(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
@@ -203,7 +203,7 @@ pub fn update_dispute_evidence(
 }
 
 pub async fn get_dispute_evidence_block(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     evidence_type: EvidenceType,
     file_id: String,
@@ -271,7 +271,7 @@ pub fn delete_evidence_file(
 }
 
 pub async fn get_dispute_evidence_vec(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     dispute_evidence: DisputeEvidence,
 ) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {

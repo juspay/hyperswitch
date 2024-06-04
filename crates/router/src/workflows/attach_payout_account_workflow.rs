@@ -7,17 +7,17 @@ use scheduler::{
 use crate::{
     core::payouts,
     errors as core_errors,
-    routes::AppState,
+    routes::SessionState,
     types::{api, storage},
 };
 
 pub struct AttachPayoutAccountWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for AttachPayoutAccountWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         // Gather context
@@ -63,7 +63,7 @@ impl ProcessTrackerWorkflow<AppState> for AttachPayoutAccountWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
         error: errors::ProcessTrackerError,
     ) -> core_errors::CustomResult<(), errors::ProcessTrackerError> {

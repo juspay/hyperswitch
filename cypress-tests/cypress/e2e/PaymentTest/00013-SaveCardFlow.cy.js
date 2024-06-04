@@ -15,7 +15,6 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.task('getGlobalState').then((state) => {
       globalState = new State(state);
-      console.log("seeding globalState -> " + JSON.stringify(globalState));
     })
   })
 

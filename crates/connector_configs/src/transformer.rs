@@ -46,7 +46,9 @@ impl DashboardRequestPayload {
                 (Connector::Zen, GooglePay) | (Connector::Zen, ApplePay) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
-                (Connector::Braintree, Paypal) | (Connector::Klarna, Klarna) => {
+                (Connector::Paypal, Paypal)
+                | (Connector::Braintree, Paypal)
+                | (Connector::Klarna, Klarna) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (Connector::Globepay, AliPay)
@@ -60,6 +62,36 @@ impl DashboardRequestPayload {
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),
             },
         }
+    }
+
+    pub fn transform_paypal_payment_method(
+        providers: Vec<Provider>,
+    ) -> Vec<payment_methods::RequestPaymentMethodTypes> {
+        let payment_experiences = [
+            api_models::enums::PaymentExperience::RedirectToUrl,
+            api_models::enums::PaymentExperience::InvokeSdkClient,
+        ];
+
+        let mut payment_method_types = Vec::new();
+
+        for experience in payment_experiences {
+            for provider in &providers {
+                let data = payment_methods::RequestPaymentMethodTypes {
+                    payment_method_type: provider.payment_method_type,
+                    card_networks: None,
+                    minimum_amount: Some(0),
+                    maximum_amount: Some(68607706),
+                    recurring_enabled: true,
+                    installment_payment_enabled: false,
+                    accepted_currencies: provider.accepted_currencies.clone(),
+                    accepted_countries: provider.accepted_countries.clone(),
+                    payment_experience: Some(experience),
+                };
+                payment_method_types.push(data);
+            }
+        }
+
+        payment_method_types
     }
     pub fn transform_payment_method(
         connector: Connector,
@@ -123,8 +155,37 @@ impl DashboardRequestPayload {
                         }
                     }
 
-                    PaymentMethod::Wallet
-                    | PaymentMethod::BankRedirect
+                    PaymentMethod::Wallet => match request.connector {
+                        Connector::Paypal => {
+                            if let Some(provider) = payload.provider {
+                                let val = Self::transform_paypal_payment_method(provider);
+                                if !val.is_empty() {
+                                    let methods = PaymentMethodsEnabled {
+                                        payment_method: payload.payment_method,
+                                        payment_method_types: Some(val),
+                                    };
+                                    payment_method_enabled.push(methods);
+                                }
+                            }
+                        }
+                        _ => {
+                            if let Some(provider) = payload.provider {
+                                let val = Self::transform_payment_method(
+                                    request.connector,
+                                    provider,
+                                    payload.payment_method,
+                                );
+                                if !val.is_empty() {
+                                    let methods = PaymentMethodsEnabled {
+                                        payment_method: payload.payment_method,
+                                        payment_method_types: Some(val),
+                                    };
+                                    payment_method_enabled.push(methods);
+                                }
+                            }
+                        }
+                    },
+                    PaymentMethod::BankRedirect
                     | PaymentMethod::PayLater
                     | PaymentMethod::BankTransfer
                     | PaymentMethod::Crypto
@@ -194,6 +255,8 @@ impl DashboardRequestPayload {
             three_ds_requestor_name: None,
             three_ds_requestor_id: None,
             pull_mechanism_for_external_3ds_enabled: None,
+            paypal_sdk: None,
+            klarna_region: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -205,6 +268,7 @@ impl DashboardRequestPayload {
         let merchant_id = meta_data.merchant_id.clone();
         let terminal_id = meta_data.terminal_id.clone();
         let endpoint_prefix = meta_data.endpoint_prefix.clone();
+        let paypal_sdk = meta_data.paypal_sdk;
         let apple_pay = meta_data.apple_pay;
         let apple_pay_combined = meta_data.apple_pay_combined;
         let merchant_config_currency = meta_data.merchant_config_currency;
@@ -217,6 +281,7 @@ impl DashboardRequestPayload {
         let three_ds_requestor_id = meta_data.three_ds_requestor_id;
         let pull_mechanism_for_external_3ds_enabled =
             meta_data.pull_mechanism_for_external_3ds_enabled;
+        let klarna_region = meta_data.klarna_region;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -228,6 +293,7 @@ impl DashboardRequestPayload {
             merchant_config_currency,
             apple_pay_combined,
             endpoint_prefix,
+            paypal_sdk,
             mcc,
             merchant_country_code,
             merchant_name,
@@ -236,6 +302,7 @@ impl DashboardRequestPayload {
             three_ds_requestor_name,
             three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled,
+            klarna_region,
         })
     }
 

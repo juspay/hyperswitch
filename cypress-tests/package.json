@@ -11,5 +11,8 @@
     "cypress:payouts": "cypress run --spec 'cypress/e2e/PayoutTest/**/*'"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "jsqr": "^1.4.0"
+  }
 }

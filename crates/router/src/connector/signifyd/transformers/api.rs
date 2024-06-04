@@ -1,6 +1,7 @@
 use bigdecimal::ToPrimitive;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
+pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -14,7 +15,7 @@ use crate::{
     core::{errors, fraud_check::types as core_types},
     types::{
         self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
-        ResponseId, ResponseRouterData,
+        transformers::ForeignFrom, ResponseId, ResponseRouterData,
     },
 };
 
@@ -509,7 +510,7 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydReq
                 .fulfillment_status
                 .as_ref()
                 .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status.clone())),
-            fulfillments: Vec::<Fulfillments>::from(&item.request.fulfillment_req),
+            fulfillments: Vec::<Fulfillments>::foreign_from(&item.request.fulfillment_req),
         })
     }
 }
@@ -525,8 +526,8 @@ impl From<&core_types::FulfillmentStatus> for FulfillmentStatus {
     }
 }
 
-impl From<&core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
-    fn from(fulfillment_req: &core_types::FrmFulfillmentRequest) -> Self {
+impl ForeignFrom<&core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
+    fn foreign_from(fulfillment_req: &core_types::FrmFulfillmentRequest) -> Self {
         fulfillment_req
             .fulfillments
             .iter()
@@ -641,15 +642,6 @@ pub struct SignifydPaymentsRecordReturnRequest {
     return_id: String,
     refund_transaction_id: Option<String>,
     refund: SignifydRefund,
-}
-
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
-#[serde_with::skip_serializing_none]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum RefundMethod {
-    StoreCredit,
-    OriginalPaymentInstrument,
-    NewPaymentInstrument,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

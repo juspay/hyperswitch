@@ -1,5 +1,5 @@
 use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{enums as storage_enums, PaymentMethod};
 use error_stack::{FutureExt, ResultExt};
 use futures::TryFutureExt;
@@ -7,13 +7,13 @@ use futures::TryFutureExt;
 use super::{errors::StorageErrorExt, payment_methods::cards};
 use crate::{
     errors,
-    routes::AppState,
+    routes::SessionState,
     services::{self, logger},
     types::{api, domain},
 };
 
 pub async fn rust_locker_migration(
-    state: AppState,
+    state: SessionState,
     merchant_id: &str,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
@@ -75,9 +75,9 @@ pub async fn rust_locker_migration(
 }
 
 pub async fn call_to_locker(
-    state: &AppState,
+    state: &SessionState,
     payment_methods: Vec<PaymentMethod>,
-    customer_id: &String,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
@@ -136,15 +136,16 @@ pub async fn call_to_locker(
                 state,
                 pm_create,
                 &card_details,
-                customer_id.to_string(),
+                customer_id,
                 merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
+
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
-                "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+                "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             ));
 
@@ -159,7 +160,7 @@ pub async fn call_to_locker(
         cards_moved += 1;
 
         logger::info!(
-                "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+                "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             );
     }
