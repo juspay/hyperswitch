@@ -527,7 +527,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &crate::routes::AppState,
+        app_state: &crate::routes::SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
         let (enrolled_for_3ds, related_transaction_id) =
             match (router_data.auth_type, router_data.payment_method) {
