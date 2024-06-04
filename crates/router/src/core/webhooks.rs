@@ -50,7 +50,7 @@ use crate::{
         metrics::request::add_attributes,
         AppState,
     },
-    services::{self, authentication as auth, ApplicationResponse},
+    services::{self, authentication as auth},
     types::{
         api::{self, mandates::MandateResponseExt},
         domain::{self, types as domain_types},
@@ -299,7 +299,7 @@ pub async fn payouts_incoming_webhook_flow(
 
             let payout_create_response: payout_models::PayoutCreateResponse = match router_response
             {
-                ApplicationResponse::Json(response) => response,
+                services::ApplicationResponse::Json(response) => response,
                 _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
                     .attach_printable("Failed to fetch the payout create response")?,
             };
@@ -1760,7 +1760,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
 ) -> errors::RouterResult<(
-    ApplicationResponse<serde_json::Value>,
+    services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
     serde_json::Value,
 )> {
