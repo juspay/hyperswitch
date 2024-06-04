@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::pii;
+pub use common_utils::types::{ChargeRefunds, MinorUnit};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -35,8 +36,8 @@ pub struct RefundRequest {
     pub merchant_id: Option<String>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
-    #[schema(minimum = 100, example = 6540)]
-    pub amount: Option<i64>,
+    #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
+    pub amount: Option<MinorUnit>,
 
     /// Reason for the refund. Often useful for displaying to users and your customer support executive. In case the payment went through Stripe, this field needs to be passed with one of these enums: `duplicate`, `fraudulent`, or `requested_by_customer`
     #[schema(max_length = 255, example = "Customer returned the product")]
@@ -53,6 +54,10 @@ pub struct RefundRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Charge specific fields for controlling the revert of funds from either platform or connected account
+    #[schema(value_type = Option<ChargeRefunds>)]
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -110,7 +115,8 @@ pub struct RefundResponse {
     /// The payment id against which refund is initiated
     pub payment_id: String,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
-    pub amount: i64,
+    #[schema(value_type = i64 , minimum = 100, example = 6540)]
+    pub amount: MinorUnit,
     /// The three-letter ISO currency code
     pub currency: String,
     /// The status for refund
@@ -137,6 +143,9 @@ pub struct RefundResponse {
     pub profile_id: Option<String>,
     /// The merchant_connector_id of the processor through which this payment went through
     pub merchant_connector_id: Option<String>,
+    /// Charge specific fields for controlling the revert of funds from either platform or connected account
+    #[schema(value_type = Option<ChargeRefunds>)]
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
@@ -168,7 +177,7 @@ pub struct RefundListRequest {
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
     pub count: usize,

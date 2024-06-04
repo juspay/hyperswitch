@@ -12,5 +12,8 @@
     "cypress:routing": "cypress run --spec 'cypress/e2e/RoutingTest/**/*'"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "jsqr": "^1.4.0"
+  }
 }

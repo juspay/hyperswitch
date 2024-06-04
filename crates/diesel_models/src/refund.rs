@@ -1,4 +1,7 @@
-use common_utils::pii;
+use common_utils::{
+    pii,
+    types::{ChargeRefunds, MinorUnit},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -20,9 +23,9 @@ pub struct Refund {
     pub connector_refund_id: Option<String>,
     pub external_reference_id: Option<String>,
     pub refund_type: storage_enums::RefundType,
-    pub total_amount: i64,
+    pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
-    pub refund_amount: i64,
+    pub refund_amount: MinorUnit,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
@@ -39,6 +42,7 @@ pub struct Refund {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(
@@ -64,9 +68,9 @@ pub struct RefundNew {
     pub connector: String,
     pub connector_refund_id: Option<String>,
     pub refund_type: storage_enums::RefundType,
-    pub total_amount: i64,
+    pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
-    pub refund_amount: i64,
+    pub refund_amount: MinorUnit,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -81,6 +85,7 @@ pub struct RefundNew {
     pub profile_id: Option<String>,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub charges: Option<ChargeRefunds>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -275,7 +280,8 @@ mod tests {
     "refund_error_code": null,
     "profile_id": null,
     "updated_by": "admin",
-    "merchant_connector_id": null
+    "merchant_connector_id": null,
+    "charges": null
 }"#;
         let deserialized = serde_json::from_str::<super::Refund>(serialized_refund);
 
