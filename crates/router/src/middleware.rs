@@ -144,7 +144,11 @@ where
 
         Box::pin(
             async move {
-                if let Some(tenant_id) = req.headers().get("x-tenant-id").and_then(|i| i.to_str().ok()) {
+                if let Some(tenant_id) = req
+                    .headers()
+                    .get("x-tenant-id")
+                    .and_then(|i| i.to_str().ok())
+                {
                     router_env::tracing::Span::current().record("tenant_id", &tenant_id);
                 }
                 let response = response_fut.await;
