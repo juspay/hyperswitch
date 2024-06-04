@@ -1,7 +1,7 @@
 import confirmBody from "../../fixtures/confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import State from "../../utils/State";
-import getConnectorDetails, * as utils from "../ConnectorUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
@@ -37,7 +37,7 @@ describe("Bank Transfers", () => {
         res_data,
         "three_ds",
         "automatic",
-        globalState
+        globalState,
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -58,7 +58,7 @@ describe("Bank Transfers", () => {
         req_data,
         res_data,
         true,
-        globalState
+        globalState,
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -70,7 +70,7 @@ describe("Bank Transfers", () => {
       cy.handleBankTransferRedirection(
         globalState,
         payment_method_type,
-        expected_redirection
+        expected_redirection,
       );
     });
   });
