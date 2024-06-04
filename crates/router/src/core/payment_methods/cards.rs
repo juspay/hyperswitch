@@ -2572,10 +2572,14 @@ pub async fn list_payment_methods(
         });
     }
     let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
+    let request_external_three_ds_authentication = payment_intent
+        .as_ref()
+        .and_then(|intent| intent.request_external_three_ds_authentication)
+        .unwrap_or(false);
     let merchant_surcharge_configs =
         if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
             .as_ref()
-            .zip(payment_intent.clone())
+            .zip(payment_intent)
             .zip(business_profile)
             .map(|((pa, pi), bp)| (pa, pi, bp))
         {
@@ -2627,9 +2631,7 @@ pub async fn list_payment_methods(
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
             currency,
-            request_external_three_ds_authentication: payment_intent
-                .and_then(|intent| intent.request_external_three_ds_authentication)
-                .unwrap_or(false),
+            request_external_three_ds_authentication,
         },
     ))
 }
