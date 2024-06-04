@@ -601,24 +601,22 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(config: &AnalyticsConfig, tenant_id: TenantID) -> Self {
+    pub async fn from_conf(config: &AnalyticsConfig, tenant: &str) -> Self {
         match config {
-            AnalyticsConfig::Sqlx { sqlx } => {
-                Self::Sqlx(SqlxClient::from_conf(sqlx, tenant_id).await)
-            }
+            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx, tenant).await),
             AnalyticsConfig::Clickhouse { clickhouse } => Self::Clickhouse(ClickhouseClient {
                 config: Arc::new(clickhouse.clone()),
                 tenant_id,
             }),
             AnalyticsConfig::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh(
-                SqlxClient::from_conf(sqlx, tenant_id.clone()).await,
+                SqlxClient::from_conf(sqlx, tenant).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
                     tenant_id,
                 },
             ),
             AnalyticsConfig::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx(
-                SqlxClient::from_conf(sqlx, tenant_id.clone()).await,
+                SqlxClient::from_conf(sqlx, tenant).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
                     tenant_id,

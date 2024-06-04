@@ -32,7 +32,7 @@ use rand::{
     SeedableRng,
 };
 use rustc_hash::FxHashMap;
-use storage_impl::redis::cache::{CGRAPH_CACHE, ROUTING_CACHE};
+use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -50,7 +50,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
-    AppState,
+    SessionState,
 };
 
 pub enum CachedAlgorithm {
@@ -61,7 +61,7 @@ pub enum CachedAlgorithm {
 }
 
 pub struct SessionFlowRoutingInput<'a> {
-    pub state: &'a AppState,
+    pub state: &'a SessionState,
     pub country: Option<CountryAlpha2>,
     pub key_store: &'a domain::MerchantKeyStore,
     pub merchant_account: &'a domain::MerchantAccount,
@@ -71,7 +71,7 @@ pub struct SessionFlowRoutingInput<'a> {
 }
 
 pub struct SessionRoutingPmTypeInput<'a> {
-    state: &'a AppState,
+    state: &'a SessionState,
     key_store: &'a domain::MerchantKeyStore,
     attempt_id: &'a str,
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
@@ -262,7 +262,7 @@ where
 }
 
 pub async fn perform_static_routing_v1<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
     transaction_data: &routing::TransactionData<'_, F>,
@@ -330,7 +330,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
 }
 
 async fn ensure_algorithm_cached_v1(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -366,7 +366,10 @@ async fn ensure_algorithm_cached_v1(
     };
 
     let cached_algorithm = ROUTING_CACHE
-        .get_val::<Arc<CachedAlgorithm>>(key.as_str())
+        .get_val::<Arc<CachedAlgorithm>>(CacheKey {
+            key: key.clone(),
+            prefix: state.tenant.clone(),
+        })
         .await;
 
     let algorithm = if let Some(algo) = cached_algorithm {
@@ -428,7 +431,7 @@ fn execute_dsl_and_get_connector_v1(
 }
 
 pub async fn refresh_routing_cache_v1(
-    state: &AppState,
+    state: &SessionState,
     key: String,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -483,7 +486,15 @@ pub async fn refresh_routing_cache_v1(
 
     let arc_cached_algorithm = Arc::new(cached_algorithm);
 
-    ROUTING_CACHE.push(key, arc_cached_algorithm.clone()).await;
+    ROUTING_CACHE
+        .push(
+            CacheKey {
+                key,
+                prefix: state.tenant.clone(),
+            },
+            arc_cached_algorithm.clone(),
+        )
+        .await;
 
     Ok(arc_cached_algorithm)
 }
@@ -523,7 +534,7 @@ pub fn perform_volume_split(
 }
 
 pub async fn get_merchant_cgraph<'a>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
@@ -554,7 +565,10 @@ pub async fn get_merchant_cgraph<'a>(
 
     let cached_cgraph = CGRAPH_CACHE
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(
-            key.as_str(),
+            CacheKey {
+                key: key.clone(),
+                prefix: state.tenant.clone(),
+            },
         )
         .await;
 
@@ -576,7 +590,7 @@ pub async fn get_merchant_cgraph<'a>(
 }
 
 pub async fn refresh_cgraph_cache<'a>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     key: String,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -650,14 +664,22 @@ pub async fn refresh_cgraph_cache<'a>(
             .attach_printable("when construction cgraph")?,
     );
 
-    CGRAPH_CACHE.push(key, Arc::clone(&cgraph)).await;
+    CGRAPH_CACHE
+        .push(
+            CacheKey {
+                key,
+                prefix: state.tenant.clone(),
+            },
+            Arc::clone(&cgraph),
+        )
+        .await;
 
     Ok(cgraph)
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn perform_cgraph_filtering(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
@@ -708,7 +730,7 @@ async fn perform_cgraph_filtering(
 }
 
 pub async fn perform_eligibility_analysis<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_, F>,
@@ -735,7 +757,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
 }
 
 pub async fn perform_fallback_routing<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     transaction_data: &routing::TransactionData<'_, F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
@@ -781,7 +803,7 @@ pub async fn perform_fallback_routing<F: Clone>(
 }
 
 pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_, F>,

@@ -11,7 +11,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::SessionState,
     types::{api::payouts, domain, storage},
     utils,
 };
@@ -45,7 +45,7 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
 pub async fn validate_create_request(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
     merchant_key_store: &domain::MerchantKeyStore,
