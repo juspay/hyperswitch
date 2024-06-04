@@ -7,10 +7,10 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, pii,
+    fp_utils, generate_id, id_type, pii,
     types::MinorUnit,
 };
-use diesel_models::enums;
+use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -34,7 +34,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerEnableConfig},
+    configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -46,7 +46,7 @@ use crate::{
         pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
-    routes::{metrics, payment_methods as payment_methods_handler, AppState},
+    routes::{metrics, payment_methods as payment_methods_handler, SessionState},
     services,
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
@@ -124,7 +124,7 @@ pub async fn create_or_update_address_for_payment_by_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: Option<&String>,
+    customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -286,7 +286,7 @@ pub async fn create_or_find_address_for_payment_by_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: Option<&String>,
+    customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -427,7 +427,7 @@ pub async fn get_address_by_id(
 }
 
 pub async fn get_token_pm_type_mandate_details(
-    state: &AppState,
+    state: &SessionState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
@@ -579,7 +579,7 @@ pub async fn get_token_pm_type_mandate_details(
 }
 
 pub async fn get_token_for_recurring_mandate(
-    state: &AppState,
+    state: &SessionState,
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1011,7 +1011,7 @@ fn validate_new_mandate_request(
 
 pub fn validate_customer_id_mandatory_cases(
     has_setup_future_usage: bool,
-    customer_id: &Option<String>,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<()> {
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -1023,16 +1023,13 @@ pub fn validate_customer_id_mandatory_cases(
 }
 
 pub fn create_startpay_url(
-    server: &Server,
+    base_url: &str,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> String {
     format!(
         "{}/payments/redirect/{}/{}/{}",
-        server.base_url,
-        payment_intent.payment_id,
-        payment_intent.merchant_id,
-        payment_attempt.attempt_id
+        base_url, payment_intent.payment_id, payment_intent.merchant_id, payment_attempt.attempt_id
     )
 }
 
@@ -1050,7 +1047,7 @@ pub fn create_redirect_url(
 }
 
 pub fn create_authentication_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
 ) -> String {
     format!(
@@ -1060,7 +1057,7 @@ pub fn create_authentication_url(
 }
 
 pub fn create_authorize_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
     connector_name: &String,
 ) -> String {
@@ -1162,8 +1159,8 @@ pub fn verify_mandate_details(
 pub fn verify_mandate_details_for_recurring_payments(
     mandate_merchant_id: &str,
     merchant_id: &str,
-    mandate_customer_id: &str,
-    customer_id: &str,
+    mandate_customer_id: &id_type::CustomerId,
+    customer_id: &id_type::CustomerId,
 ) -> RouterResult<()> {
     if mandate_merchant_id != merchant_id {
         Err(report!(errors::ApiErrorResponse::MandateNotFound))?
@@ -1205,7 +1202,7 @@ pub fn payment_intent_status_fsm(
 }
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -1266,7 +1263,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<masking::Secret<String>>,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method_data {
@@ -1340,7 +1337,7 @@ pub(crate) async fn get_payment_method_create_request(
 
 pub async fn get_customer_from_details<F: Clone>(
     db: &dyn StorageInterface,
-    customer_id: Option<String>,
+    customer_id: Option<id_type::CustomerId>,
     merchant_id: &str,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1348,10 +1345,10 @@ pub async fn get_customer_from_details<F: Clone>(
 ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
-        Some(c_id) => {
+        Some(customer_id) => {
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    &c_id,
+                    &customer_id,
                     merchant_id,
                     merchant_key_store,
                     storage_scheme,
@@ -1456,8 +1453,9 @@ pub fn get_customer_details_from_request(
     let customer_id = request
         .customer
         .as_ref()
-        .map(|customer_details| customer_details.id.clone())
-        .or(request.customer_id.clone());
+        .map(|customer_details| &customer_details.id)
+        .or(request.customer_id.as_ref())
+        .map(ToOwned::to_owned);
 
     let customer_name = request
         .customer
@@ -1493,7 +1491,7 @@ pub fn get_customer_details_from_request(
 }
 
 pub async fn get_connector_default(
-    _state: &AppState,
+    _state: &SessionState,
     request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
@@ -1595,7 +1593,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         let key = key_store.key.get_inner().peek();
                         Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                             domain::Customer {
-                                customer_id: customer_id.to_string(),
+                                customer_id,
                                 merchant_id: merchant_id.to_string(),
                                 name: request_customer_details
                                     .name
@@ -1675,7 +1673,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 }
 
 pub async fn retrieve_payment_method_with_temporary_token(
-    state: &AppState,
+    state: &SessionState,
     token: &str,
     payment_intent: &PaymentIntent,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1772,7 +1770,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 }
 
 pub async fn retrieve_card_with_permanent_token(
-    state: &AppState,
+    state: &SessionState,
     locker_id: &str,
     payment_method_id: &str,
     payment_intent: &PaymentIntent,
@@ -1837,7 +1835,7 @@ pub async fn retrieve_card_with_permanent_token(
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
-    state: &AppState,
+    state: &SessionState,
     token_data: &storage::PaymentTokenData,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::PaymentMethod>> {
@@ -1872,7 +1870,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 }
 
 pub async fn retrieve_payment_token_data(
-    state: &AppState,
+    state: &SessionState,
     token: String,
     payment_method: Option<storage_enums::PaymentMethod>,
 ) -> RouterResult<storage::PaymentTokenData> {
@@ -1923,7 +1921,7 @@ pub async fn retrieve_payment_token_data(
 
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
@@ -2020,7 +2018,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 }
 
 pub async fn store_in_vault_and_generate_ppmt(
-    state: &AppState,
+    state: &SessionState,
     payment_method_data: &api_models::payments::PaymentMethodData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -2056,7 +2054,7 @@ pub async fn store_in_vault_and_generate_ppmt(
 }
 
 pub async fn store_payment_method_data_in_vault(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
@@ -2540,8 +2538,8 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: AppState,
-    customer_id: String,
+    state: SessionState,
+    customer_id: id_type::CustomerId,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
@@ -2562,7 +2560,7 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    state: AppState,
+    state: SessionState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let db = state.store.as_ref();
@@ -2669,7 +2667,7 @@ pub fn generate_mandate(
     payment_id: String,
     connector: String,
     setup_mandate_details: Option<MandateData>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
@@ -3206,7 +3204,7 @@ impl MerchantConnectorAccountType {
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
@@ -3578,8 +3576,8 @@ impl AttemptType {
             payment_method_billing_address_id: None,
             fingerprint_id: None,
             charge_id: None,
-            client_source: None,
-            client_version: None,
+            client_source: old_payment_attempt.client_source,
+            client_version: old_payment_attempt.client_version,
         }
     }
 
@@ -3961,7 +3959,7 @@ pub fn get_applepay_metadata(
 }
 
 pub async fn get_apple_pay_retryable_connectors<F>(
-    state: AppState,
+    state: SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
@@ -4066,7 +4064,7 @@ impl ApplePayData {
 
     pub async fn decrypt(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
         let merchant_id = self.merchant_id(state).await?;
         let shared_secret = self.shared_secret(state).await?;
@@ -4079,7 +4077,7 @@ impl ApplePayData {
 
     pub async fn merchant_id(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let cert_data = state
             .conf
@@ -4124,7 +4122,7 @@ impl ApplePayData {
 
     pub async fn shared_secret(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
@@ -4300,7 +4298,7 @@ pub fn validate_payment_link_request(
 }
 
 pub async fn get_gsm_record(
-    state: &AppState,
+    state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: String,
@@ -4437,7 +4435,7 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 }
 
 pub async fn get_payment_method_details_from_payment_token(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
@@ -4588,7 +4586,7 @@ pub enum PaymentExternalAuthenticationFlow {
 }
 
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: &storage::BusinessProfile,
     payment_data: &mut PaymentData<F>,

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{PaymentMethod, PaymentMethodType};
+use common_utils::id_type;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +20,7 @@ pub struct PlaidLinkTokenRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 
 pub struct User {
-    pub client_user_id: String,
+    pub client_user_id: id_type::CustomerId,
 }
 
 impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {

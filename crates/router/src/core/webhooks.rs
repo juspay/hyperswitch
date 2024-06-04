@@ -29,8 +29,8 @@ use super::payouts;
 use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
-#[cfg(feature = "payouts")]
-use crate::types::storage::PayoutAttemptUpdate;
+#[cfg(not(feature = "payouts"))]
+use crate::routes::SessionState;
 use crate::{
     consts,
     core::{
@@ -45,12 +45,11 @@ use crate::{
     },
     logger,
     routes::{
-        app::{AppStateInfo, ReqState},
+        app::{ReqState, SessionStateInfo},
         lock_utils,
         metrics::request::add_attributes,
-        AppState,
     },
-    services::{self, authentication as auth, ApplicationResponse},
+    services::{self, authentication as auth},
     types::{
         api::{self, mandates::MandateResponseExt},
         domain::{self, types as domain_types},
@@ -60,12 +59,14 @@ use crate::{
     utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
     workflows::outgoing_webhook_retry,
 };
+#[cfg(feature = "payouts")]
+use crate::{routes::SessionState, types::storage::PayoutAttemptUpdate};
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
 pub async fn payments_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -209,7 +210,7 @@ pub async fn payments_incoming_webhook_flow(
 
 #[cfg(feature = "payouts")]
 pub async fn payouts_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: domain::MerchantKeyStore,
@@ -299,7 +300,7 @@ pub async fn payouts_incoming_webhook_flow(
 
             let payout_create_response: payout_models::PayoutCreateResponse = match router_response
             {
-                ApplicationResponse::Json(response) => response,
+                services::ApplicationResponse::Json(response) => response,
                 _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
                     .attach_printable("Failed to fetch the payout create response")?,
             };
@@ -334,7 +335,7 @@ pub async fn payouts_incoming_webhook_flow(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn refunds_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: domain::MerchantKeyStore,
@@ -432,7 +433,7 @@ pub async fn refunds_incoming_webhook_flow(
 }
 
 pub async fn get_payment_attempt_from_object_reference_id(
-    state: &AppState,
+    state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<
@@ -472,7 +473,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn get_or_update_dispute_object(
-    state: AppState,
+    state: SessionState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
@@ -548,7 +549,7 @@ pub async fn get_or_update_dispute_object(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn external_authentication_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -722,7 +723,7 @@ pub async fn external_authentication_incoming_webhook_flow(
 }
 
 pub async fn mandates_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: domain::MerchantKeyStore,
@@ -810,7 +811,7 @@ pub async fn mandates_incoming_webhook_flow(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn frm_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -922,7 +923,7 @@ pub(crate) async fn frm_incoming_webhook_flow(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn disputes_incoming_webhook_flow(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: domain::MerchantKeyStore,
@@ -992,7 +993,7 @@ pub async fn disputes_incoming_webhook_flow(
 }
 
 async fn bank_transfer_webhook_flow(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -1081,7 +1082,7 @@ async fn bank_transfer_webhook_flow(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1200,7 +1201,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     // may have an actix arbiter
     tokio::spawn(
         async move {
-            trigger_webhook_and_raise_event(
+            Box::pin(trigger_webhook_and_raise_event(
                 state,
                 business_profile,
                 &cloned_key_store,
@@ -1209,7 +1210,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 delivery_attempt,
                 Some(content),
                 process_tracker,
-            )
+            ))
             .await;
         }
         .in_current_span(),
@@ -1221,7 +1222,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn trigger_webhook_and_raise_event(
-    state: AppState,
+    state: SessionState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
@@ -1253,7 +1254,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
 }
 
 async fn trigger_webhook_to_merchant(
-    state: AppState,
+    state: SessionState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
@@ -1319,7 +1320,7 @@ async fn trigger_webhook_to_merchant(
     logger::debug!(outgoing_webhook_response=?response);
 
     let update_event_if_client_error =
-        |state: AppState,
+        |state: SessionState,
          merchant_key_store: domain::MerchantKeyStore,
          merchant_id: String,
          event_id: String,
@@ -1364,7 +1365,7 @@ async fn trigger_webhook_to_merchant(
         };
 
     let api_client_error_handler =
-        |state: AppState,
+        |state: SessionState,
          merchant_key_store: domain::MerchantKeyStore,
          merchant_id: String,
          event_id: String,
@@ -1391,7 +1392,7 @@ async fn trigger_webhook_to_merchant(
 
             Ok::<_, error_stack::Report<errors::WebhooksFlowError>>(())
         };
-    let update_event_in_storage = |state: AppState,
+    let update_event_in_storage = |state: SessionState,
                                    merchant_key_store: domain::MerchantKeyStore,
                                    merchant_id: String,
                                    event_id: String,
@@ -1469,7 +1470,7 @@ async fn trigger_webhook_to_merchant(
         )
     };
     let success_response_handler =
-        |state: AppState,
+        |state: SessionState,
          merchant_id: String,
          process_tracker: Option<storage::ProcessTracker>,
          business_status: &'static str| async move {
@@ -1651,7 +1652,7 @@ async fn trigger_webhook_to_merchant(
 }
 
 fn raise_webhooks_analytics_event(
-    state: AppState,
+    state: SessionState,
     trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
     content: Option<api::OutgoingWebhookContent>,
     merchant_id: String,
@@ -1688,7 +1689,7 @@ fn raise_webhooks_analytics_event(
 #[allow(clippy::too_many_arguments)]
 pub async fn webhooks_wrapper<W: types::OutgoingWebhookType>(
     flow: &impl router_env::types::FlowMetric,
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
@@ -1752,7 +1753,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType>(
 
 #[instrument(skip_all)]
 pub async fn webhooks_core<W: types::OutgoingWebhookType>(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
@@ -1760,7 +1761,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
 ) -> errors::RouterResult<(
-    ApplicationResponse<serde_json::Value>,
+    services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
     serde_json::Value,
 )> {
@@ -2162,7 +2163,7 @@ pub async fn get_payment_id(
 }
 
 fn get_connector_by_connector_name(
-    state: &AppState,
+    state: &SessionState,
     connector_name: &str,
     merchant_connector_id: Option<String>,
 ) -> CustomResult<(&'static (dyn api::Connector + Sync), String), errors::ApiErrorResponse> {
@@ -2210,7 +2211,7 @@ fn get_connector_by_connector_name(
 /// This function fetches the merchant connector account ( if the url used is /{merchant_connector_id})
 /// if merchant connector id is not passed in the request, then this will return None for mca
 async fn fetch_optional_mca_and_connector(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     connector_name_or_mca_id: &str,
     key_store: &domain::MerchantKeyStore,

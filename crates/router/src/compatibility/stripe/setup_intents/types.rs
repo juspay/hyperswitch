@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt, pii as secret};
+use common_utils::{date_time, ext_traits::StringExt, id_type, pii as secret};
 use error_stack::ResultExt;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
@@ -152,7 +152,7 @@ impl From<Shipping> for payments::Address {
 #[derive(Default, Deserialize, Clone)]
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub description: Option<String>,
     pub currency: Option<String>,
@@ -461,7 +461,7 @@ pub struct StripeSetupIntentResponse {
     pub metadata: Option<secret::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
     pub mandate_id: Option<String>,
     pub next_action: Option<StripeNextAction>,
@@ -538,7 +538,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
