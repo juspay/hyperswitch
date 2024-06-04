@@ -128,8 +128,6 @@ merchant_secret="Source verification key"
 [[adyen.bank_redirect]]
   payment_method_type = "blik"
 [[adyen.bank_redirect]]
-  payment_method_type = "przelewy24"
-[[adyen.bank_redirect]]
   payment_method_type = "trustly"
 [[adyen.bank_redirect]]
   payment_method_type = "online_banking_czech_republic"
