@@ -10,10 +10,8 @@
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "jsqr": "^1.4.0"
-  },
   "devDependencies": {
-    "cypress": "^13.10.0"
+    "cypress": "^13.10.0",
+    "jsqr": "^1.4.0"
   }
 }
