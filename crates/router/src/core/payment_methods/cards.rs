@@ -2937,17 +2937,6 @@ pub async fn filter_payment_methods(
                                 context_values.push(dir::DirValue::PaymentType(
                                     euclid::enums::PaymentType::UpdateMandate,
                                 ));
-                                if let Ok(connector) = api_enums::RoutableConnectors::from_str(
-                                    connector_variant.to_string().as_str(),
-                                ) {
-                                    context_values.push(dir::DirValue::Connector(Box::new(
-                                        api_models::routing::ast::ConnectorChoice {
-                                            connector,
-                                            #[cfg(not(feature = "connector_choice_mca_id"))]
-                                            sub_label: None,
-                                        },
-                                    )));
-                                };
                             }
                         });
 
@@ -2965,12 +2954,8 @@ pub async fn filter_payment_methods(
 
                     payment_attempt
                         .and_then(|inner| inner.capture_method)
-                        .and_then(|capture_method| {
-                            (capture_method == common_enums::CaptureMethod::Manual).then(|| {
-                                context_values.push(dir::DirValue::CaptureMethod(
-                                    common_enums::CaptureMethod::Manual,
-                                ));
-                            })
+                        .map(|capture_method| {
+                            context_values.push(dir::DirValue::CaptureMethod(capture_method));
                         });
 
                     let filter_pm_card_network_based = filter_pm_card_network_based(
