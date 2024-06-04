@@ -6,6 +6,7 @@ use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
 use rdkafka::{
     config::FromClientConfig,
+    message::{Header, OwnedHeaders},
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
 #[cfg(feature = "payouts")]
@@ -459,6 +460,7 @@ impl MessagingInterface for KafkaProducer {
     fn send_message<T>(
         &self,
         data: T,
+        metadata: HashMap<String, String>,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
@@ -469,12 +471,20 @@ impl MessagingInterface for KafkaProducer {
             .masked_serialize()
             .and_then(|i| serde_json::to_vec(&i))
             .change_context(EventsError::SerializationError)?;
+        let mut headers = OwnedHeaders::new();
+        for (k, v) in metadata.into_iter() {
+            headers = headers.insert(Header {
+                key: k.as_str(),
+                value: Some(v),
+            });
+        }
         self.producer
             .0
             .send(
                 BaseRecord::to(topic)
                     .key(&data.identifier())
                     .payload(&json_data)
+                    .headers(headers)
                     .timestamp(
                         (timestamp.assume_utc().unix_timestamp_nanos() / 1_000_000)
                             .to_i64()

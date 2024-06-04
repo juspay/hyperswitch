@@ -49,6 +49,11 @@ pub trait Event: EventInfo {
 
     /// The class/type of the event. This is used to group/categorize events together.
     fn class(&self) -> Self::EventType;
+
+    /// Metadata associated with the event
+    fn metadata(&self) -> HashMap<String, String> {
+        HashMap::new()
+    }
 }
 
 /// Hold the context information for any events
@@ -109,8 +114,11 @@ where
     /// Emit the event.
     pub fn try_emit(self) -> Result<(), EventsError> {
         let ts = self.event.timestamp();
-        self.message_sink
-            .send_message(RawEvent(self.metadata, self.event), ts)
+        self.message_sink.send_message(
+            RawEvent(self.metadata, self.event),
+            self.event.metadata(),
+            ts,
+        )
     }
 }
 
@@ -236,7 +244,12 @@ pub trait MessagingInterface {
     /// The type of the event used for categorization by the event publisher.
     type MessageClass;
     /// Send a message that follows the defined message class.
-    fn send_message<T>(&self, data: T, timestamp: PrimitiveDateTime) -> Result<(), EventsError>
+    fn send_message<T>(
+        &self,
+        data: T,
+        metadata: HashMap<String, String>,
+        timestamp: PrimitiveDateTime,
+    ) -> Result<(), EventsError>
     where
         T: Message<Class = Self::MessageClass> + ErasedMaskSerialize;
 }
