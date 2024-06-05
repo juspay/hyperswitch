@@ -967,7 +967,7 @@ diesel::table! {
         #[max_length = 64]
         connector -> Nullable<Varchar>,
         #[max_length = 128]
-        connector_payout_id -> Varchar,
+        connector_payout_id -> Nullable<Varchar>,
         #[max_length = 64]
         payout_token -> Nullable<Varchar>,
         status -> PayoutStatus,

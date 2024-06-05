@@ -784,7 +784,7 @@ pub trait ConnectorActions: Connector {
         );
         let fulfill_res = self
             .fulfill_payout(
-                Some(create_res.connector_payout_id),
+                create_res.connector_payout_id,
                 payout_type,
                 payment_info.to_owned(),
             )
@@ -808,7 +808,11 @@ pub trait ConnectorActions: Connector {
         );
         let cancel_res = self
             .cancel_payout(
-                create_res.connector_payout_id,
+                create_res
+                    .connector_payout_id
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "connector_payout_id",
+                    })?,
                 payout_type,
                 payment_info.to_owned(),
             )

@@ -9045,7 +9045,14 @@
           "dispute_won",
           "dispute_lost",
           "mandate_active",
-          "mandate_revoked"
+          "mandate_revoked",
+          "payout_success",
+          "payout_failed",
+          "payout_initiated",
+          "payout_processing",
+          "payout_cancelled",
+          "payout_expired",
+          "payout_reversed"
         ]
       },
       "ExtendedCardInfo": {
@@ -12365,6 +12372,25 @@
               },
               "object": {
                 "$ref": "#/components/schemas/MandateResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PayoutCreateResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payout_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
           }
@@ -16947,6 +16973,9 @@
           "success",
           "failed",
           "cancelled",
+          "initiated",
+          "expired",
+          "reversed",
           "pending",
           "ineligible",
           "requires_creation",

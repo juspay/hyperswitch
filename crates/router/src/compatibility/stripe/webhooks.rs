@@ -1,6 +1,13 @@
+#[cfg(feature = "payouts")]
+use api_models::payouts as payout_models;
 use api_models::{
     enums::{DisputeStatus, MandateStatus},
     webhooks::{self as api},
+};
+#[cfg(feature = "payouts")]
+use common_utils::{
+    crypto::Encryptable,
+    pii::{self, Email},
 };
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 use error_stack::ResultExt;
@@ -81,6 +88,8 @@ pub enum StripeWebhookObject {
     Refund(StripeRefundResponse),
     Dispute(StripeDisputeResponse),
     Mandate(StripeMandateResponse),
+    #[cfg(feature = "payouts")]
+    Payout(StripePayoutResponse),
 }
 
 #[derive(Serialize, Debug)]
@@ -99,6 +108,82 @@ pub struct StripeMandateResponse {
     pub status: StripeMandateStatus,
     pub payment_method_id: String,
     pub payment_method: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Serialize, Debug)]
+pub struct StripePayoutResponse {
+    pub id: String,
+    pub amount: i64,
+    pub currency: String,
+    pub payout_type: common_enums::PayoutType,
+    pub status: StripePayoutStatus,
+    pub name: Option<masking::Secret<String>>,
+    pub email: Option<Email>,
+    pub phone: Option<masking::Secret<String>>,
+    pub phone_country_code: Option<String>,
+    pub created: Option<i64>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub entity_type: common_enums::PayoutEntityType,
+    pub recurring: bool,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Serialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum StripePayoutStatus {
+    PayoutSuccess,
+    PayoutFailure,
+    PayoutProcessing,
+    PayoutCancelled,
+    PayoutInitiated,
+    PayoutExpired,
+    PayoutReversed,
+}
+
+#[cfg(feature = "payouts")]
+impl From<common_enums::PayoutStatus> for StripePayoutStatus {
+    fn from(status: common_enums::PayoutStatus) -> Self {
+        match status {
+            common_enums::PayoutStatus::Success => Self::PayoutSuccess,
+            common_enums::PayoutStatus::Failed => Self::PayoutFailure,
+            common_enums::PayoutStatus::Cancelled => Self::PayoutCancelled,
+            common_enums::PayoutStatus::Initiated => Self::PayoutInitiated,
+            common_enums::PayoutStatus::Expired => Self::PayoutExpired,
+            common_enums::PayoutStatus::Reversed => Self::PayoutReversed,
+            common_enums::PayoutStatus::Pending
+            | common_enums::PayoutStatus::Ineligible
+            | common_enums::PayoutStatus::RequiresCreation
+            | common_enums::PayoutStatus::RequiresFulfillment
+            | common_enums::PayoutStatus::RequiresPayoutMethodData
+            | common_enums::PayoutStatus::RequiresVendorAccountCreation => Self::PayoutProcessing,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<payout_models::PayoutCreateResponse> for StripePayoutResponse {
+    fn from(res: payout_models::PayoutCreateResponse) -> Self {
+        Self {
+            id: res.payout_id,
+            amount: res.amount,
+            currency: res.currency.to_string(),
+            payout_type: res.payout_type,
+            status: StripePayoutStatus::from(res.status),
+            name: res.name.map(Encryptable::into_inner),
+            email: res.email.map(|inner| inner.into()),
+            phone: res.phone.map(Encryptable::into_inner),
+            phone_country_code: res.phone_country_code,
+            created: res.created.map(|t| t.assume_utc().unix_timestamp()),
+            metadata: res.metadata,
+            entity_type: res.entity_type,
+            recurring: res.recurring,
+            error_message: res.error_message,
+            error_code: res.error_code,
+        }
+    }
 }
 
 #[derive(Serialize, Debug)]
@@ -197,6 +282,13 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         }
         // stripe treats partially captured payments as succeeded.
         api_models::enums::EventType::PaymentCaptured => "payment_intent.succeeded",
+        api_models::enums::EventType::PayoutSuccess => "payout.paid",
+        api_models::enums::EventType::PayoutFailed => "payout.failed",
+        api_models::enums::EventType::PayoutInitiated => "payout.created",
+        api_models::enums::EventType::PayoutCancelled => "payout.canceled",
+        api_models::enums::EventType::PayoutProcessing => "payout.created",
+        api_models::enums::EventType::PayoutExpired => "payout.failed",
+        api_models::enums::EventType::PayoutReversed => "payout.reconciliation_completed",
     }
 }
 
@@ -237,6 +329,8 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             api::OutgoingWebhookContent::MandateDetails(mandate) => {
                 Self::Mandate((*mandate).into())
             }
+            #[cfg(feature = "payouts")]
+            api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout(payout.into()),
         }
     }
 }
