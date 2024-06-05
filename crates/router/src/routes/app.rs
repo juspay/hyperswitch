@@ -5,6 +5,7 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+use common_utils::consts::{DEFAULT_TENANT, GLOBAL_TENANT};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -54,7 +55,7 @@ use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     core::routing,
-    db::{StorageImpl, StorageInterface},
+    db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
@@ -72,6 +73,8 @@ pub struct ReqState {
 #[derive(Clone)]
 pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
+    /// Global store is used for global schema operations in tables like Users and Tenants
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -129,6 +132,7 @@ impl SessionStateInfo for SessionState {
 #[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
@@ -252,6 +256,24 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
+            let global_tenant = if conf.multitenancy.enabled {
+                GLOBAL_TENANT
+            } else {
+                DEFAULT_TENANT
+            };
+            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+                &storage_impl,
+                &event_handler,
+                &conf,
+                &settings::GlobalTenant {
+                    schema: global_tenant.to_string(),
+                    redis_key_prefix: String::default(),
+                },
+                Arc::clone(&cache_store),
+                testable,
+            )
+            .await
+            .get_global_storage_interface();
             for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
                 let store: Box<dyn StorageInterface> = Self::get_store_interface(
                     &storage_impl,
@@ -261,7 +283,8 @@ impl AppState {
                     Arc::clone(&cache_store),
                     testable,
                 )
-                .await;
+                .await
+                .get_storage_interface();
                 stores.insert(tenant_name.clone(), store);
                 #[cfg(feature = "olap")]
                 let pool =
@@ -279,6 +302,7 @@ impl AppState {
             Self {
                 flow_name: String::from("default"),
                 stores,
+                global_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
@@ -300,10 +324,10 @@ impl AppState {
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
-        tenant: &settings::Tenant,
+        tenant: &dyn TenantConfig,
         cache_store: Arc<RedisStore>,
         testable: bool,
-    ) -> Box<dyn StorageInterface> {
+    ) -> Box<dyn CommonStorageInterface> {
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
@@ -358,6 +382,7 @@ impl AppState {
     {
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
             event_handler: self.event_handler.clone(),

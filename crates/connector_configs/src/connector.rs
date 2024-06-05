@@ -101,6 +101,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<Vec<KlarnaEndpoint>>,
+    pub source_balance_account: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -131,6 +132,8 @@ pub struct ConnectorConfig {
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub adyen_payout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub adyenplatform_payout: Option<ConnectorTomlConfig>,
     pub airwallex: Option<ConnectorTomlConfig>,
     pub authorizedotnet: Option<ConnectorTomlConfig>,
     pub bankofamerica: Option<ConnectorTomlConfig>,
@@ -235,12 +238,13 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
+            PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
+            PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
+            PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Payone => Ok(connector_data.payone_payout),
+            PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
-            PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
-            PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
-            PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
-            PayoutConnectors::Payone => Ok(connector_data.payone_payout),
         }
     }
 
@@ -262,6 +266,7 @@ impl ConnectorConfig {
         match connector {
             Connector::Aci => Ok(connector_data.aci),
             Connector::Adyen => Ok(connector_data.adyen),
+            Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),

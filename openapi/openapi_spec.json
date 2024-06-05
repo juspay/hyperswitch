@@ -6824,7 +6824,7 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },
@@ -6956,6 +6956,11 @@
                 "$ref": "#/components/schemas/ExtendedCardInfoConfig"
               }
             ],
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         }
@@ -7463,6 +7468,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -9045,7 +9051,14 @@
           "dispute_won",
           "dispute_lost",
           "mandate_active",
-          "mandate_revoked"
+          "mandate_revoked",
+          "payout_success",
+          "payout_failed",
+          "payout_initiated",
+          "payout_processing",
+          "payout_cancelled",
+          "payout_expired",
+          "payout_reversed"
         ]
       },
       "ExtendedCardInfo": {
@@ -12365,6 +12378,25 @@
               },
               "object": {
                 "$ref": "#/components/schemas/MandateResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PayoutCreateResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payout_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
           }
@@ -16299,11 +16331,12 @@
         "type": "string",
         "enum": [
           "adyen",
-          "stripe",
+          "adyenplatform",
+          "cybersource",
+          "ebanx",
           "payone",
           "paypal",
-          "ebanx",
-          "cybersource",
+          "stripe",
           "wise"
         ]
       },
@@ -16319,7 +16352,8 @@
           "return_url",
           "business_country",
           "description",
-          "entity_type"
+          "entity_type",
+          "priority"
         ],
         "properties": {
           "payout_id": {
@@ -16476,6 +16510,9 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "priority": {
+            "$ref": "#/components/schemas/PayoutSendPriority"
           }
         },
         "additionalProperties": false
@@ -16637,6 +16674,20 @@
             "format": "date-time",
             "description": "Time when the payout was created",
             "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Underlying processor's payout resource ID",
+            "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSendPriority"
+              }
+            ],
             "nullable": true
           },
           "attempts": {
@@ -16941,12 +16992,26 @@
           }
         }
       },
+      "PayoutSendPriority": {
+        "type": "string",
+        "enum": [
+          "instant",
+          "fast",
+          "regular",
+          "wire",
+          "crossBorder",
+          "internal"
+        ]
+      },
       "PayoutStatus": {
         "type": "string",
         "enum": [
           "success",
           "failed",
           "cancelled",
+          "initiated",
+          "expired",
+          "reversed",
           "pending",
           "ineligible",
           "requires_creation",
@@ -17897,6 +17962,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
