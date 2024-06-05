@@ -1826,17 +1826,15 @@ impl<F, T>
                         .join(", ")
                 });
 
-        let error_info = error_response.error_information.message.clone();
 
-        let error_reason = get_error_reason(error_info, detailed_error_info, None);
-
+        let reason = get_error_reason(error_response.error_information.message.clone(), detailed_error_info, None);
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
             code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason,
+            reason,
             status_code: item.http_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
@@ -2034,10 +2032,7 @@ impl<F>
                                 .join(", ")
                         });
 
-                let error_info = error_response.error_information.message;
-
-                let error_reason = get_error_reason(error_info, detailed_error_info, None);
-
+                let reason = get_error_reason(error_response.error_information.message, detailed_error_info, None);
                 let error_message = error_response.error_information.reason;
                 Ok(Self {
                     response: Err(types::ErrorResponse {
@@ -2045,7 +2040,7 @@ impl<F>
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                        reason: error_reason,
+                        reason,
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
@@ -2427,17 +2422,14 @@ impl<F>
                                 .join(", ")
                         });
 
-                let error_info = error_response.error_information.message;
-
-                let error_reason = get_error_reason(error_info, detailed_error_info, None);
-
+                let reason = get_error_reason(error_response.error_information.message, detailed_error_info, None);
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
                     code: error_message
                         .clone()
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_reason,
+                    reason,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
@@ -2681,17 +2673,15 @@ impl<F, T>
                                 .join(", ")
                         });
 
-                let error_info = error_response.error_information.clone().message;
 
-                let error_reason = get_error_reason(error_info, detailed_error_info, None);
-
+                let reason = get_error_reason(error_response.error_information.clone().message, detailed_error_info, None);
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
                     code: error_message
                         .clone()
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_reason,
+                    reason,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
@@ -3347,12 +3337,8 @@ impl
                 None => "".to_string(),
             });
 
-        let error_info = error_data.clone().and_then(|error_info| error_info.message);
-
-        let error_reason = get_error_reason(error_info, detailed_error_info, avs_message);
-
+        let reason = get_error_reason(error_data.clone().and_then(|error_info| error_info.message), detailed_error_info, avs_message);
         let error_message = error_data.clone().and_then(|error_info| error_info.reason);
-
         Self {
             code: error_message
                 .clone()
@@ -3360,7 +3346,7 @@ impl
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.clone(),
+            reason,
             status_code,
             attempt_status,
             connector_transaction_id: Some(transaction_id.clone()),

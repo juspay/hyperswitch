@@ -1573,21 +1573,20 @@ impl<F, T>
                         .join(", ")
                 });
 
-        let error_info = error_response.error_information.message.clone();
-
-        let error_reason = get_error_reason(error_info, detailed_error_info, None);
-
+        let reason = get_error_reason(error_response.error_information.message.clone(), detailed_error_info, None);
         let error_message = error_response.error_information.reason.to_owned();
+
         let response = Err(types::ErrorResponse {
             code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason,
+            reason: reason,
             status_code: item.http_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
         });
+
         match transaction_status {
             Some(status) => Self {
                 response,
@@ -1729,10 +1728,8 @@ impl<F, T>
                                 .join(", ")
                         });
 
-                let error_info = error_response.error_information.message;
 
-                let error_reason = get_error_reason(error_info, detailed_error_info, None);
-
+                let reason = get_error_reason(error_response.error_information.message, detailed_error_info, None);
                 let error_message = error_response.error_information.reason;
 
                 Ok(Self {
@@ -1741,7 +1738,7 @@ impl<F, T>
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                        reason: error_reason,
+                        reason,
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
@@ -2871,12 +2868,9 @@ impl
             })
         });
 
-        let error_info = error_data
+        let reason = get_error_reason(error_data
             .clone()
-            .and_then(|error_details| error_details.message);
-
-        let error_reason = get_error_reason(error_info, detailed_error_info, avs_message);
-
+            .and_then(|error_details| error_details.message), detailed_error_info, avs_message);
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -2888,7 +2882,7 @@ impl
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.clone(),
+            reason,
             status_code,
             attempt_status,
             connector_transaction_id: Some(transaction_id.clone()),
@@ -3128,17 +3122,15 @@ impl ForeignFrom<(&BankOfAmericaErrorInformationResponse, u16)> for types::Error
                         .join(", ")
                 });
 
-        let error_info = error_response.error_information.message.to_owned();
 
-        let error_reason = get_error_reason(error_info, detailed_error_info, None);
-
+        let reason = get_error_reason(error_response.error_information.message.to_owned(), detailed_error_info, None);
         let error_message = error_response.error_information.reason.to_owned();
         Self {
             code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason,
+            reason,
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),

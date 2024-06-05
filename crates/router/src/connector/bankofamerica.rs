@@ -211,7 +211,7 @@ impl ConnectorCommon for Bankofamerica {
         };
         match response {
             transformers::BankOfAmericaErrorResponse::StandardError(response) => {
-                let (code, error_message, connector_reason) = match response.error_information {
+                let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
                             details
@@ -260,8 +260,8 @@ impl ConnectorCommon for Bankofamerica {
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code,
-                    message: error_message.clone(),
-                    reason: connector_reason,
+                    message,
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                 })

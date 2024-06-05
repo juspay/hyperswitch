@@ -135,7 +135,7 @@ impl ConnectorCommon for Cybersource {
                 event_builder.map(|i| i.set_error_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                let (code, error_message, connector_reason) = match response.error_information {
+                let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
                             details
@@ -184,8 +184,8 @@ impl ConnectorCommon for Cybersource {
                 Ok(types::ErrorResponse {
                     status_code: res.status_code,
                     code,
-                    message: error_message,
-                    reason: connector_reason,
+                    message,
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
