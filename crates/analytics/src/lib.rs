@@ -425,26 +425,26 @@ impl AnalyticsProvider {
         // Metrics to get the fetch time for each refund metric
         metrics::request::record_operation_time(
             async {
-                        match self {
-                            Self::Clickhouse(_pool) => Err(report!(MetricsError::NotImplemented)),
-                            Self::Sqlx(sqlx_pool) 
-                            | Self::CombinedCkh(sqlx_pool, _) 
-                            | Self::CombinedSqlx(sqlx_pool, _) => {
-                                metric
-                                    .load_metrics(
-                                        dimensions,
-                                        merchant_id,
-                                        filters,
-                                        granularity,
-                                        time_range,
-                                        sqlx_pool,
-                                    )
-                                    .await
-                            }
-                        }
-                    },
-                   &metrics::METRIC_FETCH_TIME,
-       metric,
+                match self {
+                    Self::Clickhouse(_pool) => Err(report!(MetricsError::NotImplemented)),
+                    Self::Sqlx(sqlx_pool)
+                    | Self::CombinedCkh(sqlx_pool, _)
+                    | Self::CombinedSqlx(sqlx_pool, _) => {
+                        metric
+                            .load_metrics(
+                                dimensions,
+                                merchant_id,
+                                filters,
+                                granularity,
+                                time_range,
+                                sqlx_pool,
+                            )
+                            .await
+                    }
+                }
+            },
+            &metrics::METRIC_FETCH_TIME,
+            metric,
             self,
         )
         .await

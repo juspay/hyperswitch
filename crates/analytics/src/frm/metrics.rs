@@ -1,16 +1,14 @@
 use api_models::analytics::{
-    frm::{
-        FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier, FrmTransactionType,
-    },
+    frm::{FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier, FrmTransactionType},
     Granularity, TimeRange,
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
-mod frm_triggered_attempts;
 mod frm_blocked_rate;
+mod frm_triggered_attempts;
 
-use frm_triggered_attempts::FrmTriggeredAttempts;
 use frm_blocked_rate::FrmBlockedRate;
+use frm_triggered_attempts::FrmTriggeredAttempts;
 
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},

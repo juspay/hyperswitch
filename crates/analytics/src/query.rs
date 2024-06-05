@@ -6,9 +6,9 @@ use api_models::{
         api_event::ApiEventDimensions,
         auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
+        frm::{FrmDimensions, FrmTransactionType},
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
-        frm::{FrmDimensions, FrmTransactionType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
@@ -18,9 +18,8 @@ use api_models::{
     },
     refunds::RefundStatus,
 };
-use diesel_models::enums::FraudCheckStatus;
 use common_utils::errors::{CustomResult, ParsingError};
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
