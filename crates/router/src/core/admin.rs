@@ -1819,6 +1819,10 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
+        api_enums::Connector::Adyenplatform => {
+            adyenplatform::transformers::AdyenplatformAuthType::try_from(val)?;
+            Ok(())
+        }
         // api_enums::Connector::Mifinity => {
         //     mifinity::transformers::MifinityAuthType::try_from(val)?;
         //     Ok(())

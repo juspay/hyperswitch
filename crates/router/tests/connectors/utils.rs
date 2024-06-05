@@ -501,6 +501,7 @@ pub trait ConnectorActions: Connector {
                     phone_country_code: Some("+31".to_string()),
                 }),
                 vendor_details: None,
+                priority: None,
             },
             payment_info,
         )

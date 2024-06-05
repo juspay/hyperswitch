@@ -7463,6 +7463,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -16325,11 +16326,12 @@
         "type": "string",
         "enum": [
           "adyen",
-          "stripe",
+          "adyenplatform",
+          "cybersource",
+          "ebanx",
           "payone",
           "paypal",
-          "ebanx",
-          "cybersource",
+          "stripe",
           "wise"
         ]
       },
@@ -16345,7 +16347,8 @@
           "return_url",
           "business_country",
           "description",
-          "entity_type"
+          "entity_type",
+          "priority"
         ],
         "properties": {
           "payout_id": {
@@ -16502,6 +16505,9 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "priority": {
+            "$ref": "#/components/schemas/PayoutSendPriority"
           }
         },
         "additionalProperties": false
@@ -16663,6 +16669,20 @@
             "format": "date-time",
             "description": "Time when the payout was created",
             "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Underlying processor's payout resource ID",
+            "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSendPriority"
+              }
+            ],
             "nullable": true
           },
           "attempts": {
@@ -16966,6 +16986,17 @@
             "nullable": true
           }
         }
+      },
+      "PayoutSendPriority": {
+        "type": "string",
+        "enum": [
+          "instant",
+          "fast",
+          "regular",
+          "wire",
+          "crossBorder",
+          "internal"
+        ]
       },
       "PayoutStatus": {
         "type": "string",
@@ -17926,6 +17957,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",

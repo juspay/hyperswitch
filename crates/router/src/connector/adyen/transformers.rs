@@ -1726,7 +1726,7 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
     }
 }
 
-fn get_address_info(
+pub fn get_address_info(
     address: Option<&payments::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
