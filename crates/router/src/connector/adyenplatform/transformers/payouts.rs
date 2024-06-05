@@ -13,7 +13,7 @@ use crate::{
     types::{self, api::payouts, storage::enums},
 };
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AdyenPlatformConnectorMetadataObject {
     source_balance_account: Option<Secret<String>>,
 }
@@ -30,7 +30,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for AdyenPlatformConnectorMetadataO
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenTransferRequest {
     amount: adyen::Amount,
@@ -43,26 +43,26 @@ pub struct AdyenTransferRequest {
     description: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AdyenPayoutMethod {
     Bank,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPayoutMethodDetails {
     bank_account: AdyenBankAccountDetails,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenBankAccountDetails {
     account_holder: AdyenBankAccountHolder,
     account_identification: AdyenBankAccountIdentification,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenBankAccountHolder {
     address: Option<adyen::Address>,
@@ -73,7 +73,7 @@ pub struct AdyenBankAccountHolder {
     entity_type: Option<EntityType>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenBankAccountIdentification {
     #[serde(rename = "type")]
     bank_type: String,
@@ -81,18 +81,18 @@ pub struct AdyenBankAccountIdentification {
     account_details: AdyenBankAccountIdentificationDetails,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenBankAccountIdentificationDetails {
     Sepa(SepaDetails),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SepaDetails {
     iban: Secret<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AdyenPayoutPriority {
     Instant,
@@ -103,7 +103,7 @@ pub enum AdyenPayoutPriority {
     Internal,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EntityType {
     Individual,
@@ -111,7 +111,7 @@ pub enum EntityType {
     Unknown,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenTransferResponse {
     id: String,
@@ -129,33 +129,33 @@ pub struct AdyenTransferResponse {
     reason: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenPlatformAccountHolder {
     description: String,
     id: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenCategoryData {
     priority: AdyenPayoutPriority,
     #[serde(rename = "type")]
     category: AdyenPayoutMethod,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenBalanceAccount {
     description: String,
     id: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AdyenTransactionDirection {
     Incoming,
     Outgoing,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AdyenTransferStatus {
     Authorised,
@@ -163,7 +163,7 @@ pub enum AdyenTransferStatus {
     Error,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AdyenTransactionType {
     BankTransfer,
@@ -325,7 +325,7 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenTransferErrorResponse {
     pub error_code: String,

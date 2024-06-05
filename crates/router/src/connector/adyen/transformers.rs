@@ -128,7 +128,7 @@ pub struct ShopperName {
     last_name: Option<Secret<String>>,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Address {
     city: String,

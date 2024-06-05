@@ -101,6 +101,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<Vec<KlarnaEndpoint>>,
+    pub source_balance_account: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

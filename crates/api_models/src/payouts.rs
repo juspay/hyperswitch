@@ -445,6 +445,10 @@ pub struct PayoutCreateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
 
+    /// Underlying processor's payout resource ID
+    #[schema(value_type = Option<String>, example = "S3FC9G9M2MVFDXT5")]
+    pub connector_transaction_id: Option<String>,
+
     /// List of attempts
     #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]
