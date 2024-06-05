@@ -8,6 +8,7 @@
 ///
 /// Panics if running the `cargo metadata` command fails.
 #[allow(clippy::expect_used)]
+#[cfg(feature = "set_workspace_members_on_build")]
 pub fn set_cargo_workspace_members_env() {
     use std::io::Write;
 
@@ -39,6 +40,7 @@ pub fn set_cargo_workspace_members_env() {
 ///
 /// Panics if running the `cargo metadata` command fails, or if the workspace member package names
 /// cannot be determined.
+#[cfg(feature = "set_workspace_members_on_build")]
 pub fn verify_cargo_metadata_format() {
     #[allow(clippy::expect_used)]
     let metadata = cargo_metadata::MetadataCommand::new()
@@ -65,7 +67,8 @@ pub fn verify_cargo_metadata_format() {
 #[macro_export]
 macro_rules! cargo_workspace_members {
     () => {
-        std::env!("CARGO_WORKSPACE_MEMBERS")
+        std::option_env!("CARGO_WORKSPACE_MEMBERS")
+            .expect("Failed to obtain CARGO_WORKSPACE_MEMBERS environment variable")
             .split(',')
             .collect::<std::collections::HashSet<&'static str>>()
     };
