@@ -217,38 +217,38 @@ pub mod routes {
     }
 
     // TODO: To be implemented
-    // pub async fn get_frm_metrics(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<[GetRefundMetricRequest; 1]>,
-    // ) -> impl Responder {
-    //     #[allow(clippy::expect_used)]
-    //     // safety: This shouldn't panic owing to the data type
-    //     let payload = json_payload
-    //         .into_inner()
-    //         .to_vec()
-    //         .pop()
-    //         .expect("Couldn't get GetRefundMetricRequest");
-    //     let flow = AnalyticsFlow::GetRefundsMetrics;
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         payload,
-    //         |state, auth: AuthenticationData, req, _| async move {
-    //             analytics::refunds::get_metrics(
-    //                 &state.pool,
-    //                 &auth.merchant_account.merchant_id,
-    //                 req,
-    //             )
-    //             .await
-    //             .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth(Permission::Analytics),
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
+    pub async fn get_frm_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetFrmMetricRequest; 1]>,
+    ) -> impl Responder {
+        #[allow(clippy::expect_used)]
+        // safety: This shouldn't panic owing to the data type
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetFrmMetricRequest");
+        let flow = AnalyticsFlow::GetFrmMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::frm::get_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
 
     /// # Panics
     ///
@@ -386,7 +386,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
+            |state, auth: AuthenticationData, req: GetFrmFilterRequest, _| async move {
                 analytics::frm::get_filters(
                     &state.pool,
                     req,

@@ -8,6 +8,7 @@ use api_models::{
         disputes::DisputeDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
+        frm::{FrmDimensions, FrmTransactionType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
@@ -17,6 +18,7 @@ use api_models::{
     },
     refunds::RefundStatus,
 };
+use diesel_models::enums::FraudCheckStatus;
 use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -365,18 +367,22 @@ impl_to_sql_for_to_string!(
     &str,
     &PaymentDimensions,
     &RefundDimensions,
+    &FrmDimensions,
     PaymentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    FrmDimensions,
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,
     Connector,
     AttemptStatus,
     RefundStatus,
+    FraudCheckStatus,
     storage_enums::RefundStatus,
     Currency,
     RefundType,
+    FrmTransactionType,
     Flow,
     &String,
     &bool,

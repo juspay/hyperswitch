@@ -1,5 +1,5 @@
 use api_models::analytics::{
-    refunds::{RefundDimensions, RefundFilters, RefundMetricsBucketIdentifier},
+    frm::{FrmDimensions, FrmFilters, FrmMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
@@ -13,12 +13,12 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct RefundCount {}
+pub(super) struct FrmTriggeredAttempts {}
 
 #[async_trait::async_trait]
-impl<T> super::RefundMetric<T> for RefundCount
+impl<T> super::FrmMetric<T> for FrmTriggeredAttempts
 where
-    T: AnalyticsDataSource + super::RefundMetricAnalytics,
+    T: AnalyticsDataSource + super::FrmMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
@@ -27,14 +27,14 @@ where
 {
     async fn load_metrics(
         &self,
-        dimensions: &[RefundDimensions],
+        dimensions: &[FrmDimensions],
         merchant_id: &str,
-        filters: &RefundFilters,
+        filters: &FrmFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Refund);
+    ) -> MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> {
+        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::FraudCheck);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
@@ -85,18 +85,17 @@ where
         }
 
         query_builder
-            .execute_query::<RefundMetricRow, _>(pool)
+            .execute_query::<FrmMetricRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
             .change_context(MetricsError::QueryExecutionFailure)?
             .into_iter()
             .map(|i| {
                 Ok((
-                    RefundMetricsBucketIdentifier::new(
-                        i.currency.as_ref().map(|i| i.0),
-                        i.refund_status.as_ref().map(|i| i.0.to_string()),
-                        i.connector.clone(),
-                        i.refund_type.as_ref().map(|i| i.0.to_string()),
+                    FrmMetricsBucketIdentifier::new(
+                        i.frm_name.as_ref().map(|i| i.to_string()),
+                        i.frm_status.as_ref().map(|i| i.0.to_string()),
+                        i.frm_transaction_type.as_ref().map(|i| i.0.to_string()),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

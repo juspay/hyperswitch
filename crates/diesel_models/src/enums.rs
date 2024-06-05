@@ -16,7 +16,6 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
-        DbFraudCheckStatus as FrmStatus, DbFraudCheckType as FrmType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,

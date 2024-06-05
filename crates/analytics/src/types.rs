@@ -26,7 +26,7 @@ pub enum AnalyticsDomain {
 pub enum AnalyticsCollection {
     Payment,
     Refund,
-    Frm,
+    FraudCheck,
     SdkEvents,
     ApiEvents,
     PaymentIntent,

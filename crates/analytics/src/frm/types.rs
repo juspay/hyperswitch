@@ -11,7 +11,6 @@ where
     T: AnalyticsDataSource,
     AnalyticsCollection: ToSql<T>,
 {
-    // TODO (tsdk02) - Should decide about the filters - DONE actually (check again)
     fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
         if !self.frm_status.is_empty() {
             builder
@@ -27,7 +26,7 @@ where
 
         if !self.frm_transaction_type.is_empty() {
             builder
-                .add_filter_in_range_clause(FrmDimensions::FrmType, &self.frm_transaction_type)
+                .add_filter_in_range_clause(FrmDimensions::FrmTransactionType, &self.frm_transaction_type)
                 .attach_printable("Error adding frm transaction type filter")?;
         }
 

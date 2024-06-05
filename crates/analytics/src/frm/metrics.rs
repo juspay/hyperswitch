@@ -1,21 +1,14 @@
 use api_models::analytics::{
     frm::{
-        FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier, FrmType,
+        FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier, FrmTransactionType,
     },
     Granularity, TimeRange,
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
-// mod refund_count;
-// mod refund_processed_amount;
-// mod refund_success_count;
-// mod refund_success_rate;
 mod frm_triggered_attempts;
 mod frm_blocked_rate;
-// use refund_count::RefundCount;
-// use refund_processed_amount::RefundProcessedAmount;
-// use refund_success_count::RefundSuccessCount;
-// use refund_success_rate::RefundSuccessRate;
+
 use frm_triggered_attempts::FrmTriggeredAttempts;
 use frm_blocked_rate::FrmBlockedRate;
 
@@ -24,11 +17,10 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
 #[derive(Debug, Eq, PartialEq, serde::Deserialize)]
-// TODO (tsdk02) - Should implement this
 pub struct FrmMetricRow {
     pub frm_name: Option<String>,
-    pub frm_status: Option<DBEnumWrapper<storage_enums::FrmStatus>>,
-    pub frm_transaction_type: Option<DBEnumWrapper<storage_enums::FrmType>>,
+    pub frm_status: Option<DBEnumWrapper<storage_enums::FraudCheckStatus>>,
+    pub frm_transaction_type: Option<DBEnumWrapper<FrmTransactionType>>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -80,8 +72,8 @@ where
         pool: &T,
     ) -> MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> {
         match self {
-            Self::FrmSuccessRate => {
-                FrmSuccessRate::default()
+            Self::FrmTriggeredAttempts => {
+                FrmTriggeredAttempts::default()
                     .load_metrics(
                         dimensions,
                         merchant_id,
@@ -92,32 +84,8 @@ where
                     )
                     .await
             }
-            Self::RefundCount => {
-                RefundCount::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::RefundSuccessCount => {
-                RefundSuccessCount::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::RefundProcessedAmount => {
-                RefundProcessedAmount::default()
+            Self::FrmBlockedRate => {
+                FrmBlockedRate::default()
                     .load_metrics(
                         dimensions,
                         merchant_id,

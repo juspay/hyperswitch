@@ -426,7 +426,10 @@ impl AnalyticsProvider {
         metrics::request::record_operation_time(
             async {
                         match self {
-                            Self::Sqlx(pool) => {
+                            Self::Clickhouse(_pool) => Err(report!(MetricsError::NotImplemented)),
+                            Self::Sqlx(sqlx_pool) 
+                            | Self::CombinedCkh(sqlx_pool, _) 
+                            | Self::CombinedSqlx(sqlx_pool, _) => {
                                 metric
                                     .load_metrics(
                                         dimensions,
@@ -434,75 +437,9 @@ impl AnalyticsProvider {
                                         filters,
                                         granularity,
                                         time_range,
-                                        pool,
-                                    )
-                                    .await
-                            }
-                            Self::Clickhouse(pool) => {
-                                metric
-                                    .load_metrics(
-                                        dimensions,
-                                        merchant_id,
-                                        filters,
-                                        granularity,
-                                        time_range,
-                                        pool,
-                                    )
-                                    .await
-                            }
-                            Self::CombinedCkh(sqlx_pool, ckh_pool) => {
-                                let (ckh_result, sqlx_result) = tokio::join!(
-                                    metric.load_metrics(
-                                        dimensions,
-                                        merchant_id,
-                                        filters,
-                                        granularity,
-                                        time_range,
-                                        ckh_pool,
-                                    ),
-                                    metric.load_metrics(
-                                        dimensions,
-                                        merchant_id,
-                                        filters,
-                                        granularity,
-                                        time_range,
                                         sqlx_pool,
                                     )
-                                );
-                                match (&sqlx_result, &ckh_result) {
-                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics metrics")
-                                    }
-                                    _ => {}
-                                };
-                                ckh_result
-                            }
-                            Self::CombinedSqlx(sqlx_pool, ckh_pool) => {
-                                let (ckh_result, sqlx_result) = tokio::join!(
-                                    metric.load_metrics(
-                                        dimensions,
-                                        merchant_id,
-                                        filters,
-                                        granularity,
-                                        time_range,
-                                        ckh_pool,
-                                    ),
-                                    metric.load_metrics(
-                                        dimensions,
-                                        merchant_id,
-                                        filters,
-                                        granularity,
-                                        time_range,
-                                        sqlx_pool,
-                                    )
-                                );
-                                match (&sqlx_result, &ckh_result) {
-                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics metrics")
-                                    }
-                                    _ => {}
-                                };
-                                sqlx_result
+                                    .await
                             }
                         }
                     },

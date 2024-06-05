@@ -2,8 +2,7 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
-
-use crate::frm::FrmStatus;
+use diesel_models::enums::FraudCheckStatus;
 
 #[derive(
     Clone,
@@ -17,11 +16,9 @@ use crate::frm::FrmStatus;
     strum::Display,
     strum::EnumString,
 )]
-// TODO RefundType api_models_oss need to mapped to storage_model
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-
-pub enum FrmType {
+pub enum FrmTransactionType {
     #[default]
 	PreFlow,
 	PostFlow,
@@ -31,12 +28,13 @@ use super::{NameDescription, TimeRange};
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct FrmFilters {
 	#[serde(default)]
-	pub frm_status: Vec<FrmStatus>,
+	pub frm_status: Vec<FraudCheckStatus>,
 	#[serde(default)]
 	pub frm_name: Vec<String>,
 	#[serde(default)]
-	pub frm_transaction_type: Vec<FrmType>,
+	pub frm_transaction_type: Vec<FrmTransactionType>,
 }
+
 #[derive(
     Debug,
     serde::Serialize,
@@ -53,7 +51,6 @@ pub struct FrmFilters {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-
 pub enum FrmDimensions {
 	FrmStatus,
 	FrmName,
@@ -74,10 +71,9 @@ pub enum FrmDimensions {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-
 pub enum FrmMetrics {
 	FrmTriggeredAttempts,
-	FrmBlockRate,
+	FrmBlockedRate,
 }
 
 pub mod metric_behaviour {
@@ -123,6 +119,7 @@ impl Hash for FrmMetricsBucketIdentifier {
 		self.time_bucket.hash(state);
     }
 }
+
 impl PartialEq for FrmMetricsBucketIdentifier {
     fn eq(&self, other: &Self) -> bool {
         let mut left = DefaultHasher::new();
@@ -153,7 +150,7 @@ impl FrmMetricsBucketIdentifier {
 #[derive(Debug, serde::Serialize)]
 pub struct FrmMetricsBucketValue {
    pub frm_triggered_attempts: Option<u64>,
-   pub frm_block_rate: Option<f64>,
+   pub frm_blocked_rate: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]

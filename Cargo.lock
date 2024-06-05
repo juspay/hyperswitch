@@ -399,6 +399,7 @@ dependencies = [
  "cards",
  "common_enums",
  "common_utils",
+ "diesel_models",
  "error-stack",
  "euclid",
  "frunk",

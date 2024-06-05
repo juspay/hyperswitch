@@ -1,9 +1,9 @@
 use api_models::analytics::{
-    frm::{FrmDimensions, FrmType},
+    frm::{FrmDimensions, FrmTransactionType},
     Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums::{Currency, FrmStatus};
+use diesel_models::enums::FraudCheckStatus;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
@@ -16,7 +16,6 @@ use crate::{
 };
 pub trait FrmFilterAnalytics: LoadRow<FrmFilterRow> {}
 
-// TODO (tsdk02) - implement querybuilder function
 pub async fn get_frm_filter_for_dimension<T>(
     dimension: FrmDimensions,
     merchant: &String,
@@ -31,7 +30,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Frm);
+    let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::FraudCheck);
 
     query_builder.add_select_column(dimension).switch()?;
     time_range
@@ -51,10 +50,10 @@ where
         .change_context(FiltersError::QueryBuildingError)?
         .change_context(FiltersError::QueryExecutionFailure)
 }
-// TODO (tsdk02) - To be discussed about what will be in the FrmFilterRow
+
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct FrmFilterRow {
-    pub frm_status: Option<DBEnumWrapper<FrmStatus>>,
-    pub frm_transaction_type: Option<DBEnumWrapper<FrmType>>,
+    pub frm_status: Option<DBEnumWrapper<FraudCheckStatus>>,
+    pub frm_transaction_type: Option<DBEnumWrapper<FrmTransactionType>>,
     pub frm_name: Option<String>,
 }
