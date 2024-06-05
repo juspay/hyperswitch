@@ -2,6 +2,8 @@
 
 mod utils;
 
+use std::sync::Arc;
+
 use common_utils::{id_type, types::MinorUnit};
 use router::{
     core::payments,
@@ -36,13 +38,16 @@ async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     let key_store = state
         .store
@@ -224,13 +229,16 @@ async fn payments_create_core_adyen_no_redirect() {
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = Arc::new(app_state)
+        .get_session_state("public", || {})
+        .unwrap();
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();

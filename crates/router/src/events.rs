@@ -30,6 +30,7 @@ pub enum EventType {
     AuditEvent,
     #[cfg(feature = "payouts")]
     Payout,
+    Consolidated,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

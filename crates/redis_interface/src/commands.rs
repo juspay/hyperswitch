@@ -31,6 +31,13 @@ use crate::{
 };
 
 impl super::RedisConnectionPool {
+    pub fn add_prefix(&self, key: &str) -> String {
+        if self.key_prefix.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}:{}", self.key_prefix, key)
+        }
+    }
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &str, value: V) -> CustomResult<(), errors::RedisError>
     where
@@ -39,7 +46,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .set(
-                key,
+                self.add_prefix(key),
                 value,
                 Some(Expiration::EX(self.config.default_ttl.into())),
                 None,
@@ -144,7 +151,7 @@ impl super::RedisConnectionPool {
 
         self.pool
             .set(
-                key,
+                self.add_prefix(key),
                 serialized.as_slice(),
                 Some(Expiration::EX(seconds)),
                 None,
@@ -160,7 +167,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         self.pool
-            .get(key)
+            .get(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::GetFailed)
     }
@@ -171,7 +178,7 @@ impl super::RedisConnectionPool {
         V: Into<MultipleKeys> + Unpin + Send + 'static,
     {
         self.pool
-            .exists(key)
+            .exists(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::GetFailed)
     }
@@ -197,7 +204,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &str) -> CustomResult<DelReply, errors::RedisError> {
         self.pool
-            .del(key)
+            .del(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::DeleteFailed)
     }
@@ -214,7 +221,13 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
-            .set(key, value, Some(Expiration::EX(seconds)), None, false)
+            .set(
+                self.add_prefix(key),
+                value,
+                Some(Expiration::EX(seconds)),
+                None,
+                false,
+            )
             .await
             .change_context(errors::RedisError::SetExFailed)
     }
@@ -232,7 +245,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .set(
-                key,
+                self.add_prefix(key),
                 value,
                 Some(Expiration::EX(
                     seconds.unwrap_or(self.config.default_ttl.into()),
@@ -251,7 +264,7 @@ impl super::RedisConnectionPool {
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError> {
         self.pool
-            .expire(key, seconds)
+            .expire(self.add_prefix(key), seconds)
             .await
             .change_context(errors::RedisError::SetExpiryFailed)
     }
@@ -263,7 +276,7 @@ impl super::RedisConnectionPool {
         timestamp: i64,
     ) -> CustomResult<(), errors::RedisError> {
         self.pool
-            .expire_at(key, timestamp)
+            .expire_at(self.add_prefix(key), timestamp)
             .await
             .change_context(errors::RedisError::SetExpiryFailed)
     }
@@ -281,7 +294,7 @@ impl super::RedisConnectionPool {
     {
         let output: Result<(), _> = self
             .pool
-            .hset(key, values)
+            .hset(self.add_prefix(key), values)
             .await
             .change_context(errors::RedisError::SetHashFailed);
         // setting expiry for the key
@@ -306,7 +319,7 @@ impl super::RedisConnectionPool {
     {
         let output: Result<HsetnxReply, _> = self
             .pool
-            .hsetnx(key, field, value)
+            .hsetnx(self.add_prefix(key), field, value)
             .await
             .change_context(errors::RedisError::SetHashFieldFailed);
 
@@ -368,7 +381,7 @@ impl super::RedisConnectionPool {
         Ok(self
             .pool
             .next()
-            .hscan::<&str, &str>(key, pattern, count)
+            .hscan::<&str, &str>(&self.add_prefix(key), pattern, count)
             .filter_map(|value| async move {
                 match value {
                     Ok(mut v) => {
@@ -419,7 +432,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         self.pool
-            .hget(key, field)
+            .hget(self.add_prefix(key), field)
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
     }
@@ -456,7 +469,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send,
     {
         self.pool
-            .sadd(key, members)
+            .sadd(self.add_prefix(key), members)
             .await
             .change_context(errors::RedisError::SetAddMembersFailed)
     }
@@ -473,7 +486,7 @@ impl super::RedisConnectionPool {
         F::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
-            .xadd(stream, false, None, entry_id, fields)
+            .xadd(self.add_prefix(stream), false, None, entry_id, fields)
             .await
             .change_context(errors::RedisError::StreamAppendFailed)
     }
@@ -488,7 +501,7 @@ impl super::RedisConnectionPool {
         Ids: Into<MultipleStrings> + Debug + Send + Sync,
     {
         self.pool
-            .xdel(stream, ids)
+            .xdel(self.add_prefix(stream), ids)
             .await
             .change_context(errors::RedisError::StreamDeleteFailed)
     }
@@ -504,7 +517,7 @@ impl super::RedisConnectionPool {
         C::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
-            .xtrim(stream, xcap)
+            .xtrim(self.add_prefix(stream), xcap)
             .await
             .change_context(errors::RedisError::StreamTrimFailed)
     }
@@ -520,20 +533,32 @@ impl super::RedisConnectionPool {
         Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         self.pool
-            .xack(stream, group, ids)
+            .xack(self.add_prefix(stream), group, ids)
             .await
             .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn stream_get_length<K>(&self, stream: K) -> CustomResult<usize, errors::RedisError>
-    where
-        K: Into<RedisKey> + Debug + Send + Sync,
-    {
+    pub async fn stream_get_length(&self, stream: &str) -> CustomResult<usize, errors::RedisError> {
         self.pool
-            .xlen(stream)
+            .xlen(self.add_prefix(stream))
             .await
             .change_context(errors::RedisError::GetLengthFailed)
+    }
+
+    pub fn get_keys_with_prefix<K>(&self, keys: K) -> MultipleKeys
+    where
+        K: Into<MultipleKeys> + Debug + Send + Sync,
+    {
+        let multiple_keys: MultipleKeys = keys.into();
+        let res = multiple_keys
+            .inner()
+            .iter()
+            .filter_map(|key| key.as_str())
+            .map(|k| self.add_prefix(k))
+            .map(RedisKey::from)
+            .collect::<Vec<_>>();
+        MultipleKeys::from(res)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -547,11 +572,12 @@ impl super::RedisConnectionPool {
         K: Into<MultipleKeys> + Debug + Send + Sync,
         Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
+        let strms = self.get_keys_with_prefix(streams);
         self.pool
             .xread_map(
                 Some(read_count.unwrap_or(self.config.default_stream_read_count)),
                 None,
-                streams,
+                strms,
                 ids,
             )
             .await
@@ -579,10 +605,22 @@ impl super::RedisConnectionPool {
         match group {
             Some((group_name, consumer_name)) => {
                 self.pool
-                    .xreadgroup_map(group_name, consumer_name, count, block, false, streams, ids)
+                    .xreadgroup_map(
+                        group_name,
+                        consumer_name,
+                        count,
+                        block,
+                        false,
+                        self.get_keys_with_prefix(streams),
+                        ids,
+                    )
                     .await
             }
-            None => self.pool.xread_map(count, block, streams, ids).await,
+            None => {
+                self.pool
+                    .xread_map(count, block, self.get_keys_with_prefix(streams), ids)
+                    .await
+            }
         }
         .map_err(|err| match err.kind() {
             RedisErrorKind::NotFound | RedisErrorKind::Parse => {
@@ -610,7 +648,7 @@ impl super::RedisConnectionPool {
         }
 
         self.pool
-            .xgroup_create(stream, group, id, true)
+            .xgroup_create(self.add_prefix(stream), group, id, true)
             .await
             .change_context(errors::RedisError::ConsumerGroupCreateFailed)
     }
@@ -622,7 +660,7 @@ impl super::RedisConnectionPool {
         group: &str,
     ) -> CustomResult<usize, errors::RedisError> {
         self.pool
-            .xgroup_destroy(stream, group)
+            .xgroup_destroy(self.add_prefix(stream), group)
             .await
             .change_context(errors::RedisError::ConsumerGroupDestroyFailed)
     }
@@ -636,7 +674,7 @@ impl super::RedisConnectionPool {
         consumer: &str,
     ) -> CustomResult<usize, errors::RedisError> {
         self.pool
-            .xgroup_delconsumer(stream, group, consumer)
+            .xgroup_delconsumer(self.add_prefix(stream), group, consumer)
             .await
             .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
     }
@@ -649,7 +687,7 @@ impl super::RedisConnectionPool {
         id: &RedisEntryId,
     ) -> CustomResult<String, errors::RedisError> {
         self.pool
-            .xgroup_setid(stream, group, id)
+            .xgroup_setid(self.add_prefix(stream), group, id)
             .await
             .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
     }
@@ -669,7 +707,7 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .xclaim(
-                stream,
+                self.add_prefix(stream),
                 group,
                 consumer,
                 min_idle_time,
