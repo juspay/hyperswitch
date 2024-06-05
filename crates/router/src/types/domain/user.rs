@@ -284,9 +284,12 @@ impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
     }
 }
 
-impl From<user_api::CreateInternalUserRequest> for NewUserOrganization {
-    fn from(_value: user_api::CreateInternalUserRequest) -> Self {
-        let new_organization = api_org::OrganizationNew::new(None);
+impl From<(user_api::CreateInternalUserRequest, String)> for NewUserOrganization {
+    fn from((_value, org_id): (user_api::CreateInternalUserRequest, String)) -> Self {
+        let new_organization = api_org::OrganizationNew {
+            org_id,
+            org_name: None,
+        };
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
     }
@@ -457,10 +460,10 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     }
 }
 
-impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
+impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
+    fn try_from(value: (user_api::CreateInternalUserRequest, String)) -> UserResult<Self> {
         let merchant_id =
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
         let new_organization = NewUserOrganization::from(value);
@@ -702,15 +705,17 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     }
 }
 
-impl TryFrom<user_api::CreateInternalUserRequest> for NewUser {
+impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
+    fn try_from(
+        (value, org_id): (user_api::CreateInternalUserRequest, String),
+    ) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
         let password = UserPassword::new(value.password.clone())?;
-        let new_merchant = NewUserMerchant::try_from(value)?;
+        let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
             user_id,
