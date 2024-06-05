@@ -196,7 +196,7 @@ pub async fn list_customer_payment_method_for_payment(
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let payment_id = payment_id.into_inner().0.clone();
+    let _payment_id = payment_id.into_inner().0.clone();
 
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
@@ -214,7 +214,7 @@ pub async fn list_customer_payment_method_for_payment(
                 auth.merchant_account,
                 auth.key_store,
                 Some(req),
-                payment_id.clone(),
+                None,
                 true,
             )
         },
@@ -250,7 +250,7 @@ pub async fn list_customer_payment_method_for_payment(
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api_v2(
     state: web::Data<AppState>,
-    customer_id: web::Path<(String,)>,
+    customer_id: web::Path<(id_type::CustomerId,)>,
     req: HttpRequest,
     query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
@@ -258,11 +258,10 @@ pub async fn list_customer_payment_method_api_v2(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0.clone();
 
-    let ephemeral_or_api_auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
+    let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers(), &customer_id) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -275,7 +274,7 @@ pub async fn list_customer_payment_method_api_v2(
                 auth.merchant_account,
                 auth.key_store,
                 Some(req),
-                customer_id.clone(),
+                Some(customer_id.clone()),
                 false,
             )
         },

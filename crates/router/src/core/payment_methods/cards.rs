@@ -3322,7 +3322,7 @@ pub async fn list_customer_payment_method_util(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: Option<api::PaymentMethodListRequest>,
-    generic_id: String,
+    customer_id: Option<id_type::CustomerId>,
     is_payment_associated: bool,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = state.store.as_ref();
@@ -3344,7 +3344,7 @@ pub async fn list_customer_payment_method_util(
             payment_intent,
         )
     } else {
-        (Some(generic_id), None)
+        (customer_id, None)
     };
 
     let resp = if let Some(cust) = customer_id {
@@ -3353,7 +3353,7 @@ pub async fn list_customer_payment_method_util(
             merchant_account,
             key_store,
             payment_intent,
-            cust.as_str(),
+            &cust,
             limit,
             is_payment_associated,
         ))
