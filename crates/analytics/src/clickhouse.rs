@@ -35,7 +35,6 @@ pub type ClickhouseResult<T> = error_stack::Result<T, ClickhouseError>;
 #[derive(Clone, Debug)]
 pub struct ClickhouseClient {
     pub config: Arc<ClickhouseConfig>,
-    pub ckh_db_name: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -43,6 +42,7 @@ pub struct ClickhouseConfig {
     username: String,
     password: Option<String>,
     host: String,
+    database_name: String,
 }
 
 impl Default for ClickhouseConfig {
@@ -51,6 +51,7 @@ impl Default for ClickhouseConfig {
             username: "default".to_string(),
             password: None,
             host: "http://localhost:8123".to_string(),
+            database_name: "default".to_string(),
         }
     }
 }
@@ -62,7 +63,7 @@ impl ClickhouseClient {
         let params = CkhQuery {
             date_time_output_format: String::from("iso"),
             output_format_json_quote_64bit_integers: 0,
-            database: self.ckh_db_name.clone(),
+            database: self.config.database_name.clone(),
         };
         let response = client
             .post(&self.config.host)
