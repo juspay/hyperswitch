@@ -1831,12 +1831,17 @@ impl<F, T>
             detailed_error_info,
             None,
         );
-        let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
-            code: error_message
+            code: error_response
+                .error_information
+                .reason
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: error_response
+                .error_information
+                .reason
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason,
             status_code: item.http_code,
             attempt_status: None,
