@@ -1826,8 +1826,11 @@ impl<F, T>
                         .join(", ")
                 });
 
-
-        let reason = get_error_reason(error_response.error_information.message.clone(), detailed_error_info, None);
+        let reason = get_error_reason(
+            error_response.error_information.message.clone(),
+            detailed_error_info,
+            None,
+        );
         let error_message = error_response.error_information.reason.to_owned();
         let response = Err(types::ErrorResponse {
             code: error_message
@@ -2032,7 +2035,11 @@ impl<F>
                                 .join(", ")
                         });
 
-                let reason = get_error_reason(error_response.error_information.message, detailed_error_info, None);
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
                 let error_message = error_response.error_information.reason;
                 Ok(Self {
                     response: Err(types::ErrorResponse {
@@ -2422,7 +2429,11 @@ impl<F>
                                 .join(", ")
                         });
 
-                let reason = get_error_reason(error_response.error_information.message, detailed_error_info, None);
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
                     code: error_message
@@ -2673,8 +2684,11 @@ impl<F, T>
                                 .join(", ")
                         });
 
-
-                let reason = get_error_reason(error_response.error_information.clone().message, detailed_error_info, None);
+                let reason = get_error_reason(
+                    error_response.error_information.clone().message,
+                    detailed_error_info,
+                    None,
+                );
                 let error_message = error_response.error_information.reason.to_owned();
                 let response = Err(types::ErrorResponse {
                     code: error_message
@@ -3337,7 +3351,11 @@ impl
                 None => "".to_string(),
             });
 
-        let reason = get_error_reason(error_data.clone().and_then(|error_info| error_info.message), detailed_error_info, avs_message);
+        let reason = get_error_reason(
+            error_data.clone().and_then(|error_info| error_info.message),
+            detailed_error_info,
+            avs_message,
+        );
         let error_message = error_data.clone().and_then(|error_info| error_info.reason);
         Self {
             code: error_message

@@ -1573,7 +1573,11 @@ impl<F, T>
                         .join(", ")
                 });
 
-        let reason = get_error_reason(error_response.error_information.message.clone(), detailed_error_info, None);
+        let reason = get_error_reason(
+            error_response.error_information.message.clone(),
+            detailed_error_info,
+            None,
+        );
         let error_message = error_response.error_information.reason.to_owned();
 
         let response = Err(types::ErrorResponse {
@@ -1728,8 +1732,11 @@ impl<F, T>
                                 .join(", ")
                         });
 
-
-                let reason = get_error_reason(error_response.error_information.message, detailed_error_info, None);
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
                 let error_message = error_response.error_information.reason;
 
                 Ok(Self {
@@ -2868,9 +2875,13 @@ impl
             })
         });
 
-        let reason = get_error_reason(error_data
-            .clone()
-            .and_then(|error_details| error_details.message), detailed_error_info, avs_message);
+        let reason = get_error_reason(
+            error_data
+                .clone()
+                .and_then(|error_details| error_details.message),
+            detailed_error_info,
+            avs_message,
+        );
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -3122,8 +3133,11 @@ impl ForeignFrom<(&BankOfAmericaErrorInformationResponse, u16)> for types::Error
                         .join(", ")
                 });
 
-
-        let reason = get_error_reason(error_response.error_information.message.to_owned(), detailed_error_info, None);
+        let reason = get_error_reason(
+            error_response.error_information.message.to_owned(),
+            detailed_error_info,
+            None,
+        );
         let error_message = error_response.error_information.reason.to_owned();
         Self {
             code: error_message
