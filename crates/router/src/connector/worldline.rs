@@ -132,6 +132,7 @@ impl ConnectorCommon for Worldline {
         router_env::logger::info!(connector_response=?response);
 
         let error = response.errors.into_iter().next().unwrap_or_default();
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: error
@@ -139,7 +140,18 @@ impl ConnectorCommon for Worldline {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: error
                 .message
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: Some(format!(
+                "{}{}",
+                error.message.clone().unwrap_or("".to_string()),
+                error
+                    .property_name
+                    .map_or("".to_string(), |property_name| format!(
+                        ",PropertyName {}",
+                        property_name
+                    ))
+            )),
             ..Default::default()
         })
     }
@@ -409,6 +421,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         >,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        if req.request.minor_payment_amount > req.request.minor_amount_to_capture {
+            Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Partial Capture".to_owned(),
+                connector: self.id().to_owned(),
+            })?
+        };
         let connector_req = worldline::ApproveRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))

@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, CardData, RouterData},
+    connector::utils::{self, is_payment_failure, is_refund_failure, CardData, RouterData},
+    consts,
     core::errors,
     services,
     types::{
@@ -116,6 +117,7 @@ pub enum WorldlinePaymentMethod {
 pub struct RedirectPaymentMethod {
     pub payment_product_id: u16,
     pub redirection_data: RedirectionData,
+    pub requires_approval: bool,
     #[serde(flatten)]
     pub payment_method_specific_data: PaymentMethodSpecificData,
 }
@@ -423,6 +425,10 @@ fn make_bank_redirect_request(
     Ok(RedirectPaymentMethod {
         payment_product_id,
         redirection_data,
+        requires_approval: matches!(
+            req.request.capture_method,
+            Some(enums::CaptureMethod::Manual)
+        ),
         payment_method_specific_data,
     })
 }
@@ -568,11 +574,19 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
 /// This is used to decide payment status while converting connector response to RouterData.
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Payment {
     pub id: String,
     pub status: PaymentStatus,
+    pub status_output: Option<StatusOutput>,
     #[serde(skip_deserializing)]
     pub capture_method: enums::CaptureMethod,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatusOutput {
+    pub errors: Option<Vec<Error>>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData>>
@@ -582,12 +596,42 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
     fn try_from(
         item: types::ResponseRouterData<F, Payment, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.status,
-                item.response.capture_method,
-            )),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let status = enums::AttemptStatus::foreign_from((
+            item.response.status,
+            item.response.capture_method,
+        ));
+
+        let response = if is_payment_failure(status) {
+            let error = item.response.status_output.and_then(|status_output| {
+                status_output
+                    .errors
+                    .and_then(|errors| errors.into_iter().next())
+            });
+            Err(types::ErrorResponse {
+                code: error
+                    .as_ref()
+                    .and_then(|error| error.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: error
+                    .as_ref()
+                    .and_then(|error| error.message.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                reason: error.as_ref().map(|error| {
+                    format!(
+                        "{}{}",
+                        error.message.clone().unwrap_or("".to_string()),
+                        error.property_name.clone().map_or(
+                            "".to_string(),
+                            |property_name| format!(", PropertyName {}", property_name)
+                        )
+                    )
+                }),
+                status_code: item.http_code,
+                attempt_status: Some(status.clone()),
+                connector_transaction_id: Some(item.response.id.clone()),
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -596,7 +640,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -635,12 +684,46 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
             .map(|redirect_url| {
                 services::RedirectForm::from((redirect_url, services::Method::Get))
             });
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.payment.status,
-                item.response.payment.capture_method,
-            )),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let status = enums::AttemptStatus::foreign_from((
+            item.response.payment.status,
+            item.response.payment.capture_method,
+        ));
+
+        let response = if is_payment_failure(status) {
+            let error = item
+                .response
+                .payment
+                .status_output
+                .and_then(|status_output| {
+                    status_output
+                        .errors
+                        .and_then(|errors| errors.into_iter().next())
+                });
+            Err(types::ErrorResponse {
+                code: error
+                    .as_ref()
+                    .and_then(|error| error.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: error
+                    .as_ref()
+                    .and_then(|error| error.message.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                reason: error.as_ref().map(|error| {
+                    format!(
+                        "{}{}",
+                        error.message.clone().unwrap_or("".to_string()),
+                        error.property_name.clone().map_or(
+                            "".to_string(),
+                            |property_name| format!(", PropertyName {}", property_name)
+                        )
+                    )
+                }),
+                status_code: item.http_code,
+                attempt_status: Some(status.clone()),
+                connector_transaction_id: Some(item.response.payment.id.clone()),
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.payment.id.clone(),
                 ),
@@ -651,7 +734,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 connector_response_reference_id: Some(item.response.payment.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -708,6 +796,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    status_output: Option<StatusOutput>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -718,11 +807,45 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+
+        let response = if is_refund_failure(refund_status) {
+            let error = item.response.status_output.and_then(|status_output| {
+                status_output
+                    .errors
+                    .and_then(|errors| errors.into_iter().next())
+            });
+            Err(types::ErrorResponse {
+                code: error
+                    .as_ref()
+                    .and_then(|error| error.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: error
+                    .as_ref()
+                    .and_then(|error| error.message.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                reason: error.as_ref().map(|error| {
+                    format!(
+                        "{}{}",
+                        error.message.clone().unwrap_or("".to_string()),
+                        error.property_name.clone().map_or(
+                            "".to_string(),
+                            |property_name| format!(", PropertyName {}", property_name)
+                        )
+                    )
+                }),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -736,17 +859,50 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let response = if is_refund_failure(refund_status) {
+            let error = item.response.status_output.and_then(|status_output| {
+                status_output
+                    .errors
+                    .and_then(|errors| errors.into_iter().next())
+            });
+            Err(types::ErrorResponse {
+                code: error
+                    .as_ref()
+                    .and_then(|error| error.code.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: error
+                    .as_ref()
+                    .and_then(|error| error.message.clone())
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                reason: error.as_ref().map(|error| {
+                    format!(
+                        "{}{}",
+                        error.message.clone().unwrap_or("".to_string()),
+                        error.property_name.clone().map_or(
+                            "".to_string(),
+                            |property_name| format!(", PropertyName {}", property_name)
+                        )
+                    )
+                }),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.data
         })
     }
 }
 
-#[derive(Default, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Default, Debug, Deserialize, PartialEq, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     pub code: Option<String>,
