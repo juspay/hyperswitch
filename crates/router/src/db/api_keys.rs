@@ -373,7 +373,7 @@ impl ApiKeyInterface for MockDb {
 #[cfg(test)]
 mod tests {
     use storage_impl::redis::{
-        cache::{self, CacheKind, ACCOUNTS_CACHE},
+        cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };
@@ -525,15 +525,12 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(
-            ACCOUNTS_CACHE
-                .get_val::<storage::ApiKey>(&format!(
-                    "{}_{}",
-                    merchant_id,
-                    hashed_api_key.into_inner()
-                ),)
-                .await
-                .is_none()
-        )
+        assert!(ACCOUNTS_CACHE
+            .get_val::<storage::ApiKey>(CacheKey {
+                key: format!("{}_{}", merchant_id, hashed_api_key.into_inner()),
+                prefix: String::default(),
+            },)
+            .await
+            .is_none())
     }
 }

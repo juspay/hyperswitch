@@ -5,7 +5,11 @@ use api_models::{
     payments, routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
-use common_utils::{ext_traits::StringExt, static_cache::StaticCache, types as common_utils_types};
+use common_utils::{
+    ext_traits::{OptionExt, StringExt},
+    static_cache::StaticCache,
+    types as common_utils_types,
+};
 use error_stack::{self, ResultExt};
 use euclid::{
     backend,
@@ -26,8 +30,7 @@ use crate::{
         storage::{self, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryFrom,
     },
-    utils::OptionExt,
-    AppState,
+    SessionState,
 };
 
 static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
@@ -96,7 +99,7 @@ impl SurchargeSource {
 }
 
 pub async fn perform_surcharge_decision_management_for_payment_method_list(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
@@ -216,7 +219,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
 }
 
 pub async fn perform_surcharge_decision_management_for_session_flow<O>(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_data: &mut PaymentData<O>,
     payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
@@ -277,7 +280,7 @@ where
     Ok(surcharge_metadata)
 }
 pub async fn perform_surcharge_decision_management_for_saved_cards(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
