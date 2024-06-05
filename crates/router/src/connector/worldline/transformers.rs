@@ -525,7 +525,7 @@ impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentStatus {
     Captured,
@@ -535,12 +535,11 @@ pub enum PaymentStatus {
     Rejected,
     RejectedCapture,
     PendingApproval,
-    PendingCapture,
     CaptureRequested,
+    #[default]
     Processing,
     Created,
     Redirected,
-    AuthorizationRequested,
 }
 
 impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
@@ -563,9 +562,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
             PaymentStatus::PendingApproval => Self::Authorized,
             PaymentStatus::Created => Self::Started,
             PaymentStatus::Redirected => Self::AuthenticationPending,
-            PaymentStatus::Processing => Self::Pending,
-            PaymentStatus::PendingCapture => Self::Authorized,
-            PaymentStatus::AuthorizationRequested => Self::Authorizing,
+            _ => Self::Pending,
         }
     }
 }
@@ -573,7 +570,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
 /// capture_method is not part of response from connector.
 /// This is used to decide payment status while converting connector response to RouterData.
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payment {
     pub id: String,
