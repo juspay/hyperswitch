@@ -301,7 +301,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxFulfillResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::from(item.response.status)),
-                connector_payout_id: item.data.request.get_transfer_id().ok(),
+                connector_payout_id: Some(item.data.request.get_transfer_id()?),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

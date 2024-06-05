@@ -295,7 +295,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::Reversed => Ok(Self::AutoRefunded),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
-            AdyenWebhookStatus::UnexpectedEvent => {
+            AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
                 Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
@@ -396,8 +396,9 @@ pub struct AdyenWebhookResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RedirectionErrorResponse {
     result_code: AdyenStatus,
-    refusal_reason: String,
+    refusal_reason: Option<String>,
     psp_reference: Option<String>,
+    merchant_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3568,8 +3569,11 @@ pub fn get_redirection_error_response(
         storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code, pmt));
     let error = Some(types::ErrorResponse {
         code: status.to_string(),
-        message: response.refusal_reason.clone(),
-        reason: Some(response.refusal_reason),
+        message: response
+            .refusal_reason
+            .clone()
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+        reason: response.refusal_reason,
         status_code,
         attempt_status: None,
         connector_transaction_id: response.psp_reference.clone(),
@@ -3581,7 +3585,10 @@ pub fn get_redirection_error_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: response
+            .merchant_reference
+            .clone()
+            .or(response.psp_reference),
         incremental_authorization_allowed: None,
         charge_id: None,
     };

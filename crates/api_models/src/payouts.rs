@@ -153,19 +153,19 @@ pub struct PayoutCreateRequest {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
-    Card(Card),
+    Card(CardPayout),
     Bank(Bank),
     Wallet(Wallet),
 }
 
 impl Default for PayoutMethodData {
     fn default() -> Self {
-        Self::Card(Card::default())
+        Self::Card(CardPayout::default())
     }
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-pub struct Card {
+pub struct CardPayout {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
     pub card_number: CardNumber,

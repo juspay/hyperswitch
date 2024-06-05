@@ -64,6 +64,19 @@ pub trait Feature<F, T> {
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
+    async fn add_session_token<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
     async fn add_payment_method_token<'a>(
         &mut self,
         _state: &SessionState,
@@ -2697,6 +2710,92 @@ default_imp_for_connector_authentication!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_authorize_session_token {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentAuthorizeSessionToken for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::AuthorizeSessionToken,
+                types::AuthorizeSessionTokenData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentAuthorizeSessionToken for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::AuthorizeSessionToken,
+        types::AuthorizeSessionTokenData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_authorize_session_token!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,

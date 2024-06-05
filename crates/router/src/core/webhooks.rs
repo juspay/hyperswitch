@@ -221,7 +221,7 @@ pub async fn payouts_incoming_webhook_flow(
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
         let db = &*state.store;
-        //find refund by connector refund id
+        //find payout_attempt by object_reference_id
         let payout_attempt = match webhook_details.object_reference_id {
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => match payout_id_type {
                 webhooks::PayoutIdType::PayoutAttemptId(id) => db
@@ -311,7 +311,7 @@ pub async fn payouts_incoming_webhook_flow(
                 business_profile,
                 &key_store,
                 outgoing_event_type,
-                enums::EventClass::Refunds,
+                enums::EventClass::Payouts,
                 updated_payout_attempt.payout_id.clone(),
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(payout_create_response),
