@@ -8320,8 +8320,8 @@ impl Default for super::settings::RequiredFields {
                                             (
                                                 "shipping.phone.number".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.shipping.phone.number".to_string(),
-                                                    display_name: "phone".to_string(),
+                                                    required_field: "shipping.phone.number".to_string(),
+                                                    display_name: "phone_number".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumber,
                                                     value: None,
                                                 }
@@ -8329,8 +8329,8 @@ impl Default for super::settings::RequiredFields {
                                             (
                                                 "shipping.phone.country_code".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.shipping.phone.country_code".to_string(),
-                                                    display_name: "phone".to_string(),
+                                                    required_field: "shipping.phone.country_code".to_string(),
+                                                    display_name: "phone_country_code".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                     value: None,
                                                 }
