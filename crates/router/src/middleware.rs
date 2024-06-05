@@ -140,15 +140,16 @@ where
     // TODO: have a common source of truth for the list of top level fields
     // /crates/router_env/src/logger/storage.rs also has a list of fields  called PERSISTENT_KEYS
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
+        let tenant_id = req
+            .headers()
+            .get("x-tenant-id")
+            .clone()
+            .and_then(|i| i.to_str().ok())
+            .map(|s| s.to_owned());
         let response_fut = self.service.call(req);
-
         Box::pin(
             async move {
-                if let Some(tenant_id) = req
-                    .headers()
-                    .get("x-tenant-id")
-                    .and_then(|i| i.to_str().ok())
-                {
+                if let Some(tenant_id) = tenant_id {
                     router_env::tracing::Span::current().record("tenant_id", &tenant_id);
                 }
                 let response = response_fut.await;
