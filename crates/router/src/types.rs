@@ -717,8 +717,8 @@ impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
-impl ForeignFrom<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
-    fn foreign_from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
+impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
+    fn foreign_from(data: &PaymentsAuthorizeRouterData) -> Self {
         Self {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,

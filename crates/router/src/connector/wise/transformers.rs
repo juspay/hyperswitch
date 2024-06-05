@@ -406,7 +406,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseRecipientCreateResponse>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::RequiresCreation),
-                connector_payout_id: response.id.to_string(),
+                connector_payout_id: Some(response.id.to_string()),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -452,7 +452,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutQuoteResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::RequiresCreation),
-                connector_payout_id: response.id,
+                connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -515,7 +515,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(status),
-                connector_payout_id: response.id.to_string(),
+                connector_payout_id: Some(response.id.to_string()),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -557,7 +557,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseFulfillResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::from(response.status)),
-                connector_payout_id: "".to_string(),
+                connector_payout_id: None,
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
