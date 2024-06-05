@@ -32,7 +32,7 @@ use actix_web::{
 use http::StatusCode;
 use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
 use router_env::tracing::Instrument;
-use routes::AppState;
+use routes::{AppState, SessionState};
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
