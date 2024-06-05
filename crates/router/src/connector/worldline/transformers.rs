@@ -967,11 +967,9 @@ pub enum WebhookEvent {
 
 pub fn format_error_message(error: &Error) -> String {
     match (&error.message, &error.property_name) {
-        (Some(message), Some(property_name))  => format!(
-            "{} - PropertyName: {}",
-            message,
-            property_name,
-        ),
+        (Some(message), Some(property_name)) => {
+            format!("{} - PropertyName: {}", message, property_name,)
+        }
         (Some(message), None) => message.to_string(),
         (None, Some(property_name)) => property_name.to_string(),
         (None, None) => "".to_string(),
