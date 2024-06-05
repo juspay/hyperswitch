@@ -673,7 +673,7 @@ async fn api_client_error_handler(
         .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
     }
 
-    Ok(())
+    Err(error)
 }
 
 async fn update_event_in_storage(
@@ -806,5 +806,5 @@ async fn error_response_handler(
         .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
     }
 
-    Ok(())
+    Err(error)
 }
