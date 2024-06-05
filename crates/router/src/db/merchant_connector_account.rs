@@ -466,7 +466,17 @@ impl MerchantConnectorAccountInterface for Store {
 
                 #[cfg(not(feature = "accounts_cache"))]
                 {
-                    update().await
+                    update.await.map_err(|error| {
+                        // Returning DatabaseConnectionError after logging the actual error because
+                        // -> it is not possible to get the underlying error
+                        // -> it is not possible to write a from impl to convert the diesel::result::Error to error_stack::Report<StorageError>
+                        //    because for rust orphan rules
+                        router_env::logger::error!(
+                        ?error,
+                        "DB transaction for updating multiple merchant connector account failed"
+                    );
+                        errors::StorageError::DatabaseConnectionError
+                    })?;
                 }
             }
             Ok::<_, errors::StorageError>(())
