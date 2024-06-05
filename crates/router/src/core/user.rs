@@ -1046,11 +1046,6 @@ pub async fn create_internal_user(
     state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
-    let new_user = domain::NewUser::try_from(request)?;
-
-    let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
-    store_user.set_is_verified(true);
-
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
@@ -1066,7 +1061,7 @@ pub async fn create_internal_user(
             }
         })?;
 
-    state
+    let internal_merchant = state
         .store
         .find_merchant_account_by_merchant_id(
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
@@ -1080,6 +1075,11 @@ pub async fn create_internal_user(
                 e.change_context(UserErrors::InternalServerError)
             }
         })?;
+
+    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id))?;
+
+    let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
+    store_user.set_is_verified(true);
 
     state
         .store
