@@ -28,6 +28,7 @@ pub struct KafkaPayout<'a> {
     pub last_modified_at: OffsetDateTime,
     pub attempt_count: i16,
     pub status: storage_enums::PayoutStatus,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 
     pub connector: Option<&'a String>,
     pub connector_payout_id: Option<&'a String>,
@@ -63,6 +64,7 @@ impl<'a> KafkaPayout<'a> {
             last_modified_at: payouts.last_modified_at.assume_utc(),
             attempt_count: payouts.attempt_count,
             status: payouts.status,
+            priority: payouts.priority,
             connector: payout_attempt.connector.as_ref(),
             connector_payout_id: payout_attempt.connector_payout_id.as_ref(),
             is_eligible: payout_attempt.is_eligible,

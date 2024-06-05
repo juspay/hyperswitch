@@ -557,7 +557,13 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseFulfillResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::from(response.status)),
-                connector_payout_id: None,
+                connector_payout_id: Some(
+                    item.data
+                        .request
+                        .connector_payout_id
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                ),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

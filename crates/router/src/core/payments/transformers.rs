@@ -990,7 +990,6 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             unified_code: None,
             unified_message: None,
         };
-        let attempts = vec![attempt];
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
@@ -1016,7 +1015,9 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             error_code: payout_attempt.error_code,
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
-            attempts: Some(attempts),
+            connector_transaction_id: attempt.connector_transaction_id.clone(),
+            priority: payout.priority,
+            attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,
         }
