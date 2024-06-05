@@ -71,24 +71,27 @@ impl DashboardRequestPayload {
             api_models::enums::PaymentExperience::RedirectToUrl,
             api_models::enums::PaymentExperience::InvokeSdkClient,
         ];
-
+        let default_provider = Provider {
+            payment_method_type: Paypal,
+            accepted_currencies: None,
+            accepted_countries: None,
+        };
+        let provider = providers.first().unwrap_or(&default_provider);
         let mut payment_method_types = Vec::new();
 
         for experience in payment_experiences {
-            for provider in &providers {
-                let data = payment_methods::RequestPaymentMethodTypes {
-                    payment_method_type: provider.payment_method_type,
-                    card_networks: None,
-                    minimum_amount: Some(0),
-                    maximum_amount: Some(68607706),
-                    recurring_enabled: true,
-                    installment_payment_enabled: false,
-                    accepted_currencies: provider.accepted_currencies.clone(),
-                    accepted_countries: provider.accepted_countries.clone(),
-                    payment_experience: Some(experience),
-                };
-                payment_method_types.push(data);
-            }
+            let data = payment_methods::RequestPaymentMethodTypes {
+                payment_method_type: provider.payment_method_type,
+                card_networks: None,
+                minimum_amount: Some(0),
+                maximum_amount: Some(68607706),
+                recurring_enabled: true,
+                installment_payment_enabled: false,
+                accepted_currencies: provider.accepted_currencies.clone(),
+                accepted_countries: provider.accepted_countries.clone(),
+                payment_experience: Some(experience),
+            };
+            payment_method_types.push(data);
         }
 
         payment_method_types
