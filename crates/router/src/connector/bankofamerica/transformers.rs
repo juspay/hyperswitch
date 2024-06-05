@@ -1585,7 +1585,7 @@ impl<F, T>
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: reason,
+            reason,
             status_code: item.http_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
