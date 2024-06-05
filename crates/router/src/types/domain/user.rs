@@ -463,10 +463,10 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
 impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(req: (user_api::CreateInternalUserRequest, String)) -> UserResult<Self> {
+    fn try_from(value: (user_api::CreateInternalUserRequest, String)) -> UserResult<Self> {
         let merchant_id =
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
-        let new_organization = NewUserOrganization::from(req);
+        let new_organization = NewUserOrganization::from(value);
 
         Ok(Self {
             company_name: None,
