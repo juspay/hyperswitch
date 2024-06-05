@@ -541,7 +541,7 @@ impl MessagingInterface for KafkaProducer {
             .and_then(|i| serde_json::to_vec(&i))
             .change_context(EventsError::SerializationError)?;
         let mut headers = OwnedHeaders::new();
-        for (k, v) in metadata.into_iter() {
+        for (k, v) in metadata.iter() {
             headers = headers.insert(Header {
                 key: k.as_str(),
                 value: Some(v),
