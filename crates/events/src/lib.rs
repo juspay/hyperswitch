@@ -115,11 +115,9 @@ where
     /// Emit the event.
     pub fn try_emit(self) -> Result<(), EventsError> {
         let ts = self.event.timestamp();
-        self.message_sink.send_message(
-            FlatMapEvent(self.metadata, self.event),
-            self.event.metadata(),
-            ts,
-        )
+        let metadata = self.metadata;
+        self.message_sink
+            .send_message(FlatMapEvent(self.metadata, self.event), metadata, ts)
     }
 }
 
