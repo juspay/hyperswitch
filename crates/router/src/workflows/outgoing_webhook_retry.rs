@@ -1,3 +1,5 @@
+#[cfg(feature = "payouts")]
+use api_models::payouts as payout_models;
 use api_models::{
     enums::EventType,
     webhook_events::OutgoingWebhookRequestContent,
@@ -13,6 +15,8 @@ use scheduler::{
     utils as scheduler_utils,
 };
 
+#[cfg(feature = "payouts")]
+use crate::core::payouts;
 use crate::{
     core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
@@ -471,6 +475,34 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             Ok((
                 OutgoingWebhookContent::MandateDetails(mandate_response),
+                event_type,
+            ))
+        }
+        #[cfg(feature = "payouts")]
+        diesel_models::enums::EventClass::Payouts => {
+            let payout_id = tracking_data.primary_object_id.clone();
+            let request = payout_models::PayoutRequest::PayoutActionRequest(
+                payout_models::PayoutActionRequest { payout_id },
+            );
+
+            let payout_data =
+                payouts::make_payout_data(&state, &merchant_account, &key_store, &request).await?;
+
+            let router_response =
+                payouts::response_handler(&merchant_account, &payout_data).await?;
+
+            let payout_create_response: payout_models::PayoutCreateResponse = match router_response
+            {
+                ApplicationResponse::Json(response) => response,
+                _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
+                    .attach_printable("Failed to fetch the payout create response")?,
+            };
+
+            let event_type = Option::<EventType>::foreign_from(payout_data.payout_attempt.status);
+            logger::debug!(current_resource_status=%payout_data.payout_attempt.status);
+
+            Ok((
+                OutgoingWebhookContent::PayoutDetails(payout_create_response),
                 event_type,
             ))
         }

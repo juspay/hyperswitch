@@ -77,6 +77,15 @@ pub trait PaymentAuthorize:
 {
 }
 
+pub trait PaymentAuthorizeSessionToken:
+    api::ConnectorIntegration<
+    AuthorizeSessionToken,
+    types::AuthorizeSessionTokenData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait PaymentSync:
     api::ConnectorIntegration<PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
@@ -161,6 +170,7 @@ pub trait Payment:
     api_types::ConnectorCommon
     + api_types::ConnectorValidation
     + PaymentAuthorize
+    + PaymentAuthorizeSessionToken
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
