@@ -307,7 +307,7 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 paypal = { currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
 klarna = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US,CA", currency = "USD,GBP,EUR,CHF,DKK,SEK,NOK,AUD,PLN,CAD" }
 affirm = { country = "US", currency = "USD" }
-afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "GBP" }
+afterpay_clearpay = { country = "US,CA,GB,AU,NZ", currency = "GBP,AUD,NZD,CAD,USD" }
 giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
 sofort = { country = "ES,GB,SE,AT,NL,DE,CH,BE,FR,FI,IT,PL", currency = "EUR" }
