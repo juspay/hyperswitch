@@ -131,7 +131,27 @@ impl ConnectorCommon for Worldline {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let error = response.errors.into_iter().next().unwrap_or_default();
+        let error = response.errors.clone().into_iter().next().unwrap_or_default();
+
+        let err_reason = response
+            .errors
+            .clone()
+            .iter()
+            .map(|error| {
+                error
+                    .message
+                    .clone()
+                    .map_or(error.property_name.clone(), |message| {
+                        Some(format!(
+                            "{} : PropertyName {}",
+                            message,
+                            error.property_name.clone().unwrap_or("None".to_string())
+                        ))
+                    })
+                    .unwrap_or("".to_string())
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -142,17 +162,9 @@ impl ConnectorCommon for Worldline {
                 .message
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(format!(
-                "{}{}",
-                error.message.clone().unwrap_or("".to_string()),
-                error
-                    .property_name
-                    .map_or("".to_string(), |property_name| format!(
-                        ",PropertyName {}",
-                        property_name
-                    ))
-            )),
-            ..Default::default()
+            reason: Some(err_reason),
+            attempt_status: Some(common_enums::AttemptStatus::Failure),
+            connector_transaction_id: None,
         })
     }
 }

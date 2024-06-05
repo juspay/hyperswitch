@@ -599,11 +599,34 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
         ));
 
         let response = if is_payment_failure(status) {
-            let error = item.response.status_output.and_then(|status_output| {
+            let error = item.response.status_output.clone().and_then(|status_output| {
                 status_output
                     .errors
                     .and_then(|errors| errors.into_iter().next())
             });
+
+            let reason = item.response.status_output.and_then(|status_output| {
+                status_output.errors.map(|errors| {
+                    errors
+                        .iter()
+                        .map(|error| {
+                            error
+                                .message
+                                .clone()
+                                .map_or(error.property_name.clone(), |message| {
+                                    Some(format!(
+                                        "{} - PropertyName: {}",
+                                        message,
+                                        error.property_name.clone().unwrap_or("None".to_string())
+                                    ))
+                                })
+                                .unwrap_or("".to_string())
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+            });
+
             Err(types::ErrorResponse {
                 code: error
                     .as_ref()
@@ -613,16 +636,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                     .as_ref()
                     .and_then(|error| error.message.clone())
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                reason: error.as_ref().map(|error| {
-                    format!(
-                        "{}{}",
-                        error.message.clone().unwrap_or("".to_string()),
-                        error.property_name.clone().map_or(
-                            "".to_string(),
-                            |property_name| format!(", PropertyName {}", property_name)
-                        )
-                    )
-                }),
+                reason,
                 status_code: item.http_code,
                 attempt_status: Some(status.clone()),
                 connector_transaction_id: Some(item.response.id.clone()),
@@ -691,11 +705,39 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 .response
                 .payment
                 .status_output
+                .clone()
                 .and_then(|status_output| {
                     status_output
                         .errors
                         .and_then(|errors| errors.into_iter().next())
                 });
+
+            let reason = item
+                .response
+                .payment
+                .status_output
+                .and_then(|status_output| {
+                    status_output.errors.map(|errors| {
+                        errors
+                            .iter()
+                            .map(|error| {
+                                error
+                                    .message
+                                    .clone()
+                                    .map_or(error.property_name.clone(), |message| {
+                                        Some(format!(
+                                            "{} - PropertyName: {}",
+                                            message,
+                                            error.property_name.clone().unwrap_or("None".to_string())
+                                        ))
+                                    })
+                                    .unwrap_or("".to_string())
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                });
+
             Err(types::ErrorResponse {
                 code: error
                     .as_ref()
@@ -705,16 +747,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                     .as_ref()
                     .and_then(|error| error.message.clone())
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                reason: error.as_ref().map(|error| {
-                    format!(
-                        "{}{}",
-                        error.message.clone().unwrap_or("".to_string()),
-                        error.property_name.clone().map_or(
-                            "".to_string(),
-                            |property_name| format!(", PropertyName {}", property_name)
-                        )
-                    )
-                }),
+                reason,
                 status_code: item.http_code,
                 attempt_status: Some(status.clone()),
                 connector_transaction_id: Some(item.response.payment.id.clone()),
@@ -806,11 +839,34 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         let refund_status = enums::RefundStatus::from(item.response.status);
 
         let response = if is_refund_failure(refund_status) {
-            let error = item.response.status_output.and_then(|status_output| {
+            let error = item.response.status_output.clone().and_then(|status_output| {
                 status_output
                     .errors
                     .and_then(|errors| errors.into_iter().next())
             });
+
+            let reason = item.response.status_output.and_then(|status_output| {
+                status_output.errors.map(|errors| {
+                    errors
+                        .iter()
+                        .map(|error| {
+                            error
+                                .message
+                                .clone()
+                                .map_or(error.property_name.clone(), |message| {
+                                    Some(format!(
+                                        "{} - PropertyName: {}",
+                                        message,
+                                        error.property_name.clone().unwrap_or("None".to_string())
+                                    ))
+                                })
+                                .unwrap_or("".to_string())
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+            });
+
             Err(types::ErrorResponse {
                 code: error
                     .as_ref()
@@ -820,16 +876,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                     .as_ref()
                     .and_then(|error| error.message.clone())
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                reason: error.as_ref().map(|error| {
-                    format!(
-                        "{}{}",
-                        error.message.clone().unwrap_or("".to_string()),
-                        error.property_name.clone().map_or(
-                            "".to_string(),
-                            |property_name| format!(", PropertyName {}", property_name)
-                        )
-                    )
-                }),
+                reason,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
@@ -857,11 +904,33 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if is_refund_failure(refund_status) {
-            let error = item.response.status_output.and_then(|status_output| {
+            let error = item.response.status_output.clone().and_then(|status_output| {
                 status_output
                     .errors
                     .and_then(|errors| errors.into_iter().next())
             });
+            let reason = item.response.status_output.and_then(|status_output| {
+                status_output.errors.map(|errors| {
+                    errors
+                        .iter()
+                        .map(|error| {
+                            error
+                                .message
+                                .clone()
+                                .map_or(error.property_name.clone(), |message| {
+                                    Some(format!(
+                                        "{} - PropertyName: {}",
+                                        message,
+                                        error.property_name.clone().unwrap_or("None".to_string())
+                                    ))
+                                })
+                                .unwrap_or("".to_string())
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+            });
+
             Err(types::ErrorResponse {
                 code: error
                     .as_ref()
@@ -871,16 +940,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
                     .as_ref()
                     .and_then(|error| error.message.clone())
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                reason: error.as_ref().map(|error| {
-                    format!(
-                        "{}{}",
-                        error.message.clone().unwrap_or("".to_string()),
-                        error.property_name.clone().map_or(
-                            "".to_string(),
-                            |property_name| format!(", PropertyName {}", property_name)
-                        )
-                    )
-                }),
+                reason,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
