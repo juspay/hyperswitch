@@ -357,7 +357,7 @@ describe("Bank Redirect tests", () => {
 
     it("Handle bank redirect redirection", () => {
       let expected_redirection = confirmBody["return_url"];
-      let payment_method_type = confirmBody["payment_method_type"];
+      let payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
