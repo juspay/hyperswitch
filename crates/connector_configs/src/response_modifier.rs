@@ -334,6 +334,7 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             pull_mechanism_for_external_3ds_enabled: api_model
                 .pull_mechanism_for_external_3ds_enabled,
             klarna_region: api_model.klarna_region,
+            source_balance_account: api_model.source_balance_account,
         }
     }
 }
