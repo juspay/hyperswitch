@@ -274,189 +274,6 @@ async fn trigger_webhook_to_merchant(
     );
     logger::debug!(outgoing_webhook_response=?response);
 
-    let update_event_if_client_error =
-        |state: SessionState,
-         merchant_key_store: domain::MerchantKeyStore,
-         merchant_id: String,
-         event_id: String,
-         error_message: String| async move {
-            let is_webhook_notified = false;
-
-            let response_to_store = OutgoingWebhookResponseContent {
-                body: None,
-                headers: None,
-                status_code: None,
-                error_message: Some(error_message),
-            };
-
-            let event_update = domain::EventUpdate::UpdateResponse {
-                is_webhook_notified,
-                response: Some(
-                    domain_types::encrypt(
-                        response_to_store
-                            .encode_to_string_of_json()
-                            .change_context(
-                                errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
-                            )
-                            .map(Secret::new)?,
-                        merchant_key_store.key.get_inner().peek(),
-                    )
-                    .await
-                    .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-                    .attach_printable("Failed to encrypt outgoing webhook response content")?,
-                ),
-            };
-
-            state
-                .store
-                .update_event_by_merchant_id_event_id(
-                    &merchant_id,
-                    &event_id,
-                    event_update,
-                    &merchant_key_store,
-                )
-                .await
-                .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-        };
-
-    let api_client_error_handler =
-        |state: SessionState,
-         merchant_key_store: domain::MerchantKeyStore,
-         merchant_id: String,
-         event_id: String,
-         client_error: error_stack::Report<errors::ApiClientError>,
-         delivery_attempt: enums::WebhookDeliveryAttempt| async move {
-            // Not including detailed error message in response information since it contains too
-            // much of diagnostic information to be exposed to the merchant.
-            update_event_if_client_error(
-                state,
-                merchant_key_store,
-                merchant_id,
-                event_id,
-                "Unable to send request to merchant server".to_string(),
-            )
-            .await?;
-
-            let error =
-                client_error.change_context(errors::WebhooksFlowError::CallToMerchantFailed);
-            logger::error!(
-                ?error,
-                ?delivery_attempt,
-                "An error occurred when sending webhook to merchant"
-            );
-
-            Ok::<_, error_stack::Report<errors::WebhooksFlowError>>(())
-        };
-    let update_event_in_storage = |state: SessionState,
-                                   merchant_key_store: domain::MerchantKeyStore,
-                                   merchant_id: String,
-                                   event_id: String,
-                                   response: reqwest::Response| async move {
-        let status_code = response.status();
-        let is_webhook_notified = status_code.is_success();
-
-        let response_headers = response
-            .headers()
-            .iter()
-            .map(|(name, value)| {
-                (
-                    name.as_str().to_owned(),
-                    value
-                        .to_str()
-                        .map(|s| Secret::from(String::from(s)))
-                        .unwrap_or_else(|error| {
-                            logger::warn!(
-                                "Response header {} contains non-UTF-8 characters: {error:?}",
-                                name.as_str()
-                            );
-                            Secret::from(String::from("Non-UTF-8 header value"))
-                        }),
-                )
-            })
-            .collect::<Vec<_>>();
-        let response_body = response
-            .text()
-            .await
-            .map(Secret::from)
-            .unwrap_or_else(|error| {
-                logger::warn!("Response contains non-UTF-8 characters: {error:?}");
-                Secret::from(String::from("Non-UTF-8 response body"))
-            });
-        let response_to_store = OutgoingWebhookResponseContent {
-            body: Some(response_body),
-            headers: Some(response_headers),
-            status_code: Some(status_code.as_u16()),
-            error_message: None,
-        };
-
-        let event_update = domain::EventUpdate::UpdateResponse {
-            is_webhook_notified,
-            response: Some(
-                domain_types::encrypt(
-                    response_to_store
-                        .encode_to_string_of_json()
-                        .change_context(
-                            errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
-                        )
-                        .map(Secret::new)?,
-                    merchant_key_store.key.get_inner().peek(),
-                )
-                .await
-                .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-                .attach_printable("Failed to encrypt outgoing webhook response content")?,
-            ),
-        };
-        state
-            .store
-            .update_event_by_merchant_id_event_id(
-                &merchant_id,
-                &event_id,
-                event_update,
-                &merchant_key_store,
-            )
-            .await
-            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-    };
-    let increment_webhook_outgoing_received_count = |merchant_id: String| {
-        metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-            &metrics::CONTEXT,
-            1,
-            &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
-        )
-    };
-    let success_response_handler =
-        |state: SessionState,
-         merchant_id: String,
-         process_tracker: Option<storage::ProcessTracker>,
-         business_status: &'static str| async move {
-            increment_webhook_outgoing_received_count(merchant_id);
-
-            match process_tracker {
-                Some(process_tracker) => state
-                    .store
-                    .as_scheduler()
-                    .finish_process_with_business_status(process_tracker, business_status.into())
-                    .await
-                    .change_context(
-                        errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
-                    ),
-                None => Ok(()),
-            }
-        };
-    let error_response_handler = |merchant_id: String,
-                                  delivery_attempt: enums::WebhookDeliveryAttempt,
-                                  status_code: u16,
-                                  log_message: &'static str| {
-        metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-            &metrics::CONTEXT,
-            1,
-            &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
-        );
-
-        let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
-        logger::warn!(?error, ?delivery_attempt, ?status_code, %log_message);
-    };
-
     match delivery_attempt {
         enums::WebhookDeliveryAttempt::InitialAttempt => match response {
             Err(client_error) => {
@@ -467,6 +284,7 @@ async fn trigger_webhook_to_merchant(
                     event_id.clone(),
                     client_error,
                     delivery_attempt,
+                    ScheduleWebhookRetry::NoSchedule,
                 )
                 .await?
             }
@@ -491,11 +309,14 @@ async fn trigger_webhook_to_merchant(
                     .await?;
                 } else {
                     error_response_handler(
+                        state.clone(),
                         business_profile.merchant_id,
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
-                    );
+                        ScheduleWebhookRetry::NoSchedule,
+                    )
+                    .await?;
                 }
             }
         },
@@ -513,18 +334,9 @@ async fn trigger_webhook_to_merchant(
                         event_id.clone(),
                         client_error,
                         delivery_attempt,
+                        ScheduleWebhookRetry::WithProcessTracker(process_tracker),
                     )
                     .await?;
-                    // Schedule a retry attempt for webhook delivery
-                    outgoing_webhook_retry::retry_webhook_delivery_task(
-                        &*state.store,
-                        &business_profile.merchant_id,
-                        process_tracker,
-                    )
-                    .await
-                    .change_context(
-                        errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed,
-                    )?;
                 }
                 Ok(response) => {
                     let status_code = response.status();
@@ -547,21 +359,14 @@ async fn trigger_webhook_to_merchant(
                         .await?;
                     } else {
                         error_response_handler(
+                            state.clone(),
                             business_profile.merchant_id.clone(),
                             delivery_attempt,
                             status_code.as_u16(),
                             "An error occurred when sending webhook to merchant",
-                        );
-                        // Schedule a retry attempt for webhook delivery
-                        outgoing_webhook_retry::retry_webhook_delivery_task(
-                            &*state.store,
-                            &business_profile.merchant_id,
-                            process_tracker,
+                            ScheduleWebhookRetry::WithProcessTracker(process_tracker),
                         )
-                        .await
-                        .change_context(
-                            errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed,
-                        )?;
+                        .await?;
                     }
                 }
             }
@@ -575,6 +380,7 @@ async fn trigger_webhook_to_merchant(
                     event_id.clone(),
                     client_error,
                     delivery_attempt,
+                    ScheduleWebhookRetry::NoSchedule,
                 )
                 .await?
             }
@@ -593,11 +399,14 @@ async fn trigger_webhook_to_merchant(
                     increment_webhook_outgoing_received_count(business_profile.merchant_id.clone());
                 } else {
                     error_response_handler(
+                        state,
                         business_profile.merchant_id,
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
-                    );
+                        ScheduleWebhookRetry::NoSchedule,
+                    )
+                    .await?;
                 }
             }
         },
@@ -772,4 +581,230 @@ pub(crate) fn get_outgoing_webhook_request(
             payment_response_hash_key,
         ),
     }
+}
+
+#[derive(Debug)]
+enum ScheduleWebhookRetry {
+    WithProcessTracker(storage::ProcessTracker),
+    NoSchedule,
+}
+
+async fn update_event_if_client_error(
+    state: SessionState,
+    merchant_key_store: domain::MerchantKeyStore,
+    merchant_id: String,
+    event_id: String,
+    error_message: String,
+) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
+    let is_webhook_notified = false;
+
+    let response_to_store = OutgoingWebhookResponseContent {
+        body: None,
+        headers: None,
+        status_code: None,
+        error_message: Some(error_message),
+    };
+
+    let event_update = domain::EventUpdate::UpdateResponse {
+        is_webhook_notified,
+        response: Some(
+            domain_types::encrypt(
+                response_to_store
+                    .encode_to_string_of_json()
+                    .change_context(
+                        errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
+                    )
+                    .map(Secret::new)?,
+                merchant_key_store.key.get_inner().peek(),
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+            .attach_printable("Failed to encrypt outgoing webhook response content")?,
+        ),
+    };
+
+    state
+        .store
+        .update_event_by_merchant_id_event_id(
+            &merchant_id,
+            &event_id,
+            event_update,
+            &merchant_key_store,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+}
+
+async fn api_client_error_handler(
+    state: SessionState,
+    merchant_key_store: domain::MerchantKeyStore,
+    merchant_id: String,
+    event_id: String,
+    client_error: error_stack::Report<errors::ApiClientError>,
+    delivery_attempt: enums::WebhookDeliveryAttempt,
+    schedule_webhook_retry: ScheduleWebhookRetry,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    // Not including detailed error message in response information since it contains too
+    // much of diagnostic information to be exposed to the merchant.
+    update_event_if_client_error(
+        state.clone(),
+        merchant_key_store,
+        merchant_id.clone(),
+        event_id,
+        "Unable to send request to merchant server".to_string(),
+    )
+    .await?;
+
+    let error = client_error.change_context(errors::WebhooksFlowError::CallToMerchantFailed);
+    logger::error!(
+        ?error,
+        ?delivery_attempt,
+        "An error occurred when sending webhook to merchant"
+    );
+
+    if let ScheduleWebhookRetry::WithProcessTracker(process_tracker) = schedule_webhook_retry {
+        // Schedule a retry attempt for webhook delivery
+        outgoing_webhook_retry::retry_webhook_delivery_task(
+            &*state.store,
+            &merchant_id,
+            process_tracker,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
+    }
+
+    Ok(())
+}
+
+async fn update_event_in_storage(
+    state: SessionState,
+    merchant_key_store: domain::MerchantKeyStore,
+    merchant_id: String,
+    event_id: String,
+    response: reqwest::Response,
+) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
+    let status_code = response.status();
+    let is_webhook_notified = status_code.is_success();
+
+    let response_headers = response
+        .headers()
+        .iter()
+        .map(|(name, value)| {
+            (
+                name.as_str().to_owned(),
+                value
+                    .to_str()
+                    .map(|s| Secret::from(String::from(s)))
+                    .unwrap_or_else(|error| {
+                        logger::warn!(
+                            "Response header {} contains non-UTF-8 characters: {error:?}",
+                            name.as_str()
+                        );
+                        Secret::from(String::from("Non-UTF-8 header value"))
+                    }),
+            )
+        })
+        .collect::<Vec<_>>();
+    let response_body = response
+        .text()
+        .await
+        .map(Secret::from)
+        .unwrap_or_else(|error| {
+            logger::warn!("Response contains non-UTF-8 characters: {error:?}");
+            Secret::from(String::from("Non-UTF-8 response body"))
+        });
+    let response_to_store = OutgoingWebhookResponseContent {
+        body: Some(response_body),
+        headers: Some(response_headers),
+        status_code: Some(status_code.as_u16()),
+        error_message: None,
+    };
+
+    let event_update = domain::EventUpdate::UpdateResponse {
+        is_webhook_notified,
+        response: Some(
+            domain_types::encrypt(
+                response_to_store
+                    .encode_to_string_of_json()
+                    .change_context(
+                        errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
+                    )
+                    .map(Secret::new)?,
+                merchant_key_store.key.get_inner().peek(),
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+            .attach_printable("Failed to encrypt outgoing webhook response content")?,
+        ),
+    };
+    state
+        .store
+        .update_event_by_merchant_id_event_id(
+            &merchant_id,
+            &event_id,
+            event_update,
+            &merchant_key_store,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+}
+
+fn increment_webhook_outgoing_received_count(merchant_id: String) {
+    metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
+    )
+}
+
+async fn success_response_handler(
+    state: SessionState,
+    merchant_id: String,
+    process_tracker: Option<storage::ProcessTracker>,
+    business_status: &'static str,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    increment_webhook_outgoing_received_count(merchant_id);
+
+    match process_tracker {
+        Some(process_tracker) => state
+            .store
+            .as_scheduler()
+            .finish_process_with_business_status(process_tracker, business_status.into())
+            .await
+            .change_context(
+                errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
+            ),
+        None => Ok(()),
+    }
+}
+
+async fn error_response_handler(
+    state: SessionState,
+    merchant_id: String,
+    delivery_attempt: enums::WebhookDeliveryAttempt,
+    status_code: u16,
+    log_message: &'static str,
+    schedule_webhook_retry: ScheduleWebhookRetry,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id.clone())],
+    );
+
+    let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
+    logger::warn!(?error, ?delivery_attempt, ?status_code, %log_message);
+
+    if let ScheduleWebhookRetry::WithProcessTracker(process_tracker) = schedule_webhook_retry {
+        // Schedule a retry attempt for webhook delivery
+        outgoing_webhook_retry::retry_webhook_delivery_task(
+            &*state.store,
+            &merchant_id,
+            process_tracker,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
+    }
+
+    Ok(())
 }
