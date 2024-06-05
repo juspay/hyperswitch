@@ -272,7 +272,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::foreign_from(response.status)),
-                connector_payout_id: response.id,
+                connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

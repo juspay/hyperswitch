@@ -636,6 +636,7 @@ pub struct PayoutsData {
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Default, Clone)]
