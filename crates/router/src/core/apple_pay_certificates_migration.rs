@@ -30,6 +30,7 @@ pub async fn apple_pay_certificates_migration(
     let mut migration_failed_merchant_ids = vec![];
 
     for merchant_id in merchant_id_list {
+        println!("m_idd {:?}", merchant_id);
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -48,7 +49,8 @@ pub async fn apple_pay_certificates_migration(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let mut apple_pay_certificates_migration_flag = true;
+        let mut mca_to_update = vec![];
+
         for connector_account in merchant_connector_accounts {
             let connector_apple_pay_metadata =
                 helpers::get_applepay_metadata(connector_account.clone().metadata)
@@ -77,37 +79,23 @@ pub async fn apple_pay_certificates_migration(
                     storage::MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                         connector_wallets_details: encrypted_apple_pay_metadata,
                     };
-                let merchant_connector_account_response = db
-                    .update_merchant_connector_account(
-                        connector_account.clone(),
-                        updated_mca.into(),
-                        &key_store,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Failed while updating MerchantConnectorAccount: id: {:?}",
-                            connector_account.merchant_connector_id
-                        )
-                    });
 
-                match merchant_connector_account_response {
-                    Ok(_) => {
-                        apple_pay_certificates_migration_flag = true;
-                    }
-                    Err(_) => {
-                        apple_pay_certificates_migration_flag = false;
-                        break;
-                    }
-                };
+                mca_to_update.push((connector_account, updated_mca.into()));
             }
         }
-        if apple_pay_certificates_migration_flag {
-            migration_successful_merchant_ids.push(merchant_id.to_string());
-        } else {
-            migration_failed_merchant_ids.push(merchant_id.to_string());
-        }
+
+        let merchant_connector_accounts_update = db
+            .update_multiple_merchant_connector_account(mca_to_update)
+            .await;
+
+        match merchant_connector_accounts_update {
+            Ok(_) => {
+                migration_successful_merchant_ids.push(merchant_id.to_string());
+            }
+            Err(_) => {
+                migration_failed_merchant_ids.push(merchant_id.to_string());
+            }
+        };
     }
 
     Ok(services::api::ApplicationResponse::Json(

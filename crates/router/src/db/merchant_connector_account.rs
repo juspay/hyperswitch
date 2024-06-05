@@ -1,3 +1,4 @@
+use async_bb8_diesel::AsyncConnection;
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use diesel_models::encryption::Encryption;
 use error_stack::{report, ResultExt};
@@ -165,6 +166,14 @@ where
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
+
+    async fn update_multiple_merchant_connector_account(
+        &self,
+        this: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError>;
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
@@ -383,6 +392,90 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn update_multiple_merchant_connector_account(
+        &self,
+        merchant_connector_accounts: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+
+        async fn update_call(
+            connection: &diesel_models::PgPooledConn,
+            merchant_connector_account: (
+                domain::MerchantConnectorAccount,
+                storage::MerchantConnectorAccountUpdateInternal,
+            ),
+        ) -> Result<(), error_stack::Report<storage_impl::errors::StorageError>> {
+            let (merchant_connector_account, update_mca) = merchant_connector_account;
+            Conversion::convert(merchant_connector_account)
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .update(connection, update_mca)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+            Ok(())
+        }
+
+        conn.transaction_async(|connection_pool| async move {
+            for mca in merchant_connector_accounts {
+                let _connector_name = mca.0.connector_name.clone();
+                let _profile_id =
+                    mca.0
+                        .profile_id
+                        .clone()
+                        .ok_or(errors::StorageError::ValueNotFound(
+                            "profile_id".to_string(),
+                        ))?;
+
+                let _merchant_id = mca.0.merchant_id.clone();
+                let _merchant_connector_id = mca.0.merchant_connector_id.clone();
+
+                let update = update_call(&connection_pool, mca);
+
+                #[cfg(feature = "accounts_cache")]
+                // Redact both the caches as any one or both might be used because of backwards compatibility
+                cache::publish_and_redact_multiple(
+                    self,
+                    [
+                        cache::CacheKind::Accounts(
+                            format!("{}_{}", _profile_id, _connector_name).into(),
+                        ),
+                        cache::CacheKind::Accounts(
+                            format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                        ),
+                        cache::CacheKind::CGraph(
+                            format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
+                        ),
+                    ],
+                    || update,
+                )
+                .await
+                .map_err(|error| {
+                    // Returning DatabaseConnectionError after logging the actual error because
+                    // -> it is not possible to get the underlying error
+                    // -> it is not possible to write a from impl to convert the diesel::result::Error to error_stack::Report<StorageError>
+                    //    because for rust orphan rules
+                    router_env::logger::error!(
+                        ?error,
+                        "DB transaction for updating multiple merchant connector account failed"
+                    );
+                    errors::StorageError::DatabaseConnectionError
+                })?;
+
+                #[cfg(not(feature = "accounts_cache"))]
+                {
+                    update().await
+                }
+            }
+            Ok::<_, errors::StorageError>(())
+        })
+        .await?;
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
@@ -503,6 +596,17 @@ impl MerchantConnectorAccountInterface for Store {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for MockDb {
+    async fn update_multiple_merchant_connector_account(
+        &self,
+        _merchant_connector_accounts: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError> {
+        // No need to implement this function for `MockDb` as this function will be removed after the
+        // apple pay certificate migration
+        Err(errors::StorageError::MockDbError)?
+    }
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
