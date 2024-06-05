@@ -10,7 +10,7 @@ use super::gpayments_types;
 use crate::{
     connector::{
         gpayments::gpayments_types::{
-            AuthStatus, BrowserInfoCollected, GpaymentsAuthenticationResponse,
+            AuthStatus, BrowserInfoCollected, GpaymentsAuthenticationSuccessResponse,
         },
         utils,
         utils::{get_card_details, CardData},
@@ -249,7 +249,7 @@ impl
     TryFrom<
         types::ResponseRouterData<
             api::Authentication,
-            GpaymentsAuthenticationResponse,
+            GpaymentsAuthenticationSuccessResponse,
             types::authentication::ConnectorAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         >,
@@ -259,62 +259,48 @@ impl
     fn try_from(
         item: types::ResponseRouterData<
             api::Authentication,
-            GpaymentsAuthenticationResponse,
+            GpaymentsAuthenticationSuccessResponse,
             types::authentication::ConnectorAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let response = match item.response {
-            GpaymentsAuthenticationResponse::Success(response) => {
-                let creq = serde_json::json!({
-                    "threeDSServerTransID": response.three_ds_server_trans_id,
-                    "acsTransID": response.acs_trans_id,
-                    "messageVersion": response.message_version,
-                    "messageType": "CReq",
-                    "challengeWindowSize": "01",
-                });
-                let creq_str = to_string(&creq)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-                    .attach_printable("error while constructing creq_str")?;
-                let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
-                    .trim_end_matches('=')
-                    .to_owned();
-                Ok(
-                    types::authentication::AuthenticationResponseData::AuthNResponse {
-                        trans_status: response.trans_status.clone().into(),
-                        authn_flow_type: if response.trans_status == AuthStatus::C {
-                            types::authentication::AuthNFlowType::Challenge(Box::new(
-                                ChallengeParams {
-                                    acs_url: response.acs_url,
-                                    challenge_request: Some(creq_base64),
-                                    acs_reference_number: Some(
-                                        response.acs_reference_number.clone(),
-                                    ),
-                                    acs_trans_id: Some(response.acs_trans_id.clone()),
-                                    three_dsserver_trans_id: Some(
-                                        response.three_ds_server_trans_id,
-                                    ),
-                                    acs_signed_content: None,
-                                },
-                            ))
-                        } else {
-                            types::authentication::AuthNFlowType::Frictionless
-                        },
-                        authentication_value: response.authentication_value,
-                        ds_trans_id: Some(response.ds_trans_id),
-                        connector_metadata: None,
-                    },
-                )
-            }
-            GpaymentsAuthenticationResponse::Error(resp) => Err(types::ErrorResponse {
-                code: resp.code,
-                message: resp.message.clone(),
-                reason: resp.reason,
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: None,
-            }),
-        };
+        let response_auth = item.response;
+        let creq = serde_json::json!({
+            "threeDSServerTransID": response_auth.three_ds_server_trans_id,
+            "acsTransID": response_auth.acs_trans_id,
+            "messageVersion": response_auth.message_version,
+            "messageType": "CReq",
+            "challengeWindowSize": "01",
+        });
+        let creq_str = to_string(&creq)
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("error while constructing creq_str")?;
+        let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
+            .trim_end_matches('=')
+            .to_owned();
+        let response: Result<
+            types::authentication::AuthenticationResponseData,
+            types::ErrorResponse,
+        > = Ok(
+            types::authentication::AuthenticationResponseData::AuthNResponse {
+                trans_status: response_auth.trans_status.clone().into(),
+                authn_flow_type: if response_auth.trans_status == AuthStatus::C {
+                    types::authentication::AuthNFlowType::Challenge(Box::new(ChallengeParams {
+                        acs_url: response_auth.acs_url,
+                        challenge_request: Some(creq_base64),
+                        acs_reference_number: Some(response_auth.acs_reference_number.clone()),
+                        acs_trans_id: Some(response_auth.acs_trans_id.clone()),
+                        three_dsserver_trans_id: Some(response_auth.three_ds_server_trans_id),
+                        acs_signed_content: None,
+                    }))
+                } else {
+                    types::authentication::AuthNFlowType::Frictionless
+                },
+                authentication_value: response_auth.authentication_value,
+                ds_trans_id: Some(response_auth.ds_trans_id),
+                connector_metadata: None,
+            },
+        );
         Ok(Self {
             response,
             ..item.data.clone()

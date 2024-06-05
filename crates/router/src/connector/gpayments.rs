@@ -291,7 +291,7 @@ impl
         types::authentication::ConnectorAuthenticationRouterData,
         errors::ConnectorError,
     > {
-        let response: gpayments_types::GpaymentsAuthenticationResponse = res
+        let response: gpayments_types::GpaymentsAuthenticationSuccessResponse = res
             .response
             .parse_struct("gpayments GpaymentsAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

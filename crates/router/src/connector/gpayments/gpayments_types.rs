@@ -177,21 +177,6 @@ pub enum AuthenticationInd {
     CardholderVerification,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum GpaymentsAuthenticationResponse {
-    Success(Box<GpaymentsAuthenticationSuccessResponse>),
-    Error(Box<GpaymentsErrorResponse>),
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct GpaymentsErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsAuthenticationSuccessResponse {
