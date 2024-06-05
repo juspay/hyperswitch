@@ -1896,6 +1896,7 @@ pub async fn response_handler(
         profile_id: payout_attempt.profile_id,
         created: Some(payouts.created_at),
         connector_transaction_id: Some(payout_attempt.connector_payout_id),
+        priority: payouts.priority,
         attempts: None,
     };
     Ok(services::ApplicationResponse::Json(response))

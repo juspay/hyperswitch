@@ -1016,6 +1016,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
             connector_transaction_id: attempt.connector_transaction_id.clone(),
+            priority: payout.priority,
             attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,

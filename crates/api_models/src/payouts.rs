@@ -449,6 +449,10 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<String>, example = "S3FC9G9M2MVFDXT5")]
     pub connector_transaction_id: Option<String>,
 
+    /// Payout's send priority (if applicable)
+    #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
+    pub priority: Option<api_enums::PayoutSendPriority>,
+
     /// List of attempts
     #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]

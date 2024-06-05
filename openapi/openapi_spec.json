@@ -16562,6 +16562,14 @@
             "example": "S3FC9G9M2MVFDXT5",
             "nullable": true
           },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSendPriority"
+              }
+            ],
+            "nullable": true
+          },
           "attempts": {
             "type": "array",
             "items": {
