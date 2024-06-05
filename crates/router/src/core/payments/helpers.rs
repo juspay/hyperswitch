@@ -110,7 +110,10 @@ pub fn filter_mca_based_on_business_profile(
     if let Some(profile_id) = profile_id {
         merchant_connector_accounts
             .into_iter()
-            .filter(|mca| mca.profile_id.as_ref() == Some(&profile_id))
+            .filter(|mca| {
+                mca.profile_id.as_ref() == Some(&profile_id)
+                    && mca.connector_type == enums::ConnectorType::PaymentProcessor
+            })
             .collect::<Vec<_>>()
     } else {
         merchant_connector_accounts
