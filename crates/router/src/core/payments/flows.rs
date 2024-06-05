@@ -978,7 +978,6 @@ default_imp_for_pre_processing_steps!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
     connector::Square,
     connector::Stax,

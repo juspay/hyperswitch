@@ -243,6 +243,7 @@ pub struct PaymentsPreProcessingData {
     pub connector_transaction_id: Option<String>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub related_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 }
 
@@ -268,6 +269,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             mandate_id: data.mandate_id,
             related_transaction_id: data.related_transaction_id,
             redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
         })
     }
 }
@@ -294,6 +296,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             mandate_id: data.mandate_id,
             related_transaction_id: None,
             redirect_response: data.redirect_response,
+            enrolled_for_3ds: true,
         })
     }
 }
