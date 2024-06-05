@@ -89,7 +89,7 @@ pub async fn apple_pay_certificates_migration(
 
         match merchant_connector_accounts_update {
             Ok(_) => {
-                logger::debug!("Merchant connector accounts update for merchant id {merchant_id}");
+                logger::debug!("Merchant connector accounts updated for merchant id {merchant_id}");
                 migration_successful_merchant_ids.push(merchant_id.to_string());
             }
             Err(error) => {
