@@ -8243,12 +8243,13 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Klarna,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate:  HashMap::new(),
+                                        common: HashMap::from([
                                             (
                                                 "shipping.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "shipping.address.first_name".to_string(),
-                                                    display_name: "given_name".to_string(),
+                                                    display_name: "shipping_first_name".to_string(),
                                                     field_type: enums::FieldType::UserShippingName,
                                                     value: None,
                                                 }
@@ -8257,7 +8258,7 @@ impl Default for super::settings::RequiredFields {
                                                 "shipping.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "shipping.address.last_name".to_string(),
-                                                    display_name: "family_name".to_string(),
+                                                    display_name: "shipping_last_name".to_string(),
                                                     field_type: enums::FieldType::UserShippingName,
                                                     value: None,
                                                 }
@@ -8275,7 +8276,7 @@ impl Default for super::settings::RequiredFields {
                                                 "shipping.address.line1".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "shipping.address.line1".to_string(),
-                                                    display_name: "street_address".to_string(),
+                                                    display_name: "line1".to_string(),
                                                     field_type: enums::FieldType::UserShippingAddressLine1,
                                                     value: None,
                                                 }
@@ -8284,7 +8285,7 @@ impl Default for super::settings::RequiredFields {
                                                 "shipping.address.line2".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "shipping.address.line2".to_string(),
-                                                    display_name: "street_address2".to_string(),
+                                                    display_name: "line2".to_string(),
                                                     field_type: enums::FieldType::UserShippingAddressLine2,
                                                     value: None,
                                                 }
@@ -8293,7 +8294,7 @@ impl Default for super::settings::RequiredFields {
                                                 "shipping.address.zip".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "shipping.address.zip".to_string(),
-                                                    display_name: "postal_code".to_string(),
+                                                    display_name: "zip".to_string(),
                                                     field_type: enums::FieldType::UserShippingAddressPincode,
                                                     value: None,
                                                 }
@@ -8302,7 +8303,7 @@ impl Default for super::settings::RequiredFields {
                                                 "shipping.address.state".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "shipping.address.state".to_string(),
-                                                    display_name: "region".to_string(),
+                                                    display_name: "state".to_string(),
                                                     field_type: enums::FieldType::UserShippingAddressState,
                                                     value: None,
                                                 }
@@ -8369,7 +8370,6 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                         ]),
-                                        common: HashMap::new(),
                                     }
                                 )
                                 ]),
