@@ -440,7 +440,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
         api_models::payments::Address,
-        api_models::payouts::Card,
+        api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
         api_models::payouts::Venmo,

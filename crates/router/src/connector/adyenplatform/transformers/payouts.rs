@@ -263,7 +263,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenTransferResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(response.status)),
-                connector_payout_id: response.id,
+                connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

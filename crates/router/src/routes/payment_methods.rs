@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
 use time::PrimitiveDateTime;
 
-use super::app::AppState;
+use super::app::{AppState, SessionState};
 use crate::{
     core::{api_locking, errors, payment_methods::cards},
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -139,11 +139,10 @@ pub async fn list_customer_payment_method_api(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
 
-    let ephemeral_auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), &customer_id) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -343,28 +342,28 @@ pub async fn default_payment_method_set_api(
 ) -> HttpResponse {
     let flow = Flow::DefaultPaymentMethodsSet;
     let payload = path.into_inner();
-    let customer_id = payload.clone().customer_id;
+    let pc = payload.clone();
+    let customer_id = &pc.customer_id;
 
-    let ephemeral_auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
-    let db = &*state.store.clone();
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), customer_id) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |_state, auth: auth::AuthenticationData, default_payment_method, _| {
+        |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             cards::set_default_payment_method(
-                db,
+                &*state.clone().store,
                 auth.merchant_account.merchant_id,
                 auth.key_store,
-                &customer_id,
+                customer_id,
                 default_payment_method.payment_method_id,
                 auth.merchant_account.storage_scheme,
             )
+            .await
         },
         &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
@@ -416,7 +415,7 @@ impl ParentPaymentMethodToken {
         &self,
         intent_created_at: Option<PrimitiveDateTime>,
         token: PaymentTokenData,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let token_json_str = token
             .encode_to_string_of_json()
@@ -452,7 +451,7 @@ impl ParentPaymentMethodToken {
         .contains(&status)
     }
 
-    pub async fn delete(&self, state: &AppState) -> CustomResult<(), errors::ApiErrorResponse> {
+    pub async fn delete(&self, state: &SessionState) -> CustomResult<(), errors::ApiErrorResponse> {
         let redis_conn = state
             .store
             .get_redis_conn()

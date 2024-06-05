@@ -1098,8 +1098,9 @@ impl QueueInterface for KafkaStore {
         entry_id: &RedisEntryId,
         fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
+        let stream_name = format!("{}_{}", &self.tenant_id.0, stream);
         self.diesel_store
-            .stream_append_entry(stream, entry_id, fields)
+            .stream_append_entry(&stream_name, entry_id, fields)
             .await
     }
 
@@ -1554,6 +1555,21 @@ impl PayoutAttemptInterface for KafkaStore {
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
                 payout_attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    async fn find_payout_attempt_by_merchant_id_connector_payout_id(
+        &self,
+        merchant_id: &str,
+        connector_payout_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_connector_payout_id(
+                merchant_id,
+                connector_payout_id,
                 storage_scheme,
             )
             .await

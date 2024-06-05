@@ -11,7 +11,7 @@ use crate::{
         payment_methods,
     },
     newtype,
-    routes::AppState,
+    routes::SessionState,
     types::{
         api, domain,
         storage::{self, enums as storage_enums},
@@ -26,7 +26,7 @@ newtype!(
 #[async_trait::async_trait]
 pub(crate) trait MandateResponseExt: Sized {
     async fn from_db_mandate(
-        state: &AppState,
+        state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -36,7 +36,7 @@ pub(crate) trait MandateResponseExt: Sized {
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
-        state: &AppState,
+        state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
         storage_scheme: storage_enums::MerchantStorageScheme,

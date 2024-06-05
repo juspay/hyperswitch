@@ -36,7 +36,7 @@ pub async fn get_mandate(
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -46,7 +46,7 @@ pub async fn get_mandate(
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Mandates - Revoke Mandate
