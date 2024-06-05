@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};

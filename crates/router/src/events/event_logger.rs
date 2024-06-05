@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use events::{EventsError, Message, MessagingInterface};
 use masking::ErasedMaskSerialize;
 use time::PrimitiveDateTime;
