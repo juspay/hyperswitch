@@ -19,7 +19,7 @@ pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
 #[instrument(skip_all)]
 pub async fn perform_decision_management<F: Clone>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     merchant_id: &str,
     payment_data: &mut payments::PaymentData<F>,
@@ -34,16 +34,12 @@ pub async fn perform_decision_management<F: Clone>(
     let key = format!("dsl_{merchant_id}");
 
     let find_key_from_db = || async {
-        let config = db
-            .find_config_by_key(&algorithm_id)
-            .await
-            .change_context(ConfigError::DslMissingInDb)
-            .attach_printable("Missing the config in db")?;
+        let config = db.find_config_by_key(&algorithm_id).await?;
 
         let rec: DecisionManagerRecord = config
             .config
             .parse_struct("Program")
-            .change_context(ConfigError::DslParsingError)
+            .change_context(errors::StorageError::DeserializationFailed)
             .attach_printable("Error parsing routing algorithm from configs")?;
 
         backend::VirInterpreterBackend::with_program(rec.program)
@@ -63,10 +59,10 @@ pub async fn perform_decision_management<F: Clone>(
     let backend_input =
         make_dsl_input(payment_data).change_context(ConfigError::InputConstructionError)?;
 
-    execute_dsl_and_get_conditional_config(backend_input, &interpreter).await
+    execute_dsl_and_get_conditional_config(backend_input, &interpreter)
 }
 
-pub async fn execute_dsl_and_get_conditional_config(
+pub fn execute_dsl_and_get_conditional_config(
     backend_input: dsl_inputs::BackendInput,
     interpreter: &backend::VirInterpreterBackend<ConditionalConfigs>,
 ) -> ConditionalConfigResult<ConditionalConfigs> {

@@ -26,7 +26,7 @@ use crate::{
         storage::{self, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryFrom,
     },
-    AppState,
+    SessionState,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -94,7 +94,7 @@ impl SurchargeSource {
 }
 
 pub async fn perform_surcharge_decision_management_for_payment_method_list(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
@@ -208,7 +208,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
 }
 
 pub async fn perform_surcharge_decision_management_for_session_flow<O>(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_data: &mut PaymentData<O>,
     payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
@@ -263,7 +263,7 @@ where
     Ok(surcharge_metadata)
 }
 pub async fn perform_surcharge_decision_management_for_saved_cards(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
@@ -374,15 +374,11 @@ pub async fn ensure_algorithm_cached(
     let key = format!("surcharge_dsl_{merchant_id}");
 
     let value_to_cache = || async {
-        let config: diesel_models::Config = store
-            .find_config_by_key(algorithm_id)
-            .await
-            .change_context(ConfigError::DslMissingInDb)
-            .attach_printable("Error parsing DSL from config")?;
+        let config: diesel_models::Config = store.find_config_by_key(algorithm_id).await?;
         let record: SurchargeDecisionManagerRecord = config
             .config
             .parse_struct("Program")
-            .change_context(ConfigError::DslParsingError)
+            .change_context(errors::StorageError::DeserializationFailed)
             .attach_printable("Error parsing routing algorithm from configs")?;
         VirInterpreterBackendCacheWrapper::try_from(record)
             .change_context(errors::StorageError::ValueNotFound("Program".to_string()))

@@ -13,7 +13,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
-    routes::AppState,
+    routes::SessionState,
     types::{
         api::{self, payments},
         domain, storage,
@@ -23,7 +23,7 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     pm_data: &Option<payments::PaymentMethodData>,
-    state: &AppState,
+    state: &SessionState,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -95,7 +95,7 @@ pub async fn retrieve_payment_method(
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
-    state: &AppState,
+    state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     payment_intent: &PaymentIntent,

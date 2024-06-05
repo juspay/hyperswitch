@@ -15,7 +15,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     types::{domain, fraud_check::FrmRouterData},
 };
 
@@ -40,7 +40,7 @@ pub trait FraudCheckOperation<F>: Send + std::fmt::Debug {
 pub trait GetTracker<D>: Send {
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: D,
         frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>>;
@@ -51,7 +51,7 @@ pub trait GetTracker<D>: Send {
 pub trait Domain<F>: Send + Sync {
     async fn post_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
@@ -64,7 +64,7 @@ pub trait Domain<F>: Send + Sync {
 
     async fn pre_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -79,7 +79,7 @@ pub trait Domain<F>: Send + Sync {
     #[allow(clippy::too_many_arguments)]
     async fn execute_post_tasks(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _req_state: ReqState,
         frm_data: &mut FrmData,
         _merchant_account: &domain::MerchantAccount,
