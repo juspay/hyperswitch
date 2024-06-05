@@ -78,7 +78,8 @@ where
     event: E,
 }
 
-struct RawEvent<T, A: Event<EventType = T>>(HashMap<String, Value>, A);
+/// A flattened event that flattens the context provided to it along with the actual event.
+struct FlatMapEvent<T, A: Event<EventType = T>>(HashMap<String, Value>, A);
 
 impl<T, A, E, D> EventBuilder<T, A, E, D>
 where
@@ -115,14 +116,14 @@ where
     pub fn try_emit(self) -> Result<(), EventsError> {
         let ts = self.event.timestamp();
         self.message_sink.send_message(
-            RawEvent(self.metadata, self.event),
+            FlatMapEvent(self.metadata, self.event),
             self.event.metadata(),
             ts,
         )
     }
 }
 
-impl<T, A> Serialize for RawEvent<T, A>
+impl<T, A> Serialize for FlatMapEvent<T, A>
 where
     A: Event<EventType = T>,
 {
@@ -265,7 +266,7 @@ pub trait Message {
     fn identifier(&self) -> String;
 }
 
-impl<T, A> Message for RawEvent<T, A>
+impl<T, A> Message for FlatMapEvent<T, A>
 where
     A: Event<EventType = T>,
 {
