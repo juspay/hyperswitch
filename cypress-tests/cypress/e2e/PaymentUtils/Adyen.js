@@ -493,6 +493,33 @@ export const connectorDetails = {
         },
       },
     },
+    przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "automatic for przelewy24 is not supported by adyen",
+          },
+        },
+      },
+    },
     blik: {
       Request: {
         payment_method: "bank_redirect",
