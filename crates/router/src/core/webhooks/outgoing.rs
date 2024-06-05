@@ -280,8 +280,8 @@ async fn trigger_webhook_to_merchant(
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
-                    business_profile.merchant_id.clone(),
-                    event_id.clone(),
+                    &business_profile.merchant_id,
+                    &event_id,
                     client_error,
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
@@ -293,8 +293,8 @@ async fn trigger_webhook_to_merchant(
                 let _updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
-                    business_profile.merchant_id.clone(),
-                    event_id.clone(),
+                    &business_profile.merchant_id,
+                    &event_id,
                     response,
                 )
                 .await?;
@@ -302,7 +302,7 @@ async fn trigger_webhook_to_merchant(
                 if status_code.is_success() {
                     success_response_handler(
                         state.clone(),
-                        business_profile.merchant_id,
+                        &business_profile.merchant_id,
                         process_tracker,
                         "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL",
                     )
@@ -310,7 +310,7 @@ async fn trigger_webhook_to_merchant(
                 } else {
                     error_response_handler(
                         state.clone(),
-                        business_profile.merchant_id,
+                        &business_profile.merchant_id,
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
@@ -330,8 +330,8 @@ async fn trigger_webhook_to_merchant(
                     api_client_error_handler(
                         state.clone(),
                         merchant_key_store.clone(),
-                        business_profile.merchant_id.clone(),
-                        event_id.clone(),
+                        &business_profile.merchant_id,
+                        &event_id,
                         client_error,
                         delivery_attempt,
                         ScheduleWebhookRetry::WithProcessTracker(process_tracker),
@@ -343,8 +343,8 @@ async fn trigger_webhook_to_merchant(
                     let _updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
-                        business_profile.merchant_id.clone(),
-                        event_id.clone(),
+                        &business_profile.merchant_id,
+                        &event_id,
                         response,
                     )
                     .await?;
@@ -352,7 +352,7 @@ async fn trigger_webhook_to_merchant(
                     if status_code.is_success() {
                         success_response_handler(
                             state.clone(),
-                            business_profile.merchant_id,
+                            &business_profile.merchant_id,
                             Some(process_tracker),
                             "COMPLETED_BY_PT",
                         )
@@ -360,7 +360,7 @@ async fn trigger_webhook_to_merchant(
                     } else {
                         error_response_handler(
                             state.clone(),
-                            business_profile.merchant_id.clone(),
+                            &business_profile.merchant_id,
                             delivery_attempt,
                             status_code.as_u16(),
                             "An error occurred when sending webhook to merchant",
@@ -376,8 +376,8 @@ async fn trigger_webhook_to_merchant(
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
-                    business_profile.merchant_id.clone(),
-                    event_id.clone(),
+                    &business_profile.merchant_id,
+                    &event_id,
                     client_error,
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
@@ -389,18 +389,18 @@ async fn trigger_webhook_to_merchant(
                 let _updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
-                    business_profile.merchant_id.clone(),
-                    event_id.clone(),
+                    &business_profile.merchant_id,
+                    &event_id,
                     response,
                 )
                 .await?;
 
                 if status_code.is_success() {
-                    increment_webhook_outgoing_received_count(business_profile.merchant_id.clone());
+                    increment_webhook_outgoing_received_count(&business_profile.merchant_id);
                 } else {
                     error_response_handler(
                         state,
-                        business_profile.merchant_id,
+                        &business_profile.merchant_id,
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
@@ -592,8 +592,8 @@ enum ScheduleWebhookRetry {
 async fn update_event_if_client_error(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: String,
-    event_id: String,
+    merchant_id: &str,
+    event_id: &str,
     error_message: String,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
     let is_webhook_notified = false;
@@ -626,8 +626,8 @@ async fn update_event_if_client_error(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            &merchant_id,
-            &event_id,
+            merchant_id,
+            event_id,
             event_update,
             &merchant_key_store,
         )
@@ -638,8 +638,8 @@ async fn update_event_if_client_error(
 async fn api_client_error_handler(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: String,
-    event_id: String,
+    merchant_id: &str,
+    event_id: &str,
     client_error: error_stack::Report<errors::ApiClientError>,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     schedule_webhook_retry: ScheduleWebhookRetry,
@@ -649,7 +649,7 @@ async fn api_client_error_handler(
     update_event_if_client_error(
         state.clone(),
         merchant_key_store,
-        merchant_id.clone(),
+        merchant_id,
         event_id,
         "Unable to send request to merchant server".to_string(),
     )
@@ -666,7 +666,7 @@ async fn api_client_error_handler(
         // Schedule a retry attempt for webhook delivery
         outgoing_webhook_retry::retry_webhook_delivery_task(
             &*state.store,
-            &merchant_id,
+            merchant_id,
             process_tracker,
         )
         .await
@@ -679,8 +679,8 @@ async fn api_client_error_handler(
 async fn update_event_in_storage(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: String,
-    event_id: String,
+    merchant_id: &str,
+    event_id: &str,
     response: reqwest::Response,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
     let status_code = response.status();
@@ -740,8 +740,8 @@ async fn update_event_in_storage(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            &merchant_id,
-            &event_id,
+            merchant_id,
+            event_id,
             event_update,
             &merchant_key_store,
         )
@@ -749,17 +749,17 @@ async fn update_event_in_storage(
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
 
-fn increment_webhook_outgoing_received_count(merchant_id: String) {
+fn increment_webhook_outgoing_received_count(merchant_id: &str) {
     metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
+        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id.to_owned())],
     )
 }
 
 async fn success_response_handler(
     state: SessionState,
-    merchant_id: String,
+    merchant_id: &str,
     process_tracker: Option<storage::ProcessTracker>,
     business_status: &'static str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
@@ -780,7 +780,7 @@ async fn success_response_handler(
 
 async fn error_response_handler(
     state: SessionState,
-    merchant_id: String,
+    merchant_id: &str,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     status_code: u16,
     log_message: &'static str,
@@ -789,7 +789,7 @@ async fn error_response_handler(
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id.clone())],
+        &[metrics::KeyValue::new(MERCHANT_ID, merchant_id.to_owned())],
     );
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
@@ -799,7 +799,7 @@ async fn error_response_handler(
         // Schedule a retry attempt for webhook delivery
         outgoing_webhook_retry::retry_webhook_delivery_task(
             &*state.store,
-            &merchant_id,
+            merchant_id,
             process_tracker,
         )
         .await
