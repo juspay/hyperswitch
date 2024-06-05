@@ -150,6 +150,7 @@ pub struct Provider {
         }
     ), value_type = Option<AcceptedCountries>)]
     pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
+    pub payment_experience: Option<api_models::enums::PaymentExperience>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
