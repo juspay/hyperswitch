@@ -295,12 +295,10 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalRespons
     fn try_from(
         item: types::PayoutsResponseRouterData<F, StripeConnectReversalResponse>,
     ) -> Result<Self, Self::Error> {
-        let response: StripeConnectReversalResponse = item.response;
-
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::Cancelled),
-                connector_payout_id: Some(response.id),
+                connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -370,7 +368,6 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreate
         item: types::PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>,
     ) -> Result<Self, Self::Error> {
         let response: StripeConnectRecipientCreateResponse = item.response;
-
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresVendorAccountCreation),
@@ -452,12 +449,10 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccoun
     fn try_from(
         item: types::PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>,
     ) -> Result<Self, Self::Error> {
-        let response: StripeConnectRecipientAccountCreateResponse = item.response;
-
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresCreation),
-                connector_payout_id: Some(response.id),
+                connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
