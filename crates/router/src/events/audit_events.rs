@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
@@ -58,6 +60,12 @@ impl Event for AuditEvent {
 
     fn class(&self) -> Self::EventType {
         super::EventType::AuditEvent
+    }
+    
+    fn metadata(&self) -> HashMap<String, String> {
+        HashMap::from([
+            ("event_type".to_string(), "audit_event".to_string())
+        ])
     }
 }
 
