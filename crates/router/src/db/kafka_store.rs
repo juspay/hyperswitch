@@ -2361,14 +2361,6 @@ impl UserInterface for KafkaStore {
         self.diesel_store.delete_user_by_user_id(user_id).await
     }
 
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, user_storage::UserRole)>, errors::StorageError> {
-        self.diesel_store
-            .find_users_and_roles_by_merchant_id(merchant_id)
-            .await
-    }
     async fn find_users_by_user_ids(
         &self,
         user_ids: Vec<String>,

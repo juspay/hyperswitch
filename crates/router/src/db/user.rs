@@ -1,4 +1,4 @@
-use diesel_models::{user as storage, user_role::UserRole};
+use diesel_models::user as storage;
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -45,11 +45,6 @@ pub trait UserInterface {
         &self,
         user_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
-
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError>;
 
     async fn find_users_by_user_ids(
         &self,
@@ -124,17 +119,6 @@ impl UserInterface for Store {
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::delete_by_user_id(&conn, user_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -343,13 +327,6 @@ impl UserInterface for MockDb {
             )))?;
         users.remove(user_index);
         Ok(true)
-    }
-
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        _merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRole)>, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_users_by_user_ids(
