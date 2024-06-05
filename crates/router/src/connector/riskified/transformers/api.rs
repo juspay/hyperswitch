@@ -1,5 +1,5 @@
 use api_models::payments::AdditionalPaymentData;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::{ext_traits::ValueExt, id_type, pii::Email};
 use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -84,7 +84,7 @@ pub struct RiskifiedCustomer {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
     verified_email: bool,
-    id: String,
+    id: id_type::CustomerId,
     account_type: CustomerAccountType,
     orders_count: i32,
     phone: Option<Secret<String>>,
