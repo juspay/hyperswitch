@@ -1083,7 +1083,10 @@ pub async fn create_recipient(
                         .status
                         .unwrap_or(api_enums::PayoutStatus::RequiresVendorAccountCreation);
                     let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                        connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
+                        connector_payout_id: payout_data
+                            .payout_attempt
+                            .connector_payout_id
+                            .to_owned(),
                         status,
                         error_code: None,
                         error_message: None,
