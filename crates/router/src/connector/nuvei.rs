@@ -24,7 +24,7 @@ use crate::{
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt, InitPayment},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
         storage::enums,
         transformers::ForeignFrom,
         ErrorResponse, Response,
@@ -118,6 +118,7 @@ impl api::PaymentSync for Nuvei {}
 impl api::PaymentCapture for Nuvei {}
 impl api::PaymentSession for Nuvei {}
 impl api::PaymentAuthorize for Nuvei {}
+impl api::PaymentAuthorizeSessionToken for Nuvei {}
 impl api::Refund for Nuvei {}
 impl api::RefundExecute for Nuvei {}
 impl api::RefundSync for Nuvei {}
@@ -528,28 +529,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &crate::routes::SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let integ: Box<
-            &(dyn ConnectorIntegration<
-                api::AuthorizeSessionToken,
-                types::AuthorizeSessionTokenData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
-            &router_data.to_owned(),
-            types::AuthorizeSessionTokenData::foreign_from(&router_data),
-        ));
-        let resp = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-        router_data.session_token = resp.session_token;
         let (enrolled_for_3ds, related_transaction_id) =
             match (router_data.auth_type, router_data.payment_method) {
                 (
@@ -558,7 +537,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 ) => {
                     let integ: Box<
                         &(dyn ConnectorIntegration<
-                            InitPayment,
+                            api::InitPayment,
                             types::PaymentsAuthorizeData,
                             types::PaymentsResponseData,
                         > + Send
@@ -744,8 +723,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Nuvei
+impl
+    ConnectorIntegration<
+        api::InitPayment,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    > for Nuvei
 {
     fn get_headers(
         &self,

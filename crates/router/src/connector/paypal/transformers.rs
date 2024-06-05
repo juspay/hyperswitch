@@ -1699,7 +1699,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PaypalFulfillResponse>>
                 status: Some(storage_enums::PayoutStatus::foreign_from(
                     item.response.batch_header.batch_status,
                 )),
-                connector_payout_id: item.response.batch_header.payout_batch_id,
+                connector_payout_id: Some(item.response.batch_header.payout_batch_id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

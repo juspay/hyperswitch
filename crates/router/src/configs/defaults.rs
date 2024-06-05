@@ -8187,6 +8187,10 @@ impl Default for super::settings::RequiredFields {
                                                     field_type: enums::FieldType::UserAddressCountry{
                                                     options: vec![
                                                         "GB".to_string(),
+                                                        "AU".to_string(),
+                                                        "CA".to_string(),
+                                                        "US".to_string(),
+                                                        "NZ".to_string(),
                                                     ]
                                                     },
                                                     value: None,
@@ -8303,7 +8307,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.crypto.network".to_string(),
                                                     display_name: "network".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserCryptoCurrencyNetwork,
                                                     value: None,
                                                 }
                                             ),

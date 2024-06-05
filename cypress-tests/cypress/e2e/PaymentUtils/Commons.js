@@ -8,7 +8,22 @@ const globalState = new State({
   connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
 });
 
-const connectorId = globalState.get("connectorId");
+const connectorName = normalise(globalState.get("connectorId"));
+
+function normalise(input) {
+  const exceptions = {
+    bankofamerica: "Bank of America",
+    cybersource: "Cybersource",
+    paypal: "Paypal",
+    // Add more known exceptions here
+  };
+
+  if (exceptions[input.toLowerCase()]) {
+    return exceptions[input.toLowerCase()];
+  } else {
+    return input;
+  }
+}
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -42,7 +57,7 @@ const getDefaultExchange = () => ({
     body: {
       error: {
         type: "invalid_request",
-        message: `Selected payment method through ${connectorId} is not implemented`,
+        message: `Selected payment method through ${connectorName} is not implemented`,
         code: "IR_00",
       },
     },
