@@ -57,12 +57,15 @@ impl PayoutAttempt {
         conn: &PgPooledConn,
         merchant_id: &str,
         payout_id: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payout_id.eq(payout_id.to_owned())),
+            None,
+            None,
+            Some(dsl::created_at.desc()),
         )
         .await
     }

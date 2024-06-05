@@ -1624,6 +1624,17 @@ impl PayoutAttemptInterface for KafkaStore {
             .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
             .await
     }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &str,
+        payout_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::DataStorageError> {
+        self.diesel_store
+            .find_payout_attempts_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]

@@ -4,8 +4,6 @@ use api_models::payments::{
     FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
     RequestSurchargeDetails,
 };
-#[cfg(feature = "payouts")]
-use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
@@ -965,60 +963,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
             ..Default::default()
-        }
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
-    for api::PayoutCreateResponse
-{
-    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
-        let (payout, payout_attempt, customer) = item;
-        let attempt = PayoutAttemptResponse {
-            attempt_id: payout_attempt.payout_attempt_id,
-            status: payout_attempt.status,
-            amount: payout.amount,
-            currency: Some(payout.destination_currency),
-            connector: payout_attempt.connector.clone(),
-            error_code: payout_attempt.error_code.clone(),
-            error_message: payout_attempt.error_message.clone(),
-            payment_method: Some(payout.payout_type),
-            payout_method_type: None,
-            connector_transaction_id: Some(payout_attempt.connector_payout_id),
-            cancellation_reason: None,
-            unified_code: None,
-            unified_message: None,
-        };
-        let attempts = vec![attempt];
-        Self {
-            payout_id: payout.payout_id,
-            merchant_id: payout.merchant_id,
-            amount: payout.amount,
-            currency: payout.destination_currency,
-            connector: payout_attempt.connector,
-            payout_type: payout.payout_type,
-            customer_id: customer.customer_id,
-            auto_fulfill: payout.auto_fulfill,
-            email: customer.email,
-            name: customer.name,
-            phone: customer.phone,
-            phone_country_code: customer.phone_country_code,
-            return_url: payout.return_url,
-            business_country: payout_attempt.business_country,
-            business_label: payout_attempt.business_label,
-            description: payout.description,
-            entity_type: payout.entity_type,
-            recurring: payout.recurring,
-            metadata: payout.metadata,
-            status: payout_attempt.status,
-            error_message: payout_attempt.error_message,
-            error_code: payout_attempt.error_code,
-            profile_id: payout.profile_id,
-            created: Some(payout.created_at),
-            attempts: Some(attempts),
-            billing: None,
-            client_secret: None,
         }
     }
 }

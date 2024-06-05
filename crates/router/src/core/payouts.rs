@@ -2,10 +2,11 @@ pub mod access_token;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
+pub mod transformers;
 pub mod validator;
 use std::vec::IntoIter;
 
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payouts::PayoutAttemptResponse};
 use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -335,7 +336,7 @@ pub async fn payouts_create_core(
     )
     .await?;
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&*state.store, &merchant_account, &payout_data).await
 }
 
 pub async fn payouts_update_core(
@@ -465,7 +466,7 @@ pub async fn payouts_update_core(
     )
     .await?;
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(db, &merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -483,7 +484,7 @@ pub async fn payouts_retrieve_core(
     )
     .await?;
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&*state.store, &merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -579,7 +580,7 @@ pub async fn payouts_cancel_core(
         .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&*state.store, &merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -665,7 +666,7 @@ pub async fn payouts_fulfill_core(
         }));
     }
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&*state.store, &merchant_account, &payout_data).await
 }
 
 #[cfg(feature = "olap")]
@@ -754,7 +755,7 @@ pub async fn payouts_list_core(
     let data: Vec<api::PayoutCreateResponse> = pi_pa_tuple_vec
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .into_iter()
-        .map(ForeignFrom::foreign_from)
+        .map(|item| ForeignFrom::foreign_from((item.0, item.1, item.2)))
         .collect();
 
     Ok(services::ApplicationResponse::Json(
@@ -804,7 +805,7 @@ pub async fn payouts_filtered_list_core(
     .await
     .into_iter()
     .flatten()
-    .map(ForeignFrom::foreign_from)
+    .map(|item| ForeignFrom::foreign_from((item.0, item.1, item.2)))
     .collect();
 
     Ok(services::ApplicationResponse::Json(
@@ -1832,6 +1833,7 @@ pub async fn fulfill_payout(
 }
 
 pub async fn response_handler(
+    db: &dyn StorageInterface,
     merchant_account: &domain::MerchantAccount,
     payout_data: &PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -1839,7 +1841,7 @@ pub async fn response_handler(
     let payouts = payout_data.payouts.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
-    let customer_id = payouts.customer_id;
+    let customer_id = payouts.customer_id.clone();
 
     let (email, name, phone, phone_country_code) = customer_details
         .map_or((None, None, None, None), |c| {
@@ -1869,6 +1871,23 @@ pub async fn response_handler(
         }
     });
 
+    let attempts = db
+        .find_payout_attempts_by_merchant_id_payout_id(
+            &merchant_account.merchant_id,
+            &payouts.payout_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .map_err(|e| {
+            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                "Failed to fetch payout attempts for payout_id {} - {:?}",
+                payouts.payout_id, e
+            ))
+        })?
+        .into_iter()
+        .map(|pa| PayoutAttemptResponse::foreign_from((&payouts, &pa)))
+        .collect::<Vec<_>>();
+
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.merchant_id.to_owned(),
@@ -1896,7 +1915,7 @@ pub async fn response_handler(
         error_code: payout_attempt.error_code,
         profile_id: payout_attempt.profile_id,
         created: Some(payouts.created_at),
-        attempts: None,
+        attempts: Some(attempts),
     };
     Ok(services::ApplicationResponse::Json(response))
 }
