@@ -33,19 +33,19 @@ pub async fn perform_decision_management<F: Clone>(
 
     let key = format!("dsl_{merchant_id}");
 
-    let config = db
-        .find_config_by_key(&algorithm_id)
-        .await
-        .change_context(ConfigError::DslMissingInDb)
-        .attach_printable("Missing the config in db")?;
-
-    let rec: DecisionManagerRecord = config
-        .config
-        .parse_struct("Program")
-        .change_context(ConfigError::DslParsingError)
-        .attach_printable("Error parsing routing algorithm from configs")?;
-
     let find_key_from_db = || async {
+        let config = db
+            .find_config_by_key(&algorithm_id)
+            .await
+            .change_context(ConfigError::DslMissingInDb)
+            .attach_printable("Missing the config in db")?;
+
+        let rec: DecisionManagerRecord = config
+            .config
+            .parse_struct("Program")
+            .change_context(ConfigError::DslParsingError)
+            .attach_printable("Error parsing routing algorithm from configs")?;
+
         backend::VirInterpreterBackend::with_program(rec.program)
             .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
             .attach_printable("Error initializing DSL interpreter backend")

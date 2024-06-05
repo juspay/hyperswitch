@@ -373,17 +373,17 @@ pub async fn ensure_algorithm_cached(
 ) -> ConditionalConfigResult<VirInterpreterBackendCacheWrapper> {
     let key = format!("surcharge_dsl_{merchant_id}");
 
-    let config: diesel_models::Config = store
-        .find_config_by_key(algorithm_id)
-        .await
-        .change_context(ConfigError::DslMissingInDb)
-        .attach_printable("Error parsing DSL from config")?;
-    let record: SurchargeDecisionManagerRecord = config
-        .config
-        .parse_struct("Program")
-        .change_context(ConfigError::DslParsingError)
-        .attach_printable("Error parsing routing algorithm from configs")?;
     let value_to_cache = || async {
+        let config: diesel_models::Config = store
+            .find_config_by_key(algorithm_id)
+            .await
+            .change_context(ConfigError::DslMissingInDb)
+            .attach_printable("Error parsing DSL from config")?;
+        let record: SurchargeDecisionManagerRecord = config
+            .config
+            .parse_struct("Program")
+            .change_context(ConfigError::DslParsingError)
+            .attach_printable("Error parsing routing algorithm from configs")?;
         VirInterpreterBackendCacheWrapper::try_from(record)
             .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
             .attach_printable("Error initializing DSL interpreter backend")
