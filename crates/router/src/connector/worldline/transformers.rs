@@ -599,11 +599,15 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
         ));
 
         let response = if is_payment_failure(status) {
-            let error = item.response.status_output.clone().and_then(|status_output| {
-                status_output
-                    .errors
-                    .and_then(|errors| errors.into_iter().next())
-            });
+            let error = item
+                .response
+                .status_output
+                .clone()
+                .and_then(|status_output| {
+                    status_output
+                        .errors
+                        .and_then(|errors| errors.into_iter().next())
+                });
 
             let reason = item.response.status_output.and_then(|status_output| {
                 status_output.errors.map(|errors| {
@@ -728,7 +732,10 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                                         Some(format!(
                                             "{} - PropertyName: {}",
                                             message,
-                                            error.property_name.clone().unwrap_or("None".to_string())
+                                            error
+                                                .property_name
+                                                .clone()
+                                                .unwrap_or("None".to_string())
                                         ))
                                     })
                                     .unwrap_or("".to_string())
@@ -839,11 +846,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         let refund_status = enums::RefundStatus::from(item.response.status);
 
         let response = if is_refund_failure(refund_status) {
-            let error = item.response.status_output.clone().and_then(|status_output| {
-                status_output
-                    .errors
-                    .and_then(|errors| errors.into_iter().next())
-            });
+            let error = item
+                .response
+                .status_output
+                .clone()
+                .and_then(|status_output| {
+                    status_output
+                        .errors
+                        .and_then(|errors| errors.into_iter().next())
+                });
 
             let reason = item.response.status_output.and_then(|status_output| {
                 status_output.errors.map(|errors| {
@@ -904,11 +915,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         let response = if is_refund_failure(refund_status) {
-            let error = item.response.status_output.clone().and_then(|status_output| {
-                status_output
-                    .errors
-                    .and_then(|errors| errors.into_iter().next())
-            });
+            let error = item
+                .response
+                .status_output
+                .clone()
+                .and_then(|status_output| {
+                    status_output
+                        .errors
+                        .and_then(|errors| errors.into_iter().next())
+                });
             let reason = item.response.status_output.and_then(|status_output| {
                 status_output.errors.map(|errors| {
                     errors

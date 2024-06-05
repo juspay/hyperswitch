@@ -131,7 +131,12 @@ impl ConnectorCommon for Worldline {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let error = response.errors.clone().into_iter().next().unwrap_or_default();
+        let error = response
+            .errors
+            .clone()
+            .into_iter()
+            .next()
+            .unwrap_or_default();
 
         let err_reason = response
             .errors
