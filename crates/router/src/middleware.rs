@@ -143,7 +143,6 @@ where
         let tenant_id = req
             .headers()
             .get("x-tenant-id")
-            .clone()
             .and_then(|i| i.to_str().ok())
             .map(|s| s.to_owned());
         let response_fut = self.service.call(req);
