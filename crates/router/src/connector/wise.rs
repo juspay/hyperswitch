@@ -506,7 +506,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PayoutsRouterData<api::PoCreate>,
-        app_state: &routes::AppState,
+        app_state: &routes::SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
         // Create a quote
         let quote_router_data =

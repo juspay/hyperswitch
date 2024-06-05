@@ -5,7 +5,7 @@ use http::header;
 use crate::{
     connector,
     core::errors::{ApiErrorResponse, RouterResult},
-    routes::AppState,
+    routes::SessionState,
     types,
     types::api::{
         enums,
@@ -14,7 +14,7 @@ use crate::{
     utils::verify_connector as verify_connector_utils,
 };
 
-pub async fn generate_access_token(state: AppState) -> RouterResult<types::AccessToken> {
+pub async fn generate_access_token(state: SessionState) -> RouterResult<types::AccessToken> {
     let connector = enums::Connector::Paypal;
     let boxed_connector = types::api::ConnectorData::convert_connector(
         &state.conf.connectors,
