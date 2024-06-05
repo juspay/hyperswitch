@@ -294,7 +294,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
-            AdyenWebhookStatus::UnexpectedEvent => {
+            AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
                 Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
@@ -373,6 +373,7 @@ pub enum AdyenWebhookStatus {
     CancelFailed,
     Captured,
     CaptureFailed,
+    Reversed,
     UnexpectedEvent,
 }
 
@@ -4107,6 +4108,14 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    #[cfg(feature = "payouts")]
+    PayoutThirdparty,
+    #[cfg(feature = "payouts")]
+    PayoutDecline,
+    #[cfg(feature = "payouts")]
+    PayoutExpire,
+    #[cfg(feature = "payouts")]
+    PayoutReversed,
     #[serde(other)]
     Unknown,
 }
@@ -4143,6 +4152,17 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
             | WebhookEventCode::SecondChargeback
             | WebhookEventCode::PrearbitrationWon
             | WebhookEventCode::PrearbitrationLost
+    )
+}
+
+#[cfg(feature = "payouts")]
+pub fn is_payout_event(event_code: &WebhookEventCode) -> bool {
+    matches!(
+        event_code,
+        WebhookEventCode::PayoutThirdparty
+            | WebhookEventCode::PayoutDecline
+            | WebhookEventCode::PayoutExpire
+            | WebhookEventCode::PayoutReversed
     )
 }
 
@@ -4205,6 +4225,14 @@ impl ForeignFrom<(WebhookEventCode, String, Option<DisputeStatus>)>
                 }
             }
             WebhookEventCode::CaptureFailed => Self::PaymentIntentCaptureFailure,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutThirdparty => Self::PayoutCreated,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutDecline => Self::PayoutFailure,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutExpire => Self::PayoutExpired,
+            #[cfg(feature = "payouts")]
+            WebhookEventCode::PayoutReversed => Self::PayoutReversed,
             WebhookEventCode::Unknown => Self::EventNotSupported,
         }
     }
@@ -4278,6 +4306,20 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::CaptureFailed
                     }
                 }
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutThirdparty => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Authorised
+                    } else {
+                        AdyenWebhookStatus::AuthorisationFailed
+                    }
+                }
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutDecline => AdyenWebhookStatus::Cancelled,
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutExpire => AdyenWebhookStatus::AuthorisationFailed,
+                #[cfg(feature = "payouts")]
+                WebhookEventCode::PayoutReversed => AdyenWebhookStatus::Reversed,
                 WebhookEventCode::CaptureFailed => AdyenWebhookStatus::CaptureFailed,
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
@@ -4557,7 +4599,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
             },
             merchant_account: auth_type.merchant_account,
             payment_method: payout_method_data,
-            reference: item.router_data.request.payout_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
             shopper_reference: item.router_data.merchant_id.clone(),
         })
     }
@@ -4644,7 +4686,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     },
                     merchant_account,
                     payment_data: PayoutPaymentMethodData::PayoutBankData(bank_data),
-                    reference: item.router_data.request.payout_id.to_owned(),
+                    reference: item.router_data.connector_request_reference_id.to_owned(),
                     shopper_reference: item.router_data.merchant_id.to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
@@ -4741,7 +4783,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                     billing_address: get_address_info(item.router_data.get_billing().ok())
                         .transpose()?,
                     merchant_account,
-                    reference: item.router_data.request.payout_id.clone(),
+                    reference: item.router_data.connector_request_reference_id.clone(),
                     shopper_name: ShopperName {
                         first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
                         last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
@@ -4788,7 +4830,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status,
-                connector_payout_id: response.psp_reference,
+                connector_payout_id: Some(response.psp_reference),
                 payout_eligible,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -4801,7 +4843,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
 impl From<AdyenStatus> for storage_enums::PayoutStatus {
     fn from(adyen_status: AdyenStatus) -> Self {
         match adyen_status {
-            AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => Self::Success,
+            AdyenStatus::Authorised => Self::Success,
+            AdyenStatus::PayoutConfirmReceived => Self::Initiated,
             AdyenStatus::Cancelled | AdyenStatus::PayoutDeclineReceived => Self::Cancelled,
             AdyenStatus::Error => Self::Failed,
             AdyenStatus::Pending => Self::Pending,

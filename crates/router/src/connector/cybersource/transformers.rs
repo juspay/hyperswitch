@@ -3151,7 +3151,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, CybersourceFulfillResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::foreign_from(item.response.status)),
-                connector_payout_id: item.response.id,
+                connector_payout_id: Some(item.response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

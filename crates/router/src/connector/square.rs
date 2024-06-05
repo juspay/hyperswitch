@@ -13,10 +13,7 @@ use super::utils::{self as super_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
@@ -27,7 +24,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -41,6 +37,7 @@ impl api::PaymentSession for Square {}
 impl api::ConnectorAccessToken for Square {}
 impl api::MandateSetup for Square {}
 impl api::PaymentAuthorize for Square {}
+impl api::PaymentAuthorizeSessionToken for Square {}
 impl api::PaymentSync for Square {}
 impl api::PaymentCapture for Square {}
 impl api::PaymentVoid for Square {}
@@ -193,46 +190,6 @@ impl
         types::PaymentsResponseData,
     > for Square
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::TokenizationRouterData,
-        app_state: &crate::routes::SessionState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let integ: Box<
-            &(dyn ConnectorIntegration<
-                api::AuthorizeSessionToken,
-                types::AuthorizeSessionTokenData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-
-        let authorize_session_token_data = types::AuthorizeSessionTokenData {
-            connector_transaction_id: router_data.payment_id.clone(),
-            amount_to_capture: None,
-            currency: router_data.request.currency,
-            amount: router_data.request.amount,
-        };
-
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
-            &router_data.to_owned(),
-            authorize_session_token_data,
-        ));
-
-        let resp = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-
-        router_data.session_token = resp.session_token;
-        Ok(())
-    }
-
     fn get_headers(
         &self,
         _req: &types::TokenizationRouterData,

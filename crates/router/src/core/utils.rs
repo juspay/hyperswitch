@@ -169,7 +169,7 @@ pub async fn construct_payout_router_data<'a, F>(
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
             amount: payouts.amount,
-            connector_payout_id: Some(payout_attempt.connector_payout_id.to_owned()),
+            connector_payout_id: payout_attempt.connector_payout_id.clone(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
@@ -192,8 +192,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW
-            .to_string(),
+        connector_request_reference_id: payout_attempt.payout_attempt_id.clone(),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
         test_mode,

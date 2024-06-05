@@ -9045,7 +9045,14 @@
           "dispute_won",
           "dispute_lost",
           "mandate_active",
-          "mandate_revoked"
+          "mandate_revoked",
+          "payout_success",
+          "payout_failed",
+          "payout_initiated",
+          "payout_processing",
+          "payout_cancelled",
+          "payout_expired",
+          "payout_reversed"
         ]
       },
       "ExtendedCardInfo": {
@@ -9295,6 +9302,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_crypto_currency_network"
+            ]
           },
           {
             "type": "string",
@@ -12361,6 +12374,25 @@
                 "$ref": "#/components/schemas/MandateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "PayoutCreateResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payout_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PayoutCreateResponse"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -13471,7 +13503,8 @@
           "currency",
           "payment_methods",
           "mandate_payment",
-          "show_surcharge_breakup_screen"
+          "show_surcharge_breakup_screen",
+          "request_external_three_ds_authentication"
         ],
         "properties": {
           "redirect_url": {
@@ -13518,6 +13551,11 @@
               }
             ],
             "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to indicate whether to perform external 3ds authentication",
+            "example": true
           }
         }
       },
@@ -16935,6 +16973,9 @@
           "success",
           "failed",
           "cancelled",
+          "initiated",
+          "expired",
+          "reversed",
           "pending",
           "ineligible",
           "requires_creation",
