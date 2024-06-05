@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ApplePayCertificatesMigrationResponse {
     pub migration_successful: Vec<String>,
-    pub migraiton_failed: Vec<String>,
+    pub migration_failed: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

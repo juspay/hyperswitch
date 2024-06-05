@@ -30,7 +30,6 @@ pub async fn apple_pay_certificates_migration(
     let mut migration_failed_merchant_ids = vec![];
 
     for merchant_id in merchant_id_list {
-        println!("m_idd {:?}", merchant_id);
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -85,14 +84,17 @@ pub async fn apple_pay_certificates_migration(
         }
 
         let merchant_connector_accounts_update = db
-            .update_multiple_merchant_connector_account(mca_to_update)
+            .update_multiple_merchant_connector_accounts(mca_to_update)
             .await;
 
         match merchant_connector_accounts_update {
             Ok(_) => {
+                logger::debug!("Merchant connector accounts update for merchant id {merchant_id}");
                 migration_successful_merchant_ids.push(merchant_id.to_string());
             }
-            Err(_) => {
+            Err(error) => {
+                logger::debug!(
+                    "Merchant connector accounts update failed with error {error} for merchant id {merchant_id}");
                 migration_failed_merchant_ids.push(merchant_id.to_string());
             }
         };
@@ -101,7 +103,7 @@ pub async fn apple_pay_certificates_migration(
     Ok(services::api::ApplicationResponse::Json(
         apple_pay_certificates_migration::ApplePayCertificatesMigrationResponse {
             migration_successful: migration_successful_merchant_ids,
-            migraiton_failed: migration_failed_merchant_ids,
+            migration_failed: migration_failed_merchant_ids,
         },
     ))
 }
