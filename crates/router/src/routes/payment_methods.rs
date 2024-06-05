@@ -165,7 +165,7 @@ pub async fn list_customer_payment_method_api(
 
 /// List payment methods for a Customer v2
 ///
-/// To filter and list the applicable payment methods for a particular Customer ID, is to be assocaited with a payment
+/// To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment
 #[utoipa::path(
     get,
     path = "/payments/v2/{payment_id}/saved_payment_methods",
