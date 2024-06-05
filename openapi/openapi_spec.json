@@ -9299,6 +9299,12 @@
           {
             "type": "string",
             "enum": [
+              "user_crypto_currency_network"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_billing_name"
             ]
           },
@@ -13471,7 +13477,8 @@
           "currency",
           "payment_methods",
           "mandate_payment",
-          "show_surcharge_breakup_screen"
+          "show_surcharge_breakup_screen",
+          "request_external_three_ds_authentication"
         ],
         "properties": {
           "redirect_url": {
@@ -13518,6 +13525,11 @@
               }
             ],
             "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to indicate whether to perform external 3ds authentication",
+            "example": true
           }
         }
       },

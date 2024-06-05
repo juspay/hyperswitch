@@ -1630,6 +1630,10 @@ additional_secret="Payme Client Key"
   payment_method_type = "UnionPay"
 [[paypal.wallet]]
   payment_method_type = "paypal"
+  payment_experience = "invoke_sdk_client"
+[[paypal.wallet]]
+  payment_method_type = "paypal"
+  payment_experience = "redirect_to_url"
 [[paypal.bank_redirect]]
   payment_method_type = "ideal"
 [[paypal.bank_redirect]]
