@@ -142,7 +142,7 @@ pub struct Giropay {
 #[derive(Debug, Serialize)]
 pub struct Ideal {
     #[serde(rename = "issuerId")]
-    pub issuer_id: Option<WorldlineBic>,
+    pub issuer_id: WorldlineBic,
 }
 
 #[derive(Debug, Serialize)]
@@ -159,6 +159,8 @@ pub enum WorldlineBic {
     Rabobank,
     #[serde(rename = "RBRBNL21")]
     Regiobank,
+    #[serde(rename = "REVOLT21")]
+    Revolut,
     #[serde(rename = "SNSBNL2A")]
     Sns,
     #[serde(rename = "TRIONL2U")]
@@ -173,7 +175,7 @@ pub enum WorldlineBic {
 #[serde(rename_all = "camelCase")]
 pub struct BankAccountIban {
     pub account_holder_name: Secret<String>,
-    pub iban: Option<Secret<String>>,
+    pub iban: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -320,6 +322,7 @@ impl TryFrom<&common_enums::enums::BankNames> for WorldlineBic {
             common_enums::enums::BankNames::TriodosBank => Ok(Self::Triodos),
             common_enums::enums::BankNames::VanLanschot => Ok(Self::Vanlanschot),
             common_enums::enums::BankNames::FrieslandBank => Ok(Self::Friesland),
+            common_enums::enums::BankNames::Revolut => Ok(Self::Revolut),
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: bank.to_string(),
                 connector: "Worldline".to_string(),
@@ -372,8 +375,13 @@ fn make_bank_redirect_request(
             {
                 PaymentMethodSpecificData::PaymentProduct816SpecificInput(Box::new(Giropay {
                     bank_account_iban: BankAccountIban {
-                        account_holder_name: req.get_billing_full_name()?.to_owned(),
-                        iban: bank_account_iban.clone(),
+                        account_holder_name: req.get_billing_full_name()?,
+                        iban: bank_account_iban.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name:
+                                    "payment_method_data.bank_redirect.giropay.bank_account_iban",
+                            },
+                        )?,
                     },
                 }))
             },
@@ -382,9 +390,11 @@ fn make_bank_redirect_request(
         domain::BankRedirectData::Ideal { bank_name, .. } => (
             {
                 PaymentMethodSpecificData::PaymentProduct809SpecificInput(Box::new(Ideal {
-                    issuer_id: bank_name
-                        .map(|bank_name| WorldlineBic::try_from(&bank_name))
-                        .transpose()?,
+                    issuer_id: WorldlineBic::try_from(&bank_name.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "payment_method_data.bank_redirect.ideal.bank_name",
+                        },
+                    )?)?,
                 }))
             },
             809,
@@ -509,7 +519,7 @@ impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentStatus {
     Captured,
@@ -519,11 +529,12 @@ pub enum PaymentStatus {
     Rejected,
     RejectedCapture,
     PendingApproval,
+    PendingCapture,
     CaptureRequested,
-    #[default]
     Processing,
     Created,
     Redirected,
+    AuthorizationRequested,
 }
 
 impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
@@ -546,7 +557,9 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
             PaymentStatus::PendingApproval => Self::Authorized,
             PaymentStatus::Created => Self::Started,
             PaymentStatus::Redirected => Self::AuthenticationPending,
-            _ => Self::Pending,
+            PaymentStatus::Processing => Self::Pending,
+            PaymentStatus::PendingCapture => Self::Authorized,
+            PaymentStatus::AuthorizationRequested => Self::Authorizing,
         }
     }
 }
@@ -554,7 +567,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
 /// capture_method is not part of response from connector.
 /// This is used to decide payment status while converting connector response to RouterData.
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
-#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct Payment {
     pub id: String,
     pub status: PaymentStatus,
