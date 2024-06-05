@@ -613,19 +613,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 status_output.errors.map(|errors| {
                     errors
                         .iter()
-                        .map(|error| {
-                            error
-                                .message
-                                .clone()
-                                .map_or(error.property_name.clone(), |message| {
-                                    Some(format!(
-                                        "{} - PropertyName: {}",
-                                        message,
-                                        error.property_name.clone().unwrap_or("None".to_string())
-                                    ))
-                                })
-                                .unwrap_or("".to_string())
-                        })
+                        .map(format_error_message)
                         .collect::<Vec<_>>()
                         .join(", ")
                 })
@@ -724,22 +712,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                     status_output.errors.map(|errors| {
                         errors
                             .iter()
-                            .map(|error| {
-                                error
-                                    .message
-                                    .clone()
-                                    .map_or(error.property_name.clone(), |message| {
-                                        Some(format!(
-                                            "{} - PropertyName: {}",
-                                            message,
-                                            error
-                                                .property_name
-                                                .clone()
-                                                .unwrap_or("None".to_string())
-                                        ))
-                                    })
-                                    .unwrap_or("".to_string())
-                            })
+                            .map(format_error_message)
                             .collect::<Vec<_>>()
                             .join(", ")
                     })
@@ -860,19 +833,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                 status_output.errors.map(|errors| {
                     errors
                         .iter()
-                        .map(|error| {
-                            error
-                                .message
-                                .clone()
-                                .map_or(error.property_name.clone(), |message| {
-                                    Some(format!(
-                                        "{} - PropertyName: {}",
-                                        message,
-                                        error.property_name.clone().unwrap_or("None".to_string())
-                                    ))
-                                })
-                                .unwrap_or("".to_string())
-                        })
+                        .map(format_error_message)
                         .collect::<Vec<_>>()
                         .join(", ")
                 })
@@ -928,19 +889,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
                 status_output.errors.map(|errors| {
                     errors
                         .iter()
-                        .map(|error| {
-                            error
-                                .message
-                                .clone()
-                                .map_or(error.property_name.clone(), |message| {
-                                    Some(format!(
-                                        "{} - PropertyName: {}",
-                                        message,
-                                        error.property_name.clone().unwrap_or("None".to_string())
-                                    ))
-                                })
-                                .unwrap_or("".to_string())
-                        })
+                        .map(format_error_message)
                         .collect::<Vec<_>>()
                         .join(", ")
                 })
@@ -1014,4 +963,17 @@ pub enum WebhookEvent {
     Paid,
     #[serde(other)]
     Unknown,
+}
+
+pub fn format_error_message(error: &Error) -> String {
+    match (&error.message, &error.property_name) {
+        (Some(message), Some(property_name))  => format!(
+            "{} - PropertyName: {}",
+            message,
+            property_name,
+        ),
+        (Some(message), None) => message.to_string(),
+        (None, Some(property_name)) => property_name.to_string(),
+        (None, None) => "".to_string(),
+    }
 }

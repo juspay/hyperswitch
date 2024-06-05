@@ -142,19 +142,7 @@ impl ConnectorCommon for Worldline {
             .errors
             .clone()
             .iter()
-            .map(|error| {
-                error
-                    .message
-                    .clone()
-                    .map_or(error.property_name.clone(), |message| {
-                        Some(format!(
-                            "{} : PropertyName {}",
-                            message,
-                            error.property_name.clone().unwrap_or("None".to_string())
-                        ))
-                    })
-                    .unwrap_or("".to_string())
-            })
+            .map(transformers::format_error_message)
             .collect::<Vec<_>>()
             .join(", ");
 
