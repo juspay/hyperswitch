@@ -14,3 +14,10 @@ pm.test("[POST]::user/v2/signin?token_only=true - Content-Type is application/js
 pm.test("[POST]::user/v2/signin?token_only=true - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
+
+// Validate specific JSON response content
+pm.test("[POST]::user/v2/signin?token_only=true - Response contains token", function () {
+  var jsonData = pm.response.json();
+  pm.expect(jsonData).to.have.property("token");
+  pm.expect(jsonData.token).to.be.a("string").and.to.not.be.empty;
+});
