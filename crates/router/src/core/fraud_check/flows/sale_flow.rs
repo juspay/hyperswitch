@@ -17,7 +17,7 @@ use crate::{
         storage::enums as storage_enums,
         ConnectorAuthType, ResponseId, RouterData,
     },
-    AppState,
+    SessionState,
 };
 
 #[async_trait]
@@ -26,7 +26,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
 {
     async fn construct_router_data<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -64,7 +64,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             connector_meta_data: None,
             amount_captured: None,
             request: FraudCheckSaleData {
-                amount: self.payment_attempt.amount,
+                amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 email: customer
@@ -119,7 +119,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
 impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
     async fn decide_frm_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
@@ -137,7 +137,7 @@ impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
 
 pub async fn decide_frm_flow<'a, 'b>(
     router_data: &'b mut FrmSaleRouterData,
-    state: &'a AppState,
+    state: &'a SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

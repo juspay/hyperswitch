@@ -3,12 +3,16 @@ use std::str::FromStr;
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
 use super::BoxedConnector;
 use crate::core::errors;
 
 #[derive(Debug, Clone)]
 pub struct PreAuthentication;
+
+#[derive(Debug, Clone)]
+pub struct PreAuthenticationVersionCall;
 
 #[derive(Debug, Clone)]
 pub struct Authentication;
@@ -64,12 +68,6 @@ pub struct PostAuthenticationResponse {
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
-pub enum MessageCategory {
-    Payment,
-    NonPayment,
-}
-
-#[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 pub struct ExternalAuthenticationPayload {
     pub trans_status: common_enums::TransactionStatus,
     pub authentication_value: Option<String>,
@@ -94,6 +92,15 @@ pub trait ConnectorPreAuthentication:
 {
 }
 
+pub trait ConnectorPreAuthenticationVersionCall:
+    services::ConnectorIntegration<
+    PreAuthenticationVersionCall,
+    types::authentication::PreAuthNRequestData,
+    types::authentication::AuthenticationResponseData,
+>
+{
+}
+
 pub trait ConnectorPostAuthentication:
     services::ConnectorIntegration<
     PostAuthentication,
@@ -107,11 +114,12 @@ pub trait ExternalAuthentication:
     super::ConnectorCommon
     + ConnectorAuthentication
     + ConnectorPreAuthentication
+    + ConnectorPreAuthenticationVersionCall
     + ConnectorPostAuthentication
 {
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AuthenticationConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: enums::AuthenticationConnectors,

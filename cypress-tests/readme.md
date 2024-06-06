@@ -37,7 +37,7 @@ To run test cases, follow these steps:
    export CYPRESS_BASEURL="base_url"
    export DEBUG=cypress:cli
    export CYPRESS_ADMINAPIKEY="admin_api_key"
-   export CYPRESS_CONNECToR_AUtH_FILE_PATH="path/to/creds.json"
+   export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
    ```
 
 4. Run Cypress test cases
@@ -141,7 +141,7 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     } else {
       cy.task(
         "cli_log",
-        "x-request-id is not available in the response headers"
+        "x-request-id is not available in the response headers",
       );
     }
     expect(response.headers["content-type"]).to.include("application/json");

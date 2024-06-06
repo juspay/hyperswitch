@@ -120,7 +120,62 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
+    pub multitenancy: Multitenancy,
     pub saved_payment_methods: EligiblePaymentMethods,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Multitenancy {
+    pub tenants: TenantConfig,
+    pub enabled: bool,
+}
+
+impl Multitenancy {
+    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+        &self.tenants.0
+    }
+    pub fn get_tenant_names(&self) -> Vec<String> {
+        self.tenants.0.keys().cloned().collect()
+    }
+    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+        self.tenants.0.get(tenant_id)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TenantConfig(pub HashMap<String, Tenant>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Tenant {
+    pub name: String,
+    pub base_url: String,
+    pub schema: String,
+    pub redis_key_prefix: String,
+}
+
+impl storage_impl::config::TenantConfig for Tenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GlobalTenant {
+    pub schema: String,
+    pub redis_key_prefix: String,
+}
+
+impl storage_impl::config::TenantConfig for GlobalTenant {
+    fn get_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix.as_str()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -395,6 +450,8 @@ pub struct Secrets {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
     pub password_validity_in_days: u16,
+    pub two_factor_auth_expiry_in_secs: i64,
+    pub totp_issuer_name: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -406,6 +463,7 @@ pub struct Locker {
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
+    pub ttl_for_storage_in_secs: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -445,7 +503,6 @@ pub struct Server {
     pub workers: usize,
     pub host: String,
     pub request_body_limit: usize,
-    pub base_url: String,
     pub shutdown_timeout: u64,
 }
 
@@ -493,6 +550,7 @@ pub struct Connectors {
     pub aci: ConnectorParams,
     #[cfg(feature = "payouts")]
     pub adyen: ConnectorParamsWithSecondaryBaseUrl,
+    pub adyenplatform: ConnectorParams,
     #[cfg(not(feature = "payouts"))]
     pub adyen: ConnectorParams,
     pub airwallex: ConnectorParams,

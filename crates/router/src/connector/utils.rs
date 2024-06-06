@@ -11,7 +11,9 @@ use common_utils::{
     date_time,
     errors::ReportSwitchExt,
     ext_traits::StringExt,
+    id_type,
     pii::{self, Email, IpAddress},
+    types::{AmountConvertor, MinorUnit},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -86,7 +88,7 @@ pub trait RouterData {
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error>;
-    fn get_customer_id(&self) -> Result<String, Error>;
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
     fn get_recurring_mandate_payment_data(
@@ -99,6 +101,16 @@ pub trait RouterData {
 
     fn get_optional_billing(&self) -> Option<&api::Address>;
     fn get_optional_shipping(&self) -> Option<&api::Address>;
+    fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_city(&self) -> Option<String>;
+    fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
+    fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_state(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_email(&self) -> Option<Email>;
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
@@ -136,7 +148,7 @@ where
     {
         match self.status {
             enums::AttemptStatus::Voided => {
-                if payment_data.payment_intent.amount_captured > Some(0) {
+                if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
                     enums::AttemptStatus::PartialCharged
                 } else {
                     self.status
@@ -146,7 +158,7 @@ where
                 let captured_amount =
                     types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                if Some(total_capturable_amount) == captured_amount {
+                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged
@@ -195,6 +207,91 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
     fn get_optional_shipping(&self) -> Option<&api::Address> {
         self.address.get_shipping()
+    }
+
+    fn get_optional_shipping_first_name(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.first_name)
+        })
+    }
+
+    fn get_optional_shipping_last_name(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.last_name)
+        })
+    }
+
+    fn get_optional_shipping_line1(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.line1)
+        })
+    }
+
+    fn get_optional_shipping_line2(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.line2)
+        })
+    }
+
+    fn get_optional_shipping_city(&self) -> Option<String> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.city)
+        })
+    }
+
+    fn get_optional_shipping_state(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.state)
+        })
+    }
+
+    fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.country)
+        })
+    }
+
+    fn get_optional_shipping_zip(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_address_details| shipping_address_details.zip)
+        })
+    }
+
+    fn get_optional_shipping_email(&self) -> Option<Email> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().email)
+    }
+
+    fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.get_number_with_country_code().ok())
     }
 
     fn get_description(&self) -> Result<String, Error> {
@@ -401,7 +498,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
     }
-    fn get_customer_id(&self) -> Result<String, Error> {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, Error> {
         self.customer_id
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
@@ -441,6 +538,25 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.quote_id
             .to_owned()
             .ok_or_else(missing_field_err("quote_id"))
+    }
+}
+
+pub trait AddressData {
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
+}
+
+impl AddressData for api::Address {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error> {
+        self.phone
+            .clone()
+            .map(|phone_details| phone_details.get_number_with_country_code())
+            .transpose()?
+            .ok_or_else(missing_field_err("phone"))
     }
 }
 
@@ -692,23 +808,27 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_original_amount(&self) -> i64 {
         self.surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.original_amount)
+            .map(|surcharge_details| surcharge_details.original_amount.get_amount_as_i64())
             .unwrap_or(self.amount)
     }
     fn get_surcharge_amount(&self) -> Option<i64> {
         self.surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount)
+            .map(|surcharge_details| surcharge_details.surcharge_amount.get_amount_as_i64())
     }
     fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
+        self.surcharge_details.as_ref().map(|surcharge_details| {
+            surcharge_details
+                .tax_on_surcharge_amount
+                .get_amount_as_i64()
+        })
     }
     fn get_total_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+        self.surcharge_details.as_ref().map(|surcharge_details| {
+            surcharge_details
+                .get_total_surcharge_amount()
+                .get_amount_as_i64()
+        })
     }
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
@@ -872,7 +992,7 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
 
 #[cfg(feature = "payouts")]
 pub trait CustomerDetails {
-    fn get_customer_id(&self) -> Result<String, errors::ConnectorError>;
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
     fn get_customer_name(
         &self,
     ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
@@ -885,7 +1005,7 @@ pub trait CustomerDetails {
 
 #[cfg(feature = "payouts")]
 impl CustomerDetails for types::CustomerDetails {
-    fn get_customer_id(&self) -> Result<String, errors::ConnectorError> {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError> {
         self.customer_id
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -1101,7 +1221,7 @@ pub trait CardData {
 }
 
 #[cfg(feature = "payouts")]
-impl CardData for payouts::Card {
+impl CardData for payouts::CardPayout {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.expiry_year.clone();
         let year = binding.peek();
@@ -1418,6 +1538,7 @@ pub trait AddressDetailsData {
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
+    fn get_optional_line2(&self) -> Option<Secret<String>>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1512,6 +1633,10 @@ impl AddressDetailsData for api::AddressDetails {
                 }
             })
             .transpose()
+    }
+
+    fn get_optional_line2(&self) -> Option<Secret<String>> {
+        self.line2.clone()
     }
 }
 
@@ -1980,7 +2105,9 @@ where
                         status: capture_sync_response.get_capture_attempt_status(),
                         connector_response_reference_id: capture_sync_response
                             .get_connector_reference_id(),
-                        amount: capture_sync_response.get_amount_captured(),
+                        amount: capture_sync_response
+                            .get_amount_captured()
+                            .map(MinorUnit::new),
                     },
                 );
             }
@@ -2609,4 +2736,24 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
         }
     }
+}
+
+pub fn convert_amount<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<T, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
+pub fn convert_back<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert_back(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
 }

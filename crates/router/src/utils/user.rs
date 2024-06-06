@@ -1,16 +1,14 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::ExposeInterface;
-use totp_rs::{Algorithm, TOTP};
+use redis_interface::RedisConnectionPool;
 
 use crate::{
-    consts,
     core::errors::{StorageError, UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
     services::{
         authentication::{AuthToken, UserFromToken},
         authorization::roles::RoleInfo,
@@ -22,11 +20,12 @@ pub mod dashboard_metadata;
 pub mod password;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod two_factor_auth;
 
 impl UserFromToken {
     pub async fn get_merchant_account_from_db(
         &self,
-        state: AppState,
+        state: SessionState,
     ) -> UserResult<MerchantAccount> {
         let key_store = state
             .store
@@ -56,16 +55,16 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user_from_db(&self, state: &AppState) -> UserResult<UserFromStorage> {
+    pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
         let user = state
-            .store
+            .global_store
             .find_user_by_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
         Ok(user.into())
     }
 
-    pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
+    pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
         RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
             .await
             .change_context(UserErrors::InternalServerError)
@@ -73,7 +72,7 @@ impl UserFromToken {
 }
 
 pub async fn generate_jwt_auth_token(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
     user_role: &UserRole,
 ) -> UserResult<masking::Secret<String>> {
@@ -89,7 +88,7 @@ pub async fn generate_jwt_auth_token(
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
     merchant_id: String,
     org_id: String,
@@ -107,7 +106,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
 }
 
 pub fn get_dashboard_entry_response(
-    state: &AppState,
+    state: &SessionState,
     user: UserFromStorage,
     user_role: UserRole,
     token: masking::Secret<String>,
@@ -127,7 +126,7 @@ pub fn get_dashboard_entry_response(
 
 #[allow(unused_variables)]
 pub fn get_verification_days_left(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
 ) -> UserResult<Option<i64>> {
     #[cfg(feature = "email")]
@@ -177,11 +176,11 @@ pub fn get_multiple_merchant_details_with_status(
 }
 
 pub async fn get_user_from_db_by_email(
-    state: &AppState,
+    state: &SessionState,
     email: domain::UserEmail,
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
-        .store
+        .global_store
         .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)
@@ -194,24 +193,10 @@ pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> maskin
     }
 }
 
-pub fn generate_default_totp(
-    email: pii::Email,
-    secret: Option<masking::Secret<String>>,
-) -> UserResult<TOTP> {
-    let secret = secret
-        .map(|sec| totp_rs::Secret::Encoded(sec.expose()))
-        .unwrap_or_else(totp_rs::Secret::generate_secret)
-        .to_bytes()
-        .change_context(UserErrors::InternalServerError)?;
-
-    TOTP::new(
-        Algorithm::SHA1,
-        consts::user::TOTP_DIGITS,
-        consts::user::TOTP_TOLERANCE,
-        consts::user::TOTP_VALIDITY_DURATION_IN_SECONDS,
-        secret,
-        Some(consts::user::TOTP_ISSUER_NAME.to_string()),
-        email.expose().expose(),
-    )
-    .change_context(UserErrors::InternalServerError)
+pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnectionPool>> {
+    state
+        .store
+        .get_redis_conn()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")
 }

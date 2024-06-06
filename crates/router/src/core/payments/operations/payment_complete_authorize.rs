@@ -15,7 +15,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -34,7 +34,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
         merchant_account: &domain::MerchantAccount,
@@ -58,6 +58,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_intent.setup_future_usage = request
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
+
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
@@ -167,21 +169,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
-            &payment_intent
+            payment_intent
                 .customer_id
-                .clone()
-                .or_else(|| request.customer_id.clone()),
+                .as_ref()
+                .or(request.customer_id.as_ref()),
         )?;
 
-        let shipping_address = helpers::get_address_by_id(
+        let shipping_address = helpers::create_or_update_address_for_payment_by_request(
             db,
-            payment_intent.shipping_address_id.clone(),
+            request.shipping.as_ref(),
+            payment_intent.shipping_address_id.clone().as_deref(),
+            merchant_id.as_ref(),
+            payment_intent.customer_id.as_ref(),
             key_store,
-            &payment_intent.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
+            payment_id.as_ref(),
+            storage_scheme,
         )
         .await?;
+
+        payment_intent.shipping_address_id = shipping_address
+            .as_ref()
+            .map(|shipping_address| shipping_address.address_id.clone());
 
         let billing_address = helpers::get_address_by_id(
             db,
@@ -359,7 +367,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -384,7 +392,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn add_task_to_process_tracker<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         _payment_attempt: &storage::PaymentAttempt,
         _requeue: bool,
         _schedule_time: Option<time::PrimitiveDateTime>,
@@ -395,7 +403,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
@@ -408,7 +416,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -421,11 +429,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _state: &'b AppState,
+        state: &'b SessionState,
         _req_state: ReqState,
-        payment_data: PaymentData<F>,
+        mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
@@ -434,6 +442,19 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
     where
         F: 'b + Send,
     {
+        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::CompleteAuthorizeUpdate {
+            shipping_address_id: payment_data.payment_intent.shipping_address_id.clone()
+        };
+
+        let db = &*state.store;
+        let payment_intent = payment_data.payment_intent.clone();
+
+        let updated_payment_intent = db
+            .update_payment_intent(payment_intent, payment_intent_update, storage_scheme)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        payment_data.payment_intent = updated_payment_intent;
         Ok((Box::new(self), payment_data))
     }
 }

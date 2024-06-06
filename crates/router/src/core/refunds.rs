@@ -5,8 +5,12 @@ use std::collections::HashMap;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{
+    ext_traits::{AsyncExt, ValueExt},
+    types::MinorUnit,
+};
 use error_stack::{report, ResultExt};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
@@ -16,11 +20,11 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token},
+        payments::{self, access_token, types::PaymentCharges},
         utils as core_utils,
     },
     db, logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -28,6 +32,7 @@ use crate::{
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
+        ChargeRefunds,
     },
     utils::{self, OptionExt},
     workflows::payment_sync,
@@ -37,7 +42,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn refund_create_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
@@ -78,7 +83,7 @@ pub async fn refund_create_core(
         .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
-    utils::when(amount <= 0, || {
+    utils::when(amount <= MinorUnit::new(0), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
             expected_format: "positive integer".to_string()
@@ -126,15 +131,17 @@ pub async fn refund_create_core(
     .map(services::ApplicationResponse::Json)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn trigger_refund_to_gateway(
-    state: &AppState,
+    state: &SessionState,
     refund: &storage::Refund,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
+    charges: Option<ChargeRefunds>,
 ) -> RouterResult<storage::Refund> {
     let routed_through = payment_attempt
         .connector
@@ -177,6 +184,7 @@ pub async fn trigger_refund_to_gateway(
         payment_attempt,
         refund,
         creds_identifier,
+        charges,
     )
     .await?;
 
@@ -309,14 +317,14 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(SessionState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
@@ -329,7 +337,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
@@ -424,7 +432,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
@@ -456,6 +464,7 @@ pub async fn sync_refund_with_gateway(
         payment_attempt,
         refund,
         creds_identifier,
+        None,
     )
     .await?;
 
@@ -537,7 +546,7 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -575,16 +584,49 @@ pub async fn refund_update_core(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn validate_and_create_refund(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    refund_amount: i64,
+    refund_amount: MinorUnit,
     req: refunds::RefundRequest,
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
+
+    // Validate charge_id and refund options
+    let charges = match (
+        payment_intent.charges.as_ref(),
+        payment_attempt.charge_id.as_ref(),
+    ) {
+        (Some(charges), Some(charge_id)) => {
+            let refund_charge_request = req.charges.clone().get_required_value("charges")?;
+            utils::when(*charge_id != refund_charge_request.charge_id, || {
+                Err(report!(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "charges.charge_id"
+                }))
+                .attach_printable("charge_id sent in request mismatches with original charge_id")
+            })?;
+            let payment_charges: PaymentCharges = charges
+                .peek()
+                .clone()
+                .parse_value("PaymentCharges")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse charges in to PaymentCharges")?;
+            let options = validator::validate_charge_refund(
+                &refund_charge_request,
+                &payment_charges.charge_type,
+            )?;
+            Some(ChargeRefunds {
+                charge_id: charge_id.to_string(),
+                charge_type: payment_charges.charge_type,
+                transfer_account_id: payment_charges.transfer_account_id,
+                options,
+            })
+        }
+        _ => None,
+    };
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
@@ -636,8 +678,12 @@ pub async fn validate_and_create_refund(
         .amount_captured
         .unwrap_or(payment_attempt.amount);
 
-    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount)
-        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
+    validator::validate_refund_amount(
+        total_amount_captured.get_amount_as_i64(),
+        &all_refunds,
+        refund_amount.get_amount_as_i64(),
+    )
+    .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,
@@ -672,6 +718,7 @@ pub async fn validate_and_create_refund(
         .set_refund_reason(req.reason)
         .set_profile_id(payment_intent.profile_id.clone())
         .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
+        .set_charges(req.charges)
         .to_owned();
 
     let refund = match db
@@ -679,7 +726,7 @@ pub async fn validate_and_create_refund(
         .await
     {
         Ok(refund) => {
-            schedule_refund_execution(
+            Box::pin(schedule_refund_execution(
                 state,
                 refund.clone(),
                 refund_type,
@@ -688,7 +735,8 @@ pub async fn validate_and_create_refund(
                 payment_attempt,
                 payment_intent,
                 creds_identifier,
-            )
+                charges,
+            ))
             .await?
         }
         Err(err) => {
@@ -719,7 +767,7 @@ pub async fn validate_and_create_refund(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
@@ -764,7 +812,7 @@ pub async fn refund_list(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api_models::payments::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
@@ -784,7 +832,7 @@ pub async fn refund_filter_list(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_refunds(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
@@ -826,6 +874,7 @@ pub async fn get_filters_for_refunds(
 impl ForeignFrom<storage::Refund> for api::RefundResponse {
     fn foreign_from(refund: storage::Refund) -> Self {
         let refund = refund;
+
         Self {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
@@ -841,6 +890,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             updated_at: Some(refund.updated_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
+            charges: refund.charges,
         }
     }
 }
@@ -850,7 +900,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn schedule_refund_execution(
-    state: &AppState,
+    state: &SessionState,
     refund: storage::Refund,
     refund_type: api_models::refunds::RefundType,
     merchant_account: &domain::MerchantAccount,
@@ -858,6 +908,7 @@ pub async fn schedule_refund_execution(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
+    charges: Option<ChargeRefunds>,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
@@ -894,6 +945,7 @@ pub async fn schedule_refund_execution(
                                 payment_attempt,
                                 payment_intent,
                                 creds_identifier,
+                                charges,
                             )
                             .await
                         }
@@ -927,7 +979,7 @@ pub async fn schedule_refund_execution(
 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let refund_core =
@@ -996,7 +1048,7 @@ pub async fn sync_refund_with_gateway_workflow(
 
 #[instrument(skip_all)]
 pub async fn start_refund_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
@@ -1012,7 +1064,7 @@ pub async fn start_refund_workflow(
 
 #[instrument(skip_all)]
 pub async fn trigger_refund_execute_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
@@ -1073,6 +1125,41 @@ pub async fn trigger_refund_execute_workflow(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+            let charges = match (
+                payment_intent.charges.as_ref(),
+                payment_attempt.charge_id.as_ref(),
+            ) {
+                (Some(charges), Some(charge_id)) => {
+                    let refund_charge_request =
+                        refund.charges.clone().get_required_value("charges")?;
+                    utils::when(*charge_id != refund_charge_request.charge_id, || {
+                        Err(report!(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "charges.charge_id"
+                        }))
+                        .attach_printable(
+                            "charge_id sent in request mismatches with original charge_id",
+                        )
+                    })?;
+                    let payment_charges: PaymentCharges = charges
+                        .peek()
+                        .clone()
+                        .parse_value("PaymentCharges")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse charges in to PaymentCharges")?;
+                    let options = validator::validate_charge_refund(
+                        &refund_charge_request,
+                        &payment_charges.charge_type,
+                    )?;
+                    Some(ChargeRefunds {
+                        charge_id: charge_id.to_string(),
+                        charge_type: payment_charges.charge_type,
+                        transfer_account_id: payment_charges.transfer_account_id,
+                        options,
+                    })
+                }
+                _ => None,
+            };
+
             //trigger refund request to gateway
             let updated_refund = trigger_refund_to_gateway(
                 state,
@@ -1082,6 +1169,7 @@ pub async fn trigger_refund_execute_workflow(
                 &payment_attempt,
                 &payment_intent,
                 None,
+                charges,
             )
             .await?;
             add_refund_sync_task(

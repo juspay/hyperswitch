@@ -6,7 +6,7 @@ pub mod validator;
 use std::vec::IntoIter;
 
 use api_models::enums as api_enums;
-use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii};
+use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
@@ -34,7 +34,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         self,
@@ -71,7 +71,7 @@ pub fn get_next_connector(
 
 #[cfg(feature = "payouts")]
 pub async fn get_connector_choice(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector: Option<String>,
@@ -152,7 +152,7 @@ pub async fn get_connector_choice(
 
 #[instrument(skip_all)]
 pub async fn make_connector_decision(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_call_type: api::ConnectorCallType,
@@ -254,7 +254,7 @@ pub async fn make_connector_decision(
 
 #[instrument(skip_all)]
 pub async fn payouts_core(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
@@ -288,7 +288,7 @@ pub async fn payouts_core(
 
 #[instrument(skip_all)]
 pub async fn payouts_create_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
@@ -339,7 +339,7 @@ pub async fn payouts_create_core(
 }
 
 pub async fn payouts_update_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
@@ -365,11 +365,12 @@ pub async fn payouts_update_core(
             ),
         }));
     }
-
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
+    let amount = MinorUnit::from(req.amount.unwrap_or(MinorUnit::new(payouts.amount).into()))
+        .get_amount_as_i64();
     let updated_payouts = storage::PayoutsUpdate::Update {
-        amount: req.amount.unwrap_or(payouts.amount.into()).into(),
+        amount,
         destination_currency: req.currency.unwrap_or(payouts.destination_currency),
         source_currency: req.currency.unwrap_or(payouts.source_currency),
         description: req.description.clone().or(payouts.description.clone()),
@@ -469,7 +470,7 @@ pub async fn payouts_update_core(
 
 #[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
@@ -487,7 +488,7 @@ pub async fn payouts_retrieve_core(
 
 #[instrument(skip_all)]
 pub async fn payouts_cancel_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
@@ -501,7 +502,6 @@ pub async fn payouts_cancel_core(
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
-    let connector_payout_id = payout_attempt.connector_payout_id.to_owned();
     let status = payout_attempt.status;
 
     // Verify if cancellation can be triggered
@@ -517,7 +517,7 @@ pub async fn payouts_cancel_core(
     } else if helpers::is_eligible_for_local_payout_cancellation(status) {
         let status = storage_enums::PayoutStatus::Cancelled;
         let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-            connector_payout_id: connector_payout_id.to_owned(),
+            connector_payout_id: payout_attempt.connector_payout_id.to_owned(),
             status,
             error_message: Some("Cancelled by user".to_string()),
             error_code: None,
@@ -583,7 +583,7 @@ pub async fn payouts_cancel_core(
 
 #[instrument(skip_all)]
 pub async fn payouts_fulfill_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
@@ -669,7 +669,7 @@ pub async fn payouts_fulfill_core(
 
 #[cfg(feature = "olap")]
 pub async fn payouts_list_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
@@ -713,13 +713,16 @@ pub async fn payouts_list_core(
                         ) {
                             logger::warn!(
                                 ?error,
-                                "customer missing for customer_id : {}",
+                                "customer missing for customer_id : {:?}",
                                 payouts.customer_id,
                             );
                             return None;
                         }
                         Some(Err(error.change_context(StorageError::ValueNotFound(
-                            format!("customer missing for customer_id : {}", payouts.customer_id),
+                            format!(
+                                "customer missing for customer_id : {:?}",
+                                payouts.customer_id
+                            ),
                         ))))
                     }
                 }
@@ -763,7 +766,7 @@ pub async fn payouts_list_core(
 
 #[cfg(feature = "olap")]
 pub async fn payouts_filtered_list_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
@@ -788,7 +791,11 @@ pub async fn payouts_filtered_list_core(
         match domain::Customer::convert_back(c, &key_store.key).await {
             Ok(domain_cust) => Some((p, pa, domain_cust)),
             Err(err) => {
-                logger::warn!(?err, "failed to convert customer for id: {}", p.customer_id);
+                logger::warn!(
+                    ?err,
+                    "failed to convert customer for id: {:?}",
+                    p.customer_id
+                );
                 None
             }
         }
@@ -809,7 +816,7 @@ pub async fn payouts_filtered_list_core(
 
 #[cfg(feature = "olap")]
 pub async fn payouts_list_available_filters_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PayoutListFilters> {
@@ -844,7 +851,7 @@ pub async fn payouts_list_available_filters_core(
 
 // ********************************************** HELPERS **********************************************
 pub async fn call_connector_payout(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -954,7 +961,7 @@ pub async fn call_connector_payout(
 }
 
 pub async fn complete_create_recipient(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -981,7 +988,7 @@ pub async fn complete_create_recipient(
 }
 
 pub async fn create_recipient(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1040,7 +1047,7 @@ pub async fn create_recipient(
                         customers::update_connector_customer_in_customers(
                             &connector_label,
                             Some(&customer),
-                            &Some(recipient_create_data.connector_payout_id.clone()),
+                            &recipient_create_data.connector_payout_id.clone(),
                         )
                         .await
                     {
@@ -1076,7 +1083,10 @@ pub async fn create_recipient(
                         .status
                         .unwrap_or(api_enums::PayoutStatus::RequiresVendorAccountCreation);
                     let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                        connector_payout_id: recipient_create_data.connector_payout_id,
+                        connector_payout_id: payout_data
+                            .payout_attempt
+                            .connector_payout_id
+                            .to_owned(),
                         status,
                         error_code: None,
                         error_message: None,
@@ -1116,7 +1126,7 @@ pub async fn create_recipient(
 }
 
 pub async fn complete_payout_eligibility(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1159,7 +1169,7 @@ pub async fn complete_payout_eligibility(
 }
 
 pub async fn check_payout_eligibility(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1240,7 +1250,7 @@ pub async fn check_payout_eligibility(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: String::default(),
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1273,7 +1283,7 @@ pub async fn check_payout_eligibility(
 }
 
 pub async fn complete_create_payout(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1290,7 +1300,7 @@ pub async fn complete_create_payout(
             let db = &*state.store;
             let payout_attempt = &payout_data.payout_attempt;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: "".to_string(),
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status: storage::enums::PayoutStatus::RequiresFulfillment,
                 error_code: None,
                 error_message: None,
@@ -1335,7 +1345,7 @@ pub async fn complete_create_payout(
 }
 
 pub async fn create_payout(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1432,7 +1442,7 @@ pub async fn create_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: String::default(),
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1465,7 +1475,7 @@ pub async fn create_payout(
 }
 
 pub async fn complete_create_recipient_disburse_account(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1492,7 +1502,7 @@ pub async fn complete_create_recipient_disburse_account(
 }
 
 pub async fn create_recipient_disburse_account(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1555,7 +1565,7 @@ pub async fn create_recipient_disburse_account(
         }
         Err(err) => {
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: String::default(),
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status: storage_enums::PayoutStatus::Failed,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1578,7 +1588,7 @@ pub async fn create_recipient_disburse_account(
 }
 
 pub async fn cancel_payout(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1651,7 +1661,7 @@ pub async fn cancel_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: String::default(),
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1684,7 +1694,7 @@ pub async fn cancel_payout(
 }
 
 pub async fn fulfill_payout(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
@@ -1754,7 +1764,7 @@ pub async fn fulfill_payout(
                 .await?;
             }
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
+                connector_payout_id: payout_response_data.connector_payout_id,
                 status,
                 error_code: None,
                 error_message: None,
@@ -1791,7 +1801,7 @@ pub async fn fulfill_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: String::default(),
+                connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
@@ -1888,6 +1898,8 @@ pub async fn response_handler(
         error_code: payout_attempt.error_code,
         profile_id: payout_attempt.profile_id,
         created: Some(payouts.created_at),
+        connector_transaction_id: payout_attempt.connector_payout_id,
+        priority: payouts.priority,
         attempts: None,
     };
     Ok(services::ApplicationResponse::Json(response))
@@ -1896,7 +1908,7 @@ pub async fn response_handler(
 // DB entries
 #[allow(clippy::too_many_arguments)]
 pub async fn payout_create_db_entries(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
@@ -1964,14 +1976,14 @@ pub async fn payout_create_db_entries(
     } else {
         None
     };
-
+    let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero)).get_amount_as_i64();
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_string(),
         customer_id: customer_id.to_owned(),
         address_id: address_id.to_owned(),
         payout_type,
-        amount: req.amount.unwrap_or(api::Amount::Zero).into(),
+        amount,
         destination_currency: currency,
         source_currency: currency,
         description: req.description.to_owned(),
@@ -1984,6 +1996,7 @@ pub async fn payout_create_db_entries(
         attempt_count: 1,
         metadata: req.metadata.clone(),
         confirm: req.confirm,
+        priority: req.priority,
         ..Default::default()
     };
     let payouts = db
@@ -2053,7 +2066,7 @@ pub async fn payout_create_db_entries(
 }
 
 pub async fn make_payout_data(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
@@ -2161,7 +2174,7 @@ pub async fn add_external_account_addition_task(
 }
 
 async fn validate_and_get_business_profile(
-    state: &AppState,
+    state: &SessionState,
     profile_id: &String,
     merchant_id: &str,
 ) -> RouterResult<storage::BusinessProfile> {

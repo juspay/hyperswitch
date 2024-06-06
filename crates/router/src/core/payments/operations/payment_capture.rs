@@ -12,7 +12,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self as core_types,
@@ -34,7 +34,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &domain::MerchantAccount,
@@ -77,8 +77,10 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
 
         helpers::validate_amount_to_capture(
-            payment_attempt.amount_capturable,
-            request.amount_to_capture,
+            payment_attempt.amount_capturable.get_amount_as_i64(),
+            request
+                .amount_to_capture
+                .map(|capture_amount| capture_amount.get_amount_as_i64()),
         )?;
 
         helpers::validate_capture_method(capture_method)?;
@@ -89,8 +91,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 .get_required_value("amount_to_capture")?;
 
             helpers::validate_amount_to_capture(
-                payment_attempt.amount_capturable,
-                Some(amount_to_capture),
+                payment_attempt.amount_capturable.get_amount_as_i64(),
+                Some(amount_to_capture.get_amount_as_i64()),
             )?;
 
             let previous_captures = db
@@ -252,7 +254,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b AppState,
+        db: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,

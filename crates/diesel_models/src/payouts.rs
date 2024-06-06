@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -12,7 +12,7 @@ use crate::{enums as storage_enums, schema::payouts};
 pub struct Payouts {
     pub payout_id: String,
     pub merchant_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub address_id: String,
     pub payout_type: storage_enums::PayoutType,
     pub payout_method_id: Option<String>,
@@ -33,12 +33,12 @@ pub struct Payouts {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(
     Clone,
     Debug,
-    Default,
     Eq,
     PartialEq,
     Insertable,
@@ -51,7 +51,7 @@ pub struct Payouts {
 pub struct PayoutsNew {
     pub payout_id: String,
     pub merchant_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub address_id: String,
     pub payout_type: storage_enums::PayoutType,
     pub payout_method_id: Option<String>,
@@ -72,6 +72,7 @@ pub struct PayoutsNew {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

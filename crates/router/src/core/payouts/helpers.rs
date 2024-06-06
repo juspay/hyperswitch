@@ -2,6 +2,7 @@ use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
+    generate_customer_id_of_default_length, id_type,
 };
 use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
@@ -22,10 +23,9 @@ use crate::{
             CustomerDetails,
         },
         routing::TransactionData,
-        utils as core_utils,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         api::{self, enums as api_enums},
@@ -41,10 +41,10 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 pub async fn make_payout_method_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
-    customer_id: &str,
+    customer_id: &id_type::CustomerId,
     merchant_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -186,7 +186,7 @@ pub async fn make_payout_method_data<'a>(
 }
 
 pub async fn save_payout_data_to_locker(
-    state: &AppState,
+    state: &SessionState,
     payout_data: &mut PayoutData,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
@@ -220,6 +220,7 @@ pub async fn save_payout_data_to_locker(
                         nick_name: None,
                     },
                     requestor_card_reference: None,
+                    ttl: state.conf.locker.ttl_for_storage_in_secs,
                 });
                 (
                     payload,
@@ -255,6 +256,7 @@ pub async fn save_payout_data_to_locker(
                     merchant_id: merchant_account.merchant_id.as_ref(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     enc_data,
+                    ttl: state.conf.locker.ttl_for_storage_in_secs,
                 });
                 match payout_method_data {
                     payouts::PayoutMethodData::Bank(bank) => (
@@ -572,15 +574,18 @@ pub async fn save_payout_data_to_locker(
 }
 
 pub async fn get_or_create_customer_details(
-    state: &AppState,
+    state: &SessionState,
     customer_details: &CustomerDetails,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<domain::Customer>> {
     let db: &dyn StorageInterface = &*state.store;
     // Create customer_id if not passed in request
-    let customer_id =
-        core_utils::get_or_generate_id("customer_id", &customer_details.customer_id, "cust")?;
+    let customer_id = customer_details
+        .customer_id
+        .clone()
+        .unwrap_or_else(generate_customer_id_of_default_length);
+
     let merchant_id = &merchant_account.merchant_id;
     let key = key_store.key.get_inner().peek();
 
@@ -633,7 +638,7 @@ pub async fn get_or_create_customer_details(
 }
 
 pub async fn decide_payout_connector(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
@@ -669,7 +674,6 @@ pub async fn decide_payout_connector(
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
@@ -728,7 +732,6 @@ pub async fn decide_payout_connector(
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
                 key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
@@ -792,7 +795,7 @@ pub async fn decide_payout_connector(
 }
 
 pub async fn get_default_payout_connector(
-    _state: &AppState,
+    _state: &SessionState,
     request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
@@ -802,7 +805,7 @@ pub async fn get_default_payout_connector(
 }
 
 pub fn should_call_payout_connector_create_customer<'a>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
     connector_label: &str,
@@ -831,7 +834,7 @@ pub fn should_call_payout_connector_create_customer<'a>(
 }
 
 pub async fn get_gsm_record(
-    state: &AppState,
+    state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,

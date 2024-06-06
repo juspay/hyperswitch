@@ -1,18 +1,21 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::{FrmMessage, GetAddressFromPaymentMethodData, RequestSurchargeDetails};
+use api_models::payments::{
+    FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
+    RequestSurchargeDetails,
+};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils};
+use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use masking::{Maskable, Secret};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
+    configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -20,7 +23,7 @@ use crate::{
         utils as core_utils,
     },
     headers::X_PAYMENT_CONFIRM_SOURCE,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
         self, api, domain,
@@ -33,7 +36,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn construct_payment_router_data<'a, F, T>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
@@ -86,10 +89,11 @@ where
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        charge_id: None,
     });
 
     let additional_data = PaymentAdditionalData {
-        router_base_url: state.conf.server.base_url.clone(),
+        router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
@@ -152,7 +156,10 @@ where
         connector_meta_data: merchant_connector_account.get_metadata(),
         request: T::try_from(additional_data)?,
         response,
-        amount_captured: payment_data.payment_intent.amount_captured,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -197,7 +204,7 @@ where
         data: D,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &str,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -216,7 +223,7 @@ where
         payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
-        server: &Server,
+        base_url: &str,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
@@ -246,7 +253,7 @@ where
             captures,
             customer,
             auth_flow,
-            server,
+            base_url,
             &operation,
             connector_request_reference_id_config,
             connector_http_status_code,
@@ -266,7 +273,7 @@ where
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &str,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -298,7 +305,7 @@ where
         data: PaymentData<F>,
         customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
-        _server: &Server,
+        _base_url: &str,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -354,7 +361,7 @@ pub fn payments_to_payments_response<Op, F: Clone>(
     captures: Option<Vec<storage::Capture>>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
-    server: &Server,
+    base_url: &str,
     operation: &Op,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
@@ -373,7 +380,7 @@ where
         .as_ref()
         .get_required_value("currency")?;
     let amount = currency
-        .to_currency_base_unit(payment_attempt.amount)
+        .to_currency_base_unit(payment_attempt.amount.get_amount_as_i64())
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
         })?;
@@ -532,6 +539,11 @@ where
 
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
+        let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
+
+        let next_action_containing_fetch_qr_code_url =
+            fetch_qr_code_url_next_steps_check(payment_attempt.clone())?;
+
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
@@ -540,6 +552,8 @@ where
             || next_action_voucher.is_some()
             || next_action_containing_qr_code_url.is_some()
             || next_action_containing_wait_screen.is_some()
+            || papal_sdk_next_action.is_some()
+            || next_action_containing_fetch_qr_code_url.is_some()
             || payment_data.authentication.is_some()
         {
             next_action_response = bank_transfer_next_steps
@@ -556,6 +570,16 @@ where
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
                             api_models::payments::NextActionData::foreign_from(qr_code_data)
                         }))
+                        .or(next_action_containing_fetch_qr_code_url.map(|fetch_qr_code_data| {
+                            api_models::payments::NextActionData::FetchQrCodeInformation {
+                                qr_code_fetch_url: fetch_qr_code_data.qr_code_fetch_url
+                            }
+                        }))
+                        .or(papal_sdk_next_action.map(|paypal_next_action_data| {
+                            api_models::payments::NextActionData::InvokeSdkClient{
+                                next_action_data: paypal_next_action_data
+                            }
+                        }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
                                 display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -565,7 +589,7 @@ where
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {
                             api_models::payments::NextActionData::RedirectToUrl {
                                 redirect_to_url: helpers::create_startpay_url(
-                                    server,
+                                    base_url,
                                     &payment_attempt,
                                     &payment_intent,
                                 ),
@@ -582,9 +606,9 @@ where
                                         .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: helpers::create_authentication_url(&server.base_url, &payment_attempt),
+                                            three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
                                             three_ds_authorize_url: helpers::create_authorize_url(
-                                                &server.base_url,
+                                                base_url,
                                                 &payment_attempt,
                                                 payment_connector_name,
                                             ),
@@ -600,6 +624,9 @@ where
                                                     three_ds_method_url: None,
                                             }),
                                             poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
+                                            message_version: authentication.message_version.as_ref()
+                                            .map(|version| version.to_string()),
+                                            directory_server_id: authentication.directory_server_id.clone(),
                                         },
                                     })
                                 }else{
@@ -630,6 +657,28 @@ where
                 connector_name,
             )
         });
+
+        let charges_response = match payment_intent.charges {
+            None => None,
+            Some(charges) => {
+                let payment_charges: PaymentChargeRequest = charges
+                    .peek()
+                    .clone()
+                    .parse_value("PaymentChargeRequest")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!(
+                        "Failed to parse PaymentChargeRequest for payment_intent {}",
+                        payment_intent.payment_id
+                    ))?;
+
+                Some(PaymentChargeResponse {
+                    charge_id: payment_attempt.charge_id,
+                    charge_type: payment_charges.charge_type,
+                    application_fees: payment_charges.fees,
+                    transfer_account_id: payment_charges.transfer_account_id,
+                })
+            }
+        };
 
         services::ApplicationResponse::JsonWithHeaders((
             response
@@ -782,6 +831,7 @@ where
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))
+                .set_charges(charges_response)
                 .set_frm_metadata(payment_intent.frm_metadata)
                 .to_owned(),
             headers,
@@ -841,6 +891,33 @@ pub fn qr_code_next_steps_check(
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
+}
+pub fn paypal_sdk_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::SdkNextActionData>> {
+    let paypal_connector_metadata: Option<Result<api_models::payments::SdkNextActionData, _>> =
+        payment_attempt.connector_metadata.map(|metadata| {
+            metadata.parse_value("SdkNextActionData").map_err(|_| {
+                crate::logger::warn!(
+                    "SdkNextActionData parsing failed for paypal_connector_metadata"
+                )
+            })
+        });
+
+    let paypal_next_steps = paypal_connector_metadata.transpose().ok().flatten();
+    Ok(paypal_next_steps)
+}
+
+pub fn fetch_qr_code_url_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::FetchQrCodeInformation>> {
+    let qr_code_steps: Option<Result<api_models::payments::FetchQrCodeInformation, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("FetchQrCodeInformation"));
+
+    let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
+    Ok(qr_code_fetch_url)
 }
 
 pub fn wait_screen_next_steps_check(
@@ -908,12 +985,11 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             error_message: payout_attempt.error_message.clone(),
             payment_method: Some(payout.payout_type),
             payout_method_type: None,
-            connector_transaction_id: Some(payout_attempt.connector_payout_id),
+            connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
             unified_code: None,
             unified_message: None,
         };
-        let attempts = vec![attempt];
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
@@ -939,7 +1015,9 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             error_code: payout_attempt.error_code,
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
-            attempts: Some(attempts),
+            connector_transaction_id: attempt.connector_transaction_id.clone(),
+            priority: payout.priority,
+            attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,
         }
@@ -1052,8 +1130,8 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 display_to_timestamp,
             } => Self::QrCodeInformation {
                 qr_code_url: Some(qr_code_url),
-                display_to_timestamp,
                 image_data_url: None,
+                display_to_timestamp,
             },
         }
     }
@@ -1067,7 +1145,7 @@ where
     router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
-    state: &'a AppState,
+    state: &'a SessionState,
     customer_data: &'a Option<domain::Customer>,
 }
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
@@ -1160,6 +1238,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .map(|customer| customer.clone().into_inner())
             });
 
+        let charges = match payment_data.payment_intent.charges {
+            Some(charges) => charges
+                .peek()
+                .clone()
+                .parse_value("PaymentCharges")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse charges in to PaymentCharges")?,
+            None => None,
+        };
+
         Ok(Self {
             payment_method_data: From::from(
                 payment_method_data.get_required_value("payment_method_data")?,
@@ -1172,7 +1260,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount,
+            amount: amount.get_amount_as_i64(),
+            minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1203,6 +1292,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(AuthenticationData::foreign_try_from)
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
+            charges,
         })
     }
 }
@@ -1231,6 +1321,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             currency: payment_data.currency,
+            payment_experience: payment_data.payment_attempt.payment_experience,
         })
     }
 }
@@ -1248,25 +1339,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
+        let total_amount = payment_data
+            .incremental_authorization_details
+            .clone()
+            .map(|details| details.total_amount)
+            .ok_or(
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing incremental_authorization_details in payment_data"),
+            )?;
+        let additional_amount = payment_data
+            .incremental_authorization_details
+            .clone()
+            .map(|details| details.additional_amount)
+            .ok_or(
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing incremental_authorization_details in payment_data"),
+            )?;
         Ok(Self {
-            total_amount: payment_data
-                .incremental_authorization_details
-                .clone()
-                .map(|details| details.total_amount)
-                .ok_or(
-                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                        "missing incremental_authorization_details in payment_data",
-                    ),
-                )?,
-            additional_amount: payment_data
-                .incremental_authorization_details
-                .clone()
-                .map(|details| details.additional_amount)
-                .ok_or(
-                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                        "missing incremental_authorization_details in payment_data",
-                    ),
-                )?,
+            total_amount: total_amount.get_amount_as_i64(),
+            additional_amount: additional_amount.get_amount_as_i64(),
             reason: payment_data
                 .incremental_authorization_details
                 .and_then(|details| details.reason),
@@ -1315,7 +1406,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
-        let amount_to_capture: i64 = payment_data
+        let amount_to_capture = payment_data
             .payment_attempt
             .amount_to_capture
             .map_or(payment_data.amount.into(), |capture_amount| capture_amount);
@@ -1328,15 +1419,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
-
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount_to_capture,
+            amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
+            minor_amount_to_capture: amount_to_capture,
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            payment_amount: payment_data.amount.into(),
+            payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
+            minor_payment_amount: amount,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             multiple_capture_data: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => Some(MultipleCaptureRequestData {
@@ -1374,8 +1467,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector
@@ -1394,8 +1488,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
         })
     }
@@ -1406,8 +1501,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
         })
     }
@@ -1443,7 +1539,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
-            amount,
+            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
             currency: payment_data.currency,
             country: payment_data.address.get_payment_method_billing().and_then(
                 |billing_address| {
@@ -1491,11 +1587,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .as_ref()
                     .map(|customer| customer.clone().into_inner())
             });
-
+        let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
             payment_method_data: From::from(
                 payment_data
                     .payment_method_data
@@ -1525,10 +1621,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
     }
 }
 
-impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
+impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(capture_sync_response: types::CaptureSyncResponse) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        capture_sync_response: types::CaptureSyncResponse,
+    ) -> Result<Self, Self::Error> {
         match capture_sync_response {
             types::CaptureSyncResponse::Success {
                 resource_id,
@@ -1607,7 +1705,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount,
+            amount: amount.get_amount_as_i64(), // need to change once we move to connector module
+            minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1684,7 +1783,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             payment_method_data: payment_method_data.map(From::from),
             email: payment_data.email,
             currency: Some(payment_data.currency),
-            amount: Some(amount),
+            amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,

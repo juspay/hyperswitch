@@ -14,7 +14,7 @@ use time::PrimitiveDateTime;
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
     errors::RouterResponse,
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         api::payment_link::PaymentLinkResponseExt, domain, storage::enums as storage_enums,
@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub async fn retrieve_payment_link(
-    state: AppState,
+    state: SessionState,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
@@ -47,7 +47,7 @@ pub async fn retrieve_payment_link(
 }
 
 pub async fn initiate_payment_link_flow(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
     payment_id: String,
@@ -120,7 +120,7 @@ pub async fn initiate_payment_link_flow(
         payment_intent.client_secret.clone(),
     )?;
     let amount = currency
-        .to_currency_base_unit(payment_intent.amount)
+        .to_currency_base_unit(payment_intent.amount.get_amount_as_i64())
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
     let order_details = validate_order_details(payment_intent.order_details.clone(), currency)?;
 
@@ -287,7 +287,7 @@ fn validate_sdk_requirements(
 }
 
 pub async fn list_payment_link(
-    state: AppState,
+    state: SessionState,
     merchant: domain::MerchantAccount,
     constraints: api_models::payments::PaymentLinkListConstraints,
 ) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
@@ -501,7 +501,7 @@ fn check_payment_link_invalid_conditions(
 }
 
 pub async fn get_payment_link_status(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
     payment_id: String,
@@ -564,7 +564,7 @@ pub async fn get_payment_link_status(
             })?;
 
     let amount = currency
-        .to_currency_base_unit(payment_attempt.net_amount)
+        .to_currency_base_unit(payment_attempt.net_amount.get_amount_as_i64())
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
 
     // converting first letter of merchant name to upperCase

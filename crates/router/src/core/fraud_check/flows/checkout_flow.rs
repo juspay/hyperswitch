@@ -19,7 +19,7 @@ use crate::{
         storage::enums as storage_enums,
         BrowserInformation, ConnectorAuthType, ResponseId, RouterData,
     },
-    AppState,
+    SessionState,
 };
 
 #[async_trait]
@@ -28,7 +28,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
 {
     async fn construct_router_data<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -69,7 +69,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector_meta_data: None,
             amount_captured: None,
             request: FraudCheckCheckoutData {
-                amount: self.payment_attempt.amount,
+                amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 browser_info,
@@ -138,7 +138,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
 impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouterData {
     async fn decide_frm_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
@@ -156,7 +156,7 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
 
 pub async fn decide_frm_flow<'a, 'b>(
     router_data: &'b mut FrmCheckoutRouterData,
-    state: &'a AppState,
+    state: &'a SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

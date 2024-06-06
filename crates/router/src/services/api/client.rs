@@ -15,7 +15,7 @@ use crate::{
         errors::{ApiClientError, CustomResult},
         payments,
     },
-    routes::AppState,
+    routes::SessionState,
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -91,10 +91,15 @@ pub(super) fn create_client(
             let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
 
             let identity = payments::helpers::create_identity_from_certificate_and_key(
-                encoded_certificate,
+                encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
-
+            let certificate_list = payments::helpers::create_certificate(encoded_certificate)?;
+            let client_builder = certificate_list
+                .into_iter()
+                .fold(client_builder, |client_builder, certificate| {
+                    client_builder.add_root_certificate(certificate)
+                });
             client_builder
                 .identity(identity)
                 .build()
@@ -160,7 +165,7 @@ where
 
     async fn send_request(
         &self,
-        state: &AppState,
+        state: &SessionState,
         request: Request,
         option_timeout_secs: Option<u64>,
         forward_to_kafka: bool,
@@ -335,7 +340,7 @@ impl ApiClient for ProxyClient {
     }
     async fn send_request(
         &self,
-        state: &AppState,
+        state: &SessionState,
         request: Request,
         option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
@@ -387,7 +392,7 @@ impl ApiClient for MockApiClient {
 
     async fn send_request(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _request: Request,
         _option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
