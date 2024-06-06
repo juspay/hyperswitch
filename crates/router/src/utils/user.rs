@@ -57,7 +57,7 @@ impl UserFromToken {
 
     pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
         let user = state
-            .store
+            .global_store
             .find_user_by_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
@@ -180,7 +180,7 @@ pub async fn get_user_from_db_by_email(
     email: domain::UserEmail,
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
-        .store
+        .global_store
         .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)

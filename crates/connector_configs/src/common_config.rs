@@ -98,6 +98,7 @@ pub struct ApiModelMetaData {
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<KlarnaEndpoint>,
+    pub source_balance_account: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -150,6 +151,7 @@ pub struct Provider {
         }
     ), value_type = Option<AcceptedCountries>)]
     pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
+    pub payment_experience: Option<api_models::enums::PaymentExperience>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -210,4 +212,5 @@ pub struct DashboardMetaData {
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<KlarnaEndpoint>,
+    pub source_balance_account: Option<String>,
 }

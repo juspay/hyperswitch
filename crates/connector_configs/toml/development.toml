@@ -249,6 +249,14 @@ supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
 
+[adyenplatform_payout]
+[[adyenplatform_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[adyenplatform_payout.metadata]
+source_balance_account="Source balance account ID"
+[adyenplatform_payout.connector_auth.HeaderKey]
+api_key="Adyen platform's API Key"
+
 [airwallex]
 [[airwallex.credit]]
   payment_method_type = "Mastercard"
@@ -1630,6 +1638,10 @@ additional_secret="Payme Client Key"
   payment_method_type = "UnionPay"
 [[paypal.wallet]]
   payment_method_type = "paypal"
+  payment_experience = "invoke_sdk_client"
+[[paypal.wallet]]
+  payment_method_type = "paypal"
+  payment_experience = "redirect_to_url"
 [[paypal.bank_redirect]]
   payment_method_type = "ideal"
 [[paypal.bank_redirect]]

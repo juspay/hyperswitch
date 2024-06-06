@@ -110,4 +110,17 @@ impl User {
                 _ => report!(err).change_context(errors::DatabaseError::Others),
             })
     }
+
+    pub async fn find_users_by_user_ids(
+        conn: &PgPooledConn,
+        user_ids: Vec<String>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as diesel::Table>::PrimaryKey,
+            _,
+        >(conn, users_dsl::user_id.eq_any(user_ids), None, None, None)
+        .await
+    }
 }
