@@ -1,9 +1,15 @@
 use std::process::{exit, Command};
 
+use clap::Parser;
 use test_utils::newman_runner;
 
 fn main() {
-    let mut runner = newman_runner::generate_newman_command();
+    let args = newman_runner::Args::parse();
+
+    let mut runner = match args.get_module_name() {
+        Some("users") => newman_runner::generate_newman_command_for_users(),
+        _ => newman_runner::generate_newman_command_for_connector(),
+    };
 
     // Execute the newman command
     let output = runner.newman_command.spawn();

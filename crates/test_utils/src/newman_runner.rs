@@ -10,10 +10,12 @@ use clap::{arg, command, Parser};
 use masking::PeekInterface;
 use regex::Regex;
 
-use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
+use crate::connector_auth::{
+    ConnectorAuthType, ConnectorAuthentication, ConnectorAuthenticationMap,
+};
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
-struct Args {
+pub struct Args {
     /// Admin API Key of the environment
     #[arg(short, long)]
     admin_api_key: String,
@@ -22,7 +24,9 @@ struct Args {
     base_url: String,
     /// Name of the connector
     #[arg(short, long)]
-    connector_name: String,
+    connector_name: Option<String>,
+    #[arg(short, long)]
+    module_name: Option<String>,
     /// Custom headers
     #[arg(short = 'H', long = "header")]
     custom_headers: Option<Vec<String>>,
@@ -36,6 +40,13 @@ struct Args {
     /// Optional Verbose logs
     #[arg(short, long)]
     verbose: bool,
+}
+
+impl Args {
+    /// Getter for the `module_name` field
+    pub fn get_module_name(&self) -> Option<&str> {
+        self.module_name.as_deref()
+    }
 }
 
 pub struct ReturnArgs {
@@ -82,10 +93,88 @@ where
     Ok(())
 }
 
-pub fn generate_newman_command() -> ReturnArgs {
+/// # Panics
+///
+/// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
+#[allow(clippy::expect_used)]
+pub fn generate_newman_command_for_users() -> ReturnArgs {
+    let args = Args::parse();
+    // let module_name = args.connector_name; // change it to module name later
+    let base_url = args.base_url;
+    let admin_api_key = args.admin_api_key;
+
+    let path =
+        env::var("CONNECTOR_AUTH_FILE_PATH").expect("connector authentication file path not set");
+
+    let authentication: ConnectorAuthentication = toml::from_str(
+        &fs::read_to_string(path).expect("connector authentication config file not found"),
+    )
+    .expect("connector authentication file path not set");
+    let users_configs = authentication
+        .users
+        .expect("user configs not found in authentication file");
+    let collection_path = get_collection_path("users");
+
+    let mut newman_command = Command::new("newman");
+    newman_command.args(["run", &collection_path]);
+    newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
+    newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
+    newman_command.args([
+        "--env-var",
+        &format!("user_email={}", users_configs.user_email),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!(
+            "user_base_email_for_signup={}",
+            users_configs.user_base_email_for_signup
+        ),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!(
+            "user_domain_for_signup={}",
+            users_configs.user_domain_for_signup
+        ),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!("user_password={}", users_configs.user_password),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!("wrong_password={}", users_configs.wrong_password),
+    ]);
+
+    newman_command.args([
+        "--delay-request",
+        format!("{}", &args.delay_request).as_str(),
+    ]);
+
+    newman_command.arg("--color").arg("on");
+
+    if args.verbose {
+        newman_command.arg("--verbose");
+    }
+
+    ReturnArgs {
+        newman_command,
+        modified_file_paths: vec![],
+        collection_path,
+    }
+}
+
+/// # Panics
+///
+/// Will panic if none of connector-name or module-name is not passed parameters
+#[allow(clippy::expect_used)]
+pub fn generate_newman_command_for_connector() -> ReturnArgs {
     let args = Args::parse();
 
-    let connector_name = args.connector_name;
+    let connector_name = args
+        .connector_name
+        .expect("invalid parameters: connector/module name not found in arguments");
+
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
 
@@ -119,10 +208,7 @@ pub fn generate_newman_command() -> ReturnArgs {
     if let Some(auth_type) = inner_map.get(connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
-                newman_command.args([
-                    "--env-var",
-                    &format!("connector_api_key={}", api_key.peek()),
-                ]);
+                newman_command.args(["--env-var", &format!("email={}", api_key.peek())]);
             }
             ConnectorAuthType::BodyKey { api_key, key1 } => {
                 newman_command.args([
