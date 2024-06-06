@@ -134,33 +134,58 @@ impl ConnectorCommon for Cybersource {
             Ok(transformers::CybersourceErrorResponse::StandardError(response)) => {
                 event_builder.map(|i| i.set_error_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                let (code, connector_reason) = match response.error_information {
-                    Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-                    None => (
-                        response
-                            .reason
-                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                                reason.to_string()
-                            }),
-                        response
-                            .message
-                            .map_or(error_message.to_string(), |message| message),
-                    ),
-                };
-                let message = match response.details {
-                    Some(details) => details
-                        .iter()
-                        .map(|det| format!("{} : {}", det.field, det.reason))
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    None => connector_reason.clone(),
+
+                let (code, message, reason) = match response.error_information {
+                    Some(ref error_info) => {
+                        let detailed_error_info = error_info.details.as_ref().map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            error_info.reason.clone(),
+                            error_info.reason.clone(),
+                            transformers::get_error_reason(
+                                Some(error_info.message.clone()),
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
+                    None => {
+                        let detailed_error_info = response.details.map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            response
+                                .reason
+                                .clone()
+                                .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                                    reason.to_string()
+                                }),
+                            response
+                                .reason
+                                .map_or(error_message.to_string(), |reason| reason.to_string()),
+                            transformers::get_error_reason(
+                                response.message,
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
                 };
 
                 Ok(types::ErrorResponse {
                     status_code: res.status_code,
                     code,
                     message,
-                    reason: Some(connector_reason),
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
@@ -409,6 +434,38 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: cybersource::CybersourceServerErrorResponse = res
+            .response
+            .parse_struct("CybersourceServerErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|event| event.set_response_body(&response));
+        router_env::logger::info!(error_response=?response);
+
+        let attempt_status = match response.reason {
+            Some(reason) => match reason {
+                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+            },
+            None => None,
+        };
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+        })
     }
 }
 

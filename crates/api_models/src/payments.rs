@@ -4208,6 +4208,23 @@ pub struct SessionTokenInfo {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    #[serde(flatten)]
+    pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(tag = "payment_processing_details_at")]
+pub enum PaymentProcessingDetailsAt {
+    Hyperswitch(PaymentProcessingDetails),
+    Connector,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct PaymentProcessingDetails {
+    #[schema(value_type = String)]
+    pub payment_processing_certificate: Secret<String>,
+    #[schema(value_type = String)]
+    pub payment_processing_certificate_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

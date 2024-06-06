@@ -29,7 +29,7 @@ use crate::{
         admin,
         errors::{self, UserErrors, UserResult},
     },
-    db::StorageInterface,
+    db::GlobalStorageInterface,
     routes::SessionState,
     services::{self, authentication as auth, authentication::UserFromToken, authorization::info},
     types::transformers::ForeignFrom,
@@ -545,7 +545,7 @@ impl NewUser {
 
     pub async fn insert_user_in_db(
         &self,
-        db: &dyn StorageInterface,
+        db: &dyn GlobalStorageInterface,
     ) -> UserResult<UserFromStorage> {
         match db.insert_user(self.clone().try_into()?).await {
             Ok(user) => Ok(user.into()),
@@ -562,7 +562,7 @@ impl NewUser {
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
-            .store
+            .global_store
             .find_user_by_email(&self.get_email().into_inner())
             .await
             .is_ok()
@@ -577,7 +577,7 @@ impl NewUser {
         state: SessionState,
     ) -> UserResult<UserFromStorage> {
         self.check_if_already_exists_in_db(state.clone()).await?;
-        let db = state.store.as_ref();
+        let db = state.global_store.as_ref();
         let merchant_id = self.get_new_merchant().get_merchant_id();
         self.new_merchant
             .create_new_merchant_and_insert_in_db(state.clone())
@@ -898,7 +898,7 @@ impl UserFromStorage {
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
         let master_key = state.store.get_master_key();
         let key_store_result = state
-            .store
+            .global_store
             .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
             .await;
 
@@ -922,7 +922,7 @@ impl UserFromStorage {
                 created_at: common_utils::date_time::now(),
             };
             state
-                .store
+                .global_store
                 .insert_user_key_store(key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -951,7 +951,7 @@ impl UserFromStorage {
         }
 
         let user_key_store = state
-            .store
+            .global_store
             .get_user_key_store_by_user_id(
                 self.get_user_id(),
                 &state.store.get_master_key().to_vec().into(),
