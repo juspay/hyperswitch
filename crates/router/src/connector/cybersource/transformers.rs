@@ -1766,7 +1766,7 @@ pub struct CardVerification {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
-    code: String,
+    code: Option<String>,
     code_raw: Option<String>,
 }
 
