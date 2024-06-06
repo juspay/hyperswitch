@@ -448,8 +448,24 @@ export const connectorDetails = {
           bank_redirect: {
             ideal: {
               bank_name: "ing",
-              country: "NL",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -470,8 +486,24 @@ export const connectorDetails = {
               bank_name: "",
               bank_account_bic: "",
               bank_account_iban: "",
-              country: "DE",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -488,71 +520,102 @@ export const connectorDetails = {
         payment_method_type: "sofort",
         payment_method_data: {
           bank_redirect: {
-            sofort: {
-              country: "DE",
-              preferred_language: "en",
-            },
+            sofort: {},
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "1133001",
+      billing: {
+        address: {
+          line1: "1467",
+          line2: "Harrison Street",
+          line3: "Harrison Street",
+          city: "San Fransico",
+          state: "California",
+          zip: "94122",
+          country: "DE",
+          first_name: "joseph",
+          last_name: "Doe",
+        },
+        phone: {
+          number: "8056594427",
+          country_code: "+91",
         },
       },
     },
-    eps: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "eps",
-        payment_method_data: {
-          bank_redirect: {
-            eps: {
-              bank_name: "ing",
-            },
+    Response: {
+      status: 200,
+      body: {
+        status: "failed",
+        error_code: "1133001",
+      },
+    },
+  },
+  eps: {
+    Request: {
+      payment_method: "bank_redirect",
+      payment_method_type: "eps",
+      payment_method_data: {
+        bank_redirect: {
+          eps: {
+            bank_name: "ing",
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
+      billing: {
+        address: {
+          line1: "1467",
+          line2: "Harrison Street",
+          line3: "Harrison Street",
+          city: "San Fransico",
+          state: "California",
+          zip: "94122",
+          country: "AT",
+          first_name: "joseph",
+          last_name: "Doe",
+        },
+        phone: {
+          number: "8056594427",
+          country_code: "+91",
         },
       },
     },
-    blik: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "blik",
-        payment_method_data: {
-          bank_redirect: {
-            blik: {
-              name: "John Doe",
-              email: "example@email.com",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "PL",
-            first_name: "john",
-            last_name: "doe",
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_customer_action",
+      },
+    },
+  },
+  blik: {
+    Request: {
+      payment_method: "bank_redirect",
+      payment_method_type: "blik",
+      payment_method_data: {
+        bank_redirect: {
+          blik: {
+            name: "John Doe",
+            email: "example@email.com",
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
+      billing: {
+        address: {
+          line1: "1467",
+          line2: "Harrison Street",
+          line3: "Harrison Street",
+          city: "San Fransico",
+          state: "California",
+          zip: "94122",
+          country: "PL",
+          first_name: "john",
+          last_name: "doe",
         },
+      },
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_customer_action",
       },
     },
   },
