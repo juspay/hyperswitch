@@ -160,13 +160,13 @@ pub async fn make_connector_decision(
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
-            call_connector_payout(
+            Box::pin(call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
                 &connector_data,
                 payout_data,
-            )
+            ))
             .await?;
 
             #[cfg(feature = "payout_retry")]
@@ -197,13 +197,13 @@ pub async fn make_connector_decision(
 
             let connector_data = get_next_connector(&mut connectors)?;
 
-            call_connector_payout(
+            Box::pin(call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
                 &connector_data,
                 payout_data,
-            )
+            ))
             .await?;
 
             #[cfg(feature = "payout_retry")]
