@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
@@ -41,10 +43,26 @@ pub enum IncomingWebhookEvent {
     ExternalAuthenticationARes,
     FrmApproved,
     FrmRejected,
+    #[cfg(feature = "payouts")]
+    PayoutSuccess,
+    #[cfg(feature = "payouts")]
+    PayoutFailure,
+    #[cfg(feature = "payouts")]
+    PayoutProcessing,
+    #[cfg(feature = "payouts")]
+    PayoutCancelled,
+    #[cfg(feature = "payouts")]
+    PayoutCreated,
+    #[cfg(feature = "payouts")]
+    PayoutExpired,
+    #[cfg(feature = "payouts")]
+    PayoutReversed,
 }
 
 pub enum WebhookFlow {
     Payment,
+    #[cfg(feature = "payouts")]
+    Payout,
     Refund,
     Dispute,
     Subscription,
@@ -61,6 +79,11 @@ pub enum WebhookResponseTracker {
     Payment {
         payment_id: String,
         status: common_enums::IntentStatus,
+    },
+    #[cfg(feature = "payouts")]
+    Payout {
+        payout_id: String,
+        status: common_enums::PayoutStatus,
     },
     Refund {
         payment_id: String,
@@ -86,6 +109,8 @@ impl WebhookResponseTracker {
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
             Self::NoEffect | Self::Mandate { .. } => None,
+            #[cfg(feature = "payouts")]
+            Self::Payout { .. } => None,
         }
     }
 }
@@ -125,6 +150,14 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::FrmApproved | IncomingWebhookEvent::FrmRejected => {
                 Self::FraudCheck
             }
+            #[cfg(feature = "payouts")]
+            IncomingWebhookEvent::PayoutSuccess
+            | IncomingWebhookEvent::PayoutFailure
+            | IncomingWebhookEvent::PayoutProcessing
+            | IncomingWebhookEvent::PayoutCancelled
+            | IncomingWebhookEvent::PayoutCreated
+            | IncomingWebhookEvent::PayoutExpired
+            | IncomingWebhookEvent::PayoutReversed => Self::Payout,
         }
     }
 }
@@ -149,12 +182,21 @@ pub enum AuthenticationIdType {
     ConnectorAuthenticationId(String),
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Clone)]
+pub enum PayoutIdType {
+    PayoutAttemptId(String),
+    ConnectorPayoutId(String),
+}
+
 #[derive(Clone)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
     MandateId(MandateIdType),
     ExternalAuthenticationID(AuthenticationIdType),
+    #[cfg(feature = "payouts")]
+    PayoutId(PayoutIdType),
 }
 
 pub struct IncomingWebhookDetails {
@@ -193,6 +235,9 @@ pub enum OutgoingWebhookContent {
     DisputeDetails(Box<disputes::DisputeResponse>),
     #[schema(value_type = MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
+    PayoutDetails(payouts::PayoutCreateResponse),
 }
 
 #[derive(Debug, Clone, Serialize)]

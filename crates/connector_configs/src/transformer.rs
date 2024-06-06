@@ -35,6 +35,7 @@ impl DashboardRequestPayload {
         connector: Connector,
         payment_method_type: PaymentMethodType,
         payment_method: PaymentMethod,
+        payment_experience: Option<api_models::enums::PaymentExperience>,
     ) -> Option<api_models::enums::PaymentExperience> {
         match payment_method {
             PaymentMethod::BankRedirect => None,
@@ -43,12 +44,11 @@ impl DashboardRequestPayload {
                 (Connector::DummyConnector4, _) | (Connector::DummyConnector7, _) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
+                (Connector::Paypal, Paypal) => payment_experience,
                 (Connector::Zen, GooglePay) | (Connector::Zen, ApplePay) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
-                (Connector::Paypal, Paypal)
-                | (Connector::Braintree, Paypal)
-                | (Connector::Klarna, Klarna) => {
+                (Connector::Braintree, Paypal) | (Connector::Klarna, Klarna) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (Connector::Globepay, AliPay)
@@ -63,6 +63,7 @@ impl DashboardRequestPayload {
             },
         }
     }
+
     pub fn transform_payment_method(
         connector: Connector,
         provider: Vec<Provider>,
@@ -83,6 +84,7 @@ impl DashboardRequestPayload {
                     connector,
                     method_type.payment_method_type,
                     payment_method,
+                    method_type.payment_experience,
                 ),
             };
             payment_method_types.push(data)
@@ -125,8 +127,8 @@ impl DashboardRequestPayload {
                         }
                     }
 
-                    PaymentMethod::Wallet
-                    | PaymentMethod::BankRedirect
+                    PaymentMethod::BankRedirect
+                    | PaymentMethod::Wallet
                     | PaymentMethod::PayLater
                     | PaymentMethod::BankTransfer
                     | PaymentMethod::Crypto
@@ -198,6 +200,7 @@ impl DashboardRequestPayload {
             pull_mechanism_for_external_3ds_enabled: None,
             paypal_sdk: None,
             klarna_region: None,
+            source_balance_account: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -223,6 +226,7 @@ impl DashboardRequestPayload {
         let pull_mechanism_for_external_3ds_enabled =
             meta_data.pull_mechanism_for_external_3ds_enabled;
         let klarna_region = meta_data.klarna_region;
+        let source_balance_account = meta_data.source_balance_account;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -244,6 +248,7 @@ impl DashboardRequestPayload {
             three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled,
             klarna_region,
+            source_balance_account,
         })
     }
 

@@ -6824,7 +6824,7 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },
@@ -6957,6 +6957,11 @@
               }
             ],
             "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
+            "nullable": true
           }
         }
       },
@@ -7054,9 +7059,10 @@
         "type": "object",
         "required": [
           "card_number",
-          "expiry_month",
-          "expiry_year",
-          "card_holder_name"
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
         ],
         "properties": {
           "card_number": {
@@ -7064,18 +7070,60 @@
             "description": "The card number",
             "example": "4242424242424242"
           },
-          "expiry_month": {
+          "card_exp_month": {
             "type": "string",
-            "description": "The card's expiry month"
+            "description": "The card's expiry month",
+            "example": "24"
           },
-          "expiry_year": {
+          "card_exp_year": {
             "type": "string",
-            "description": "The card's expiry year"
+            "description": "The card's expiry year",
+            "example": "24"
           },
           "card_holder_name": {
             "type": "string",
             "description": "The card holder's name",
-            "example": "John Doe"
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
           }
         }
       },
@@ -7256,6 +7304,35 @@
           "Maestro"
         ]
       },
+      "CardPayout": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          }
+        }
+      },
       "CardRedirectData": {
         "oneOf": [
           {
@@ -7391,6 +7468,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -8973,7 +9051,14 @@
           "dispute_won",
           "dispute_lost",
           "mandate_active",
-          "mandate_revoked"
+          "mandate_revoked",
+          "payout_success",
+          "payout_failed",
+          "payout_initiated",
+          "payout_processing",
+          "payout_cancelled",
+          "payout_expired",
+          "payout_reversed"
         ]
       },
       "ExtendedCardInfo": {
@@ -9177,7 +9262,7 @@
           {
             "type": "string",
             "enum": [
-              "user_country_code"
+              "user_phone_number_country_code"
             ]
           },
           {
@@ -9223,6 +9308,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_crypto_currency_network"
+            ]
           },
           {
             "type": "string",
@@ -12289,6 +12380,25 @@
                 "$ref": "#/components/schemas/MandateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "PayoutCreateResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payout_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PayoutCreateResponse"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -13399,7 +13509,8 @@
           "currency",
           "payment_methods",
           "mandate_payment",
-          "show_surcharge_breakup_screen"
+          "show_surcharge_breakup_screen",
+          "request_external_three_ds_authentication"
         ],
         "properties": {
           "redirect_url": {
@@ -13446,6 +13557,11 @@
               }
             ],
             "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to indicate whether to perform external 3ds authentication",
+            "example": true
           }
         }
       },
@@ -14594,7 +14710,8 @@
       "PaymentsExternalAuthenticationResponse": {
         "type": "object",
         "required": [
-          "trans_status"
+          "trans_status",
+          "three_ds_requestor_url"
         ],
         "properties": {
           "trans_status": {
@@ -14629,6 +14746,10 @@
             "type": "string",
             "description": "Contains the JWS object created by the ACS for the ARes message",
             "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL"
           }
         }
       },
@@ -16210,11 +16331,12 @@
         "type": "string",
         "enum": [
           "adyen",
-          "stripe",
+          "adyenplatform",
+          "cybersource",
+          "ebanx",
           "payone",
           "paypal",
-          "ebanx",
-          "cybersource",
+          "stripe",
           "wise"
         ]
       },
@@ -16230,7 +16352,8 @@
           "return_url",
           "business_country",
           "description",
-          "entity_type"
+          "entity_type",
+          "priority"
         ],
         "properties": {
           "payout_id": {
@@ -16387,6 +16510,9 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "priority": {
+            "$ref": "#/components/schemas/PayoutSendPriority"
           }
         },
         "additionalProperties": false
@@ -16548,6 +16674,20 @@
             "format": "date-time",
             "description": "Time when the payout was created",
             "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Underlying processor's payout resource ID",
+            "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSendPriority"
+              }
+            ],
             "nullable": true
           },
           "attempts": {
@@ -16747,7 +16887,7 @@
             ],
             "properties": {
               "card": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardPayout"
               }
             }
           },
@@ -16852,12 +16992,26 @@
           }
         }
       },
+      "PayoutSendPriority": {
+        "type": "string",
+        "enum": [
+          "instant",
+          "fast",
+          "regular",
+          "wire",
+          "crossBorder",
+          "internal"
+        ]
+      },
       "PayoutStatus": {
         "type": "string",
         "enum": [
           "success",
           "failed",
           "cancelled",
+          "initiated",
+          "expired",
+          "reversed",
           "pending",
           "ineligible",
           "requires_creation",
@@ -17400,7 +17554,9 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc"
+            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
+            "example": 6540,
+            "minimum": 100
           },
           "currency": {
             "type": "string",
@@ -17806,6 +17962,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",

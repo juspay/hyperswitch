@@ -38,7 +38,7 @@ pub async fn retrieve_dispute(
     let dispute_id = dispute_types::DisputeId {
         dispute_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -50,7 +50,7 @@ pub async fn retrieve_dispute(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Disputes - List Disputes
@@ -85,7 +85,7 @@ pub async fn retrieve_disputes_list(
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -97,7 +97,7 @@ pub async fn retrieve_disputes_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Disputes - Accept Dispute

@@ -12,7 +12,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{helpers, operations, PaymentData},
     },
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -34,7 +34,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         _request: &api::PaymentsCaptureRequest,
         merchant_account: &domain::MerchantAccount,
@@ -194,7 +194,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b AppState,
+        db: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
