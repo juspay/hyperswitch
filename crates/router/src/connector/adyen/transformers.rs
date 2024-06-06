@@ -2110,7 +2110,8 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::PaypalSdk(_)
             | domain::WalletData::WeChatPayQr(_)
-            | domain::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::CashappQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),

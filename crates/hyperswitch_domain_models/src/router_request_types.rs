@@ -241,9 +241,9 @@ pub struct PaymentsPreProcessingData {
     pub surcharge_details: Option<SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub related_transaction_id: Option<String>,
-    pub enrolled_for_3ds: bool,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 }
 

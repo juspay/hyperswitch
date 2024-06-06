@@ -772,13 +772,13 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 }
 
 pub fn add_apple_pay_flow_metrics(
-    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    apple_pay_flow: &Option<domain::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
-            enums::ApplePayFlow::Simplified => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
+            domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
                 &metrics::CONTEXT,
                 1,
                 &[
@@ -789,7 +789,7 @@ pub fn add_apple_pay_flow_metrics(
                     metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
                 ],
             ),
-            enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+            domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 &metrics::CONTEXT,
                 1,
                 &[
@@ -806,14 +806,14 @@ pub fn add_apple_pay_flow_metrics(
 
 pub fn add_apple_pay_payment_status_metrics(
     payment_attempt_status: enums::AttemptStatus,
-    apple_pay_flow: Option<enums::ApplePayFlow>,
+    apple_pay_flow: Option<domain::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                enums::ApplePayFlow::Simplified => {
+                domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
@@ -826,7 +826,7 @@ pub fn add_apple_pay_payment_status_metrics(
                         ],
                     )
                 }
-                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
+                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
                         &metrics::CONTEXT,
                         1,
@@ -843,7 +843,7 @@ pub fn add_apple_pay_payment_status_metrics(
     } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                enums::ApplePayFlow::Simplified => {
+                domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
@@ -856,7 +856,7 @@ pub fn add_apple_pay_payment_status_metrics(
                         ],
                     )
                 }
-                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
                     &metrics::CONTEXT,
                     1,
                     &[

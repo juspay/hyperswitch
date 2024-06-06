@@ -30,8 +30,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
-    user::*, user_role::*, webhook_events::*,
+    admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1139,6 +1139,19 @@ impl Configs {
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
             )
+    }
+}
+
+pub struct ApplePayCertificatesMigration;
+
+#[cfg(feature = "olap")]
+impl ApplePayCertificatesMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/apple_pay_certificates_migration")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
+            ))
     }
 }
 
