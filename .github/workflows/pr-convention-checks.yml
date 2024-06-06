@@ -131,9 +131,10 @@ jobs:
 
   pr_contains_database_and_schema_changes_checks:
     name: Verify PR contains appropriate label if database and schema changes exists
+    if: ${{ github.event_name != 'mereg_group' }}
     runs-on: ubuntu-latest
-      
-    steps: 
+
+    steps:
       - name: Get changed files
         shell: bash
         env:
@@ -148,7 +149,7 @@ jobs:
             migration_and_schema_changes='true'
             echo "pr contains migration changes"
           fi
-          
+
           if echo $files_changed | grep --quiet --extended-regexp '(openapi/src/openapi.rs)'; then
             openapi_changes='true'
             echo "pr contains openapi changes"
@@ -157,23 +158,24 @@ jobs:
           echo migration_and_schema_changes=${migration_and_schema_changes} >> $GITHUB_ENV
           echo openapi_changes=${openapi_changes} >> $GITHUB_ENV
 
-      - name: Get changed fiels
+      - name: Add/Remove 'M-database-changes' based on database changes
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo $migration_and_schema_changes
-          echo $openapi_changes
-          echo $test
+          if ${{ env.migration_and_schema_changes == 'true' }}; then
+            gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
+          else
+            gh --repo ${{ github.event.repository.full_name }} pr edit --remove-label 'M-database-changes' ${{ github.event.pull_request.number }}
+          fi
 
-      - name: Attach 'M-database-changes' label if PR contains database changes
-        if: env.migration_and_schema_changes == 'true'
+      - name: Add/Remove 'M-api-contract-changes' based on OpenAPI changes
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
-
-      - name: Attach 'M-api-contract-changes' label if PR contains database changes
-        if: env.openapi_changes == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
+        run: |
+          if ${{ env.openapi_changes == 'true' }}; then
+            gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
+          else
+            gh --repo ${{ github.event.repository.full_name }} pr edit --remove-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
+          fi
