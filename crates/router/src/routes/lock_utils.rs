@@ -132,7 +132,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFulfill
             | Flow::PayoutsList
             | Flow::PayoutsFilter
-            | Flow::PayoutsAccounts => Self::Payouts,
+            | Flow::PayoutsAccounts
+            | Flow::PayoutsConfirm => Self::Payouts,
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve

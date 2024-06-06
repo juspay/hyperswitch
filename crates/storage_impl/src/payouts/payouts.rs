@@ -90,6 +90,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     attempt_count: new.attempt_count,
                     confirm: new.confirm,
                     payout_link_id: new.payout_link_id.clone(),
+                    client_secret: new.client_secret.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -690,6 +691,7 @@ impl DataModelExt for Payouts {
             attempt_count: self.attempt_count,
             confirm: self.confirm,
             payout_link_id: self.payout_link_id,
+            client_secret: self.client_secret,
         }
     }
 
@@ -717,6 +719,7 @@ impl DataModelExt for Payouts {
             attempt_count: storage_model.attempt_count,
             confirm: storage_model.confirm,
             payout_link_id: storage_model.payout_link_id,
+            client_secret: storage_model.client_secret,
         }
     }
 }
@@ -747,6 +750,7 @@ impl DataModelExt for PayoutsNew {
             attempt_count: self.attempt_count,
             confirm: self.confirm,
             payout_link_id: self.payout_link_id,
+            client_secret: self.client_secret,
         }
     }
 
@@ -774,6 +778,7 @@ impl DataModelExt for PayoutsNew {
             attempt_count: storage_model.attempt_count,
             confirm: storage_model.confirm,
             payout_link_id: storage_model.payout_link_id,
+            client_secret: storage_model.client_secret,
         }
     }
 }

@@ -2,7 +2,8 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
 };
-use router_env::{instrument, tracing, Flow};
+use api_models::payments::HeaderPayload;
+use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::AppState;
 #[cfg(feature = "olap")]
@@ -10,7 +11,7 @@ use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::payouts as payout_types,
+    types::{api::payouts as payout_types, transformers::ForeignTryFrom},
 };
 
 /// Payouts - Create
@@ -127,6 +128,63 @@ pub async fn payouts_update(
             payouts_update_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Confirm
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/confirm",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout]")
+    ),
+    request_body=PayoutCreateRequest,
+    responses(
+        (status = 200, description = "Payout updated", body = PayoutCreateResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payouts",
+    operation_id = "Confirm a Payout",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsConfirm))]
+pub async fn payouts_confirm(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutCreateRequest>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    logger::debug!("payouts_confirm called");
+    let flow = Flow::PayoutsConfirm;
+    let mut payload = json_payload.into_inner();
+    let payout_id = path.into_inner();
+    tracing::Span::current().record("payout_id", &payout_id);
+    payload.payout_id = Some(payout_id);
+    payload.confirm = Some(true);
+    let _header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+    let (auth_type, _auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        };
+    
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payouts_confirm_core(state, auth.merchant_account, auth.key_store, req)
+        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

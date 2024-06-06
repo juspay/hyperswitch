@@ -91,6 +91,7 @@ pub struct Payouts {
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
     pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -117,6 +118,7 @@ pub struct PayoutsNew {
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
     pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
 }
 
 impl Default for PayoutsNew {
@@ -146,6 +148,7 @@ impl Default for PayoutsNew {
             status: storage_enums::PayoutStatus::default(),
             confirm: None,
             payout_link_id: Option::default(),
+            client_secret: Option::default(),
         }
     }
 }

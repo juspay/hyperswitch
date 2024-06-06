@@ -166,6 +166,8 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts update flow.
     PayoutsUpdate,
+    /// Payouts confirm flow.
+    PayoutsConfirm,
     #[cfg(feature = "payouts")]
     /// Payouts cancel flow.
     PayoutsCancel,

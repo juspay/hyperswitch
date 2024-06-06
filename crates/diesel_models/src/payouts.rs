@@ -34,6 +34,7 @@ pub struct Payouts {
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
     pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
 }
 
 #[derive(
@@ -74,6 +75,7 @@ pub struct PayoutsNew {
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
     pub payout_link_id: Option<String>,
+    pub client_secret: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

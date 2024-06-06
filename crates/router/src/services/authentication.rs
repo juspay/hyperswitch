@@ -933,6 +933,12 @@ pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
 
+impl ClientSecretFetch for api_models::payouts::PayoutCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1014,7 +1020,7 @@ where
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
-
+    logger::debug!("$check_client_secret_and_get_auth");
     if api_key.starts_with("pk_") {
         payload
             .get_client_secret()
@@ -1031,6 +1037,7 @@ where
         }
         .into());
     }
+    logger::debug!("$check_client_secret_and_get_auth end");
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 

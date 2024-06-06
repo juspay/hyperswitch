@@ -2,6 +2,7 @@ use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
+    fp_utils,
 };
 use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
@@ -51,6 +52,7 @@ pub async fn make_payout_method_data<'a>(
     payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
+    logger::debug!("$$$make_payout_method_data is called");
     let db = &*state.store;
     let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
     let hyperswitch_token = if let Some(payout_token) = payout_token {
@@ -876,6 +878,20 @@ pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
         status,
         api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::RequiresFulfillment
     )
+}
+
+pub(crate) fn validate_payout_status_against_not_allowed_statuses(
+    payout_status: &api_enums::PayoutStatus,
+    not_allowed_statuses: &[api_enums::PayoutStatus],
+    action: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    fp_utils::when(not_allowed_statuses.contains(payout_status), || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "You cannot {action} this payout because it has status {payout_status}",
+            ),
+        })
+    })
 }
 
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
