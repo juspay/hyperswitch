@@ -131,7 +131,7 @@ jobs:
 
   pr_contains_database_and_schema_changes_checks:
     name: Verify PR contains appropriate label if database and schema changes exists
-    if: ${{ github.event_name != 'mereg_group' }}
+    if: ${{ github.event_name != 'merge_group' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -147,12 +147,10 @@ jobs:
 
           if echo $files_changed | grep --quiet --extended-regexp '(migrations/*|crates/diesel_models/src/schema.rs)' ; then
             migration_and_schema_changes='true'
-            echo "pr contains migration changes"
           fi
 
           if echo $files_changed | grep --quiet --extended-regexp '(openapi/src/openapi.rs)'; then
             openapi_changes='true'
-            echo "pr contains openapi changes"
           fi
 
           echo migration_and_schema_changes=${migration_and_schema_changes} >> $GITHUB_ENV
