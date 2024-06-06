@@ -780,6 +780,7 @@ label="apple"
 [checkout.metadata]
 acquirer_bin = "Acquirer Bin"
 acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [coinbase]
 [[coinbase.crypto]]
@@ -862,6 +863,11 @@ label="apple"
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
+
+[cybersource.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [cybersource_payout]
 [[cybersource_payout.credit]]
@@ -1374,6 +1380,7 @@ merchant_secret="Source verification key"
 [nmi.metadata]
 acquirer_bin = "Acquirer Bin"
 acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [nmi.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"

@@ -195,6 +195,7 @@ impl DashboardRequestPayload {
             merchant_name: None,
             acquirer_bin: None,
             acquirer_merchant_id: None,
+            acquirer_country_code: None,
             three_ds_requestor_name: None,
             three_ds_requestor_id: None,
             pull_mechanism_for_external_3ds_enabled: None,
@@ -222,6 +223,7 @@ impl DashboardRequestPayload {
         let merchant_name = meta_data.merchant_name;
         let acquirer_bin = meta_data.acquirer_bin;
         let acquirer_merchant_id = meta_data.acquirer_merchant_id;
+        let acquirer_country_code = meta_data.acquirer_country_code;
         let three_ds_requestor_name = meta_data.three_ds_requestor_name;
         let three_ds_requestor_id = meta_data.three_ds_requestor_id;
         let pull_mechanism_for_external_3ds_enabled =
@@ -246,6 +248,7 @@ impl DashboardRequestPayload {
             merchant_name,
             acquirer_bin,
             acquirer_merchant_id,
+            acquirer_country_code,
             three_ds_requestor_name,
             three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled,
