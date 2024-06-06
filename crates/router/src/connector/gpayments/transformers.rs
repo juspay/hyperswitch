@@ -3,7 +3,7 @@ use base64::Engine;
 use common_utils::date_time;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::to_string;
 
 use super::gpayments_types;
@@ -74,14 +74,6 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNVersionCallRou
             merchant_id: metadata.merchant_id,
         })
     }
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct GpaymentsErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
 }
 
 #[derive(Deserialize, PartialEq)]
