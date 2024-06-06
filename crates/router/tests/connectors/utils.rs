@@ -541,6 +541,7 @@ pub trait ConnectorActions: Connector {
             connector_meta_data: info
                 .clone()
                 .and_then(|a| a.connector_meta_data.map(Secret::new)),
+            connector_wallets_details: None,
             amount_captured: None,
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
