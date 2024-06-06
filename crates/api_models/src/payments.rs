@@ -4055,9 +4055,6 @@ pub struct GpayTokenParameters {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct CiTesting {}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
