@@ -125,6 +125,7 @@ where
     };
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
+        state,
         &payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
     );
@@ -154,6 +155,7 @@ where
             .authentication_type
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         request: T::try_from(additional_data)?,
         response,
         amount_captured: payment_data
@@ -985,12 +987,11 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             error_message: payout_attempt.error_message.clone(),
             payment_method: Some(payout.payout_type),
             payout_method_type: None,
-            connector_transaction_id: Some(payout_attempt.connector_payout_id),
+            connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
             unified_code: None,
             unified_message: None,
         };
-        let attempts = vec![attempt];
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
@@ -1016,7 +1017,9 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             error_code: payout_attempt.error_code,
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
-            attempts: Some(attempts),
+            connector_transaction_id: attempt.connector_transaction_id.clone(),
+            priority: payout.priority,
+            attempts: Some(vec![attempt]),
             billing: None,
             client_secret: None,
         }
@@ -1794,6 +1797,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response: None,
+            mandate_id: payment_data.mandate_id,
+            related_transaction_id: None,
         })
     }
 }

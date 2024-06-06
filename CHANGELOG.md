@@ -4,6 +4,91 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.06.1
+
+### Features
+
+- **router:** Add an api to migrate the apple pay certificates from connector metadata to `connector_wallets_details` column in merchant connector account ([#4790](https://github.com/juspay/hyperswitch/pull/4790)) ([`7a94237`](https://github.com/juspay/hyperswitch/commit/7a9423759e79167c4093c3482ea56f619cf95635))
+
+### Refactors
+
+- **webhooks:** Extract incoming and outgoing webhooks into separate modules ([#4870](https://github.com/juspay/hyperswitch/pull/4870)) ([`b1cb053`](https://github.com/juspay/hyperswitch/commit/b1cb053a55e9ce4d78f7770b53e39700311d9cd4))
+
+**Full Changelog:** [`2024.06.06.0...2024.06.06.1`](https://github.com/juspay/hyperswitch/compare/2024.06.06.0...2024.06.06.1)
+
+- - -
+
+## 2024.06.06.0
+
+### Features
+
+- **connector:** Add payouts integration for AdyenPlatform ([#4874](https://github.com/juspay/hyperswitch/pull/4874)) ([`32cf06c`](https://github.com/juspay/hyperswitch/commit/32cf06c73611554d263d9bb44d7dbe940d56dd59))
+- **core:** Create Payout Webhook Flow ([#4696](https://github.com/juspay/hyperswitch/pull/4696)) ([`a3183a0`](https://github.com/juspay/hyperswitch/commit/a3183a0c5ba75c9ebf2335b81f7e4ccadd87e7d2))
+- **multitenancy:** Move users and tenants to global schema ([#4781](https://github.com/juspay/hyperswitch/pull/4781)) ([`c5e28f2`](https://github.com/juspay/hyperswitch/commit/c5e28f2670d51bf6529eb729167c97ad301217ef))
+
+### Bug Fixes
+
+- **connector:**
+  - [ZSL] capture connector transaction ID ([#4863](https://github.com/juspay/hyperswitch/pull/4863)) ([`f39c420`](https://github.com/juspay/hyperswitch/commit/f39c420623bd05147aeb92ed255f84d74e9370cd))
+  - [Adyen]add configs for afterpay adyen ([#4885](https://github.com/juspay/hyperswitch/pull/4885)) ([`a8b57ea`](https://github.com/juspay/hyperswitch/commit/a8b57eaf2318d43ee2533622de94123af593c4b6))
+- **users:** Populate correct `org_id` for Internal Signup ([#4888](https://github.com/juspay/hyperswitch/pull/4888)) ([`76ec5e1`](https://github.com/juspay/hyperswitch/commit/76ec5e1e02380efc86cae93923f2a7b2bd0d58a0))
+
+### Refactors
+
+- **business_profile:** Add `collect_shipping_details_from_wallet_connector` in the business profile response ([#4892](https://github.com/juspay/hyperswitch/pull/4892)) ([`377d6ea`](https://github.com/juspay/hyperswitch/commit/377d6eacd308aca7048c7af071e0d0f121475888))
+- **connector:**
+  - Move AuthorizeSessionToken flow to core from execute_pretasks for nuvei and square ([#4854](https://github.com/juspay/hyperswitch/pull/4854)) ([`32f0fae`](https://github.com/juspay/hyperswitch/commit/32f0fae27de6bd0ab2a8e6de3b93c97205e14151))
+  - [BOA/CYBS] add customer token for mandates and refactor psync ([#4815](https://github.com/juspay/hyperswitch/pull/4815)) ([`3d53fd0`](https://github.com/juspay/hyperswitch/commit/3d53fd018a2b14465bf3cc1557a483e98da07f9b))
+  - [KLARNA] Add dynamic fields for klarna payment method ([#4891](https://github.com/juspay/hyperswitch/pull/4891)) ([`dae1413`](https://github.com/juspay/hyperswitch/commit/dae14139604b52e11f84c1341bfcb2e58c62a884))
+- **core:** Inclusion of constraint graph for merchant Payment Method list ([#4845](https://github.com/juspay/hyperswitch/pull/4845)) ([`4df84e9`](https://github.com/juspay/hyperswitch/commit/4df84e913f5724491c948c283a022931c617f46f))
+
+### Miscellaneous Tasks
+
+- **eulid_wasm:** Allow merchant to select different paypal paymentmenthod type ([#4882](https://github.com/juspay/hyperswitch/pull/4882)) ([`326b6b5`](https://github.com/juspay/hyperswitch/commit/326b6b52324ae60128a1b1fbcff85ab3b99a500a))
+- **users:** Email templates updated ([#4562](https://github.com/juspay/hyperswitch/pull/4562)) ([`7ab65ac`](https://github.com/juspay/hyperswitch/commit/7ab65ac8834f47c4448b64899ce3e3656132fb63))
+
+**Full Changelog:** [`2024.06.05.0...2024.06.06.0`](https://github.com/juspay/hyperswitch/compare/2024.06.05.0...2024.06.06.0)
+
+- - -
+
+## 2024.06.05.0
+
+### Features
+
+- **auth:** Create and use `SinglePurposeOrLoginTokenAuth` ([#4830](https://github.com/juspay/hyperswitch/pull/4830)) ([`5414485`](https://github.com/juspay/hyperswitch/commit/5414485866989c205830feec8ff79baecc834950))
+- **connector:** [CRYPTOPAY] Make payment_method_data.crypto.network as enum ([#4853](https://github.com/juspay/hyperswitch/pull/4853)) ([`1eaba9a`](https://github.com/juspay/hyperswitch/commit/1eaba9a10b11a4f1d540e0a848a798c81e3f6fd1))
+- **cypress:** Add service level testing for Payouts ([#4744](https://github.com/juspay/hyperswitch/pull/4744)) ([`1d36798`](https://github.com/juspay/hyperswitch/commit/1d36798399c118f7cb7af93935123634e1afd6a0))
+- **router:** Add `request_external_three_ds_authentication` flag in payment_method_list_response ([#4864](https://github.com/juspay/hyperswitch/pull/4864)) ([`fcf5297`](https://github.com/juspay/hyperswitch/commit/fcf52973f49e091cfbf4390e70cdfe883b15bf3b))
+
+### Bug Fixes
+
+- **cypress:** Fix `redirectionHandler` from failing to compile ([#4846](https://github.com/juspay/hyperswitch/pull/4846)) ([`901b88a`](https://github.com/juspay/hyperswitch/commit/901b88ab8065459cf9f9d8b2ac27f378449afc4a))
+
+### Refactors
+
+- **api_models:** Rename Card struct for payouts to avoid overrides in auto generated open API spec ([#4861](https://github.com/juspay/hyperswitch/pull/4861)) ([`7f75f94`](https://github.com/juspay/hyperswitch/commit/7f75f941c18e5c1ce113a6e59f91a47e8302838d))
+- **connector:**
+  - [Adyen] handle redirection error response ([#4862](https://github.com/juspay/hyperswitch/pull/4862)) ([`8096d5e`](https://github.com/juspay/hyperswitch/commit/8096d5e577d892b3cdb7854dd100c3c8bab955d6))
+  - [Klarna] Add support for Klarna Optional Shipping Address ([#4876](https://github.com/juspay/hyperswitch/pull/4876)) ([`3509b45`](https://github.com/juspay/hyperswitch/commit/3509b45e1b855dce4561beb5cded4ba490be6f8c))
+
+### Miscellaneous Tasks
+
+- **euclid_wasm:** Paypal metadata ([#4868](https://github.com/juspay/hyperswitch/pull/4868)) ([`d413e1a`](https://github.com/juspay/hyperswitch/commit/d413e1a8a5105a51f1909e160cda1c3648713926))
+
+**Full Changelog:** [`2024.06.04.1...2024.06.05.0`](https://github.com/juspay/hyperswitch/compare/2024.06.04.1...2024.06.05.0)
+
+- - -
+
+## 2024.06.04.1
+
+### Bug Fixes
+
+- **connector:** [Adyen]add required fields for afterpay clearpay ([#4858](https://github.com/juspay/hyperswitch/pull/4858)) ([`ba0a1e9`](https://github.com/juspay/hyperswitch/commit/ba0a1e95b72c0acf5bde81d424aa8fe220c40a22))
+
+**Full Changelog:** [`2024.06.04.0...2024.06.04.1`](https://github.com/juspay/hyperswitch/compare/2024.06.04.0...2024.06.04.1)
+
+- - -
+
 ## 2024.06.04.0
 
 ### Features

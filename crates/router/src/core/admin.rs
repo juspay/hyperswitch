@@ -937,7 +937,7 @@ pub async fn create_payment_connector(
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled,
-        metadata: req.metadata,
+        metadata: req.metadata.clone(),
         frm_configs,
         connector_label: Some(connector_label.clone()),
         business_country: req.business_country,
@@ -961,6 +961,7 @@ pub async fn create_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
         status: connector_status,
+        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(&key_store, &req.metadata).await?,
     };
 
     let transaction_type = match req.connector_type {
@@ -1200,6 +1201,7 @@ pub async fn update_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
     let metadata = req.metadata.clone().or(mca.metadata.clone());
+
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1275,6 +1277,10 @@ pub async fn update_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
         status: Some(connector_status),
+        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
+            &key_store, &metadata,
+        )
+        .await?,
     };
 
     // Profile id should always be present
@@ -1819,10 +1825,10 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
-        // api_enums::Connector::Mifinity => {
-        //     mifinity::transformers::MifinityAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Adyenplatform => {
+            adyenplatform::transformers::AdyenplatformAuthType::try_from(val)?;
+            Ok(())
+        }
         // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
@@ -1949,6 +1955,11 @@ pub(crate) fn validate_auth_and_metadata_type(
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
             klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
+            Ok(())
+        }
+        api_enums::Connector::Mifinity => {
+            mifinity::transformers::MifinityAuthType::try_from(val)?;
+            mifinity::transformers::MifinityConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Mollie => {

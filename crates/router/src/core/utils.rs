@@ -151,7 +151,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
-        customer_id: None,
+        customer_id: customer_details.to_owned().map(|c| c.customer_id),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
         payment_id: "".to_string(),
@@ -164,17 +164,19 @@ pub async fn construct_payout_router_data<'a, F>(
         address,
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
         payment_method_status: None,
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
             amount: payouts.amount,
-            connector_payout_id: Some(payout_attempt.connector_payout_id.to_owned()),
+            connector_payout_id: payout_attempt.connector_payout_id.clone(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
             vendor_details,
+            priority: payouts.priority,
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
@@ -192,8 +194,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW
-            .to_string(),
+        connector_request_reference_id: payout_attempt.payout_attempt_id.clone(),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
         test_mode,
@@ -316,6 +317,7 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
@@ -565,6 +567,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
@@ -661,6 +664,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
@@ -755,6 +759,7 @@ pub async fn construct_upload_file_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
@@ -853,6 +858,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
@@ -942,6 +948,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
         payment_method_status: None,
         request: types::RetrieveFileRequestData {

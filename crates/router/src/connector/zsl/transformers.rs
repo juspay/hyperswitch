@@ -323,9 +323,7 @@ impl<F, T>
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending, // Redirect is always expected after success response
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            item.response.mer_ref.clone(),
-                        ),
+                        resource_id: types::ResponseId::NoResponseId,
                         redirection_data: Some(services::RedirectForm::Form {
                             endpoint: redirect_url,
                             method: services::Method::Get,
@@ -383,10 +381,10 @@ pub struct ZslWebhookResponse {
     pub txn_date: String,
     pub paid_ccy: api_models::enums::Currency,
     pub paid_amt: String,
-    pub consr_paid_ccy: api_models::enums::Currency,
-    pub consr_paid_amt: String,
-    pub service_fee_ccy: api_models::enums::Currency,
-    pub service_fee: String,
+    pub consr_paid_ccy: Option<api_models::enums::Currency>,
+    pub consr_paid_amt: Option<String>,
+    pub service_fee_ccy: Option<api_models::enums::Currency>,
+    pub service_fee: Option<String>,
     pub txn_amt: String,
     pub ccy: String,
     pub mer_ref: String,
@@ -447,7 +445,7 @@ impl<F>
                 amount_captured: Some(paid_amount),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.mer_ref.clone(),
+                        item.response.txn_id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,

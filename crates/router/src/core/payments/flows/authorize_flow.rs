@@ -13,7 +13,7 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain, storage, transformers::ForeignFrom},
 };
 
 #[async_trait]
@@ -98,6 +98,38 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
+    }
+
+    async fn add_session_token<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        Self: Sized,
+    {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::AuthorizeSessionToken,
+            types::AuthorizeSessionTokenData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
+            &self,
+            types::AuthorizeSessionTokenData::foreign_from(&self),
+        ));
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            authorize_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+        let mut router_data = self;
+        router_data.session_token = resp.session_token;
+        Ok(router_data)
     }
 
     async fn add_payment_method_token<'a>(
@@ -329,6 +361,16 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         );
         if connector.connector_name == api_models::enums::Connector::Airwallex {
             authorize_router_data.reference_id = resp.reference_id;
+        } else if connector.connector_name == api_models::enums::Connector::Nuvei {
+            let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
+                Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2,
+                    related_transaction_id,
+                }) => (*enrolled_v2, related_transaction_id.clone()),
+                _ => (false, None),
+            };
+            authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+            authorize_router_data.request.related_transaction_id = related_transaction_id;
         }
         Ok(authorize_router_data)
     } else {
