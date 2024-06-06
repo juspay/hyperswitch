@@ -481,6 +481,22 @@ export const connectorDetails = {
         },
       },
     }),
+    przelewy24: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
+          },
+        },
+      },
+    }),
     blikPaymentIntent: getCustomExchange({
       Request: {
         currency: "PLN",

@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.06.1
+
+### Features
+
+- **router:** Add an api to migrate the apple pay certificates from connector metadata to `connector_wallets_details` column in merchant connector account ([#4790](https://github.com/juspay/hyperswitch/pull/4790)) ([`7a94237`](https://github.com/juspay/hyperswitch/commit/7a9423759e79167c4093c3482ea56f619cf95635))
+
+### Refactors
+
+- **webhooks:** Extract incoming and outgoing webhooks into separate modules ([#4870](https://github.com/juspay/hyperswitch/pull/4870)) ([`b1cb053`](https://github.com/juspay/hyperswitch/commit/b1cb053a55e9ce4d78f7770b53e39700311d9cd4))
+
+**Full Changelog:** [`2024.06.06.0...2024.06.06.1`](https://github.com/juspay/hyperswitch/compare/2024.06.06.0...2024.06.06.1)
+
+- - -
+
 ## 2024.06.06.0
 
 ### Features
