@@ -13813,6 +13813,63 @@
         },
         "additionalProperties": false
       },
+      "PaymentProcessingDetails": {
+        "type": "object",
+        "required": [
+          "payment_processing_certificate",
+          "payment_processing_certificate_key"
+        ],
+        "properties": {
+          "payment_processing_certificate": {
+            "type": "string"
+          },
+          "payment_processing_certificate_key": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentProcessingDetailsAt": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentProcessingDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payment_processing_details_at"
+                ],
+                "properties": {
+                  "payment_processing_details_at": {
+                    "type": "string",
+                    "enum": [
+                      "Hyperswitch"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_processing_details_at"
+            ],
+            "properties": {
+              "payment_processing_details_at": {
+                "type": "string",
+                "enum": [
+                  "Connector"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "payment_processing_details_at"
+        }
+      },
       "PaymentRetrieveBody": {
         "type": "object",
         "properties": {
@@ -18544,43 +18601,55 @@
         }
       },
       "SessionTokenInfo": {
-        "type": "object",
-        "required": [
-          "certificate",
-          "certificate_keys",
-          "merchant_identifier",
-          "display_name",
-          "initiative",
-          "initiative_context"
-        ],
-        "properties": {
-          "certificate": {
-            "type": "string"
-          },
-          "certificate_keys": {
-            "type": "string"
-          },
-          "merchant_identifier": {
-            "type": "string"
-          },
-          "display_name": {
-            "type": "string"
-          },
-          "initiative": {
-            "type": "string"
-          },
-          "initiative_context": {
-            "type": "string"
-          },
-          "merchant_business_country": {
+        "allOf": [
+          {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CountryAlpha2"
+                "$ref": "#/components/schemas/PaymentProcessingDetailsAt"
               }
             ],
             "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "certificate",
+              "certificate_keys",
+              "merchant_identifier",
+              "display_name",
+              "initiative",
+              "initiative_context"
+            ],
+            "properties": {
+              "certificate": {
+                "type": "string"
+              },
+              "certificate_keys": {
+                "type": "string"
+              },
+              "merchant_identifier": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "initiative": {
+                "type": "string"
+              },
+              "initiative_context": {
+                "type": "string"
+              },
+              "merchant_business_country": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                ],
+                "nullable": true
+              }
+            }
           }
-        }
+        ]
       },
       "StraightThroughAlgorithm": {
         "oneOf": [

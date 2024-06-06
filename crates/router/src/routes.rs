@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod api_keys;
 pub mod app;
+pub mod apple_pay_certificates_migration;
 #[cfg(feature = "olap")]
 pub mod blocklist;
 pub mod cache;
@@ -58,10 +59,10 @@ pub use self::app::Payouts;
 #[cfg(all(feature = "olap", feature = "recon"))]
 pub use self::app::Recon;
 pub use self::app::{
-    ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, ConnectorOnboarding, Customers,
-    Disputes, EphemeralKey, Files, Gsm, Health, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll, Refunds, SessionState,
-    User, Webhooks,
+    ApiKeys, AppState, ApplePayCertificatesMigration, BusinessProfile, Cache, Cards, Configs,
+    ConnectorOnboarding, Customers, Disputes, EphemeralKey, Files, Gsm, Health, Mandates,
+    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
+    Refunds, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Routing, Verify, WebhookEvents};
