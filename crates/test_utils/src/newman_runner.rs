@@ -6,6 +6,7 @@ use std::{
     process::{exit, Command},
 };
 
+use anyhow::{Context, Result};
 use clap::{arg, command, Parser};
 use masking::PeekInterface;
 use regex::Regex;
@@ -94,25 +95,35 @@ where
     Ok(())
 }
 
-/// # Panics
-///
-/// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
-#[allow(clippy::expect_used)]
-pub fn generate_newman_command_for_users() -> ReturnArgs {
+// This function gives runner for connector or a module
+pub fn generate_runner() -> Result<ReturnArgs> {
+    let args = Args::parse();
+
+    let runner = match args.get_module_name() {
+        Some("users") => generate_newman_command_for_users(),
+        _ => generate_newman_command_for_connector(),
+    };
+
+    runner
+}
+
+pub fn generate_newman_command_for_users() -> Result<ReturnArgs> {
     let args = Args::parse();
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
 
-    let path =
-        env::var("CONNECTOR_AUTH_FILE_PATH").expect("connector authentication file path not set");
+    let path = env::var("CONNECTOR_AUTH_FILE_PATH")
+        .with_context(|| "connector authentication file path not set")?;
 
     let authentication: ConnectorAuthentication = toml::from_str(
-        &fs::read_to_string(path).expect("connector authentication config file not found"),
+        &fs::read_to_string(path)
+            .with_context(|| "connector authentication config file not found")?,
     )
-    .expect("connector authentication file path not set");
+    .with_context(|| "connector authentication file path not set")?;
+
     let users_configs = authentication
         .users
-        .expect("user configs not found in authentication file");
+        .with_context(|| "user configs not found in authentication file")?;
     let collection_path = get_collection_path("users");
 
     let mut newman_command = Command::new("newman");
@@ -157,23 +168,19 @@ pub fn generate_newman_command_for_users() -> ReturnArgs {
         newman_command.arg("--verbose");
     }
 
-    ReturnArgs {
+    Ok(ReturnArgs {
         newman_command,
         modified_file_paths: vec![],
         collection_path,
-    }
+    })
 }
 
-/// # Panics
-///
-/// Will panic if none of connector-name or module-name is not passed parameters
-#[allow(clippy::expect_used)]
-pub fn generate_newman_command_for_connector() -> ReturnArgs {
+pub fn generate_newman_command_for_connector() -> Result<ReturnArgs> {
     let args = Args::parse();
 
     let connector_name = args
         .connector_name
-        .expect("invalid parameters: connector/module name not found in arguments");
+        .with_context(|| "invalid parameters: connector/module name not found in arguments")?;
 
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
@@ -305,11 +312,11 @@ pub fn generate_newman_command_for_connector() -> ReturnArgs {
         newman_command.arg("--verbose");
     }
 
-    ReturnArgs {
+    Ok(ReturnArgs {
         newman_command,
         modified_file_paths: vec![modified_collection_file_paths, custom_header_exist],
         collection_path,
-    }
+    })
 }
 
 pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Option<String> {
