@@ -60,7 +60,7 @@ sed -i'' -e "s|$previous_connector.base_url \(.*\)|$previous_connector.base_url 
 sed  -r -i'' -e "s/\"$previous_connector\",/\"$previous_connector\",\n    \"${payment_gateway}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/api_models/src/enums.rs
 sed -i '' -e "/\/\/ Add Seperate authentication support for connectors/ i\\
-        | Self::${payment_gateway_camelcase}" crates/api_models/src/enums.rs
+        ${"    "}| Self::${payment_gateway_camelcase}" crates/api_models/src/enums.rs
 # sed -i '' -e "/\/\/ Add Seperate authentication support for connectors/{N;s/\(.*\)\n/\1\n        | Self::${payment_gateway_camelcase}\n/;}" crates/api_models/src/enums.rs
 sed -i '' -e "s/\(match connector_name {\)/\1\n\t\tapi_enums::Connector::${payment_gateway_camelcase} => {${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(val)?;Ok(())}/" $src/core/admin.rs
 sed -i'' -e "s/\(pub enum RoutableConnectors {\)/\1\n\t${payment_gateway_camelcase},/" crates/common_enums/src/enums.rs
