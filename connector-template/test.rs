@@ -14,7 +14,7 @@ impl utils::Connector for {{project-name | downcase | pascal_case}}Test {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::{{project-name | downcase | pascal_case}};
         types::api::ConnectorData {
-            connector: Box::new(&{{project-name | downcase | pascal_case}}),
+            connector: Box::new({{project-name | downcase | pascal_case}}::new()),
             connector_name: types::Connector::{{project-name | downcase | pascal_case}},
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

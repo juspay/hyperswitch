@@ -53,7 +53,7 @@ find_prev_connector $payment_gateway previous_connector
 previous_connector_camelcase="$(tr '[:lower:]' '[:upper:]' <<< ${previous_connector:0:1})${previous_connector:1}"
 sed -i'' -e "s|pub mod $previous_connector;|pub mod $previous_connector;\npub mod ${payment_gateway};|" $conn.rs
 sed -i'' -e "s/};/${payment_gateway}::${payment_gateway_camelcase},\n};/" $conn.rs
-sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tenums::Connector::${payment_gateway_camelcase} => Ok(Box::new(\&connector::${payment_gateway_camelcase})),|" $src/types/api.rs
+sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tenums::Connector::${payment_gateway_camelcase} => Ok(Box::new(\connector::${payment_gateway_camelcase}::new())),|" $src/types/api.rs
 sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tRoutableConnectors::${payment_gateway_camelcase} => euclid_enums::Connector::${payment_gateway_camelcase},|" crates/api_models/src/routing.rs
 sed -i'' -e "s/pub $previous_connector: \(.*\)/pub $previous_connector: \1\n\tpub ${payment_gateway}: ConnectorParams,/" $src/configs/settings.rs
 sed -i'' -e "s|$previous_connector.base_url \(.*\)|$previous_connector.base_url \1\n${payment_gateway}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
