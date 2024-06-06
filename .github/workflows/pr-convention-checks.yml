@@ -172,7 +172,7 @@ jobs:
         run: gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
 
       - name: Attach 'M-api-contract-changes' label if PR contains database changes
-        if: env.openapi_changes == 'false'
+        if: env.openapi_changes == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
