@@ -90,7 +90,8 @@ fn fetch_payment_instrument(
             | domain::WalletData::WeChatPayRedirect(_)
             | domain::WalletData::CashappQr(_)
             | domain::WalletData::SwishQr(_)
-            | domain::WalletData::WeChatPayQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::WeChatPayQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
             .into()),

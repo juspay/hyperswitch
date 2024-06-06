@@ -201,6 +201,7 @@ impl DashboardRequestPayload {
             paypal_sdk: None,
             klarna_region: None,
             source_balance_account: None,
+            brand_id: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -227,6 +228,7 @@ impl DashboardRequestPayload {
             meta_data.pull_mechanism_for_external_3ds_enabled;
         let klarna_region = meta_data.klarna_region;
         let source_balance_account = meta_data.source_balance_account;
+        let brand_id = meta_data.brand_id;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -249,6 +251,7 @@ impl DashboardRequestPayload {
             pull_mechanism_for_external_3ds_enabled,
             klarna_region,
             source_balance_account,
+            brand_id,
         })
     }
 

@@ -102,6 +102,7 @@ pub struct ConfigMetadata {
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<Vec<KlarnaEndpoint>>,
     pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -162,6 +163,7 @@ pub struct ConnectorConfig {
     pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
+    pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
@@ -293,6 +295,7 @@ impl ConnectorConfig {
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Klarna => Ok(connector_data.klarna),
+            Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Multisafepay => Ok(connector_data.multisafepay),
             Connector::Nexinets => Ok(connector_data.nexinets),

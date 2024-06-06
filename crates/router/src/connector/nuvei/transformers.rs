@@ -786,12 +786,11 @@ impl<F>
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("nuvei"),
-                    )
-                    .into())
-                }
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nuvei"),
+                )
+                .into()),
             },
             domain::PaymentMethodData::BankRedirect(redirect) => match redirect {
                 domain::BankRedirectData::Eps { .. } => Self::foreign_try_from((
