@@ -1155,6 +1155,14 @@ api_key="Klarna Merchant ID Password"
 [klarna.metadata]
 klarna_region=["Europe","NorthAmerica","Oceania"]
 
+[mifinity]
+[[mifinity.wallet]]
+  payment_method_type = "mifinity"
+[mifinity.connector_auth.HeaderKey]
+api_key="key"
+[mifinity.metadata]
+brand_id="Brand ID"
+
 [mollie]
 [[mollie.credit]]
   payment_method_type = "Mastercard"
