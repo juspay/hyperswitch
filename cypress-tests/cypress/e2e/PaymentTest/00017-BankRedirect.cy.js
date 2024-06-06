@@ -333,7 +333,6 @@ describe("Bank Redirect tests", () => {
     });
 
     it("payment_methods-call-test", () => {
-      cy.task("cli_log", "PM CALL ");
       cy.paymentMethodsCallTest(globalState);
     });
 
@@ -343,7 +342,6 @@ describe("Bank Redirect tests", () => {
       ]["przelewy24"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.task("cli_log", "GLOBAL STATE -> " + JSON.stringify(globalState.data));
       cy.confirmBankRedirectCallTest(
         confirmBody,
         req_data,

@@ -466,7 +466,11 @@ export const connectorDetails = {
         payment_method_type: "giropay",
         payment_method_data: {
           bank_redirect: {
-            giropay: {            
+            giropay: {
+              bank_name: "",
+              bank_account_bic: "",
+              bank_account_iban: "",
+              preferred_language: "en",
               country: "DE",
             },
           },
