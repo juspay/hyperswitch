@@ -942,6 +942,17 @@ impl FileMetadataInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for KafkaStore {
+    async fn update_multiple_merchant_connector_accounts(
+        &self,
+        merchant_connector_accounts: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .update_multiple_merchant_connector_accounts(merchant_connector_accounts)
+            .await
+    }
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,

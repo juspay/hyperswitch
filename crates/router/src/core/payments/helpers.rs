@@ -6,6 +6,7 @@ use api_models::{
 };
 use base64::Engine;
 use common_utils::{
+    crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, id_type, pii,
     types::MinorUnit,
@@ -3169,6 +3170,13 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    pub fn get_connector_wallets_details(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::DbVal(val) => val.connector_wallets_details.as_deref().cloned(),
+            Self::CacheVal(_) => None,
+        }
+    }
+
     pub fn is_disabled(&self) -> bool {
         match self {
             Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
@@ -3368,6 +3376,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
+        connector_wallets_details: router_data.connector_wallets_details,
     }
 }
 
@@ -3905,17 +3914,32 @@ pub fn validate_customer_access(
 
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
+    connector_wallets_details: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
-    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
-        .map_err(|error| {
-            logger::info!(
-                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
+    let connector_apple_pay_wallet_details =
+        get_applepay_metadata(connector_wallets_details)
+            .map_err(|error| {
+                logger::debug!(
+                    "Apple pay connector wallets details parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
+                    connector_name,
+                    error
+                )
+            })
+            .ok();
+
+    let option_apple_pay_metadata = match connector_apple_pay_wallet_details {
+        Some(apple_pay_wallet_details) => Some(apple_pay_wallet_details),
+        None => get_applepay_metadata(connector_metadata)
+            .map_err(|error| {
+                logger::debug!(
+                "Apple pay metadata parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
                 connector_name,
                 error
             )
-        })
-        .ok();
+            })
+            .ok(),
+    };
 
     // return true only if the apple flow type is simplified
     Ok(matches!(
@@ -3926,6 +3950,38 @@ pub fn is_apple_pay_simplified_flow(
             )
         )
     ))
+}
+
+pub async fn get_encrypted_apple_pay_connector_wallets_details(
+    key_store: &domain::MerchantKeyStore,
+    connector_metadata: &Option<masking::Secret<tera::Value>>,
+) -> RouterResult<Option<Encryptable<masking::Secret<serde_json::Value>>>> {
+    let apple_pay_metadata = get_applepay_metadata(connector_metadata.clone())
+        .map_err(|error| {
+            logger::error!(
+                "Apple pay metadata parsing failed in get_encrypted_apple_pay_connector_wallets_details {:?}",
+                error
+            )
+        })
+        .ok();
+
+    let connector_apple_pay_details = apple_pay_metadata
+        .map(|metadata| {
+            serde_json::to_value(metadata)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize apple pay metadata as JSON")
+        })
+        .transpose()?
+        .map(masking::Secret::new);
+
+    let encrypted_connector_apple_pay_details = connector_apple_pay_details
+        .async_lift(|wallets_details| {
+            types::encrypt_optional(wallets_details, key_store.key.get_inner().peek())
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting connector wallets details")?;
+    Ok(encrypted_connector_apple_pay_details)
 }
 
 pub fn get_applepay_metadata(
@@ -3991,6 +4047,7 @@ where
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
+        merchant_connector_account_type.get_connector_wallets_details(),
         merchant_connector_account_type
             .get_connector_name()
             .as_ref(),
@@ -4010,6 +4067,10 @@ where
         for merchant_connector_account in merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata,
+                merchant_connector_account
+                    .connector_wallets_details
+                    .as_deref()
+                    .cloned(),
                 Some(&merchant_connector_account.connector_name),
             )? {
                 let connector_data = api::ConnectorData::get_connector_by_name(
@@ -4064,10 +4125,11 @@ impl ApplePayData {
 
     pub async fn decrypt(
         &self,
-        state: &SessionState,
+        payment_processing_certificate: &masking::Secret<String>,
+        payment_processing_certificate_key: &masking::Secret<String>,
     ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
-        let merchant_id = self.merchant_id(state).await?;
-        let shared_secret = self.shared_secret(state).await?;
+        let merchant_id = self.merchant_id(payment_processing_certificate)?;
+        let shared_secret = self.shared_secret(payment_processing_certificate_key)?;
         let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
         let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
         let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)
@@ -4075,17 +4137,11 @@ impl ApplePayData {
         Ok(parsed_decrypted)
     }
 
-    pub async fn merchant_id(
+    pub fn merchant_id(
         &self,
-        state: &SessionState,
+        payment_processing_certificate: &masking::Secret<String>,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
-        let cert_data = state
-            .conf
-            .applepay_decrypt_keys
-            .get_inner()
-            .apple_pay_ppc
-            .clone()
-            .expose();
+        let cert_data = payment_processing_certificate.clone().expose();
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -4120,9 +4176,9 @@ impl ApplePayData {
         Ok(apple_pay_m_id)
     }
 
-    pub async fn shared_secret(
+    pub fn shared_secret(
         &self,
-        state: &SessionState,
+        payment_processing_certificate_key: &masking::Secret<String>,
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
@@ -4132,13 +4188,7 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        let decrypted_apple_pay_ppc_key = state
-            .conf
-            .applepay_decrypt_keys
-            .get_inner()
-            .apple_pay_ppc_key
-            .clone()
-            .expose();
+        let decrypted_apple_pay_ppc_key = payment_processing_certificate_key.clone().expose();
 
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
