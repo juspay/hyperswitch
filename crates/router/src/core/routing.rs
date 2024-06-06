@@ -232,7 +232,9 @@ pub async fn create_routing_config(
         if records_are_empty {
             merchant_dictionary.active_id = Some(algorithm_id.clone());
             algorithm_ref.update_algorithm_id(algorithm_id);
-            helpers::update_merchant_active_algorithm_ref(db, &key_store, algorithm_ref).await?;
+            let key = format!("dsl_{merchant_id}");
+            helpers::update_merchant_active_algorithm_ref(db, &key_store, &key, algorithm_ref)
+                .await?;
         }
 
         helpers::update_merchant_routing_dictionary(
@@ -363,7 +365,8 @@ pub async fn link_routing_config(
             merchant_dictionary,
         )
         .await?;
-        helpers::update_merchant_active_algorithm_ref(db, &key_store, routing_ref).await?;
+        let key = format!("dsl_{merchant_id}");
+        helpers::update_merchant_active_algorithm_ref(db, &key_store, &key, routing_ref).await?;
 
         metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
