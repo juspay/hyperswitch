@@ -679,6 +679,7 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
+        connector_wallets_details -> Nullable<Bytea>,
     }
 }
 

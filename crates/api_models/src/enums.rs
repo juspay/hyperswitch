@@ -433,7 +433,7 @@ pub enum FieldType {
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserCountryCode,                      //phone number's country code
+    UserPhoneNumberCountryCode,           //phone number's country code
     UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
     UserCurrency { options: Vec<String> },
     UserCryptoCurrencyNetwork, //for crypto network associated with the cryptopcurrency
@@ -494,7 +494,7 @@ impl PartialEq for FieldType {
             (Self::UserFullName, Self::UserFullName) => true,
             (Self::UserEmailAddress, Self::UserEmailAddress) => true,
             (Self::UserPhoneNumber, Self::UserPhoneNumber) => true,
-            (Self::UserCountryCode, Self::UserCountryCode) => true,
+            (Self::UserPhoneNumberCountryCode, Self::UserPhoneNumberCountryCode) => true,
             (
                 Self::UserCountry {
                     options: options_self,

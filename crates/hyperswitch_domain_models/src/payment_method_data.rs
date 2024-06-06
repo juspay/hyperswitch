@@ -23,6 +23,12 @@ pub enum PaymentMethodData {
     CardToken(CardToken),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplePayFlow {
+    Simplified(api_models::payments::PaymentProcessingDetails),
+    Manual,
+}
+
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
