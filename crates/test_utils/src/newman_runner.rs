@@ -25,6 +25,7 @@ pub struct Args {
     /// Name of the connector
     #[arg(short, long)]
     connector_name: Option<String>,
+    /// Name of the module
     #[arg(short, long)]
     module_name: Option<String>,
     /// Custom headers
@@ -99,7 +100,6 @@ where
 #[allow(clippy::expect_used)]
 pub fn generate_newman_command_for_users() -> ReturnArgs {
     let args = Args::parse();
-    // let module_name = args.connector_name; // change it to module name later
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
 
