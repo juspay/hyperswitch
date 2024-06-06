@@ -16,21 +16,11 @@ describe("Card - Auto Fulfill", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      console.log("seeding globalState -> " + JSON.stringify(globalState));
-      cy.task(
-        "cli_log",
-        "SEEDING GLOBAL STATE -> " + JSON.stringify(globalState),
-      );
     });
   });
 
   afterEach("flush global state", () => {
-    console.log("flushing globalState -> " + JSON.stringify(globalState));
     cy.task("setGlobalState", globalState.data);
-    cy.task(
-      "cli_log",
-      " FLUSHING GLOBAL STATE -> " + JSON.stringify(globalState),
-    );
   });
 
   context("Payout Card with Auto Fulfill", () => {
@@ -46,7 +36,7 @@ describe("Card - Auto Fulfill", () => {
         res_data,
         true,
         true,
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -70,7 +60,7 @@ describe("Card - Auto Fulfill", () => {
         res_data,
         true,
         false,
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -105,7 +95,7 @@ describe("Card - Auto Fulfill", () => {
         res_data,
         false,
         false,
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
