@@ -6,10 +6,7 @@ use common_utils::{
     pii::{Email, IpAddress},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    mandates::{MandateData, MandateDataType},
-    payment_method_data::PaymentMethodData,
-};
+use hyperswitch_domain_models::mandates::{MandateData, MandateDataType};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -43,7 +40,7 @@ trait NuveiAuthorizePreprocessingCommon {
     ) -> Result<diesel_models::enums::Currency, error_stack::Report<errors::ConnectorError>>;
     fn get_payment_method_data_required(
         &self,
-    ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>>;
+    ) -> Result<domain::PaymentMethodData, error_stack::Report<errors::ConnectorError>>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
@@ -92,7 +89,7 @@ impl NuveiAuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
     }
     fn get_payment_method_data_required(
         &self,
-    ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<domain::PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
         Ok(self.payment_method_data.clone())
     }
 }
@@ -143,7 +140,7 @@ impl NuveiAuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
     }
     fn get_payment_method_data_required(
         &self,
-    ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<domain::PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
         self.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_data",
