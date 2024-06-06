@@ -8,7 +8,7 @@
 ///
 /// Panics if running the `cargo metadata` command fails.
 #[allow(clippy::expect_used)]
-#[cfg(feature = "set_workspace_members_on_build")]
+#[allow(dead_code)]
 pub fn set_cargo_workspace_members_env() {
     use std::io::Write;
 
@@ -40,7 +40,7 @@ pub fn set_cargo_workspace_members_env() {
 ///
 /// Panics if running the `cargo metadata` command fails, or if the workspace member package names
 /// cannot be determined.
-#[cfg(feature = "set_workspace_members_on_build")]
+#[allow(dead_code)]
 pub fn verify_cargo_metadata_format() {
     #[allow(clippy::expect_used)]
     let metadata = cargo_metadata::MetadataCommand::new()
