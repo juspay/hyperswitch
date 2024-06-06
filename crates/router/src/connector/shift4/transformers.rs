@@ -2,7 +2,6 @@ use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::SecretSerdeValue;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{mandates::MandateData, router_request_types::BrowserInformation};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -22,59 +21,20 @@ type Error = error_stack::Report<errors::ConnectorError>;
 trait Shift4AuthorizePreprocessingCommon {
     fn is_automatic_capture(&self) -> Result<bool, Error>;
     fn get_router_return_url(&self) -> Option<String>;
-    fn get_browser_info(&self) -> Option<BrowserInformation>;
-    fn get_related_transaction_id(&self) -> Option<String>;
-    fn get_email_required(&self) -> Result<pii::Email, Error>;
     fn get_email_optional(&self) -> Option<pii::Email>;
-    fn get_setup_mandate_details(&self) -> Option<MandateData>;
     fn get_complete_authorize_url(&self) -> Option<String>;
-    fn get_connector_mandate_id(&self) -> Option<String>;
-    fn get_return_url_required(&self) -> Result<String, Error>;
-    fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_amount_required(&self) -> Result<i64, Error>;
     fn get_currency_required(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_payment_method_data_required(&self) -> Result<domain::PaymentMethodData, Error>;
 }
 
 impl Shift4AuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
-    fn get_browser_info(&self) -> Option<BrowserInformation> {
-        self.browser_info.clone()
-    }
-
-    fn get_related_transaction_id(&self) -> Option<String> {
-        self.related_transaction_id.clone()
-    }
-
-    fn get_email_required(
-        &self,
-    ) -> Result<pii::Email, error_stack::Report<errors::ConnectorError>> {
-        self.get_email()
-    }
-
     fn get_email_optional(&self) -> Option<pii::Email> {
         self.email.clone()
     }
 
-    fn get_setup_mandate_details(&self) -> Option<MandateData> {
-        self.setup_mandate_details.clone()
-    }
-
     fn get_complete_authorize_url(&self) -> Option<String> {
         self.complete_authorize_url.clone()
-    }
-
-    fn get_connector_mandate_id(&self) -> Option<String> {
-        self.connector_mandate_id().clone()
-    }
-
-    fn get_return_url_required(
-        &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        self.get_return_url()
-    }
-
-    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-        self.capture_method
     }
 
     fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
@@ -102,40 +62,12 @@ impl Shift4AuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
 }
 
 impl Shift4AuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
-    fn get_browser_info(&self) -> Option<BrowserInformation> {
-        self.browser_info.clone()
-    }
-
-    fn get_related_transaction_id(&self) -> Option<String> {
-        self.related_transaction_id.clone()
-    }
-
-    fn get_email_required(&self) -> Result<pii::Email, Error> {
-        self.get_email()
-    }
-
     fn get_email_optional(&self) -> Option<pii::Email> {
         self.email.clone()
     }
 
-    fn get_setup_mandate_details(&self) -> Option<MandateData> {
-        self.setup_mandate_details.clone()
-    }
-
     fn get_complete_authorize_url(&self) -> Option<String> {
         self.complete_authorize_url.clone()
-    }
-
-    fn get_connector_mandate_id(&self) -> Option<String> {
-        self.connector_mandate_id()
-    }
-
-    fn get_return_url_required(&self) -> Result<String, Error> {
-        self.get_return_url()
-    }
-
-    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-        self.capture_method
     }
 
     fn get_amount_required(&self) -> Result<i64, Error> {
