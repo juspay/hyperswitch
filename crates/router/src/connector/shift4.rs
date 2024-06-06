@@ -210,45 +210,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
-    // async fn execute_pretasks(
-    //     &self,
-    //     router_data: &mut types::PaymentsAuthorizeRouterData,
-    //     app_state: &routes::SessionState,
-    // ) -> CustomResult<(), errors::ConnectorError> {
-    //     if router_data.auth_type == enums::AuthenticationType::ThreeDs
-    //         && router_data.payment_method == enums::PaymentMethod::Card
-    //     {
-    //         let integ: Box<
-    //             &(dyn ConnectorIntegration<
-    //                 api::InitPayment,
-    //                 types::PaymentsAuthorizeData,
-    //                 types::PaymentsResponseData,
-    //             > + Send
-    //                   + Sync
-    //                   + 'static),
-    //         > = Box::new(&Self);
-    //         let init_data = &types::PaymentsInitRouterData::foreign_from((
-    //             &router_data.to_owned(),
-    //             router_data.request.clone(),
-    //         ));
-    //         let init_resp = services::execute_connector_processing_step(
-    //             app_state,
-    //             integ,
-    //             init_data,
-    //             payments::CallConnectorAction::Trigger,
-    //             None,
-    //         )
-    //         .await?;
-    //         if init_resp.request.enrolled_for_3ds {
-    //             router_data.response = init_resp.response;
-    //             router_data.status = init_resp.status;
-    //         } else {
-    //             router_data.request.enrolled_for_3ds = false;
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
