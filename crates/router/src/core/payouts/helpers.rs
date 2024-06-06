@@ -52,7 +52,6 @@ pub async fn make_payout_method_data<'a>(
     payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
-    logger::debug!("$$$make_payout_method_data is called");
     let db = &*state.store;
     let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
     let hyperswitch_token = if let Some(payout_token) = payout_token {

@@ -57,6 +57,7 @@ pub enum ApiEventsType {
         merchant_id_or_profile_id: String,
     },
     PaymentMethodCollectLink,
+    PayoutLink,
     Poll {
         poll_id: String,
     },

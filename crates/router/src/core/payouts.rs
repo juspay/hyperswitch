@@ -159,10 +159,8 @@ pub async fn make_connector_decision(
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    logger::debug!("$$$$$ calling make_connector_decision");
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
-            logger::debug!("$$call connector payouts");
             call_connector_payout(
                 state,
                 merchant_account,
@@ -264,7 +262,6 @@ pub async fn payouts_core(
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_models::enums::PayoutConnectors>>,
 ) -> RouterResult<()> {
-    logger::debug!("$$$payouts_core");
     let payout_attempt = &payout_data.payout_attempt;
 
     // Form connector data
@@ -376,24 +373,6 @@ pub async fn payouts_confirm_core(
         ],
         "confirm",
     )?;
-
-    // // Persist payout method data in temp locker
-    // payout_data.payout_method_data =
-    //     req.payout_method_data
-    //         .to_owned()
-    //         .or(helpers::make_payout_method_data(
-    //             &state,
-    //             req.payout_method_data.to_owned().as_ref(),
-    //             payout_attempt.payout_token.as_deref(),
-    //             &payout_attempt.customer_id,
-    //             &payout_attempt.merchant_id,
-    //             Some(&payout_data.payouts.payout_type.clone()),
-    //             &key_store,
-    //             Some(&mut payout_data),
-    //             merchant_account.storage_scheme,
-    //         )
-    //         .await?);
-
     payouts_core(
         &state,
         &merchant_account,
@@ -963,8 +942,6 @@ pub async fn call_connector_payout(
             .get_required_value("payout_method_data")?,
         );
     }
-    logger::debug!("payout data{:?}", payout_data.payout_method_data);
-    logger::debug!("calling payout flows");
     // Eligibility flow
     complete_payout_eligibility(
         state,
@@ -974,7 +951,6 @@ pub async fn call_connector_payout(
         payout_data,
     )
     .await?;
-    logger::debug!("payout data{:?}", payout_data.payout_method_data);
     // Create customer flow
     complete_create_recipient(
         state,
@@ -984,7 +960,6 @@ pub async fn call_connector_payout(
         payout_data,
     )
     .await?;
-    logger::debug!("payout data{:?}", payout_data.payout_method_data);
     // Create customer's disbursement account flow
     complete_create_recipient_disburse_account(
         state,
@@ -994,7 +969,6 @@ pub async fn call_connector_payout(
         payout_data,
     )
     .await?;
-    logger::debug!("payout data{:?}", payout_data.payout_method_data);
     // Payout creation flow
     complete_create_payout(
         state,
@@ -1007,7 +981,6 @@ pub async fn call_connector_payout(
 
     // Auto fulfillment flow
     let status = payout_data.payout_attempt.status;
-    logger::debug!("$$status : {:?}", status);
     if payouts.auto_fulfill && status == storage_enums::PayoutStatus::RequiresFulfillment {
         fulfill_payout(
             state,
@@ -1030,18 +1003,17 @@ pub async fn complete_create_recipient(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    logger::debug!("complete create recipient");
     if !payout_data.should_terminate
         && matches!(
             payout_data.payout_attempt.status,
             common_enums::PayoutStatus::RequiresCreation
                 | common_enums::PayoutStatus::RequiresConfirmation
+                | common_enums::PayoutStatus::RequiresPayoutMethodData
         )
         && connector_data
             .connector_name
             .supports_create_recipient(payout_data.payouts.payout_type)
     {
-        logger::debug!("complete create recipient-2");
         create_recipient(
             state,
             merchant_account,
@@ -1068,7 +1040,6 @@ pub async fn create_recipient(
 
     // Create the connector label using {profile_id}_{connector_name}
     let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
-    logger::debug!("create_recipient");
     let (should_call_connector, _connector_customer_id) =
         helpers::should_call_payout_connector_create_customer(
             state,
@@ -1198,7 +1169,6 @@ pub async fn complete_payout_eligibility(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    logger::debug!("complete_payout_eligibility");
     let payout_attempt = &payout_data.payout_attempt.to_owned();
 
     if !payout_data.should_terminate
@@ -1356,12 +1326,12 @@ pub async fn complete_create_payout(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    logger::debug!("complete_create_payout");
     if !payout_data.should_terminate
         && matches!(
             payout_data.payout_attempt.status,
             storage_enums::PayoutStatus::RequiresCreation
                 | storage_enums::PayoutStatus::RequiresConfirmation
+                | storage_enums::PayoutStatus::RequiresPayoutMethodData
         )
     {
         if connector_data
@@ -1369,7 +1339,6 @@ pub async fn complete_create_payout(
             .supports_instant_payout(payout_data.payouts.payout_type)
         {
             // create payout_object only in router
-            logger::debug!("create payout_object only in router");
             let db = &*state.store;
             let payout_attempt = &payout_data.payout_attempt;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
@@ -1403,7 +1372,6 @@ pub async fn complete_create_payout(
                 .attach_printable("Error updating payouts in db")?;
         } else {
             // create payout_object in connector as well as router
-            logger::debug!("create payout_object in connector as well as router");
             create_payout(
                 state,
                 merchant_account,
@@ -1425,7 +1393,6 @@ pub async fn create_payout(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    logger::debug!("create payout");
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
         state,
@@ -1563,7 +1530,6 @@ pub async fn complete_create_recipient_disburse_account(
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
     {
-        logger::debug!("complete_create_recipient_disburse_account");
         create_recipient_disburse_account(
             state,
             merchant_account,
@@ -1991,7 +1957,6 @@ pub async fn payout_create_db_entries(
     profile_id: &String,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
 ) -> RouterResult<PayoutData> {
-    logger::debug!("$$$$$payout_create_db_entries");
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
 
@@ -2025,12 +1990,13 @@ pub async fn payout_create_db_entries(
                     field_name: "payout_link_config",
                 })
             })?;
-            validator::intiate_payout_link(
+            validator::create_payout_link(
                 state,
                 merchant_account,
                 payout_link_config,
                 &customer_id,
                 req.return_url.to_owned(),
+                payout_id,
             )
             .await?
         } else {
@@ -2185,7 +2151,6 @@ pub async fn make_payout_data(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
-    logger::debug!("$$$$make_payout_Data is called");
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
     let payout_id = match req {
@@ -2271,7 +2236,6 @@ pub async fn make_payout_data(
             }
         }
     };
-    logger::debug!("{:?}", payout_method_data.clone());
 
     Ok(PayoutData {
         billing_address,

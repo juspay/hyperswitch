@@ -688,3 +688,32 @@ pub struct PayoutLinkResponse {
     pub link: Secret<String>,
     pub payout_link_id: String,
 }
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+pub struct PayoutLinkInitiateRequest {
+    pub merchant_id: String,
+    pub payout_id: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutLinkDetails {
+    pub pub_key: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub payout_link_id: String,
+    pub customer_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: PrimitiveDateTime,
+    pub return_url: Option<String>,
+    #[serde(flatten)]
+    pub ui_config: api_enums::CollectLinkConfig,
+    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
+    pub amount: i64,
+    pub currency: common_enums::Currency,
+    pub flow: PayoutLinkFlow,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub enum PayoutLinkFlow {
+    PayoutLinkInitiate,
+    PayoutMethodCollect,
+}

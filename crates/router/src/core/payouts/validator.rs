@@ -181,12 +181,13 @@ pub(super) fn validate_payout_list_request_for_joins(
     Ok(())
 }
 
-pub async fn intiate_payout_link(
+pub async fn create_payout_link(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     req: &api_models::payouts::PayoutCreatePayoutLinkConfig,
     customer_id: &String,
     return_url: Option<String>,
+    payout_id: &String,
 ) -> RouterResult<Option<PaymentMethodCollectLinkData>> {
     // Create payment method collect link ID
     let payout_link_id =
@@ -247,9 +248,7 @@ pub async fn intiate_payout_link(
         None => default_config.expiry,
     };
     let merchant_id = merchant_account.merchant_id.clone();
-    let link = Secret::new(format!(
-        "{domain}/payout_link/initiate/{merchant_id}/{payout_link_id}"
-    ));
+    let link = Secret::new(format!("{domain}/payout_link/{merchant_id}/{payout_id}"));
 
     let payout_link_config = CollectLinkConfig {
         theme,

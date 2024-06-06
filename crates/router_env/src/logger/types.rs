@@ -182,7 +182,9 @@ pub enum Flow {
     PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
-    /// Payments Redirect flow.
+    /// Payout link initiate flow
+    PayoutLinkInitiate,
+    /// Payments Redirect flow
     PaymentsRedirect,
     /// Payemnts Complete Authorize Flow
     PaymentsCompleteAuthorize,

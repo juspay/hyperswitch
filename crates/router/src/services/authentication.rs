@@ -1020,7 +1020,6 @@ where
     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
-    logger::debug!("$check_client_secret_and_get_auth");
     if api_key.starts_with("pk_") {
         payload
             .get_client_secret()
@@ -1037,7 +1036,6 @@ where
         }
         .into());
     }
-    logger::debug!("$check_client_secret_and_get_auth end");
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 

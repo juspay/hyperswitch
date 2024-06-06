@@ -22,6 +22,8 @@ use super::blocklist;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
+use super::payout_link::*;
+#[cfg(feature = "payouts")]
 use super::payouts::*;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
@@ -1115,6 +1117,21 @@ impl PaymentLink {
             .service(
                 web::resource("status/{merchant_id}/{payment_id}")
                     .route(web::get().to(payment_link_status)),
+            )
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub struct PayoutLink;
+#[cfg(feature = "payouts")]
+impl PayoutLink {
+    pub fn server(state: AppState) -> Scope {
+        #[cfg(feature = "olap")]
+        web::scope("payout_link")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/{payment_link_id}")
+                    .route(web::get().to(render_payout_link)),
             )
     }
 }
