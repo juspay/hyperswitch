@@ -9262,7 +9262,7 @@
           {
             "type": "string",
             "enum": [
-              "user_country_code"
+              "user_phone_number_country_code"
             ]
           },
           {
