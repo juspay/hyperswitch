@@ -101,6 +101,7 @@ pub fn generate_runner() -> Result<ReturnArgs> {
 
     let runner = match args.get_module_name() {
         Some("users") => generate_newman_command_for_users(),
+        Some("connector") => generate_newman_command_for_connector(),
         _ => generate_newman_command_for_connector(),
     };
 
