@@ -90,6 +90,7 @@ pub enum WalletType {
     Swish,
     Cashapp,
     Venmo,
+    Mifinity,
 }
 
 #[derive(

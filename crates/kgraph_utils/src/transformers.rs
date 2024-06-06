@@ -288,6 +288,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 Ok(dirval!(CardRedirectType = CardRedirect))
             }
             api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+            api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
         }
     }
 }

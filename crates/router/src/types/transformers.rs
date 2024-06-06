@@ -239,7 +239,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Klarna => Self::Klarna,
-            // api_enums::Connector::Mifinity => Self::Mifinity, Added as template code for future usage
+            api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
@@ -437,7 +437,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Momo
             | api_enums::PaymentMethodType::Cashapp
             | api_enums::PaymentMethodType::KakaoPay
-            | api_enums::PaymentMethodType::Venmo => Self::Wallet,
+            | api_enums::PaymentMethodType::Venmo
+            | api_enums::PaymentMethodType::Mifinity => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay

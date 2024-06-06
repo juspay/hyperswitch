@@ -157,7 +157,8 @@ where
                     payment_method = Empty,
                     status_code = Empty,
                     flow = "UNKNOWN",
-                    golden_log_line = Empty
+                    golden_log_line = Empty,
+                    tenant_id = "ta"
                 )
                 .or_current(),
             ),

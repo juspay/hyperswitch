@@ -99,6 +99,7 @@ pub struct ApiModelMetaData {
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<KlarnaEndpoint>,
     pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -213,4 +214,5 @@ pub struct DashboardMetaData {
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<KlarnaEndpoint>,
     pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
 }

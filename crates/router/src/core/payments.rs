@@ -1477,44 +1477,47 @@ where
 
     // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
     // and the connector supports Apple Pay predecrypt
-    if matches!(
-        tokenization_action,
-        TokenizationAction::DecryptApplePayToken
-            | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt
-    ) {
-        let apple_pay_data = match payment_data.payment_method_data.clone() {
-            Some(payment_data) => {
-                let domain_data = domain::PaymentMethodData::from(payment_data);
-                match domain_data {
-                    domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
-                        wallet_data,
-                    )) => Some(
-                        ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?
-                            .decrypt(state)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                    ),
-                    _ => None,
+    match &tokenization_action {
+        TokenizationAction::DecryptApplePayToken(payment_processing_details)
+        | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+            payment_processing_details,
+        ) => {
+            let apple_pay_data = match payment_data.payment_method_data.clone() {
+                Some(payment_method_data) => {
+                    let domain_data = domain::PaymentMethodData::from(payment_method_data);
+                    match domain_data {
+                        domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                            wallet_data,
+                        )) => Some(
+                            ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                                .decrypt(
+                                    &payment_processing_details.payment_processing_certificate,
+                                    &payment_processing_details.payment_processing_certificate_key,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                        ),
+                        _ => None,
+                    }
                 }
-            }
-            _ => None,
-        };
+                _ => None,
+            };
 
-        let apple_pay_predecrypt = apple_pay_data
-            .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
-                "ApplePayPredecryptData",
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let apple_pay_predecrypt = apple_pay_data
+                .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
+                    "ApplePayPredecryptData",
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        logger::debug!(?apple_pay_predecrypt);
-
-        router_data.payment_method_token = Some(
-            hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(Box::new(
-                apple_pay_predecrypt,
-            )),
-        );
-    }
+            router_data.payment_method_token = Some(
+                hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    Box::new(apple_pay_predecrypt),
+                ),
+            );
+        }
+        _ => (),
+    };
 
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
@@ -2055,7 +2058,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
     connector_name: &str,
     payment_method: &storage::enums::PaymentMethod,
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
-    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    apple_pay_flow: &Option<domain::ApplePayFlow>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -2080,13 +2083,13 @@ fn is_payment_method_tokenization_enabled_for_connector(
 
 fn is_apple_pay_pre_decrypt_type_connector_tokenization(
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
-    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    apple_pay_flow: &Option<domain::ApplePayFlow>,
     apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
 ) -> bool {
     match (payment_method_type, apple_pay_flow) {
         (
             Some(storage::enums::PaymentMethodType::ApplePay),
-            Some(enums::ApplePayFlow::Simplified),
+            Some(domain::ApplePayFlow::Simplified(_)),
         ) => !matches!(
             apple_pay_pre_decrypt_flow_filter,
             Some(ApplePayPreDecryptFlow::NetworkTokenization)
@@ -2096,18 +2099,22 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
 }
 
 fn decide_apple_pay_flow(
+    state: &SessionState,
     payment_method_type: &Option<enums::PaymentMethodType>,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
-) -> Option<enums::ApplePayFlow> {
+) -> Option<domain::ApplePayFlow> {
     payment_method_type.and_then(|pmt| match pmt {
-        enums::PaymentMethodType::ApplePay => check_apple_pay_metadata(merchant_connector_account),
+        enums::PaymentMethodType::ApplePay => {
+            check_apple_pay_metadata(state, merchant_connector_account)
+        }
         _ => None,
     })
 }
 
 fn check_apple_pay_metadata(
+    state: &SessionState,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
-) -> Option<enums::ApplePayFlow> {
+) -> Option<domain::ApplePayFlow> {
     merchant_connector_account.and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
@@ -2141,14 +2148,34 @@ fn check_apple_pay_metadata(
                     apple_pay_combined,
                 ) => match apple_pay_combined {
                     api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => {
-                        enums::ApplePayFlow::Simplified
+                        domain::ApplePayFlow::Simplified(payments_api::PaymentProcessingDetails {
+                            payment_processing_certificate: state
+                            .conf
+                            .applepay_decrypt_keys
+                            .get_inner()
+                            .apple_pay_ppc
+                            .clone(),
+                            payment_processing_certificate_key: state
+                            .conf
+                            .applepay_decrypt_keys
+                            .get_inner()
+                            .apple_pay_ppc_key
+                            .clone(),
+                         })
                     }
-                    api_models::payments::ApplePayCombinedMetadata::Manual { .. } => {
-                        enums::ApplePayFlow::Manual
+                    api_models::payments::ApplePayCombinedMetadata::Manual { payment_request_data: _, session_token_data } => {
+                        if let Some(manual_payment_processing_details_at) = session_token_data.payment_processing_details_at {
+                            match manual_payment_processing_details_at {
+                                payments_api::PaymentProcessingDetailsAt::Hyperswitch(payment_processing_details) => domain::ApplePayFlow::Simplified(payment_processing_details),
+                                payments_api::PaymentProcessingDetailsAt::Connector => domain::ApplePayFlow::Manual,
+                            }
+                        } else {
+                            domain::ApplePayFlow::Manual
+                        }
                     }
                 },
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => {
-                    enums::ApplePayFlow::Manual
+                    domain::ApplePayFlow::Manual
                 }
             })
         })
@@ -2175,23 +2202,21 @@ async fn decide_payment_method_tokenize_action(
     payment_method: &storage::enums::PaymentMethod,
     pm_parent_token: Option<&String>,
     is_connector_tokenization_enabled: bool,
-    apple_pay_flow: Option<enums::ApplePayFlow>,
+    apple_pay_flow: Option<domain::ApplePayFlow>,
 ) -> RouterResult<TokenizationAction> {
-    let is_apple_pay_predecrypt_supported =
-        matches!(apple_pay_flow, Some(enums::ApplePayFlow::Simplified));
-
     match pm_parent_token {
-        None => {
-            if is_connector_tokenization_enabled && is_apple_pay_predecrypt_supported {
-                Ok(TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt)
-            } else if is_connector_tokenization_enabled {
-                Ok(TokenizationAction::TokenizeInConnectorAndRouter)
-            } else if is_apple_pay_predecrypt_supported {
-                Ok(TokenizationAction::DecryptApplePayToken)
-            } else {
-                Ok(TokenizationAction::TokenizeInRouter)
+        None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
+            (true, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
+                TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+                    payment_processing_details,
+                )
             }
-        }
+            (true, _) => TokenizationAction::TokenizeInConnectorAndRouter,
+            (false, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
+                TokenizationAction::DecryptApplePayToken(payment_processing_details)
+            }
+            (false, _) => TokenizationAction::TokenizeInRouter,
+        }),
         Some(token) => {
             let redis_conn = state
                 .store
@@ -2214,17 +2239,18 @@ async fn decide_payment_method_tokenize_action(
 
             match connector_token_option {
                 Some(connector_token) => Ok(TokenizationAction::ConnectorToken(connector_token)),
-                None => {
-                    if is_connector_tokenization_enabled && is_apple_pay_predecrypt_supported {
-                        Ok(TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt)
-                    } else if is_connector_tokenization_enabled {
-                        Ok(TokenizationAction::TokenizeInConnectorAndRouter)
-                    } else if is_apple_pay_predecrypt_supported {
-                        Ok(TokenizationAction::DecryptApplePayToken)
-                    } else {
-                        Ok(TokenizationAction::TokenizeInRouter)
+                None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
+                    (true, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
+                        TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+                            payment_processing_details,
+                        )
                     }
-                }
+                    (true, _) => TokenizationAction::TokenizeInConnectorAndRouter,
+                    (false, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
+                        TokenizationAction::DecryptApplePayToken(payment_processing_details)
+                    }
+                    (false, _) => TokenizationAction::TokenizeInRouter,
+                }),
             }
         }
     }
@@ -2237,8 +2263,8 @@ pub enum TokenizationAction {
     TokenizeInConnectorAndRouter,
     ConnectorToken(String),
     SkipConnectorTokenization,
-    DecryptApplePayToken,
-    TokenizeInConnectorAndApplepayPreDecrypt,
+    DecryptApplePayToken(payments_api::PaymentProcessingDetails),
+    TokenizeInConnectorAndApplepayPreDecrypt(payments_api::PaymentProcessingDetails),
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2279,7 +2305,7 @@ where
             let payment_method_type = &payment_data.payment_attempt.payment_method_type;
 
             let apple_pay_flow =
-                decide_apple_pay_flow(payment_method_type, Some(merchant_connector_account));
+                decide_apple_pay_flow(state, payment_method_type, Some(merchant_connector_account));
 
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
@@ -2348,12 +2374,14 @@ where
                 TokenizationAction::SkipConnectorTokenization => {
                     TokenizationAction::SkipConnectorTokenization
                 }
-                TokenizationAction::DecryptApplePayToken => {
-                    TokenizationAction::DecryptApplePayToken
+                TokenizationAction::DecryptApplePayToken(payment_processing_details) => {
+                    TokenizationAction::DecryptApplePayToken(payment_processing_details)
                 }
-                TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
-                    TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt
-                }
+                TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+                    payment_processing_details,
+                ) => TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+                    payment_processing_details,
+                ),
             };
             (payment_data.to_owned(), connector_tokenization_action)
         }
