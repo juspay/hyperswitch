@@ -208,7 +208,10 @@ pub fn generate_newman_command_for_connector() -> ReturnArgs {
     if let Some(auth_type) = inner_map.get(connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
-                newman_command.args(["--env-var", &format!("email={}", api_key.peek())]);
+                newman_command.args([
+                    "--env-var",
+                    &format!("connector_api_key={}", api_key.peek()),
+                ]);
             }
             ConnectorAuthType::BodyKey { api_key, key1 } => {
                 newman_command.args([
