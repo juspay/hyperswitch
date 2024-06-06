@@ -1,12 +1,12 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
 use common_utils::errors::CustomResult;
-use data_models::{
+use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::{
     errors::StorageError,
     payments::payment_attempt::{
         PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
     },
 };
-use diesel_models::enums as storage_enums;
 
 use super::MockDb;
 use crate::DataModelExt;
@@ -26,11 +26,13 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn get_filters_for_payments(
         &self,
-        _pi: &[data_models::payments::PaymentIntent],
+        _pi: &[hyperswitch_domain_models::payments::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<data_models::payments::payment_attempt::PaymentListFilters, StorageError>
-    {
+    ) -> CustomResult<
+        hyperswitch_domain_models::payments::payment_attempt::PaymentListFilters,
+        StorageError,
+    > {
         Err(StorageError::MockDbError)?
     }
 
@@ -155,6 +157,9 @@ impl PaymentAttemptInterface for MockDb {
             mandate_data: payment_attempt.mandate_data,
             payment_method_billing_address_id: payment_attempt.payment_method_billing_address_id,
             fingerprint_id: payment_attempt.fingerprint_id,
+            charge_id: payment_attempt.charge_id,
+            client_source: payment_attempt.client_source,
+            client_version: payment_attempt.client_version,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

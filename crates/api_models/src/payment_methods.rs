@@ -4,8 +4,8 @@ use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
-    pii,
-    types::{Percentage, Surcharge},
+    id_type, pii,
+    types::{MinorUnit, Percentage, Surcharge},
 };
 use serde::de;
 use utoipa::{schema, ToSchema};
@@ -49,8 +49,8 @@ pub struct PaymentMethodCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
 
     /// The card network
     #[schema(example = "Visa")]
@@ -87,24 +87,6 @@ pub struct PaymentMethodUpdate {
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetailUpdate>,
-
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<CardNetwork>,example = "Visa")]
-    pub card_network: Option<api_enums::CardNetwork>,
-
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
-    pub bank_transfer: Option<payouts::Bank>,
-
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Wallet>)]
-    pub wallet: Option<payouts::Wallet>,
-
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
@@ -212,8 +194,8 @@ pub struct PaymentMethodResponse {
     pub merchant_id: String,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
 
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
@@ -379,7 +361,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_isin: item.card_isin,
             card_extended_bin: item
                 .card_number
-                .map(|card_number| card_number.get_card_extended_bin()),
+                .map(|card_number| card_number.get_extended_card_bin()),
             card_exp_month: item.expiry_month,
             card_exp_year: item.expiry_year,
             card_holder_name: item.card_holder_name,
@@ -510,7 +492,7 @@ pub struct SurchargeDetailsResponse {
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum SurchargeResponse {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(SurchargePercentage),
 }
@@ -537,7 +519,7 @@ impl From<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>> for SurchargePercen
     }
 }
 /// Required fields info used while listing the payment_method_data
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema, Hash)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 pub struct RequiredFieldInfo {
     /// Required field for a payment_method through a payment_method_type
     pub required_field: String,
@@ -549,7 +531,8 @@ pub struct RequiredFieldInfo {
     #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
 
-    pub value: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub value: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -656,7 +639,7 @@ pub struct PaymentMethodListRequest {
 
     /// Filter by amount
     #[schema(example = 60)]
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
@@ -808,6 +791,10 @@ pub struct PaymentMethodListResponse {
 
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
+
+    /// flag to indicate whether to perform external 3ds authentication
+    #[schema(example = true)]
+    pub request_external_three_ds_authentication: bool,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
@@ -863,8 +850,8 @@ pub struct CustomerDefaultPaymentMethodResponse {
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub default_payment_method_id: Option<String>,
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: id_type::CustomerId,
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
@@ -883,8 +870,8 @@ pub struct CustomerPaymentMethod {
     pub payment_method_id: String,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: id_type::CustomerId,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -951,6 +938,10 @@ pub struct CustomerPaymentMethod {
     /// Indicates if the payment method has been set to default or not
     #[schema(example = true)]
     pub default_payment_method_set: bool,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -965,7 +956,8 @@ pub struct PaymentMethodId {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct DefaultPaymentMethod {
-    pub customer_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: id_type::CustomerId,
     pub payment_method_id: String,
 }
 //------------------------------------------------TokenizeService------------------------------------------------
@@ -1047,7 +1039,7 @@ pub struct TokenizedCardValue2 {
     pub card_security_code: Option<String>,
     pub card_fingerprint: Option<String>,
     pub external_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_id: Option<String>,
 }
 
@@ -1058,7 +1050,7 @@ pub struct TokenizedWalletValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue2 {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1068,7 +1060,7 @@ pub struct TokenizedBankTransferValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankTransferValue2 {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1078,5 +1070,5 @@ pub struct TokenizedBankRedirectValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectValue2 {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }

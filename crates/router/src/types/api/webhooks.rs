@@ -1,7 +1,7 @@
 use api_models::admin::MerchantConnectorWebhookDetails;
 pub use api_models::webhooks::{
-    IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
-    OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
+    AuthenticationIdType, IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig,
+    ObjectReferenceId, OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
@@ -146,7 +146,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn verify_webhook_source_verification_call(
         &self,
-        state: &crate::routes::AppState,
+        state: &crate::routes::SessionState,
         merchant_account: &domain::MerchantAccount,
         merchant_connector_account: domain::MerchantConnectorAccount,
         connector_name: &str,

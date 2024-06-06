@@ -308,7 +308,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         | domain::WalletData::WeChatPayRedirect(_)
                         | domain::WalletData::WeChatPayQr(_)
                         | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_) => {
+                        | domain::WalletData::SwishQr(_)
+                        | domain::WalletData::Mifinity(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                             ))
@@ -373,11 +374,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             .get_setup_mandate_details()
             .map(|mandate_data| {
                 let max_amount = match &mandate_data.mandate_type {
-                    Some(data_models::mandates::MandateDataType::SingleUse(mandate))
-                    | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
-                        conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
-                    }
-                    Some(data_models::mandates::MandateDataType::MultiUse(None)) => {
+                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
+                        mandate,
+                    ))
+                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
+                        mandate,
+                    ))) => conn_utils::to_currency_base_unit(
+                        mandate.amount.get_amount_as_i64(),
+                        mandate.currency,
+                    ),
+                    Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:
                                 "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
@@ -594,6 +600,7 @@ impl<F, T>
                         network_txn_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     })
                 }
             },

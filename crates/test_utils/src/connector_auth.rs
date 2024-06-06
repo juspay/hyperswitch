@@ -9,6 +9,8 @@ pub struct ConnectorAuthentication {
     #[cfg(not(feature = "payouts"))]
     pub adyen: Option<BodyKey>,
     #[cfg(feature = "payouts")]
+    pub adyenplatform: Option<HeaderKey>,
+    #[cfg(feature = "payouts")]
     pub adyen: Option<SignatureKey>,
     #[cfg(not(feature = "payouts"))]
     pub adyen_uk: Option<BodyKey>,
@@ -36,8 +38,10 @@ pub struct ConnectorAuthentication {
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
     pub gocardless: Option<HeaderKey>,
+    pub gpayments: Option<HeaderKey>,
     pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
+    pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
     pub netcetera: Option<HeaderKey>,
@@ -49,6 +53,7 @@ pub struct ConnectorAuthentication {
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
     pub payme: Option<BodyKey>,
+    pub payone: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub placetopay: Option<BodyKey>,

@@ -1,3 +1,4 @@
+# Bank redirect configs for allowed banks
 [bank_config]
 eps.adyen.banks = "bank_austria,bawag_psk_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_tirol_bank_ag,posojilnica_bank_e_gen,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag"
 eps.stripe.banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau"
@@ -14,12 +15,17 @@ przelewy24.stripe.banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_peka
 
 [connector_customer]
 connector_list = "stax,stripe,gocardless"
-payout_connector_list = "wise"
+payout_connector_list = "stripe,wise"
 
+# Connector configuration, provided attributes will be used to fulfill API requests.
+# Examples provided here are sandbox/test base urls, can be replaced by live or mock
+# base urls based on your need.
+# Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://{{merchant_endpoint_prefix}}-checkout-live.adyenpayments.com/checkout/"
 adyen.secondary_base_url = "https://{{merchant_endpoint_prefix}}-pal-live.adyenpayments.com/"
+adyenplatform.base_url = "https://balanceplatform-api-live.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://api.authorize.net/xml/v1/request.api"
@@ -46,9 +52,11 @@ forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api.gocardless.com"
+gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api-na.playground.klarna.com/"
+klarna.base_url = "https://api{{klarna_region}}.klarna.com/"
+mifinity.base_url = "https://secure.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
@@ -61,6 +69,7 @@ opayo.base_url = "https://pi-live.sagepay.com/"
 opennode.base_url = "https://api.opennode.com"
 payeezy.base_url = "https://api.payeezy.com/"
 payme.base_url = "https://live.payme.io/"
+payone.base_url = "https://payment.payone.com/"
 paypal.base_url = "https://api-m.paypal.com/"
 payu.base_url = "https://secure.payu.com/api/"
 placetopay.base_url = "https://checkout.placetopay.com/rest/gateway"
@@ -84,59 +93,66 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 zen.base_url = "https://api.zen.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
-zsl.base_url = "https://api.sitoffalb.net/"
+zsl.base_url = "https://api.prodoffalb.net/"
 threedsecureio.base_url = "https://service.3dsecure.io"
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay,payme"
+connectors_with_delayed_session_response = "trustpay,payme"       # List of connectors which have delayed session response
 
 [dummy_connector]
-assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
-authorize_ttl = 36000
-default_return_url = "https://app.hyperswitch.io/"
-discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
-enabled = false
-payment_complete_duration = 500
-payment_complete_tolerance = 100
-payment_duration = 1000
-payment_retrieve_duration = 500
-payment_retrieve_tolerance = 100
-payment_tolerance = 100
-payment_ttl = 172800
-refund_duration = 1000
-refund_retrieve_duration = 500
-refund_retrieve_tolerance = 100
-refund_tolerance = 100
-refund_ttl = 172800
-slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"
+enabled = false                                                         # Whether dummy connector is enabled or not
+assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"    # Base url for dummy connector assets
+authorize_ttl = 36000                                                   # Time to live for dummy connector authorize request in redis
+default_return_url = "https://app.hyperswitch.io/"                      # Default return url when no return url is passed while payment
+discord_invite_url = "https://discord.gg/wJZ7DVW8mm"                    # Discord invite url for hyperswitch
+payment_complete_duration = 500                                         # Fake delay duration for dummy connector payment complete
+payment_complete_tolerance = 100                                        # Fake delay tolerance for dummy connector payment complete
+payment_duration = 1000                                                 # Fake delay duration for dummy connector payment
+payment_retrieve_duration = 500                                         # Fake delay duration for dummy connector payment sync
+payment_retrieve_tolerance = 100                                        # Fake delay tolerance for dummy connector payment sync
+payment_tolerance = 100                                                 # Fake delay tolerance for dummy connector payment
+payment_ttl = 172800                                                    # Time to live for dummy connector payment in redis
+refund_duration = 1000                                                  # Fake delay duration for dummy connector refund
+refund_retrieve_duration = 500                                          # Fake delay duration for dummy connector refund sync
+refund_retrieve_tolerance = 100                                         # Fake delay tolerance for dummy connector refund sync
+refund_tolerance = 100                                                  # Fake delay tolerance for dummy connector refund
+refund_ttl = 172800                                                     # Time to live for dummy connector refund in redis
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"    # Slack invite url for hyperswitch
+
+[user]
+password_validity_in_days = 90
+two_factor_auth_expiry_in_secs = 300
+totp_issuer_name = "Hyperswitch Production"
 
 [frm]
 enabled = false
 
 [mandates.supported_payment_methods]
-bank_debit.ach.connector_list = "gocardless"
-bank_debit.becs.connector_list = "gocardless"
-bank_debit.sepa.connector_list = "gocardless"
-card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"
-card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"
-pay_later.klarna.connector_list = "adyen"
-wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica"
-wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica"
-wallet.paypal.connector_list = "adyen"
-bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay"
-bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"
-bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"
+bank_debit.ach.connector_list = "gocardless"                    # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs.connector_list = "gocardless"                   # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa.connector_list = "gocardless"                   # Mandate supported payment method type and connector for bank_debit
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"     # Mandate supported payment method type and connector for card
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"      # Mandate supported payment method type and connector for card
+pay_later.klarna.connector_list = "adyen"                       # Mandate supported payment method type and connector for pay_later
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica"         # Mandate supported payment method type and connector for wallets
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica"             # Mandate supported payment method type and connector for wallets
+wallet.paypal.connector_list = "adyen"                          # Mandate supported payment method type and connector for wallets
+bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay"   # Mandate supported payment method type and connector for bank_redirect
+bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  # Mandate supported payment method type and connector for bank_redirect
+bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"        # Mandate supported payment method type and connector for bank_redirect
 
 [mandates.update_mandate_supported]
-card.credit ={connector_list ="cybersource"}
-card.debit = {connector_list ="cybersource"}
+card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
+card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
 
 [payouts]
-payout_eligibility = true
+payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
 
+#Payment Method Filters Based on Country and Currency
 [pm_filters.default]
 ach = { country = "US", currency = "USD" }
 affirm = { country = "US", currency = "USD" }
@@ -168,7 +184,7 @@ we_chat_pay = { country = "AU,NZ,CN,JP,HK,SG,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK
 [pm_filters.adyen]
 ach = { country = "US", currency = "USD" }
 affirm = { country = "US", currency = "USD" }
-afterpay_clearpay = { country = "AU,CA,ES,FR,IT,NZ,GB,US", currency = "USD,AUD,CAD,NZD,GBP" }
+afterpay_clearpay = { country = "AU,CA,NZ,GB,US", currency = "USD,AUD,CAD,NZD,GBP" }
 alfamart = { country = "ID", currency = "IDR" }
 ali_pay = { country = "AU,JP,HK,SG,MY,TH,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,FI,RO,MT,SI,GR,PT,IE,IT,CA,US", currency = "USD,EUR,GBP,JPY,AUD,SGD,CHF,SEK,NOK,NZD,THB,HKD,CAD" }
 ali_pay_hk = { country = "HK", currency = "HKD" }
@@ -233,6 +249,13 @@ google_pay.currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"
 paypal.currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"
 
 [pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
+
+
+[pm_filters.cybersource]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
@@ -304,6 +327,7 @@ cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
 payme.payment_method = "card"
 
+#tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 braintree = { long_lived_token = false, payment_method = "card" }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
@@ -319,7 +343,10 @@ billwerk = {long_lived_token = false, payment_method = "card"}
 outgoing_enabled = true
 
 [webhook_source_verification_call]
-connectors_with_webhook_source_verification_call = "paypal"
+connectors_with_webhook_source_verification_call = "paypal"     # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
 keys = "user-agent"
+
+[saved_payment_methods]
+sdk_eligible_payment_methods = "card"

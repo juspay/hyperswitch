@@ -1,5 +1,6 @@
 pub mod aci;
 pub mod adyen;
+pub mod adyenplatform;
 pub mod airwallex;
 pub mod authorizedotnet;
 pub mod bambora;
@@ -23,9 +24,11 @@ pub mod forte;
 pub mod globalpay;
 pub mod globepay;
 pub mod gocardless;
+pub mod gpayments;
 pub mod helcim;
 pub mod iatapay;
 pub mod klarna;
+pub mod mifinity;
 pub mod mollie;
 pub mod multisafepay;
 pub mod netcetera;
@@ -37,6 +40,7 @@ pub mod opayo;
 pub mod opennode;
 pub mod payeezy;
 pub mod payme;
+pub mod payone;
 pub mod paypal;
 pub mod payu;
 pub mod placetopay;
@@ -63,14 +67,15 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
-    bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
-    checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource,
-    dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
-    globepay::Globepay, gocardless::Gocardless, helcim::Helcim, iatapay::Iatapay, klarna::Klarna,
-    mollie::Mollie, multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi,
-    noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme,
+    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    authorizedotnet::Authorizedotnet, bambora::Bambora, bankofamerica::Bankofamerica,
+    billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
+    cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay,
+    cybersource::Cybersource, dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte,
+    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
+    helcim::Helcim, iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
+    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone,
     paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
     square::Square, stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,

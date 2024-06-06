@@ -6,14 +6,20 @@ pub use api_models::payments::{
     PaymentListFilters, PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2,
     PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
-    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
-    PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+    PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest,
+    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
+    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
+    RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest, VerifyResponse,
+    WalletData,
 };
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_flow_types::payments::{
+    Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
+    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
+    PreProcessing, Reject, Session, SetupMandate, Void,
+};
 
 use crate::{
     core::errors,
@@ -21,70 +27,7 @@ use crate::{
     types::{self, api as api_types},
 };
 
-pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTransactionType>;
-}
-
-impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTransactionType> {
-        match (&self.mandate_data, &self.mandate_id) {
-            (None, None) => None,
-            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
-            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
-        }
-    }
-}
-
 impl super::Router for PaymentsRequest {}
-
-// Core related api layer.
-#[derive(Debug, Clone)]
-pub struct Authorize;
-
-#[derive(Debug, Clone)]
-pub struct AuthorizeSessionToken;
-
-#[derive(Debug, Clone)]
-pub struct CompleteAuthorize;
-
-#[derive(Debug, Clone)]
-pub struct Approve;
-
-// Used in gift cards balance check
-#[derive(Debug, Clone)]
-pub struct Balance;
-
-#[derive(Debug, Clone)]
-pub struct InitPayment;
-
-#[derive(Debug, Clone)]
-pub struct Capture;
-
-#[derive(Debug, Clone)]
-pub struct PSync;
-#[derive(Debug, Clone)]
-pub struct Void;
-
-#[derive(Debug, Clone)]
-pub struct Reject;
-
-#[derive(Debug, Clone)]
-pub struct Session;
-
-#[derive(Debug, Clone)]
-pub struct PaymentMethodToken;
-
-#[derive(Debug, Clone)]
-pub struct CreateConnectorCustomer;
-
-#[derive(Debug, Clone)]
-pub struct SetupMandate;
-
-#[derive(Debug, Clone)]
-pub struct PreProcessing;
-
-#[derive(Debug, Clone)]
-pub struct IncrementalAuthorization;
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
@@ -131,6 +74,15 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 
 pub trait PaymentAuthorize:
     api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentAuthorizeSessionToken:
+    api::ConnectorIntegration<
+    AuthorizeSessionToken,
+    types::AuthorizeSessionTokenData,
+    types::PaymentsResponseData,
+>
 {
 }
 
@@ -218,6 +170,7 @@ pub trait Payment:
     api_types::ConnectorCommon
     + api_types::ConnectorValidation
     + PaymentAuthorize
+    + PaymentAuthorizeSessionToken
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
@@ -259,9 +212,9 @@ mod payments_test {
     #[allow(dead_code)]
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
-            amount: Some(Amount::from(200)),
+            amount: Some(Amount::from(common_utils::types::MinorUnit::new(200))),
             payment_method_data: Some(PaymentMethodDataRequest {
-                payment_method_data: PaymentMethodData::Card(card()),
+                payment_method_data: Some(PaymentMethodData::Card(card())),
                 billing: None,
             }),
             ..PaymentsRequest::default()

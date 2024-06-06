@@ -25,6 +25,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse,
     },
     utils::BytesExt,
@@ -215,10 +216,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
+        app_state: &routes::SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        if router_data.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
-            && router_data.payment_method == diesel_models::enums::PaymentMethod::Card
+        if router_data.auth_type == enums::AuthenticationType::ThreeDs
+            && router_data.payment_method == enums::PaymentMethod::Card
         {
             let integ: Box<
                 &(dyn ConnectorIntegration<
@@ -229,7 +230,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                       + Sync
                       + 'static),
             > = Box::new(&Self);
-            let init_data = &types::PaymentsInitRouterData::from((
+            let init_data = &types::PaymentsInitRouterData::foreign_from((
                 &router_data.to_owned(),
                 router_data.request.clone(),
             ));

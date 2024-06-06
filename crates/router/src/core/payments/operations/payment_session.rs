@@ -11,11 +11,10 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -30,20 +29,20 @@ use crate::{
 pub struct PaymentSession;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
+    for PaymentSession
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, Ctx>> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest>> {
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -174,6 +173,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
                 payment_method_billing.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,
             payment_method_data: None,
@@ -197,8 +197,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            frm_metadata: None,
             recurring_details: None,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -214,13 +214,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: PaymentMethodRetrieve>
-    UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        state: &'b AppState,
+        state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
@@ -230,7 +228,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
     )>
     where
@@ -257,16 +255,14 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    ValidateRequest<F, api::PaymentsSessionRequest, Ctx> for PaymentSession
-{
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
@@ -285,13 +281,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<
-        F: Clone + Send,
-        Ctx: PaymentMethodRetrieve,
-        Op: Send + Sync + Operation<F, api::PaymentsSessionRequest, Ctx>,
-    > Domain<F, api::PaymentsSessionRequest, Ctx> for Op
+impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
+    Domain<F, api::PaymentsSessionRequest> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Ctx>,
+    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -303,7 +296,7 @@ where
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsSessionRequest, Ctx>,
+            BoxedOperation<'a, F, api::PaymentsSessionRequest>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -323,13 +316,13 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'b>(
         &'b self,
-        _state: &'b AppState,
+        _state: &'b SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         Option<api::PaymentMethodData>,
         Option<String>,
     )> {
@@ -349,7 +342,7 @@ where
     async fn get_connector<'a>(
         &'a self,
         merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::PaymentIntent,
         key_store: &domain::MerchantKeyStore,
@@ -465,7 +458,7 @@ where
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
@@ -478,6 +471,7 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
         match value {
             api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
+            api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
             _ => Self::Connector,
         }
     }

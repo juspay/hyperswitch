@@ -1,6 +1,6 @@
 use std::{str::FromStr, vec::IntoIter};
 
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use router_env::{
@@ -11,7 +11,6 @@ use router_env::{
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::PaymentMethodRetrieve,
         payments::{
             self,
             flows::{ConstructFlowSpecificData, Feature},
@@ -31,8 +30,8 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
-    state: &app::AppState,
+pub async fn do_gsm_actions<F, ApiRequest, FData>(
+    state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut payments::PaymentData<F>,
     mut connectors: IntoIter<api::ConnectorData>,
@@ -40,21 +39,21 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
-    payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
+    payments::PaymentResponse: operations::Operation<F, FData>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
-    Ctx: PaymentMethodRetrieve,
 {
     let mut retries = None;
 
@@ -97,6 +96,7 @@ where
             schedule_time,
             true,
             frm_suggestion,
+            business_profile,
         )
         .await?;
     }
@@ -142,6 +142,7 @@ where
                         //this is an auto retry payment, but not step-up
                         false,
                         frm_suggestion,
+                        business_profile,
                     )
                     .await?;
 
@@ -149,7 +150,7 @@ where
                 }
                 api_models::gsm::GsmDecision::Requeue => {
                     Err(report!(errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                        message: errors::NotImplementedMessage::Reason(
                             "Requeue not implemented".to_string(),
                         ),
                     }))?
@@ -164,7 +165,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
-    state: &app::AppState,
+    state: &app::SessionState,
     merchant_id: &str,
     connector_name: types::Connector,
 ) -> bool {
@@ -188,7 +189,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 
 #[instrument(skip_all)]
 pub async fn get_retries(
-    state: &app::AppState,
+    state: &app::SessionState,
     retries: Option<i32>,
     merchant_id: &str,
 ) -> Option<i32> {
@@ -218,7 +219,7 @@ pub async fn get_retries(
 
 #[instrument(skip_all)]
 pub async fn get_gsm<F, FData>(
-    state: &app::AppState,
+    state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
@@ -267,11 +268,11 @@ fn get_flow_name<F>() -> RouterResult<String> {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, ApiRequest, FData, Ctx>(
-    state: &routes::AppState,
+pub async fn do_retry<F, ApiRequest, FData>(
+    state: &routes::SessionState,
     req_state: ReqState,
     connector: api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -281,16 +282,16 @@ pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
+    business_profile: &storage::business_profile::BusinessProfile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
-    payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
+    payments::PaymentResponse: operations::Operation<F, FData>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
-    Ctx: PaymentMethodRetrieve,
 {
     metrics::AUTO_RETRY_PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]);
 
@@ -318,13 +319,14 @@ where
         schedule_time,
         api::HeaderPayload::default(),
         frm_suggestion,
+        business_profile,
     )
     .await
 }
 
 #[instrument(skip_all)]
 pub async fn modify_trackers<F, FData>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: String,
     payment_data: &mut payments::PaymentData<F>,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -358,6 +360,7 @@ where
             resource_id,
             connector_metadata,
             redirection_data,
+            charge_id,
             ..
         }) => {
             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
@@ -384,7 +387,7 @@ where
                         .connector_response_reference_id
                         .clone(),
                     authentication_type: None,
-                    payment_method_id: router_data.payment_method_id,
+                    payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
                     mandate_id: payment_data
                         .mandate_id
                         .clone()
@@ -395,7 +398,7 @@ where
                     error_message: None,
                     error_reason: None,
                     amount_capturable: if router_data.status.is_terminal_status() {
-                        Some(0)
+                        Some(MinorUnit::new(0))
                     } else {
                         None
                     },
@@ -405,6 +408,7 @@ where
                     unified_code: None,
                     unified_message: None,
                     payment_method_data: additional_payment_method_data,
+                    charge_id,
                 },
                 storage_scheme,
             )
@@ -426,7 +430,7 @@ where
                     error_message: Some(Some(error_response.message.clone())),
                     status: storage_enums::AttemptStatus::Failure,
                     error_reason: Some(error_response.reason.clone()),
-                    amount_capturable: Some(0),
+                    amount_capturable: Some(MinorUnit::new(0)),
                     updated_by: storage_scheme.to_string(),
                     unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
@@ -506,7 +510,8 @@ pub fn make_new_payment_attempt(
         mandate_id: old_payment_attempt.mandate_id,
         browser_info: old_payment_attempt.browser_info,
         payment_token: old_payment_attempt.payment_token,
-
+        client_source: old_payment_attempt.client_source,
+        client_version: old_payment_attempt.client_version,
         created_at,
         modified_at,
         last_synced,

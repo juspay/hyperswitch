@@ -12,7 +12,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, domain, storage::enums},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -21,23 +21,11 @@ pub struct MultisafepayRouterData<T> {
     router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for MultisafepayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MultisafepayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -512,7 +500,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
@@ -573,14 +562,11 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             }),
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {
-                billing_email: _,
-                billing_country: _,
-            }) => Some(Gateway::Klarna),
             domain::PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
                 domain::BankRedirectData::Giropay { .. } => Gateway::Giropay,
                 domain::BankRedirectData::Ideal { .. } => Gateway::Ideal,
@@ -604,6 +590,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     ))?
                 }
             }),
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {}) => {
+                Some(Gateway::Klarna)
+            },
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -727,22 +716,20 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
             domain::PaymentMethodData::PayLater(ref paylater) => {
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
-                        domain::PayLaterData::KlarnaRedirect { billing_email, .. } => {
-                            billing_email.clone()
+                        domain::PayLaterData::KlarnaRedirect {} => {
+                            item.router_data.get_billing_email()?
                         }
                         domain::PayLaterData::KlarnaSdk { token: _ }
                         | domain::PayLaterData::AffirmRedirect {}
-                        | domain::PayLaterData::AfterpayClearpayRedirect {
-                            billing_email: _,
-                            billing_name: _,
-                        }
+                        | domain::PayLaterData::AfterpayClearpayRedirect {}
                         | domain::PayLaterData::PayBrightRedirect {}
                         | domain::PayLaterData::WalleyRedirect {}
                         | domain::PayLaterData::AlmaRedirect {}
@@ -959,14 +946,13 @@ impl<F, T>
                     MultisafepayPaymentStatus::Declined
                 };
 
-                let status = enums::AttemptStatus::from(
-                    payment_response.data.status.unwrap_or(default_status),
-                );
+                let status =
+                    AttemptStatus::from(payment_response.data.status.unwrap_or(default_status));
 
                 Ok(Self {
                     status,
                     response: if utils::is_payment_failure(status) {
-                        Err(types::ErrorResponse::from((
+                        Err(types::ErrorResponse::foreign_from((
                             payment_response.data.reason_code,
                             payment_response.data.reason.clone(),
                             payment_response.data.reason,
@@ -994,6 +980,7 @@ impl<F, T>
                                 payment_response.data.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         })
                     },
                     ..item.data
@@ -1002,7 +989,7 @@ impl<F, T>
             MultisafepayAuthResponse::ErrorResponse(error_response) => {
                 let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
                 Ok(Self {
-                    response: Err(types::ErrorResponse::from((
+                    response: Err(types::ErrorResponse::foreign_from((
                         Some(error_response.error_code.to_string()),
                         Some(error_response.error_info.clone()),
                         Some(error_response.error_info),
@@ -1152,7 +1139,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
                 })
             }
             MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse::from((
+                response: Err(types::ErrorResponse::foreign_from((
                     Some(error_response.error_code.to_string()),
                     Some(error_response.error_info.clone()),
                     Some(error_response.error_info),

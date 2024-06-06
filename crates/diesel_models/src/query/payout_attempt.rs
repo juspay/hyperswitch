@@ -11,7 +11,7 @@ use error_stack::{report, ResultExt};
 use super::generics;
 use crate::{
     enums,
-    errors::{self, DatabaseError},
+    errors::DatabaseError,
     payout_attempt::{
         PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate, PayoutAttemptUpdateInternal,
     },
@@ -46,7 +46,7 @@ impl PayoutAttempt {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
             result => result,
@@ -81,6 +81,20 @@ impl PayoutAttempt {
         .await
     }
 
+    pub async fn find_by_merchant_id_connector_payout_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        connector_payout_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::connector_payout_id.eq(connector_payout_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -98,7 +112,7 @@ impl PayoutAttempt {
         .first()
         .cloned()
         .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
+            report!(DatabaseError::NotFound).attach_printable("Error while updating payout")
         })
     }
 
@@ -119,7 +133,7 @@ impl PayoutAttempt {
         .first()
         .cloned()
         .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
+            report!(DatabaseError::NotFound).attach_printable("Error while updating payout")
         })
     }
 
@@ -161,7 +175,7 @@ impl PayoutAttempt {
             .distinct()
             .get_results_async::<Option<String>>(conn)
             .await
-            .change_context(errors::DatabaseError::Others)
+            .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
             .into_iter()
             .flatten()

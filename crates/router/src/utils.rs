@@ -1,7 +1,6 @@
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
-pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
 #[cfg(feature = "kv_store")]
@@ -17,14 +16,15 @@ use std::fmt::Debug;
 
 use api_models::{enums, payments, webhooks};
 use base64::Engine;
+use common_utils::id_type;
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
     validation::validate_email,
 };
-use data_models::payments::PaymentIntent;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::PaymentIntent;
 use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
@@ -99,7 +99,7 @@ pub mod error_parser {
     }
 
     pub fn custom_json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> Error {
-        actix_web::error::Error::from(CustomJsonError { err })
+        Error::from(CustomJsonError { err })
     }
 }
 
@@ -160,7 +160,6 @@ impl<E> ConnectorResponseExt
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
 }
-
 #[derive(Debug)]
 pub struct QrImage {
     pub data: String,
@@ -185,7 +184,7 @@ impl QrImage {
         let image_data_source = format!(
             "{},{}",
             consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes.get_ref().get_ref())
+            consts::BASE64_ENGINE.encode(image_bytes.buffer())
         );
         Ok(Self {
             data: image_data_source,
@@ -416,6 +415,60 @@ pub async fn get_mca_from_payment_intent(
     }
 }
 
+#[cfg(feature = "payouts")]
+pub async fn get_mca_from_payout_attempt(
+    db: &dyn StorageInterface,
+    merchant_account: &domain::MerchantAccount,
+    payout_id_type: webhooks::PayoutIdType,
+    connector_name: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let payout = match payout_id_type {
+        webhooks::PayoutIdType::PayoutAttemptId(payout_attempt_id) => db
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                &merchant_account.merchant_id,
+                &payout_attempt_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
+        webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id) => db
+            .find_payout_attempt_by_merchant_id_connector_payout_id(
+                &merchant_account.merchant_id,
+                &connector_payout_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
+    };
+
+    match payout.merchant_connector_id {
+        Some(merchant_connector_id) => db
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &merchant_account.merchant_id,
+                &merchant_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id,
+            }),
+        None => db
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                &payout.profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: format!(
+                    "profile_id {} and connector_name {}",
+                    payout.profile_id, connector_name
+                ),
+            }),
+    }
+}
+
 pub async fn get_mca_from_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -478,6 +531,17 @@ pub async fn get_mca_from_object_reference_id(
                     db,
                     authentication_id_type,
                     merchant_account,
+                    key_store,
+                )
+                .await
+            }
+            #[cfg(feature = "payouts")]
+            webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
+                get_mca_from_payout_attempt(
+                    db,
+                    merchant_account,
+                    payout_id_type,
+                    connector_name,
                     key_store,
                 )
                 .await
@@ -565,26 +629,26 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
 pub trait CustomerAddress {
     async fn get_address_update(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
+    ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
 }
 
 #[async_trait::async_trait]
 impl CustomerAddress for api_models::customers::CustomerRequest {
     async fn get_address_update(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
@@ -640,14 +704,14 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 
     async fn get_domain_address(
         &self,
-        address_details: api_models::payments::AddressDetails,
+        address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+    ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
         async {
-            Ok(domain::Address {
+            let address = domain::Address {
                 id: None,
                 city: address_details.city,
                 country: address_details.country,
@@ -685,10 +749,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
-                payment_id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 updated_by: storage_scheme.to_string(),
@@ -698,6 +760,11 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .cloned()
                     .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
                     .await?,
+            };
+
+            Ok(domain::CustomerAddress {
+                address,
+                customer_id: customer_id.to_owned(),
             })
         }
         .await
@@ -705,13 +772,13 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 }
 
 pub fn add_apple_pay_flow_metrics(
-    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    apple_pay_flow: &Option<domain::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
-            enums::ApplePayFlow::Simplified => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
+            domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
                 &metrics::CONTEXT,
                 1,
                 &[
@@ -722,7 +789,7 @@ pub fn add_apple_pay_flow_metrics(
                     metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
                 ],
             ),
-            enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+            domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 &metrics::CONTEXT,
                 1,
                 &[
@@ -739,14 +806,14 @@ pub fn add_apple_pay_flow_metrics(
 
 pub fn add_apple_pay_payment_status_metrics(
     payment_attempt_status: enums::AttemptStatus,
-    apple_pay_flow: Option<enums::ApplePayFlow>,
+    apple_pay_flow: Option<domain::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                enums::ApplePayFlow::Simplified => {
+                domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
@@ -759,7 +826,7 @@ pub fn add_apple_pay_payment_status_metrics(
                         ],
                     )
                 }
-                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
+                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
                         &metrics::CONTEXT,
                         1,
@@ -776,7 +843,7 @@ pub fn add_apple_pay_payment_status_metrics(
     } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                enums::ApplePayFlow::Simplified => {
+                domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
@@ -789,7 +856,7 @@ pub fn add_apple_pay_payment_status_metrics(
                         ],
                     )
                 }
-                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
                     &metrics::CONTEXT,
                     1,
                     &[
@@ -824,7 +891,7 @@ pub async fn trigger_payments_webhook<F, Op>(
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     customer: Option<domain::Customer>,
-    state: &crate::routes::AppState,
+    state: &crate::routes::SessionState,
     operation: Op,
 ) -> RouterResult<()>
 where
@@ -849,13 +916,14 @@ where
         enums::IntentStatus::Succeeded
             | enums::IntentStatus::Failed
             | enums::IntentStatus::PartiallyCaptured
+            | enums::IntentStatus::RequiresMerchantAction
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
             customer,
             services::AuthFlow::Merchant,
-            &state.conf.server,
+            &state.base_url,
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,

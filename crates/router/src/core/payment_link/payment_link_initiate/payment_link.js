@@ -417,11 +417,10 @@ function initializeSDK() {
       ? "accordion"
       : paymentDetails.sdk_layout;
 
-  var enabledSavedPaymentMethod = paymentDetails.enabledSavedPaymentMethod;
-
+  var enableSavedPaymentMethod = paymentDetails.enabled_saved_payment_method;
   var unifiedCheckoutOptions = {
-    displaySavedPaymentMethodsCheckbox: enabledSavedPaymentMethod,
-    displaySavedPaymentMethods: enabledSavedPaymentMethod,
+    displaySavedPaymentMethodsCheckbox: enableSavedPaymentMethod,
+    displaySavedPaymentMethods: enableSavedPaymentMethod,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",

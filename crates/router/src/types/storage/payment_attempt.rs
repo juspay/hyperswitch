@@ -1,8 +1,9 @@
-pub use data_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
-};
+use common_utils::types::MinorUnit;
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
+};
 
 use crate::{
     core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
@@ -10,19 +11,19 @@ use crate::{
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,
-        capture_amount: i64,
+        capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
-    fn get_total_amount(&self) -> i64;
+    fn get_total_amount(&self) -> MinorUnit;
     fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails>;
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
     fn make_new_capture(
         &self,
-        capture_amount: i64,
+        capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
     ) -> RouterResult<CaptureNew> {
         let capture_sequence = self.multiple_capture_count.unwrap_or_default() + 1;
@@ -66,8 +67,10 @@ impl PaymentAttemptExt for PaymentAttempt {
             }
         })
     }
-    fn get_total_amount(&self) -> i64 {
-        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    fn get_total_amount(&self) -> MinorUnit {
+        self.amount
+            + self.surcharge_amount.unwrap_or_default()
+            + self.tax_amount.unwrap_or_default()
     }
 }
 
@@ -121,8 +124,11 @@ mod tests {
             ..PaymentAttemptNew::default()
         };
 
-        let response = state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .unwrap();
+        let response = store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
@@ -162,14 +168,16 @@ mod tests {
             attempt_id: attempt_id.clone(),
             ..PaymentAttemptNew::default()
         };
-        state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .unwrap();
+        store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
-        let response = state
-            .store
+        let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_id,
                 &merchant_id,
@@ -215,14 +223,16 @@ mod tests {
             attempt_id: uuid.clone(),
             ..PaymentAttemptNew::default()
         };
-        state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .unwrap();
+        store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
-        let response = state
-            .store
+        let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &uuid,
                 "1",

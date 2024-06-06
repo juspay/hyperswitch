@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, str::FromStr, vec::IntoIter};
 
-use api_models::payouts::PayoutCreateRequest;
 use error_stack::{report, ResultExt};
 use router_env::{
     logger,
@@ -29,14 +28,13 @@ pub enum PayoutRetryType {
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_multiple_connector_actions(
-    state: &app::AppState,
+    state: &app::SessionState,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
-    mut payout_data: PayoutData,
+    payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &PayoutCreateRequest,
-) -> RouterResult<PayoutData> {
+) -> RouterResult<()> {
     let mut retries = None;
 
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
@@ -44,7 +42,7 @@ pub async fn do_gsm_multiple_connector_actions(
     let mut connector = original_connector_data;
 
     loop {
-        let gsm = get_gsm(state, &connector, &payout_data).await?;
+        let gsm = get_gsm(state, &connector, payout_data).await?;
 
         match get_gsm_decision(gsm) {
             api_models::gsm::GsmDecision::Retry => {
@@ -70,13 +68,12 @@ pub async fn do_gsm_multiple_connector_actions(
 
                 connector = super::get_next_connector(&mut connectors)?;
 
-                payout_data = Box::pin(do_retry(
+                Box::pin(do_retry(
                     &state.clone(),
                     connector.to_owned(),
                     merchant_account,
                     key_store,
                     payout_data,
-                    req,
                 ))
                 .await?;
 
@@ -84,7 +81,7 @@ pub async fn do_gsm_multiple_connector_actions(
             }
             api_models::gsm::GsmDecision::Requeue => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                    message: errors::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
                 }))?
@@ -92,19 +89,18 @@ pub async fn do_gsm_multiple_connector_actions(
             api_models::gsm::GsmDecision::DoDefault => break,
         }
     }
-    Ok(payout_data)
+    Ok(())
 }
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_single_connector_actions(
-    state: &app::AppState,
+    state: &app::SessionState,
     original_connector_data: api::ConnectorData,
-    mut payout_data: PayoutData,
+    payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &PayoutCreateRequest,
-) -> RouterResult<PayoutData> {
+) -> RouterResult<()> {
     let mut retries = None;
 
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
@@ -112,13 +108,13 @@ pub async fn do_gsm_single_connector_actions(
     let mut previous_gsm = None; // to compare previous status
 
     loop {
-        let gsm = get_gsm(state, &original_connector_data, &payout_data).await?;
+        let gsm = get_gsm(state, &original_connector_data, payout_data).await?;
 
         // if the error config is same as previous, we break out of the loop
         if let Ordering::Equal = gsm.cmp(&previous_gsm) {
             break;
         }
-        previous_gsm = gsm.clone();
+        previous_gsm.clone_from(&gsm);
 
         match get_gsm_decision(gsm) {
             api_models::gsm::GsmDecision::Retry => {
@@ -136,13 +132,12 @@ pub async fn do_gsm_single_connector_actions(
                     break;
                 }
 
-                payout_data = Box::pin(do_retry(
+                Box::pin(do_retry(
                     &state.clone(),
                     original_connector_data.to_owned(),
                     merchant_account,
                     key_store,
                     payout_data,
-                    req,
                 ))
                 .await?;
 
@@ -150,7 +145,7 @@ pub async fn do_gsm_single_connector_actions(
             }
             api_models::gsm::GsmDecision::Requeue => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                    message: errors::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
                 }))?
@@ -158,12 +153,12 @@ pub async fn do_gsm_single_connector_actions(
             api_models::gsm::GsmDecision::DoDefault => break,
         }
     }
-    Ok(payout_data)
+    Ok(())
 }
 
 #[instrument(skip_all)]
 pub async fn get_retries(
-    state: &app::AppState,
+    state: &app::SessionState,
     retries: Option<i32>,
     merchant_id: &str,
     retry_type: PayoutRetryType,
@@ -201,7 +196,7 @@ pub async fn get_retries(
 
 #[instrument(skip_all)]
 pub async fn get_gsm(
-    state: &app::AppState,
+    state: &app::SessionState,
     original_connector_data: &api::ConnectorData,
     payout_data: &PayoutData,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
@@ -241,31 +236,22 @@ pub fn get_gsm_decision(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn do_retry(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    mut payout_data: PayoutData,
-    req: &PayoutCreateRequest,
-) -> RouterResult<PayoutData> {
+    payout_data: &mut PayoutData,
+) -> RouterResult<()> {
     metrics::AUTO_RETRY_PAYOUT_COUNT.add(&metrics::CONTEXT, 1, &[]);
 
-    modify_trackers(state, &connector, merchant_account, &mut payout_data).await?;
+    modify_trackers(state, &connector, merchant_account, payout_data).await?;
 
-    call_connector_payout(
-        state,
-        merchant_account,
-        key_store,
-        req,
-        &connector,
-        &mut payout_data,
-    )
-    .await
+    call_connector_payout(state, merchant_account, key_store, &connector, payout_data).await
 }
 
 #[instrument(skip_all)]
 pub async fn modify_trackers(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
@@ -360,9 +346,13 @@ impl GsmValidation for PayoutData {
             common_enums::PayoutStatus::Success
             | common_enums::PayoutStatus::Cancelled
             | common_enums::PayoutStatus::Pending
+            | common_enums::PayoutStatus::Initiated
+            | common_enums::PayoutStatus::Reversed
+            | common_enums::PayoutStatus::Expired
             | common_enums::PayoutStatus::Ineligible
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresPayoutMethodData
+            | common_enums::PayoutStatus::RequiresVendorAccountCreation
             | common_enums::PayoutStatus::RequiresFulfillment => false,
             common_enums::PayoutStatus::Failed => true,
         }

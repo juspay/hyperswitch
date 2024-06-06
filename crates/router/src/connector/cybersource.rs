@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
@@ -15,7 +15,10 @@ use url::Url;
 use super::utils::{PaymentsAuthorizeRequestData, RouterData};
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils::RefundsRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{PaymentMethodDataType, RefundsRequestData},
+    },
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -28,6 +31,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignTryFrom,
     },
     utils::BytesExt,
 };
@@ -116,13 +120,10 @@ impl ConnectorCommon for Cybersource {
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceErrorResponse = res
-            .response
-            .parse_struct("Cybersource ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<
+            cybersource::CybersourceErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("Cybersource ErrorResponse");
 
         let error_message = if res.status_code == 401 {
             consts::CONNECTOR_UNAUTHORIZED_ERROR
@@ -130,39 +131,68 @@ impl ConnectorCommon for Cybersource {
             consts::NO_ERROR_MESSAGE
         };
         match response {
-            transformers::CybersourceErrorResponse::StandardError(response) => {
-                let (code, connector_reason) = match response.error_information {
-                    Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-                    None => (
-                        response
-                            .reason
-                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                                reason.to_string()
-                            }),
-                        response
-                            .message
-                            .map_or(error_message.to_string(), |message| message),
-                    ),
-                };
-                let message = match response.details {
-                    Some(details) => details
-                        .iter()
-                        .map(|det| format!("{} : {}", det.field, det.reason))
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    None => connector_reason.clone(),
+            Ok(transformers::CybersourceErrorResponse::StandardError(response)) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                let (code, message, reason) = match response.error_information {
+                    Some(ref error_info) => {
+                        let detailed_error_info = error_info.details.as_ref().map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            error_info.reason.clone(),
+                            error_info.reason.clone(),
+                            transformers::get_error_reason(
+                                Some(error_info.message.clone()),
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
+                    None => {
+                        let detailed_error_info = response.details.map(|details| {
+                            details
+                                .iter()
+                                .map(|det| format!("{} : {}", det.field, det.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                        (
+                            response
+                                .reason
+                                .clone()
+                                .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                                    reason.to_string()
+                                }),
+                            response
+                                .reason
+                                .map_or(error_message.to_string(), |reason| reason.to_string()),
+                            transformers::get_error_reason(
+                                response.message,
+                                detailed_error_info,
+                                None,
+                            ),
+                        )
+                    }
                 };
 
                 Ok(types::ErrorResponse {
                     status_code: res.status_code,
                     code,
                     message,
-                    reason: Some(connector_reason),
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
             }
-            transformers::CybersourceErrorResponse::AuthenticationError(response) => {
+            Ok(transformers::CybersourceErrorResponse::AuthenticationError(response)) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
                 Ok(types::ErrorResponse {
                     status_code: res.status_code,
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -172,7 +202,9 @@ impl ConnectorCommon for Cybersource {
                     connector_transaction_id: None,
                 })
             }
-            transformers::CybersourceErrorResponse::NotAvailableError(response) => {
+            Ok(transformers::CybersourceErrorResponse::NotAvailableError(response)) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
                 let error_response = response
                     .errors
                     .iter()
@@ -194,6 +226,14 @@ impl ConnectorCommon for Cybersource {
                     connector_transaction_id: None,
                 })
             }
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                router_env::logger::error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(
+                    res,
+                    "cybersource".to_owned(),
+                )
+            }
         }
     }
 }
@@ -212,6 +252,18 @@ impl ConnectorValidation for Cybersource {
             ),
         }
     }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::GooglePay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Cybersource
@@ -222,8 +274,7 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let date = OffsetDateTime::now_utc();
         let cybersource_req = self.get_request_body(req, connectors)?;
         let auth = cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
@@ -292,6 +343,10 @@ impl api::PaymentToken for Cybersource {}
 impl api::PaymentsPreProcessing for Cybersource {}
 impl api::PaymentsCompleteAuthorize for Cybersource {}
 impl api::ConnectorMandateRevoke for Cybersource {}
+
+impl api::Payouts for Cybersource {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Cybersource {}
 
 impl
     ConnectorIntegration<
@@ -379,6 +434,38 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: cybersource::CybersourceServerErrorResponse = res
+            .response
+            .parse_struct("CybersourceServerErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|event| event.set_response_body(&response));
+        router_env::logger::info!(error_response=?response);
+
+        let attempt_status = match response.reason {
+            Some(reason) => match reason {
+                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+            },
+            None => None,
+        };
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+        })
     }
 }
 
@@ -725,8 +812,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -819,15 +905,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if req.is_three_ds()
             && req.request.is_card()
             && req.request.connector_mandate_id().is_none()
+            && req.request.authentication_data.is_none()
         {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
-                api::ConnectorCommon::base_url(self, connectors)
+                ConnectorCommon::base_url(self, connectors)
             ))
         } else {
             Ok(format!(
                 "{}pts/v2/payments/",
-                api::ConnectorCommon::base_url(self, connectors)
+                ConnectorCommon::base_url(self, connectors)
             ))
         }
     }
@@ -846,6 +933,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if req.is_three_ds()
             && req.request.is_card()
             && req.request.connector_mandate_id().is_none()
+            && req.request.authentication_data.is_none()
         {
             let connector_req =
                 cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
@@ -886,6 +974,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if data.is_three_ds()
             && data.request.is_card()
             && data.request.connector_mandate_id().is_none()
+            && data.request.authentication_data.is_none()
         {
             let response: cybersource::CybersourceAuthSetupResponse = res
                 .response
@@ -954,6 +1043,124 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
+    for Cybersource
+{
+    fn get_url(
+        &self,
+        _req: &types::PayoutsRouterData<api::PoFulfill>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}pts/v2/payouts", self.base_url(connectors)))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req =
+            cybersource::CybersourcePayoutFulfillRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PayoutsRouterData<api::PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: types::Response,
+    ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
+        let response: cybersource::CybersourceFulfillResponse = res
+            .response
+            .parse_struct("CybersourceFulfillResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: cybersource::CybersourceServerErrorResponse = res
+            .response
+            .parse_struct("CybersourceServerErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|event| event.set_response_body(&response));
+        router_env::logger::info!(error_response=?response);
+
+        let attempt_status = match response.reason {
+            Some(reason) => match reason {
+                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+            },
+            None => None,
+        };
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+        })
+    }
+}
+
 impl
     ConnectorIntegration<
         api::CompleteAuthorize,
@@ -978,7 +1185,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}pts/v2/payments/",
-            api::ConnectorCommon::base_url(self, connectors)
+            ConnectorCommon::base_url(self, connectors)
         ))
     }
     fn get_request_body(
@@ -1454,7 +1661,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),

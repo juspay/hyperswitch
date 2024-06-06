@@ -6,7 +6,6 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
-pub mod cache;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
@@ -19,7 +18,7 @@ pub mod file;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health_check;
-mod kafka_store;
+pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -33,20 +32,23 @@ pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_key_store;
 pub mod user_role;
 
-use data_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
-#[cfg(feature = "payouts")]
-use data_models::payouts::{payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface};
-#[cfg(not(feature = "payouts"))]
-use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::{
+    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::payouts::{
+    payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
@@ -110,7 +112,6 @@ pub trait StorageInterface:
     + OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
-    + user::UserInterface
     + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
@@ -120,6 +121,24 @@ pub trait StorageInterface:
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
+}
+
+#[async_trait::async_trait]
+pub trait GlobalStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + user::UserInterface
+    + user_key_store::UserKeyStoreInterface
+    + 'static
+{
+}
+
+pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface {
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface>;
 }
 
 pub trait MasterKeyInterface {
@@ -147,11 +166,43 @@ impl StorageInterface for Store {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
     }
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
 }
+
+#[async_trait::async_trait]
+impl GlobalStorageInterface for Store {}
 
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl GlobalStorageInterface for MockDb {}
+
+impl CommonStorageInterface for MockDb {
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+}
+
+impl CommonStorageInterface for Store {
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -188,10 +239,11 @@ where
     let bytes = db.get_key(key).await?;
     bytes
         .parse_struct(type_name)
-        .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
+        .change_context(RedisError::JsonDeserializationFailed)
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);
+dyn_clone::clone_trait_object!(GlobalStorageInterface);
 
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {

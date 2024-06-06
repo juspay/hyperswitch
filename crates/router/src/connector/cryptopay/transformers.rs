@@ -1,14 +1,16 @@
 use common_utils::pii;
+use error_stack::ResultExt;
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
+use super::utils as connector_utils;
 use crate::{
     connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
-    types::{self, domain, storage::enums},
+    types::{self, domain, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -17,19 +19,12 @@ pub struct CryptopayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for CryptopayRouterData<T>
-{
+impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for CryptopayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            enums::Currency,
             i64,
             T,
         ),
@@ -47,6 +42,8 @@ pub struct CryptopayPaymentsRequest {
     price_amount: String,
     price_currency: enums::Currency,
     pay_currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    network: Option<String>,
     success_redirect_url: Option<String>,
     unsuccess_redirect_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -68,6 +65,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     price_amount: item.amount.to_owned(),
                     price_currency: item.router_data.request.currency,
                     pay_currency,
+                    network: cryptodata.network.to_owned(),
                     success_redirect_url: item.router_data.request.router_return_url.clone(),
                     unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
                     //Cryptopay only accepts metadata as Object. If any other type, payment will fail with error.
@@ -146,17 +144,17 @@ pub struct CryptopayPaymentsResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    ForeignTryFrom<(
+        types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+        diesel_models::enums::Currency,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CryptopayPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+    fn foreign_try_from(
+        (item, currency): (
+            types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+            diesel_models::enums::Currency,
+        ),
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
         let response = if is_payment_failure(status) {
@@ -195,13 +193,31 @@ impl<F, T>
                     .custom_id
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         };
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
+
+        match item.response.data.price_amount {
+            Some(price_amount) => {
+                let amount_captured = Some(
+                    connector_utils::to_currency_lower_unit(price_amount, currency)?
+                        .parse::<i64>()
+                        .change_context(errors::ConnectorError::ParsingFailed)?,
+                );
+
+                Ok(Self {
+                    status,
+                    response,
+                    amount_captured,
+                    ..item.data
+                })
+            }
+            None => Ok(Self {
+                status,
+                response,
+                ..item.data
+            }),
+        }
     }
 }
 

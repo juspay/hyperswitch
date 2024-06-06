@@ -41,13 +41,26 @@ pub struct AirwallexIntentRequest {
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
 }
-impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        // amount and currency will always be Some since PaymentsPreProcessingData is constructed using PaymentsAuthorizeData
+        let amount = item
+            .request
+            .amount
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?;
+        let currency =
+            item.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
-            currency: item.request.currency,
+            amount: utils::to_currency_base_unit(amount, currency)?,
+            currency,
             merchant_order_id: item.connector_request_reference_id.clone(),
         })
     }
@@ -59,20 +72,13 @@ pub struct AirwallexRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for AirwallexRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AirwallexRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -252,7 +258,8 @@ fn get_wallet_details(
         | domain::WalletData::WeChatPayRedirect(_)
         | domain::WalletData::WeChatPayQr(_)
         | domain::WalletData::CashappQr(_)
-        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+        | domain::WalletData::SwishQr(_)
+        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
     };
@@ -564,6 +571,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -606,6 +614,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })

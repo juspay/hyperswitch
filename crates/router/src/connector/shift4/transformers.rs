@@ -206,7 +206,8 @@ impl TryFrom<&domain::WalletData> for Shift4PaymentMethod {
             | domain::WalletData::TouchNGoRedirect(_)
             | domain::WalletData::WeChatPayQr(_)
             | domain::WalletData::CashappQr(_)
-            | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),
@@ -677,6 +678,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -719,6 +721,7 @@ impl<T, F>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -747,9 +750,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
 impl From<Shift4RefundStatus> for enums::RefundStatus {
     fn from(item: Shift4RefundStatus) -> Self {
         match item {
-            self::Shift4RefundStatus::Successful => Self::Success,
-            self::Shift4RefundStatus::Failed => Self::Failure,
-            self::Shift4RefundStatus::Processing => Self::Pending,
+            Shift4RefundStatus::Successful => Self::Success,
+            Shift4RefundStatus::Failed => Self::Failure,
+            Shift4RefundStatus::Processing => Self::Pending,
         }
     }
 }

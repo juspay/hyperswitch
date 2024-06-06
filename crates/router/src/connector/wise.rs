@@ -27,7 +27,7 @@ use crate::{
     utils::BytesExt,
 };
 #[cfg(feature = "payouts")]
-use crate::{core::payments, routes};
+use crate::{core::payments, routes, types::transformers::ForeignFrom};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
@@ -506,11 +506,11 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PayoutsRouterData<api::PoCreate>,
-        app_state: &routes::AppState,
+        app_state: &routes::SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
         // Create a quote
         let quote_router_data =
-            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
+            &types::PayoutsRouterData::foreign_from((&router_data, router_data.request.clone()));
         let quote_connector_integration: Box<
             &(dyn services::ConnectorIntegration<
                 api::PoQuote,
@@ -531,7 +531,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
 
         match quote_router_resp.response.to_owned() {
             Ok(resp) => {
-                router_data.quote_id = Some(resp.connector_payout_id);
+                router_data.quote_id = resp.connector_payout_id;
                 Ok(())
             }
             Err(_err) => {
