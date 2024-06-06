@@ -21,20 +21,6 @@ where
     result
 }
 
-#[inline]
-pub async fn record_operation_time<F, R>(
-    future: F,
-    metric: &once_cell::sync::Lazy<opentelemetry::metrics::Histogram<f64>>,
-    key_value: &[opentelemetry::KeyValue],
-) -> R
-where
-    F: futures::Future<Output = R>,
-{
-    let (result, time) = metric_utils::time_future(future).await;
-    metric.record(&super::CONTEXT, time.as_secs_f64(), key_value);
-    result
-}
-
 pub fn add_attributes<T: Into<opentelemetry::Value>>(
     key: &'static str,
     value: T,

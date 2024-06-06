@@ -148,6 +148,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .update_payment_intent(
                             payment_data.payment_intent,
                             payment_intent_update,
+                            &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await

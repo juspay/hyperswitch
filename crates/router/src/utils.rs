@@ -196,12 +196,14 @@ pub async fn find_payment_intent_from_payment_id_type(
     db: &dyn StorageInterface,
     payment_id_type: payments::PaymentIdType,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 &merchant_account.merchant_id,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -218,6 +220,7 @@ pub async fn find_payment_intent_from_payment_id_type(
             db.find_payment_intent_by_payment_id_merchant_id(
                 &attempt.payment_id,
                 &merchant_account.merchant_id,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -235,6 +238,7 @@ pub async fn find_payment_intent_from_payment_id_type(
             db.find_payment_intent_by_payment_id_merchant_id(
                 &attempt.payment_id,
                 &merchant_account.merchant_id,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -250,6 +254,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     db: &dyn StorageInterface,
     refund_id_type: webhooks::RefundIdType,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     connector_name: &str,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     let refund = match refund_id_type {
@@ -282,6 +287,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     db.find_payment_intent_by_payment_id_merchant_id(
         &attempt.payment_id,
         &merchant_account.merchant_id,
+        key_store,
         merchant_account.storage_scheme,
     )
     .await
@@ -292,6 +298,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
     db: &dyn StorageInterface,
     mandate_id_type: webhooks::MandateIdType,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     let mandate = match mandate_id_type {
         webhooks::MandateIdType::MandateId(mandate_id) => db
@@ -317,6 +324,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("original_payment_id not present in mandate record")?,
         &merchant_account.merchant_id,
+        key_store,
         merchant_account.storage_scheme,
     )
     .await
@@ -438,8 +446,13 @@ pub async fn get_mca_from_object_reference_id(
                 get_mca_from_payment_intent(
                     db,
                     merchant_account,
-                    find_payment_intent_from_payment_id_type(db, payment_id_type, merchant_account)
-                        .await?,
+                    find_payment_intent_from_payment_id_type(
+                        db,
+                        payment_id_type,
+                        merchant_account,
+                        key_store,
+                    )
+                    .await?,
                     key_store,
                     connector_name,
                 )
@@ -453,6 +466,7 @@ pub async fn get_mca_from_object_reference_id(
                         db,
                         refund_id_type,
                         merchant_account,
+                        key_store,
                         connector_name,
                     )
                     .await?,
@@ -465,8 +479,13 @@ pub async fn get_mca_from_object_reference_id(
                 get_mca_from_payment_intent(
                     db,
                     merchant_account,
-                    find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
-                        .await?,
+                    find_payment_intent_from_mandate_id_type(
+                        db,
+                        mandate_id_type,
+                        merchant_account,
+                        key_store,
+                    )
+                    .await?,
                     key_store,
                     connector_name,
                 )

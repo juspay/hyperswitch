@@ -603,6 +603,7 @@ pub async fn get_token_for_recurring_mandate(
             db.find_payment_intent_by_payment_id_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
+                &merchant_key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -2411,12 +2412,14 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
     merchant_id: &str,
+    key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
     let result = db
         .filter_payment_intent_by_constraints(
             merchant_id,
             &constraints.clone().into(),
+            key_store,
             storage_scheme,
         )
         .await?;
@@ -2832,6 +2835,7 @@ pub(crate) fn validate_pm_or_token_given(
 pub async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     client_secret
@@ -2842,6 +2846,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_id,
                     &merchant_account.merchant_id,
+                    key_store,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -3588,6 +3593,7 @@ impl AttemptType {
         fetched_payment_intent: PaymentIntent,
         fetched_payment_attempt: PaymentAttempt,
         db: &dyn StorageInterface,
+        key_store: &domain::MerchantKeyStore,
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> RouterResult<(PaymentIntent, PaymentAttempt)> {
         match self {
@@ -3629,6 +3635,7 @@ impl AttemptType {
                             attempt_count: new_attempt_count,
                             updated_by: storage_scheme.to_string(),
                         },
+                        key_store,
                         storage_scheme,
                     )
                     .await

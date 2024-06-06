@@ -2,6 +2,7 @@ use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::{
     errors::StorageError,
+    merchant_key_store::MerchantKeyStore,
     payments::{
         payment_attempt::PaymentAttempt,
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
@@ -19,6 +20,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -29,6 +31,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _time_range: &api_models::payments::TimeRange,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -49,6 +52,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -59,6 +63,7 @@ impl PaymentIntentInterface for MockDb {
     async fn insert_payment_intent(
         &self,
         new: PaymentIntent,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
@@ -72,6 +77,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         this: PaymentIntent,
         update: PaymentIntentUpdate,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
@@ -93,6 +99,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         payment_id: &str,
         merchant_id: &str,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let payment_intents = self.payment_intents.lock().await;

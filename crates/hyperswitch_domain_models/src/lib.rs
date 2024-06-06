@@ -11,6 +11,8 @@ pub mod router_request_types;
 pub mod router_response_types;
 
 pub mod behaviour;
+pub mod merchant_key_store;
+pub mod type_encryption;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}

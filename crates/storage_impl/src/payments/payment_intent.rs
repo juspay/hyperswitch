@@ -4,7 +4,7 @@ use api_models::payments::AmountFilter;
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
 use common_utils::errors::ReportSwitchExt;
-use common_utils::ext_traits::Encode;
+use common_utils::ext_traits::{AsyncExt, Encode};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
@@ -50,11 +50,14 @@ use crate::{
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn insert_payment_intent(
         &self,
         payment_intent: PaymentIntent,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let merchant_id = payment_intent.merchant_id.clone();
@@ -69,7 +72,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .insert_payment_intent(payment_intent, storage_scheme)
+                    .insert_payment_intent(payment_intent, merchant_key_store, storage_scheme)
                     .await
             }
 
@@ -123,6 +126,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         this: PaymentIntent,
         payment_intent_update: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let merchant_id = this.merchant_id.clone();
@@ -141,14 +145,22 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payment_intent(this, payment_intent_update, storage_scheme)
+                    .update_payment_intent(
+                        this,
+                        payment_intent_update,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
                     .await
             }
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let diesel_intent_update = payment_intent_update.to_storage_model();
-                let origin_diesel_intent = this.to_storage_model();
+                let diesel_intent_update = DieselPaymentIntentUpdate::from(payment_intent_update);
+                let origin_diesel_intent = this
+                    .convert()
+                    .await
+                    .change_context(StorageError::EncryptionError)?;
 
                 let diesel_intent = diesel_intent_update
                     .clone()
@@ -180,7 +192,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                Ok(PaymentIntent::from_storage_model(diesel_intent))
+                let payment_intent =
+                    PaymentIntent::convert_back(diesel_intent, merchant_key_store.key.get_inner())
+                        .await
+                        .change_context(StorageError::DecryptionError)?;
+
+                Ok(payment_intent)
             }
         }
     }
@@ -190,6 +207,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         payment_id: &str,
         merchant_id: &str,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let database_call = || async {
@@ -203,7 +221,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         };
         let storage_scheme =
             decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Find).await;
-        match storage_scheme {
+        let diesel_payment_intent = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
@@ -226,8 +244,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 ))
                 .await
             }
-        }
-        .map(PaymentIntent::from_storage_model)
+        }?;
+
+        PaymentIntent::convert_back(diesel_payment_intent, merchant_key_store.key.get_inner())
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     async fn get_active_payment_attempt(
@@ -262,10 +283,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         self.router_store
-            .filter_payment_intent_by_constraints(merchant_id, filters, storage_scheme)
+            .filter_payment_intent_by_constraints(
+                merchant_id,
+                filters,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -274,12 +301,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         self.router_store
             .filter_payment_intents_by_time_range_constraints(
                 merchant_id,
                 time_range,
+                merchant_key_store,
                 storage_scheme,
             )
             .await
@@ -290,10 +319,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         self.router_store
-            .get_filtered_payment_intents_attempt(merchant_id, filters, storage_scheme)
+            .get_filtered_payment_intents_attempt(
+                merchant_id,
+                filters,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -320,10 +355,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn insert_payment_intent(
         &self,
         payment_intent: PaymentIntent,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        payment_intent
+        let diesel_payment_intent = payment_intent
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?
@@ -332,8 +368,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
-            })
-            .map(PaymentIntent::from_storage_model)
+            })?;
+
+        PaymentIntent::convert_back(diesel_payment_intent, merchant_key_store.key.get_inner())
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -341,17 +380,26 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        this.to_storage_model()
-            .update(&conn, payment_intent.to_storage_model())
+        let diesel_payment_intent_update = DieselPaymentIntentUpdate::from(payment_intent);
+
+        let diesel_payment_intent = this
+            .convert()
+            .await
+            .change_context(StorageError::EncryptionError)?
+            .update(&conn, diesel_payment_intent_update)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
-            })
-            .map(PaymentIntent::from_storage_model)
+            })?;
+
+        PaymentIntent::convert_back(diesel_payment_intent, merchant_key_store.key.get_inner())
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -359,16 +407,26 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         payment_id: &str,
         merchant_id: &str,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_read(self).await?;
+
         DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
             .await
-            .map(PaymentIntent::from_storage_model)
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
+            .async_and_then(|diesel_payment_intent| async {
+                PaymentIntent::convert_back(
+                    diesel_payment_intent,
+                    merchant_key_store.key.get_inner(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
+            })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -405,6 +463,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &str,
         filters: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
@@ -443,6 +502,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 starting_after_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -460,6 +520,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 ending_before_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -519,12 +580,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &str,
         time_range: &api_models::payments::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         // TODO: Remove this redundant function
         let payment_filters = (*time_range).into();
-        self.filter_payment_intent_by_constraints(merchant_id, &payment_filters, storage_scheme)
-            .await
+        self.filter_payment_intent_by_constraints(
+            merchant_id,
+            &payment_filters,
+            merchant_key_store,
+            storage_scheme,
+        )
+        .await
     }
 
     #[cfg(feature = "olap")]
@@ -533,6 +600,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -571,6 +639,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 starting_after_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -588,6 +657,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             .find_payment_intent_by_payment_id_merchant_id(
                                 ending_before_id,
                                 merchant_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?

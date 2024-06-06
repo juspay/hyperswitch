@@ -954,7 +954,9 @@ pub async fn payments_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| payments::list_payments(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PaymentRead),
@@ -979,7 +981,7 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(state, auth.merchant_account, req)
+            payments::apply_filters_on_payments(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
@@ -1001,7 +1003,7 @@ pub async fn get_filters_for_payments(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_filters_for_payments(state, auth.merchant_account, req)
+            payments::get_filters_for_payments(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,

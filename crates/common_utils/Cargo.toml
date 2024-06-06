@@ -8,16 +8,16 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
-async_ext = ["dep:futures", "dep:async-trait"]
-logs = ["dep:router_env"]
+signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio"]
+async_ext = ["dep:async-trait"]
+logs = []
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
 bytes = "1.6.0"
 diesel = "2.1.5"
 error-stack = "0.4.1"
-futures = { version = "0.3.30", optional = true }
+futures = { version = "0.3.30" }
 hex = "0.4.3"
 http = "0.2.12"
 md5 = "0.7.0"
@@ -47,7 +47,7 @@ rust_decimal = "1.35"
 rusty-money = { git = "https://github.com/varunsrin/rusty_money", rev = "bbc0150742a0fff905225ff11ee09388e9babdcc", features = ["iso", "crypto"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true }
+router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
