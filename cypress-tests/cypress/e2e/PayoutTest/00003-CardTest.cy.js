@@ -7,23 +7,28 @@ let globalState;
 describe("Card - Auto Fulfill", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+
+      // Check if the connector supports card payouts (based on the connector configuration in creds)
+      if (!globalState.get("payoutsExecution")) {
+        should_continue = false;
+      }
+    });
+  });
+
   beforeEach(function () {
     if (!should_continue) {
       this.skip();
     }
   });
 
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
-  });
-
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Payout Card with Auto Fulfill", () => {
+  context.only("Payout Card with Auto Fulfill", () => {
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"

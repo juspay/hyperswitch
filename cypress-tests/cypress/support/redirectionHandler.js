@@ -203,21 +203,6 @@ function bankRedirectRedirection(
         case "eps" || "ideal" || "giropay" || "sofort" || "przelewy24":
           cy.get('a[name="success"]').click();
           break;
-        // case "eps":
-        //   cy.get('a[name="success"]').click();
-        //   break;
-        // case "ideal":
-        //   cy.get('a[name="success"]').click();
-        //   break;
-        // case "giropay":
-        //   cy.get('a[name="success"]').click();
-        //   break;
-        // case "sofort":
-        //   cy.get('a[name="success"]').click();
-        //   break;
-        // case "przelewy24":
-        //   cy.get('a[name="success"]').click();
-        //   break;
         default:
           throw new Error(
             `Unsupported payment method type: ${payment_method_type}`

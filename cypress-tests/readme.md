@@ -17,17 +17,17 @@ Before installing Cypress, ensure you have the following prerequisites installed
 
 To run test cases, follow these steps:
 
-1. Install Cypress
-
-   ```shell
-   npm install cypress --save-dev
-   ```
-
-2. Clone the repository and switch to the project directory:
+1. Clone the repository and switch to the project directory:
 
    ```shell
    git clone https://github.com/juspay/hyperswitch
    cd cypress-tests
+   ```
+
+2. Install Cypress and its dependencies to `cypress-tests` directory by running the following command:
+
+   ```shell
+   npm install
    ```
 
 3. Set environment variables for cypress
@@ -141,7 +141,7 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     } else {
       cy.task(
         "cli_log",
-        "x-request-id is not available in the response headers",
+        "x-request-id is not available in the response headers"
       );
     }
     expect(response.headers["content-type"]).to.include("application/json");
