@@ -523,99 +523,99 @@ export const connectorDetails = {
             sofort: {},
           },
         },
-      },
-      billing: {
-        address: {
-          line1: "1467",
-          line2: "Harrison Street",
-          line3: "Harrison Street",
-          city: "San Fransico",
-          state: "California",
-          zip: "94122",
-          country: "DE",
-          first_name: "joseph",
-          last_name: "Doe",
-        },
-        phone: {
-          number: "8056594427",
-          country_code: "+91",
-        },
-      },
-    },
-    Response: {
-      status: 200,
-      body: {
-        status: "failed",
-        error_code: "1133001",
-      },
-    },
-  },
-  eps: {
-    Request: {
-      payment_method: "bank_redirect",
-      payment_method_type: "eps",
-      payment_method_data: {
-        bank_redirect: {
-          eps: {
-            bank_name: "ing",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
-      billing: {
-        address: {
-          line1: "1467",
-          line2: "Harrison Street",
-          line3: "Harrison Street",
-          city: "San Fransico",
-          state: "California",
-          zip: "94122",
-          country: "AT",
-          first_name: "joseph",
-          last_name: "Doe",
-        },
-        phone: {
-          number: "8056594427",
-          country_code: "+91",
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "1133001",
         },
       },
     },
-    Response: {
-      status: 200,
-      body: {
-        status: "requires_customer_action",
-      },
-    },
-  },
-  blik: {
-    Request: {
-      payment_method: "bank_redirect",
-      payment_method_type: "blik",
-      payment_method_data: {
-        bank_redirect: {
-          blik: {
-            name: "John Doe",
-            email: "example@email.com",
+    eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
-      billing: {
-        address: {
-          line1: "1467",
-          line2: "Harrison Street",
-          line3: "Harrison Street",
-          city: "San Fransico",
-          state: "California",
-          zip: "94122",
-          country: "PL",
-          first_name: "john",
-          last_name: "doe",
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
-    Response: {
-      status: 200,
-      body: {
-        status: "requires_customer_action",
+    blik: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "blik",
+        payment_method_data: {
+          bank_redirect: {
+            blik: {
+              name: "John Doe",
+              email: "example@email.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     },
   },
