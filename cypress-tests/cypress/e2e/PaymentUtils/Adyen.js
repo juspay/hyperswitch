@@ -441,7 +441,6 @@ export const connectorDetails = {
               bank_name: "",
               bank_account_bic: "",
               bank_account_iban: "",
-              preferred_language: "en",
               country: "DE",
             },
           },
