@@ -189,8 +189,8 @@ impl Connector {
             | Self::DummyConnector5
             | Self::DummyConnector6
             | Self::DummyConnector7 => false,
-            // Add Seperate authentication support for connectors
             Self::Aci
+// Add Seperate authentication support for connectors
             | Self::Adyen
             | Self::Airwallex
             | Self::Authorizedotnet
