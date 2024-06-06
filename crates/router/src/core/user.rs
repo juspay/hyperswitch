@@ -368,7 +368,7 @@ pub async fn change_password(
         .update_user_by_user_id(
             user.get_user_id(),
             diesel_models::user::UserUpdate::PasswordUpdate {
-                password: Some(new_password_hash),
+                password: new_password_hash,
             },
         )
         .await
@@ -459,7 +459,7 @@ pub async fn rotate_password(
         .update_user_by_user_id(
             &user_token.user_id,
             storage_user::UserUpdate::PasswordUpdate {
-                password: Some(hash_password),
+                password: hash_password,
             },
         )
         .await
@@ -510,7 +510,7 @@ pub async fn reset_password_token_only_flow(
                 .get_email()
                 .change_context(UserErrors::InternalServerError)?,
             storage_user::UserUpdate::PasswordUpdate {
-                password: Some(hash_password),
+                password: hash_password,
             },
         )
         .await
@@ -548,7 +548,7 @@ pub async fn reset_password(
                 .get_email()
                 .change_context(UserErrors::InternalServerError)?,
             storage_user::UserUpdate::PasswordUpdate {
-                password: Some(hash_password),
+                password: hash_password,
             },
         )
         .await
@@ -838,11 +838,9 @@ async fn handle_new_user_invitation(
 
     Ok(InviteMultipleUserResponse {
         is_email_sent,
-        password: if cfg!(not(feature = "email")) {
-            Some(new_user.get_password().get_secret())
-        } else {
-            None
-        },
+        password: new_user
+            .get_password()
+            .map(|password| password.get_secret()),
         email: request.email.clone(),
         error: None,
     })

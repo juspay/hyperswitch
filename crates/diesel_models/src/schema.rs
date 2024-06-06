@@ -1221,7 +1221,7 @@ diesel::table! {
         #[max_length = 255]
         name -> Varchar,
         #[max_length = 255]
-        password -> Varchar,
+        password -> Nullable<Varchar>,
         is_verified -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
