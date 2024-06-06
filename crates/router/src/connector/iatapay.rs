@@ -1,9 +1,11 @@
 pub mod transformers;
 
-
 use base64::Engine;
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent,
-types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector}
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -333,10 +335,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
 
-        let connector_router_data = iatapay::IatapayRouterData::try_from((
-            amount,
-            req,
-        ))?;
+        let connector_router_data = iatapay::IatapayRouterData::try_from((amount, req))?;
         let connector_req = iatapay::IatapayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -527,10 +526,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.currency,
         )?;
 
-        let connector_router_data = iatapay::IatapayRouterData::try_from((
-            refund_amount,
-            req,
-        ))?;
+        let connector_router_data = iatapay::IatapayRouterData::try_from((refund_amount, req))?;
         let connector_req = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
