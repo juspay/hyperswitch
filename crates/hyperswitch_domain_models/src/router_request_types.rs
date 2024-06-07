@@ -241,6 +241,9 @@ pub struct PaymentsPreProcessingData {
     pub surcharge_details: Option<SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 
     // New amount for amount frame work
@@ -267,7 +270,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             browser_info: data.browser_info,
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: data.related_transaction_id,
             redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
         })
     }
 }
@@ -292,7 +298,10 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             browser_info: data.browser_info,
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
+            mandate_id: data.mandate_id,
+            related_transaction_id: None,
             redirect_response: data.redirect_response,
+            enrolled_for_3ds: true,
         })
     }
 }
@@ -641,6 +650,7 @@ pub struct PayoutsData {
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Default, Clone)]

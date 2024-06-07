@@ -30,10 +30,11 @@ use fred::{interfaces::ClientLike, prelude::EventInterface};
 pub use self::types::*;
 
 pub struct RedisConnectionPool {
-    pub pool: fred::prelude::RedisPool,
-    config: RedisConfig,
-    pub subscriber: SubscriberClient,
-    pub publisher: RedisClient,
+    pub pool: Arc<fred::prelude::RedisPool>,
+    pub key_prefix: String,
+    pub config: Arc<RedisConfig>,
+    pub subscriber: Arc<SubscriberClient>,
+    pub publisher: Arc<RedisClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
 }
 
@@ -166,14 +167,24 @@ impl RedisConnectionPool {
         let config = RedisConfig::from(conf);
 
         Ok(Self {
-            pool,
-            config,
+            pool: Arc::new(pool),
+            config: Arc::new(config),
             is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
-            subscriber,
-            publisher,
+            subscriber: Arc::new(subscriber),
+            publisher: Arc::new(publisher),
+            key_prefix: String::default(),
         })
     }
-
+    pub fn clone(&self, key_prefix: &str) -> Self {
+        Self {
+            pool: Arc::clone(&self.pool),
+            key_prefix: key_prefix.to_string(),
+            config: Arc::clone(&self.config),
+            subscriber: Arc::clone(&self.subscriber),
+            publisher: Arc::clone(&self.publisher),
+            is_redis_available: Arc::clone(&self.is_redis_available),
+        }
+    }
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
         use futures::StreamExt;
         use tokio_stream::wrappers::BroadcastStream;
@@ -211,7 +222,7 @@ impl RedisConnectionPool {
     }
 }
 
-struct RedisConfig {
+pub struct RedisConfig {
     default_ttl: u32,
     default_stream_read_count: u64,
     default_hash_ttl: u32,

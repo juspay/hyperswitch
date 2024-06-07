@@ -18,7 +18,7 @@ use crate::{
         mandate, payment_methods, payments,
     },
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -54,7 +54,7 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<FData>(
-    state: &AppState,
+    state: &SessionState,
     connector_name: String,
     merchant_connector_id: Option<String>,
     save_payment_method_data: SavePaymentMethodData<FData>,
@@ -646,7 +646,7 @@ async fn skip_saving_card_in_locker(
 }
 
 pub async fn save_in_locker(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
@@ -660,14 +660,14 @@ pub async fn save_in_locker(
         .clone()
         .get_required_value("customer_id")?;
     match payment_method_request.card.clone() {
-        Some(card) => payment_methods::cards::add_card_to_locker(
+        Some(card) => Box::pin(payment_methods::cards::add_card_to_locker(
             state,
             payment_method_request,
             &card,
             &customer_id,
             merchant_account,
             None,
-        )
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed"),
@@ -719,7 +719,7 @@ pub fn create_payment_method_metadata(
 }
 
 pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
@@ -727,7 +727,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
         payments::TokenizationAction::TokenizeInConnector
-        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
+        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::PaymentMethodToken,

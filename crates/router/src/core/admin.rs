@@ -26,7 +26,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::{self, api as service_api},
     types::{
         self, api,
@@ -50,7 +50,7 @@ pub fn create_merchant_publishable_key() -> String {
 }
 
 pub async fn create_merchant_account(
-    state: AppState,
+    state: SessionState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
@@ -287,7 +287,7 @@ pub async fn create_merchant_account(
 
 #[cfg(feature = "olap")]
 pub async fn list_merchant_account(
-    state: AppState,
+    state: SessionState,
     req: api_models::admin::MerchantAccountListRequest,
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
     let merchant_accounts = state
@@ -311,7 +311,7 @@ pub async fn list_merchant_account(
 }
 
 pub async fn get_merchant_account(
-    state: AppState,
+    state: SessionState,
     req: api::MerchantId,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
@@ -399,7 +399,7 @@ pub async fn create_business_profile_from_business_labels(
 /// For backwards compatibility
 /// If any of the fields of merchant account are updated, then update these fields in business profiles
 pub async fn update_business_profile_cascade(
-    state: AppState,
+    state: SessionState,
     merchant_account_update: api::MerchantAccountUpdate,
     merchant_id: String,
 ) -> RouterResult<()> {
@@ -463,7 +463,7 @@ pub async fn update_business_profile_cascade(
 }
 
 pub async fn merchant_account_update(
-    state: AppState,
+    state: SessionState,
     merchant_id: &String,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
@@ -617,7 +617,7 @@ pub async fn merchant_account_update(
 }
 
 pub async fn merchant_account_delete(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
@@ -733,7 +733,7 @@ fn validate_certificate_in_mca_metadata(
 }
 
 pub async fn create_payment_connector(
-    state: AppState,
+    state: SessionState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
@@ -937,7 +937,7 @@ pub async fn create_payment_connector(
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled,
-        metadata: req.metadata,
+        metadata: req.metadata.clone(),
         frm_configs,
         connector_label: Some(connector_label.clone()),
         business_country: req.business_country,
@@ -961,6 +961,7 @@ pub async fn create_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
         status: connector_status,
+        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(&key_store, &req.metadata).await?,
     };
 
     let transaction_type = match req.connector_type {
@@ -1084,7 +1085,7 @@ async fn validate_pm_auth(
 }
 
 pub async fn retrieve_payment_connector(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
@@ -1117,7 +1118,7 @@ pub async fn retrieve_payment_connector(
 }
 
 pub async fn list_payment_connectors(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
     let store = state.store.as_ref();
@@ -1154,7 +1155,7 @@ pub async fn list_payment_connectors(
 }
 
 pub async fn update_payment_connector(
-    state: AppState,
+    state: SessionState,
     merchant_id: &str,
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
@@ -1200,6 +1201,7 @@ pub async fn update_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
     let metadata = req.metadata.clone().or(mca.metadata.clone());
+
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1275,6 +1277,10 @@ pub async fn update_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
         status: Some(connector_status),
+        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
+            &key_store, &metadata,
+        )
+        .await?,
     };
 
     // Profile id should always be present
@@ -1305,7 +1311,7 @@ pub async fn update_payment_connector(
 }
 
 pub async fn delete_payment_connector(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
     merchant_connector_id: String,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
@@ -1350,7 +1356,7 @@ pub async fn delete_payment_connector(
 }
 
 pub async fn kv_for_merchant(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
@@ -1417,7 +1423,7 @@ pub async fn kv_for_merchant(
 }
 
 pub async fn toggle_kv_for_all_merchants(
-    state: AppState,
+    state: SessionState,
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleAllKVResponse> {
     let db = state.store.as_ref();
@@ -1447,7 +1453,7 @@ pub async fn toggle_kv_for_all_merchants(
 }
 
 pub async fn check_merchant_account_kv_status(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
@@ -1519,7 +1525,7 @@ pub async fn create_and_insert_business_profile(
 }
 
 pub async fn create_business_profile(
-    state: AppState,
+    state: SessionState,
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
@@ -1566,7 +1572,7 @@ pub async fn create_business_profile(
 }
 
 pub async fn list_business_profile(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
@@ -1586,7 +1592,7 @@ pub async fn list_business_profile(
 }
 
 pub async fn retrieve_business_profile(
-    state: AppState,
+    state: SessionState,
     profile_id: String,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
     let db = state.store.as_ref();
@@ -1604,7 +1610,7 @@ pub async fn retrieve_business_profile(
 }
 
 pub async fn delete_business_profile(
-    state: AppState,
+    state: SessionState,
     profile_id: String,
     merchant_id: &str,
 ) -> RouterResponse<bool> {
@@ -1620,7 +1626,7 @@ pub async fn delete_business_profile(
 }
 
 pub async fn update_business_profile(
-    state: AppState,
+    state: SessionState,
     profile_id: &str,
     merchant_id: &str,
     request: api::BusinessProfileUpdate,
@@ -1738,7 +1744,7 @@ pub async fn update_business_profile(
 }
 
 pub async fn extended_card_info_toggle(
-    state: AppState,
+    state: SessionState,
     profile_id: &str,
     ext_card_info_choice: admin_types::ExtendedCardInfoChoice,
 ) -> RouterResponse<admin_types::ExtendedCardInfoChoice> {
@@ -1771,7 +1777,7 @@ pub async fn extended_card_info_toggle(
 }
 
 pub async fn connector_agnostic_mit_toggle(
-    state: AppState,
+    state: SessionState,
     merchant_id: &str,
     profile_id: &str,
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
@@ -1819,10 +1825,10 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
-        // api_enums::Connector::Mifinity => {
-        //     mifinity::transformers::MifinityAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Adyenplatform => {
+            adyenplatform::transformers::AdyenplatformAuthType::try_from(val)?;
+            Ok(())
+        }
         // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
@@ -1949,6 +1955,11 @@ pub(crate) fn validate_auth_and_metadata_type(
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
             klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
+            Ok(())
+        }
+        api_enums::Connector::Mifinity => {
+            mifinity::transformers::MifinityAuthType::try_from(val)?;
+            mifinity::transformers::MifinityConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Mollie => {
@@ -2085,7 +2096,7 @@ pub(crate) fn validate_auth_and_metadata_type(
 
 #[cfg(feature = "dummy_connector")]
 pub async fn validate_dummy_connector_enabled(
-    state: &AppState,
+    state: &SessionState,
     connector_name: &api_enums::Connector,
 ) -> Result<(), errors::ApiErrorResponse> {
     if !state.conf.dummy_connector.enabled

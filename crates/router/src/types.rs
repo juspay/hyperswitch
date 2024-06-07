@@ -120,6 +120,8 @@ pub type PaymentsInitResponseRouterData<R> =
     ResponseRouterData<api::InitPayment, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsPreprocessingResponseRouterData<R> =
+    ResponseRouterData<api::PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type TokenizationResponseRouterData<R> = ResponseRouterData<
     api::PaymentMethodToken,
     R,
@@ -717,8 +719,8 @@ impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
-impl ForeignFrom<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
-    fn foreign_from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
+impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
+    fn foreign_from(data: &PaymentsAuthorizeRouterData) -> Self {
         Self {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
@@ -805,6 +807,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),
+            connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
             minor_amount_captured: data.minor_amount_captured,
             access_token: data.access_token.clone(),
@@ -866,6 +869,7 @@ impl<F1, F2>
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),
+            connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
             minor_amount_captured: data.minor_amount_captured,
             access_token: data.access_token.clone(),
