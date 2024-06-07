@@ -5,7 +5,6 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
-use common_utils::consts::{DEFAULT_TENANT, GLOBAL_TENANT};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -256,20 +255,11 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_tenant = if conf.multitenancy.enabled {
-                GLOBAL_TENANT
-            } else {
-                DEFAULT_TENANT
-            };
             let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
                 &storage_impl,
                 &event_handler,
                 &conf,
-                &settings::GlobalTenant {
-                    schema: global_tenant.to_string(),
-                    redis_key_prefix: String::default(),
-                    clickhouse_database: String::default(),
-                },
+                &conf.multitenancy.global_tenant,
                 Arc::clone(&cache_store),
                 testable,
             )

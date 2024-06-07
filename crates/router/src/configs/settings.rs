@@ -128,6 +128,7 @@ pub struct Settings<S: SecretState> {
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
+    pub global_tenant: GlobalTenant,
 }
 
 impl Multitenancy {

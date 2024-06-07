@@ -43,7 +43,6 @@ pub struct ClickhouseConfig {
     username: String,
     password: Option<String>,
     host: String,
-    // database_name: String,
 }
 
 impl Default for ClickhouseConfig {
@@ -52,7 +51,6 @@ impl Default for ClickhouseConfig {
             username: "default".to_string(),
             password: None,
             host: "http://localhost:8123".to_string(),
-            // database_name: "default".to_string(),
         }
     }
 }
