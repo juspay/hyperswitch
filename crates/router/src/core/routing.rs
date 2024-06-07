@@ -1,21 +1,6 @@
 pub mod helpers;
 pub mod transformers;
 
-#[cfg(feature = "business_profile_routing")]
-use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
-use api_models::{
-    enums,
-    routing::{self as routing_types, RoutingAlgorithmId},
-};
-#[cfg(not(feature = "business_profile_routing"))]
-use common_utils::ext_traits::{Encode, StringExt};
-#[cfg(not(feature = "business_profile_routing"))]
-use diesel_models::configs;
-#[cfg(feature = "business_profile_routing")]
-use diesel_models::routing_algorithm::RoutingAlgorithm;
-use error_stack::ResultExt;
-use rustc_hash::FxHashSet;
-
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
@@ -35,6 +20,22 @@ use crate::{
 use crate::{core::errors, services::api as service_api, types::storage};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
+#[cfg(feature = "business_profile_routing")]
+use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
+use api_models::{
+    enums,
+    routing::{self as routing_types, RoutingAlgorithmId},
+};
+#[cfg(not(feature = "business_profile_routing"))]
+use common_utils::ext_traits::{Encode, StringExt};
+#[cfg(not(feature = "business_profile_routing"))]
+use diesel_models::configs;
+#[cfg(feature = "business_profile_routing")]
+use diesel_models::routing_algorithm::RoutingAlgorithm;
+use error_stack::ResultExt;
+use rustc_hash::FxHashSet;
+#[cfg(not(feature = "business_profile_routing"))]
+use storage_impl::redis::cache;
 
 pub enum TransactionData<'a, F>
 where
@@ -232,7 +233,8 @@ pub async fn create_routing_config(
         if records_are_empty {
             merchant_dictionary.active_id = Some(algorithm_id.clone());
             algorithm_ref.update_algorithm_id(algorithm_id);
-            let key = format!("dsl_{merchant_id}");
+            let key = cache::CacheKind::Routing(format!("dsl_{merchant_id}").into());
+
             helpers::update_merchant_active_algorithm_ref(db, &key_store, &key, algorithm_ref)
                 .await?;
         }
@@ -365,8 +367,8 @@ pub async fn link_routing_config(
             merchant_dictionary,
         )
         .await?;
-        let key = format!("dsl_{merchant_id}");
-        helpers::update_merchant_active_algorithm_ref(db, &key_store, &key, routing_ref).await?;
+        let key = cache::CacheKind::Routing(format!("dsl_{merchant_id}").into());
+        helpers::update_merchant_active_algorithm_ref(db, &key_store, key, routing_ref).await?;
 
         metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
