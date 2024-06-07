@@ -592,7 +592,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             }),
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {}) => {
                 Some(Gateway::Klarna)
-            },
+            }
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
