@@ -1799,6 +1799,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             redirect_response: None,
             mandate_id: payment_data.mandate_id,
             related_transaction_id: None,
+            enrolled_for_3ds: true,
         })
     }
 }

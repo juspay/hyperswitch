@@ -672,7 +672,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                _ => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
             })
     }
 }
@@ -809,7 +809,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                _ => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {

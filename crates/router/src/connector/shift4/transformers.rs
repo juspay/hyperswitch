@@ -9,7 +9,7 @@ use url::Url;
 use crate::{
     connector::utils::{
         self, to_connector_meta, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, RouterData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, RouterData,
     },
     core::errors,
     pii, services,
@@ -18,6 +18,81 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+trait Shift4AuthorizePreprocessingCommon {
+    fn is_automatic_capture(&self) -> Result<bool, Error>;
+    fn get_router_return_url(&self) -> Option<String>;
+    fn get_email_optional(&self) -> Option<pii::Email>;
+    fn get_complete_authorize_url(&self) -> Option<String>;
+    fn get_amount_required(&self) -> Result<i64, Error>;
+    fn get_currency_required(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_payment_method_data_required(&self) -> Result<domain::PaymentMethodData, Error>;
+}
+
+impl Shift4AuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
+    fn get_email_optional(&self) -> Option<pii::Email> {
+        self.email.clone()
+    }
+
+    fn get_complete_authorize_url(&self) -> Option<String> {
+        self.complete_authorize_url.clone()
+    }
+
+    fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.amount)
+    }
+
+    fn get_currency_required(
+        &self,
+    ) -> Result<diesel_models::enums::Currency, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.currency)
+    }
+    fn get_payment_method_data_required(
+        &self,
+    ) -> Result<domain::PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.payment_method_data.clone())
+    }
+
+    fn is_automatic_capture(&self) -> Result<bool, Error> {
+        self.is_auto_capture()
+    }
+
+    fn get_router_return_url(&self) -> Option<String> {
+        self.router_return_url.clone()
+    }
+}
+
+impl Shift4AuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
+    fn get_email_optional(&self) -> Option<pii::Email> {
+        self.email.clone()
+    }
+
+    fn get_complete_authorize_url(&self) -> Option<String> {
+        self.complete_authorize_url.clone()
+    }
+
+    fn get_amount_required(&self) -> Result<i64, Error> {
+        self.get_amount()
+    }
+
+    fn get_currency_required(&self) -> Result<diesel_models::enums::Currency, Error> {
+        self.get_currency()
+    }
+    fn get_payment_method_data_required(&self) -> Result<domain::PaymentMethodData, Error> {
+        self.payment_method_data.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_data",
+            }
+            .into(),
+        )
+    }
+    fn is_automatic_capture(&self) -> Result<bool, Error> {
+        self.is_auto_capture()
+    }
+
+    fn get_router_return_url(&self) -> Option<String> {
+        self.router_return_url.clone()
+    }
+}
 #[derive(Debug, Serialize)]
 pub struct Shift4PaymentsRequest {
     amount: String,
@@ -120,16 +195,18 @@ pub enum CardPayment {
     CardToken(Secret<String>),
 }
 
-impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+impl<T, Req> TryFrom<&types::RouterData<T, Req, types::PaymentsResponseData>>
     for Shift4PaymentsRequest
+where
+    Req: Shift4AuthorizePreprocessingCommon,
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        item: &types::RouterData<T, Req, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let submit_for_settlement = item.request.is_auto_capture()?;
-        let amount = item.request.amount.to_string();
-        let currency = item.request.currency;
+        let submit_for_settlement = item.request.is_automatic_capture()?;
+        let amount = item.request.get_amount_required()?.to_string();
+        let currency = item.request.get_currency_required()?;
         let payment_method = Shift4PaymentMethod::try_from(item)?;
         Ok(Self {
             amount,
@@ -140,14 +217,16 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
     }
 }
 
-impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+impl<T, Req> TryFrom<&types::RouterData<T, Req, types::PaymentsResponseData>>
     for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        item: &types::RouterData<T, Req, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
+        match item.request.get_payment_method_data_required()? {
             domain::PaymentMethodData::Card(ref ccard) => Self::try_from((item, ccard)),
             domain::PaymentMethodData::BankRedirect(ref redirect) => {
                 Self::try_from((item, redirect))
@@ -281,16 +360,18 @@ impl TryFrom<&domain::GiftCardData> for Shift4PaymentMethod {
     }
 }
 
-impl<T>
+impl<T, Req>
     TryFrom<(
-        &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        &types::RouterData<T, Req, types::PaymentsResponseData>,
         &domain::Card,
     )> for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
 {
     type Error = Error;
     fn try_from(
         (item, card): (
-            &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+            &types::RouterData<T, Req, types::PaymentsResponseData>,
             &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
@@ -309,7 +390,7 @@ impl<T>
                 card_exp_year: card_object.exp_year,
                 return_url: item
                     .request
-                    .complete_authorize_url
+                    .get_complete_authorize_url()
                     .clone()
                     .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?,
             })))
@@ -322,20 +403,22 @@ impl<T>
     }
 }
 
-impl<T>
+impl<T, Req>
     TryFrom<(
-        &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        &types::RouterData<T, Req, types::PaymentsResponseData>,
         &domain::BankRedirectData,
     )> for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
 {
     type Error = Error;
     fn try_from(
         (item, redirect_data): (
-            &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+            &types::RouterData<T, Req, types::PaymentsResponseData>,
             &domain::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
-        let flow = Flow::try_from(&item.request.router_return_url)?;
+        let flow = Flow::try_from(item.request.get_router_return_url())?;
         let method_type = PaymentMethodType::try_from(redirect_data)?;
         let billing = Billing::try_from(item)?;
         let payment_method = PaymentMethod {
@@ -423,23 +506,22 @@ impl TryFrom<&domain::BankRedirectData> for PaymentMethodType {
     }
 }
 
-impl TryFrom<&Option<String>> for Flow {
+impl TryFrom<Option<String>> for Flow {
     type Error = Error;
-    fn try_from(router_return_url: &Option<String>) -> Result<Self, Self::Error> {
+    fn try_from(router_return_url: Option<String>) -> Result<Self, Self::Error> {
         Ok(Self {
-            return_url: router_return_url
-                .clone()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            return_url: router_return_url.ok_or(errors::ConnectorError::RequestEncodingFailed)?,
         })
     }
 }
 
-impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
-    for Billing
+impl<T, Req> TryFrom<&types::RouterData<T, Req, types::PaymentsResponseData>> for Billing
+where
+    Req: Shift4AuthorizePreprocessingCommon,
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        item: &types::RouterData<T, Req, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let billing_address = item
             .get_optional_billing()
@@ -450,7 +532,7 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
             name: billing_address.map(|billing| {
                 Secret::new(format!("{:?} {:?}", billing.first_name, billing.last_name))
             }),
-            email: item.request.email.clone(),
+            email: item.request.get_email_optional(),
             address,
         })
     }
@@ -632,24 +714,12 @@ pub struct Shift4CardToken {
     pub id: Secret<String>,
 }
 
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            Shift4ThreeDsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+impl TryFrom<types::PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
+    for types::PaymentsPreProcessingRouterData
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            Shift4ThreeDsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        item: types::PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item
             .response
@@ -661,7 +731,7 @@ impl<F>
             } else {
                 enums::AttemptStatus::Pending
             },
-            request: types::PaymentsAuthorizeData {
+            request: types::PaymentsPreProcessingData {
                 enrolled_for_3ds: item.response.enrolled,
                 ..item.data.request
             },
