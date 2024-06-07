@@ -99,8 +99,17 @@ Cypress.Commands.add(
       (jsonContent) => {
         const authDetails = getValueByKey(
           JSON.stringify(jsonContent),
-          globalState.get("connectorId"),
+          globalState.get("connectorId")
         );
+
+        // If the connector does not have payment connector creds in creds file, set paymentsExecution to false
+        if (authDetails === null) {
+          globalState.set("paymentsExecution", false);
+          return false;
+        } else {
+          globalState.set("paymentsExecution", true);
+        }
+
         createConnectorBody.connector_account_details = authDetails;
         cy.request({
           method: "POST",
@@ -117,12 +126,12 @@ Cypress.Commands.add(
 
           if (response.status === 200) {
             expect(globalState.get("connectorId")).to.equal(
-              response.body.connector_name,
+              response.body.connector_name
             );
           } else {
             cy.task(
               "cli_log",
-              "response status -> " + JSON.stringify(response.status),
+              "response status -> " + JSON.stringify(response.status)
             );
           }
         });
@@ -151,6 +160,8 @@ Cypress.Commands.add(
         if (authDetails === null) {
           globalState.set("payoutsExecution", false);
           return false;
+        } else {
+          globalState.set("payoutsExecution", true);
         }
 
         createConnectorBody.connector_account_details = authDetails;
@@ -195,7 +206,7 @@ Cypress.Commands.add(
       (jsonContent) => {
         const authDetails = getValueByKey(
           JSON.stringify(jsonContent),
-          connector_name,
+          connector_name
         );
         createConnectorBody.connector_account_details = authDetails;
         cy.request({
@@ -214,12 +225,12 @@ Cypress.Commands.add(
           if (response.status === 200) {
             globalState.set(
               `${connector_name}_mc_id`,
-              response.body.merchant_connector_id,
+              response.body.merchant_connector_id
             );
           } else {
             cy.task(
               "cli_log",
-              "response status -> " + JSON.stringify(response.status),
+              "response status -> " + JSON.stringify(response.status)
             );
           }
         });

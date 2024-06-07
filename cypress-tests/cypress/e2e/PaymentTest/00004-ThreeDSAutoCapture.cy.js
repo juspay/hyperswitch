@@ -1,24 +1,28 @@
 import confirmBody from "../../fixtures/confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
 describe("Card - ThreeDS payment flow test", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+
+      // Check if the connector supports card payments (based on the connector configuration in creds)
+      if (!globalState.get("paymentsExecution")) {
+        should_continue = false;
+      }
+    });
+  });
+
   beforeEach(function () {
     if (!should_continue) {
       this.skip();
     }
-  });
-
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
   });
 
   afterEach("flush global state", () => {
@@ -37,7 +41,7 @@ describe("Card - ThreeDS payment flow test", () => {
       res_data,
       "three_ds",
       "automatic",
-      globalState,
+      globalState
     );
     if (should_continue)
       should_continue = utils.should_continue_further(res_data);
