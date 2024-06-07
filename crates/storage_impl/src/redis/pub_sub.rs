@@ -3,7 +3,8 @@ use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
 use crate::redis::cache::{
-    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, ROUTING_CACHE,
+    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, PM_FILTERS_CGRAPH_CACHE,
+    ROUTING_CACHE,
 };
 
 #[async_trait::async_trait]
@@ -99,6 +100,16 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                         .await;
                     key
                 }
+                CacheKind::PmFiltersCGraph(key) => {
+                    PM_FILTERS_CGRAPH_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+
+                    key
+                }
                 CacheKind::Routing(key) => {
                     ROUTING_CACHE
                         .remove(CacheKey {
@@ -122,6 +133,12 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                         })
                         .await;
                     CGRAPH_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    PM_FILTERS_CGRAPH_CACHE
                         .remove(CacheKey {
                             key: key.to_string(),
                             prefix: self.key_prefix.clone(),

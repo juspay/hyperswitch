@@ -148,6 +148,10 @@ pub struct PayoutCreateRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+
+    /// The send method for processing payouts
+    #[schema(value_type = PayoutSendPriority, example = "instant")]
+    pub priority: Option<api_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -440,6 +444,14 @@ pub struct PayoutCreateResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
+
+    /// Underlying processor's payout resource ID
+    #[schema(value_type = Option<String>, example = "S3FC9G9M2MVFDXT5")]
+    pub connector_transaction_id: Option<String>,
+
+    /// Payout's send priority (if applicable)
+    #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
+    pub priority: Option<api_enums::PayoutSendPriority>,
 
     /// List of attempts
     #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]

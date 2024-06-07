@@ -501,6 +501,7 @@ pub trait ConnectorActions: Connector {
                     phone_country_code: Some("+31".to_string()),
                 }),
                 vendor_details: None,
+                priority: None,
             },
             payment_info,
         )
@@ -540,6 +541,7 @@ pub trait ConnectorActions: Connector {
             connector_meta_data: info
                 .clone()
                 .and_then(|a| a.connector_meta_data.map(Secret::new)),
+            connector_wallets_details: None,
             amount_captured: None,
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
@@ -784,7 +786,7 @@ pub trait ConnectorActions: Connector {
         );
         let fulfill_res = self
             .fulfill_payout(
-                Some(create_res.connector_payout_id),
+                create_res.connector_payout_id,
                 payout_type,
                 payment_info.to_owned(),
             )
@@ -808,7 +810,11 @@ pub trait ConnectorActions: Connector {
         );
         let cancel_res = self
             .cancel_payout(
-                create_res.connector_payout_id,
+                create_res
+                    .connector_payout_id
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "connector_payout_id",
+                    })?,
                 payout_type,
                 payment_info.to_owned(),
             )

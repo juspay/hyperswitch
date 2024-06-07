@@ -727,7 +727,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
         payments::TokenizationAction::TokenizeInConnector
-        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
+        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::PaymentMethodToken,

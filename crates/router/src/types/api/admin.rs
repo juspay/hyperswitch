@@ -85,6 +85,8 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
                 .extended_card_info_config
                 .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
                 .transpose()?,
+            collect_shipping_details_from_wallet_connector: item
+                .collect_shipping_details_from_wallet_connector,
         })
     }
 }
