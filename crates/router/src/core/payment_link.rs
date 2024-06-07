@@ -10,7 +10,7 @@ use error_stack::ResultExt;
 use futures::future;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
-
+use router_env::logger;
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
     errors::RouterResponse,
@@ -393,6 +393,7 @@ pub fn get_payment_link_config_based_on_priority(
                 field_name: "payment_link_config",
             })
             .attach_printable("Invalid payment_link_config given in business config")?;
+        logger::info!("domain name set to custom domain https://{:?}", extracted_value.domain_name);
 
         (
             extracted_value
