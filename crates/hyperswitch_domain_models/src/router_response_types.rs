@@ -148,6 +148,9 @@ pub enum RedirectForm {
         customer_vault_id: String,
         order_id: String,
     },
+    Mifinity {
+        initialization_token: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {

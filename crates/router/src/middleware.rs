@@ -165,6 +165,7 @@ where
                     status_code = Empty,
                     flow = "UNKNOWN",
                     golden_log_line = Empty,
+                    tenant_id = "ta"
                 )
                 .or_current(),
             ),
