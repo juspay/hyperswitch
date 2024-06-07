@@ -403,7 +403,7 @@ services:
       - router_net
 
   vector:
-    image: vector-sessionizer:latest
+    image: vector-sessionizer:lua-json
     ports:
       - "8686:8686"
     networks:

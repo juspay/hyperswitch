@@ -11,43 +11,20 @@ sources:
     bootstrap_servers: kafka0:29092
     group_id: sessionizer
     topics:
-      - hyperswitch-payment-attempt-events
-      - hyperswitch-payment-intent-events
-      - hyperswitch-refund-events
-      - hyperswitch-dispute-events
+      - hyperswitch-consolidated-events
+    decoding:
+      codec: json
 
 transforms:
-  parse_kafka_payments:
+  init_sessionizer_vars:
     type: remap
     inputs:
       - kafka_payments
     source: >-
-      payment_topic_to_log_type = {
-        "hyperswitch-payment-intent-events" : "intent",
-        "hyperswitch-payment-attempt-events" : "attempt",
-        "hyperswitch-dispute-events" : "dispute",
-        "hyperswitch-refund-events" : "refund"
-      };
-      .log = parse_json(.message) ?? {};
-      del(.message);
-      .log_type = get(payment_topic_to_log_type, [.topic]) ?? "unknown";
-
-  filter_out_negatives:
-    type: filter
-    inputs:
-      - parse_kafka_payments
-    condition: .log.sign_flag == 1
-
-  init_sessionizer_vars:
-    type: remap
-    inputs:
-      - filter_out_negatives
-    source: >-
-      log(.);
       .sessionizer = {
         "table": "${CASSANDRA_TABLE:-payments}",
         "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
-        "db_log_type": "intent"
+        "db_log_type": "payment_intent"
       };
 
   buffer_with_reduce:
@@ -65,7 +42,7 @@ transforms:
       log: retain
     expire_after_ms: 5000
 
-  cassandra_get_old_event:
+  cassandra_sessionize:
     type: lua
     inputs:
       - buffer_with_reduce
@@ -75,8 +52,9 @@ transforms:
       process: process
       shutdown: shutdown
     source: |-
-      local socket = require 'socket'
+      local socket = require "socket"
       local cassandra = require "cassandra"
+      local json = require "json"
 
       function sleep(sec)
         socket.select(nil, nil, sec)
@@ -105,16 +83,22 @@ transforms:
         client_connect()
       end
 
-      function init(emit)
-        create_cassandra_connection()  
-      end
-
       function db_get(table, id, version)
         local version = version or 1
         local rows = assert(client:execute(string.format("SELECT * FROM %s WHERE id = ?", table), {
           id
         }))
         return rows
+      end
+
+      function db_set(table, state, id, version)
+        version = version or 1
+        local res = assert(client:execute(string.format("INSERT INTO %s (id, state, version) VALUES (?, ?, ?)", table), {
+          id,
+          state,
+          version
+        },{consistency = cassandra.consistencies.local_quorum}))
+        return res
       end
 
       function db_get_wait(table, id, version)
@@ -134,123 +118,13 @@ transforms:
         return data
       end
 
-      function process(event, emit)
-        local sessionizer = event.log.sessionizer
-
-        local data = db_get_wait(sessionizer.table, sessionizer.id)
-        event.log.old_log_type = sessionizer.db_log_type
-        if #data == 1 then
-          event.log.old_log = data[1].state
-        end
-
-        emit(event)
-      end
-
-      function shutdown(emit)
-        client:close()
-      end
-
-  club_with_old_event:
-    type: remap
-    inputs:
-      - cassandra_get_old_event
-    source: >-
-      db_log = .old_log;
-      new_log_type = .log_type;
-      new_log = .log;
-
-      traverse_map = if new_log_type == "intent" {
-        {}
-      } else if new_log_type == "attempt" {
-        {"attempts": new_log.attempt_id}
-      } else if new_log_type == "refund" {
-        {"attempts": new_log.attempt_id, "refunds": new_log.refund_id}
-      } else if new_log_type == "dispute" {
-        {"attempts": new_log.attempt_id, "disputes": new_log.dispute_id}
-      } else {
-        null
-      }
-
-      .sessionizer.db_event = "{}";
-      if is_object(traverse_map) {
-        traverse_map = object!(traverse_map);
-        path = [];
-        for_each(traverse_map) -> |k, v| {
-          path = append(path, [k, v])
-        }
-        db_log = parse_json(db_log) ?? {};
-        log = get(db_log, path) ?? {};
-
-        new_log = object(new_log) ?? {};
-        for_each(new_log) -> |k, v| {
-          log = set!(log, [k], v)
-        };
-
-        .log = set!(db_log, path, log)
-        .sessionizer.db_event = encode_json(.log)
-      }
-
-  cassandra_set_new_event:
-    type: lua
-    inputs:
-      - club_with_old_event
-    version: "2"
-    hooks:
-      init: init
-      process: process
-      shutdown: shutdown
-    source: |-
-      local socket = require 'socket'
-      local cassandra = require "cassandra"
-
-      function sleep(sec)
-        socket.select(nil, nil, sec)
-      end
-
-      function client_connect()
-        assert(client:connect())
-      end
-
-      function client_close()
-        assert(client:close())
-      end
-
-      function create_cassandra_connection()
-        client = assert(cassandra.new {
-          host = os.getenv("CASSANDRA_HOST") or "cassandra0",
-          port = os.getenv("CASSANDRA_PORT") or 9042,
-          keyspace = os.getenv("CASSANDRA_KEYSPACE") or "sessionizer",
-          auth = cassandra.auth_providers.plain_text(os.getenv("CASSANDRA_USERNAME") or "cassandra", os.getenv("CASSANDRA_PASSWORD") or "cassandra"),
-          ssl = os.getenv("CASSANDRA_SSL") or false,
-          cert = os.getenv("CASSANDRA_CERT") or ""
-        })
-
-        client:settimeout(1000)
-        client:setkeepalive(0)
-        client_connect()
-      end
-
-      function init(emit)
-        create_cassandra_connection()
-      end
-
-      function db_set(table, state, id, version)
-        version = version or 1
-        local res = assert(client:execute(string.format("INSERT INTO %s (id, state, version) VALUES (?, ?, ?)", table), {
-          id,
-          state,
-          version
-        },{consistency = cassandra.consistencies.local_quorum}))
-        return res
-      end
-
       function db_set_wait(table, state, id, version)
         local is_success, res = pcall(db_set, table, state, id, version)
 
         while not is_success do
           sleep(5)
 
-          print(string.format("db_set - recreate cassandra connection start - reason - %s", data))
+          print(string.format("db_set - recreate cassandra connection start - reason - %s", res))
           local connection_closed, err = pcall(client_close)
           print(string.format("db_set - close old cassandra connection - result - %s, %s", connection_closed, err))
           local connection_success, err = pcall(create_cassandra_connection)
@@ -262,10 +136,72 @@ transforms:
         return res
       end
 
+      function get_value(tb, path)
+        local value = tb
+
+        for i, v in ipairs(path) do
+          value = value[v] or {}
+        end
+
+        return value
+      end
+
+      function set_value(tb, path, value, index)
+        local index = index or 1
+
+        if index > #path then
+          return value
+        else
+          tb[path[index]] = set_value(tb[path[index]] or {}, path, value, index + 1)
+        end
+        
+        return tb
+      end
+
+      function init(emit)
+        create_cassandra_connection()  
+      end
+
       function process(event, emit)
         local sessionizer = event.log.sessionizer
-        local new_event_insert = db_set_wait(sessionizer.table, sessionizer.db_event, sessionizer.id)
+        local new_log_type = event.log.log_type
+        local new_log = event.log.log
+        local db_log = {}
+
+        local data = db_get_wait(sessionizer.table, sessionizer.id)
+
+        local traverse_map = nil
+
+        if new_log_type == "payment_intent" then
+          traverse_map = {}
+        elseif new_log_type == "payment_attempt" then
+          traverse_map = {"attempts", new_log.attempt_id}
+        elseif new_log_type == "refund" then
+          traverse_map = {"attempts", new_log.attempt_id, "refunds", new_log.refund_id}
+        elseif new_log_type == "dispute" then
+          traverse_map = {"attempts", new_log.attempt_id, "disputes", new_log.dispute_id}
+        end
+
+        if #data == 1 then
+          event.log.old_log = data[1].state
+          db_log = json.decode(data[1].state)
+        end
+
+        if type(traverse_map) ~= nil then
+          local log = get_value(db_log, traverse_map)
+
+          for k, v in pairs(new_log) do
+            log[k] = v
+          end
+
+          db_log = set_value(db_log, traverse_map, log)
+        end
+
+        event.log.log = db_log
+
+        local _new_event_insert = db_set_wait(sessionizer.table, json.encode(db_log), sessionizer.id)
         emit(event)
+
       end
 
       function shutdown(emit)
@@ -275,11 +211,11 @@ transforms:
   generate_signed_events:
     type: remap
     inputs:
-      - cassandra_set_new_event
+      - cassandra_sessionize
     source: >-
       events = [];
       if exists(.old_log) {
-        .old_log = parse_json!(.old_log);
+        .old_log = parse_json(.old_log) ?? {};
         .old_log.sign_flag = -1;
         events = push(events, .old_log);
       };
@@ -376,76 +312,72 @@ transforms:
     inputs:
       - consolidate_events
     source: >-
-      del(.attempts);
-      .sessionizer_key = string!(.merchant_id) + "_" + string!(.payment_id);
-      # .log_type = "intent";
+      if exists(.merchant_id) && exists(.payment_id) {
+        del(.attempts);
+        .sessionizer_key = string!(.merchant_id) + "_" + string!(.payment_id);
+        # .log_type = "payment_intent";
+      } else {
+        . = []
+      }
 
   consolidate_events_attempts:
     type: remap
     inputs:
       - consolidate_events
     source: >-
-      . = if exists(.attempts) {
-        map_values(values(object!(.attempts))) -> |a| {
-          attempt = object!(a);
+      . = flatten(map_values(values(object(.attempts) ?? {})) -> |a| {
+        attempt = object(a) ?? {};
+        if exists(attempt.merchant_id) && exists(attempt.payment_id) && exists(attempt.attempt_id) {
           del(attempt.refunds);
           del(attempt.disputes);
           attempt.sign_flag = .sign_flag;
-          # attempt.log_type = "attempt";
+          # attempt.log_type = "payment_attempt";
           attempt.sessionizer_key = string!(attempt.merchant_id) + "_" + string!(attempt.payment_id) + "_" + string!(attempt.attempt_id);
           attempt
+        } else {
+          []
         }
-      } else {
-        []
-      }
+      })
 
   consolidate_events_refunds:
     type: remap
     inputs:
       - consolidate_events
     source: >-
-      . = if exists(.attempts) {
-        flatten(map_values(values(object!(.attempts))) -> |a| {
-          attempt = object!(a);
-          if exists(attempt.refunds) {
-            map_values(values(object!(attempt.refunds))) -> |r| {
-              refund = object!(r);
+      . = flatten(map_values(values(object(.attempts) ?? {})) -> |a| {
+          attempt = object(a) ?? {};
+          map_values(values(object(attempt.refunds) ?? {})) -> |r| {
+            refund = object(r) ?? {};
+            if exists(refund.merchant_id) && exists(refund.payment_id) && exists(refund.attempt_id) && exists(refund.refund_id) {
               refund.sign_flag = .sign_flag;
               # refund.log_type = "refund";
               refund.sessionizer_key = string!(refund.merchant_id) + "_" + string!(refund.payment_id) + "_" + string!(refund.attempt_id) + "_" + string!(refund.refund_id);
               refund
+            } else {
+              []
             }
-          } else {
-            []
           }
         })
-      } else {
-        []
-      }
 
   consolidate_events_disputes:
     type: remap
     inputs:
       - consolidate_events
     source: >-
-      . = if exists(.attempts) {
-        flatten(map_values(values(object!(.attempts))) -> |a| {
-          attempt = object!(a);
-          if exists(attempt.disputes) {
-            map_values(values(object!(attempt.disputes))) -> |d| {
-              dispute = object!(d);
+      . = flatten(map_values(values(object(.attempts) ?? {})) -> |a| {
+          attempt = object(a) ?? {};
+          map_values(values(object(attempt.disputes) ?? {})) -> |d| {
+            dispute = object(d) ?? {};
+            if exists(dispute.merchant_id) && exists(dispute.payment_id) && exists(dispute.attempt_id) && exists(dispute.dispute_id) {
               dispute.sign_flag = .sign_flag;
               # dispute.log_type = "dispute";
               dispute.sessionizer_key = string!(dispute.merchant_id) + "_" + string!(dispute.payment_id) + "_" + string!(dispute.attempt_id) + "_" + string!(dispute.dispute_id);
               dispute
+            } else {
+              []
             }
-          } else {
-            []
           }
         })
-      } else {
-        []
-      }
 
 sinks:
   # kafka_intents_sink:
