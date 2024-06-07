@@ -329,12 +329,14 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             merchant_name: api_model.merchant_name,
             acquirer_bin: api_model.acquirer_bin,
             acquirer_merchant_id: api_model.acquirer_merchant_id,
+            acquirer_country_code: api_model.acquirer_country_code,
             three_ds_requestor_name: api_model.three_ds_requestor_name,
             three_ds_requestor_id: api_model.three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled: api_model
                 .pull_mechanism_for_external_3ds_enabled,
             klarna_region: api_model.klarna_region,
             source_balance_account: api_model.source_balance_account,
+            brand_id: api_model.brand_id,
         }
     }
 }
