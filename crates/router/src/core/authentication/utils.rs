@@ -77,7 +77,10 @@ pub async fn update_trackers<F: Clone, Req>(
                     .as_ref()
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
                 acquirer_merchant_id: acquirer_details
-                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
+                acquirer_country_code: acquirer_details
+                    .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                 directory_server_id,
             },
             AuthenticationResponseData::AuthNResponse {
@@ -214,6 +217,7 @@ pub async fn create_new_authentication(
         merchant_connector_id,
         ds_trans_id: None,
         directory_server_id: None,
+        acquirer_country_code: None,
     };
     state
         .store

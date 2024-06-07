@@ -125,6 +125,7 @@ where
     };
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
+        state,
         &payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
     );
@@ -154,6 +155,7 @@ where
             .authentication_type
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         request: T::try_from(additional_data)?,
         response,
         amount_captured: payment_data
@@ -1795,6 +1797,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response: None,
+            mandate_id: payment_data.mandate_id,
+            related_transaction_id: None,
         })
     }
 }

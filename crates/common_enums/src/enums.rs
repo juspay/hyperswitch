@@ -1452,6 +1452,7 @@ pub enum PaymentMethodType {
     Seicomart,
     PayEasy,
     LocalBankTransfer,
+    Mifinity,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
@@ -2321,11 +2322,6 @@ pub enum ReconStatus {
     Requested,
     Active,
     Disabled,
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ApplePayFlow {
-    Simplified,
-    Manual,
 }
 
 #[derive(
