@@ -2011,7 +2011,8 @@ pub fn build_payment_link_html(
     };
 
     // Logging template
-    let logging_template = include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
 
     // Modify Html template with rendered js and rendered css files
     let html_template =
@@ -2082,7 +2083,8 @@ pub fn get_payment_link_status(
     };
 
     // Logging template
-    let logging_template = include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
 
     // Add modification to js template with dynamic data
     let js_template =
