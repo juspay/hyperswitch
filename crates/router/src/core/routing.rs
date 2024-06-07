@@ -1,6 +1,23 @@
 pub mod helpers;
 pub mod transformers;
 
+#[cfg(feature = "business_profile_routing")]
+use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
+use api_models::{
+    enums,
+    routing::{self as routing_types, RoutingAlgorithmId},
+};
+#[cfg(not(feature = "business_profile_routing"))]
+use common_utils::ext_traits::{Encode, StringExt};
+#[cfg(not(feature = "business_profile_routing"))]
+use diesel_models::configs;
+#[cfg(feature = "business_profile_routing")]
+use diesel_models::routing_algorithm::RoutingAlgorithm;
+use error_stack::ResultExt;
+use rustc_hash::FxHashSet;
+#[cfg(not(feature = "business_profile_routing"))]
+use storage_impl::redis::cache;
+
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
@@ -20,22 +37,6 @@ use crate::{
 use crate::{core::errors, services::api as service_api, types::storage};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
-#[cfg(feature = "business_profile_routing")]
-use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
-use api_models::{
-    enums,
-    routing::{self as routing_types, RoutingAlgorithmId},
-};
-#[cfg(not(feature = "business_profile_routing"))]
-use common_utils::ext_traits::{Encode, StringExt};
-#[cfg(not(feature = "business_profile_routing"))]
-use diesel_models::configs;
-#[cfg(feature = "business_profile_routing")]
-use diesel_models::routing_algorithm::RoutingAlgorithm;
-use error_stack::ResultExt;
-use rustc_hash::FxHashSet;
-#[cfg(not(feature = "business_profile_routing"))]
-use storage_impl::redis::cache;
 
 pub enum TransactionData<'a, F>
 where
