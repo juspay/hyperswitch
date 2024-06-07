@@ -75,7 +75,7 @@ macro_rules! dirval {
 
     ($key:ident = $num:literal) => {{
         $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: $num,
+            number: common_utils::types::MinorUnit::new($num),
             refinement: None,
         })
     }};
@@ -827,10 +827,6 @@ mod test {
             );
             key_names.insert(key, display_str);
         }
-        // let amount = DirValue::PaymentAmount(types::NumValue {
-        //     number:MinorUnit::new(100),
-        //     refinement:None
-        // });
 
         let values = vec![
             dirval!(PaymentMethod = Card),
