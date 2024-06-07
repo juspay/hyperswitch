@@ -2010,6 +2010,9 @@ pub fn build_payment_link_html(
         }
     };
 
+    // Logging template
+    let logging_template = include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
     // Modify Html template with rendered js and rendered css files
     let html_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
@@ -2034,6 +2037,8 @@ pub fn build_payment_link_html(
     );
     context.insert("rendered_css", &rendered_css);
     context.insert("rendered_js", &rendered_js);
+
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
@@ -2076,11 +2081,14 @@ pub fn get_payment_link_status(
         }
     };
 
+    // Logging template
+    let logging_template = include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_status/status.js").to_string();
     let _ = tera.add_raw_template("payment_link_js", &js_template);
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
 
     let rendered_js = match tera.render("payment_link_js", &context) {
         Ok(rendered_js) => rendered_js,
@@ -2090,6 +2098,8 @@ pub fn get_payment_link_status(
         }
     };
 
+    
+
     // Modify Html template with rendered js and rendered css files
     let html_template =
         include_str!("../core/payment_link/payment_link_status/status.html").to_string();
@@ -2098,6 +2108,7 @@ pub fn get_payment_link_status(
     context.insert("rendered_css", &rendered_css);
 
     context.insert("rendered_js", &rendered_js);
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link_status", &context) {
         Ok(rendered_html) => Ok(rendered_html),
