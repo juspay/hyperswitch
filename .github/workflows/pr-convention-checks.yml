@@ -149,7 +149,7 @@ jobs:
             migration_and_schema_changes='true'
           fi
 
-          if echo $files_changed | grep --quiet --extended-regexp '(openapi/src/openapi.rs)'; then
+          if echo $files_changed | grep --quiet --extended-regexp '(api-reference/openapi_spec.json)'; then
             openapi_changes='true'
           fi
 
