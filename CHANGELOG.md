@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.07.0
+
+### Features
+
+- **connector:** [MIFINITY] Implement payment flows and Mifinity payment method ([#4592](https://github.com/juspay/hyperswitch/pull/4592)) ([`6750be5`](https://github.com/juspay/hyperswitch/commit/6750be5aeecfa8c3805cf2eac49e6122a8eb91e1))
+- **events:** Add metadata info to events ([#4875](https://github.com/juspay/hyperswitch/pull/4875)) ([`c9dbb56`](https://github.com/juspay/hyperswitch/commit/c9dbb567ab1a633aef6d4fd8bace7250ed638747))
+- **router:** Add `acquirer_country_code` in acquirer_details and send it in netcetera authentication flow ([#4835](https://github.com/juspay/hyperswitch/pull/4835)) ([`3077421`](https://github.com/juspay/hyperswitch/commit/3077421cbde335faec961fb6d751078e87dcf1ac))
+
+### Bug Fixes
+
+- **connectors:** [BOA/CYBS] make avs code optional ([#4898](https://github.com/juspay/hyperswitch/pull/4898)) ([`3d9ecd0`](https://github.com/juspay/hyperswitch/commit/3d9ecd09383916fa9ac824e5ebf9052f6862758d))
+
+### Refactors
+
+- **connector:** Convert init payment flow to preprocessing flow for nuvei ([#4878](https://github.com/juspay/hyperswitch/pull/4878)) ([`e7acaa5`](https://github.com/juspay/hyperswitch/commit/e7acaa5716e93a7ebcd497fe18bb3748e04e890c))
+- **outgoing_webhooks:** Raise errors in the analytics pipeline in case of API client errors or non-2xx responses ([#4894](https://github.com/juspay/hyperswitch/pull/4894)) ([`9da9202`](https://github.com/juspay/hyperswitch/commit/9da92027ef82f96140ee6663733c19ac927e3775))
+
+### Miscellaneous Tasks
+
+- **config:** [MIFINITY] add configs for Mifinity in WASM ([#4895](https://github.com/juspay/hyperswitch/pull/4895)) ([`b4dbe84`](https://github.com/juspay/hyperswitch/commit/b4dbe841f82b1d3bbbd70926fa46c03270b5599b))
+
+**Full Changelog:** [`2024.06.06.1...2024.06.07.0`](https://github.com/juspay/hyperswitch/compare/2024.06.06.1...2024.06.07.0)
+
+- - -
+
 ## 2024.06.06.1
 
 ### Features
