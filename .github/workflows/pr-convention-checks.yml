@@ -7,13 +7,13 @@ on:
   # pull request whenever this trigger is used.
   # Since we do not have a checkout step in this workflow, this is an
   # acceptable use of this trigger.
-  pull_request:
-    # types:
-    #   - opened
-    #   - edited
-    #   - reopened
-    #   - ready_for_review
-    #   - synchronize
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - ready_for_review
+      - synchronize
 
   merge_group:
     types:
@@ -129,13 +129,13 @@ jobs:
             fi
           done <<< "${linked_issues}"
 
-  pr_contains_database_and_schema_changes_checks:
-    name: Verify PR contains appropriate label if database and schema changes exists
-    if: ${{ github.event_name != 'merge_group' }}
+  pr_labeler:
+    name: Verify PR contains appropriate label
+    if: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get changed files
+      - name: Get files changed
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -156,7 +156,7 @@ jobs:
           echo migration_and_schema_changes=${migration_and_schema_changes} >> $GITHUB_ENV
           echo openapi_changes=${openapi_changes} >> $GITHUB_ENV
 
-      - name: Add/Remove 'M-database-changes' based on database changes
+      - name: Add/Remove 'M-database-changes' based on Migartion or Schema changes
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -167,7 +167,7 @@ jobs:
             gh --repo ${{ github.event.repository.full_name }} pr edit --remove-label 'M-database-changes' ${{ github.event.pull_request.number }}
           fi
 
-      - name: Add/Remove 'M-api-contract-changes' based on OpenAPI changes
+      - name: Add/Remove 'M-api-contract-changes' based on OpenAPI Spec changes
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
