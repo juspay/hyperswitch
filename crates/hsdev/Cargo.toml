@@ -1,11 +1,12 @@
 [package]
 name = "hsdev"
 version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
+license.workspace = true 
+edition.workspace = true
+rust-version.workspace = true 
 description = "A simple diesel postgres migrator that uses TOML files"
 repository = "https://github.com/juspay/hyperswitch.git"
-readme = "docs/README.md"
+readme = "README.md"
 
 [dependencies]
 diesel = { version = "2.1.6", features = ["postgres"] }
