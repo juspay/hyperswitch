@@ -934,13 +934,13 @@ pub async fn call_connector_payout(
         .await?;
 
         // Payout creation flow
-        complete_create_payout(
+        Box::pin(complete_create_payout(
             state,
             merchant_account,
             key_store,
             connector_data,
             payout_data,
-        )
+        ))
         .await?;
     };
 
