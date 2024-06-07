@@ -6,7 +6,7 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
-    connectors=(aci adyen airwallex applepay authorizedotnet bambora bankofamerica billwerk bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector ebanx fiserv forte globalpay globepay gocardless gpayments helcim iatapay klarna mifinity mollie multisafepay netcetera nexinets noon nuvei opayo opennode payeezy payme payone paypal payu placetopay powertranz prophetpay rapyd sahkal sahkal sahkal shift4 square stax stripe threedsecureio trustpay tsys volt wise worldline worldpay zsl "$1")
+    connectors=(aci adyen airwallex applepay authorizedotnet bambora bankofamerica billwerk bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector ebanx fiserv forte globalpay globepay gocardless gpayments helcim iatapay klarna mifinity mollie multisafepay netcetera nexinets noon nuvei opayo opennode payeezy payme payone paypal payu placetopay powertranz prophetpay rapyd shift4 square stax stripe threedsecureio trustpay tsys volt wise worldline worldpay zsl "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res=`echo ${sorted[@]}`
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
@@ -59,9 +59,10 @@ sed -i'' -e "s/pub $previous_connector: \(.*\)/pub $previous_connector: \1\n\tpu
 sed -i'' -e "s|$previous_connector.base_url \(.*\)|$previous_connector.base_url \1\n${payment_gateway}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
 sed  -r -i'' -e "s/\"$previous_connector\",/\"$previous_connector\",\n    \"${payment_gateway}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/api_models/src/enums.rs
-sed -i '' -e "/\/\/ Add Separate authentication support for connectors/{N;s/\(.*\)\n/\1\n            | Self::${payment_gateway_camelcase}\n/;}" crates/api_models/src/enums.rs
+sed -i '' -e "/\/\/ Add Separate authentication support for connectors/{N;s/\(.*\)\n/\1\n\t\t\t\t| Self::${payment_gateway_camelcase}\n/;}" crates/api_models/src/enums.rs
 sed -i '' -e "s/\(match connector_name {\)/\1\n\t\tapi_enums::Connector::${payment_gateway_camelcase} => {${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(val)?;Ok(())}/" $src/core/admin.rs
 sed -i'' -e "s/\(pub enum RoutableConnectors {\)/\1\n\t${payment_gateway_camelcase},/" crates/common_enums/src/enums.rs
+sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/euclid/src/enums.rs
 sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tapi_enums::Connector::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},|" $src/types/transformers.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnector::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
 
