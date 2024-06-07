@@ -26,7 +26,7 @@ use super::{
     payments::customers,
 };
 #[cfg(feature = "olap")]
-use crate::types::{domain::behaviour::Conversion, transformers::ForeignFrom};
+use crate::types::domain::behaviour::Conversion;
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -41,6 +41,7 @@ use crate::{
         api::{self, payouts},
         domain,
         storage::{self, PaymentRoutingInfo},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -1380,10 +1381,6 @@ pub async fn create_payout(
     > = connector_data.connector.get_connector_integration();
 
     // 4. Execute pretasks
-    // connector_integration
-    //     .execute_pretasks(&mut router_data, state)
-    //     .await
-    //     .to_payout_failed_response()?;
     complete_payout_quote_steps_if_required(state, connector_data, &mut router_data).await?;
 
     // 5. Call connector service
