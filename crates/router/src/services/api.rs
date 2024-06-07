@@ -2088,7 +2088,7 @@ pub fn get_payment_link_status(
     let js_template =
         include_str!("../core/payment_link/payment_link_status/status.js").to_string();
     let _ = tera.add_raw_template("payment_link_js", &js_template);
-
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
 
     let rendered_js = match tera.render("payment_link_js", &context) {
         Ok(rendered_js) => rendered_js,
@@ -2097,7 +2097,6 @@ pub fn get_payment_link_status(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-
     
 
     // Modify Html template with rendered js and rendered css files
