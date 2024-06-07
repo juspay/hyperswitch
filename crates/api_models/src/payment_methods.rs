@@ -656,9 +656,6 @@ pub struct PaymentMethodListRequest {
     /// Indicates the limit of last used payment methods
     #[schema(example = 1)]
     pub limit: Option<i64>,
-    // Indicates the Tracsaction Type
-    #[schema(value_type = Option<TransactionType>)]
-    pub transaction_type: Option<api_enums::TransactionType>,
 }
 
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
