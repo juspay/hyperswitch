@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.07.0-hotfix1
+
+### Features
+
+- **connector:** [BOA] Handle refund status 201 ([#4912](https://github.com/juspay/hyperswitch/pull/4912)) ([`864bb49`](https://github.com/juspay/hyperswitch/commit/864bb49f513b959106e542d4954d8b5eeb1e0edf))
+
+- - -
+
 ## 2024.06.07.0
 
 ### Features
