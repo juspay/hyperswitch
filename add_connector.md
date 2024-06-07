@@ -913,7 +913,6 @@ Utility functions for tests are also available at `tests/connector/utils`. These
             Box::new(services::MockApiClient),
         )
         .await;
-        integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
 ```
