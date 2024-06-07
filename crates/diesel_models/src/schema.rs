@@ -119,6 +119,8 @@ diesel::table! {
         ds_trans_id -> Nullable<Varchar>,
         #[max_length = 128]
         directory_server_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        acquirer_country_code -> Nullable<Varchar>,
     }
 }
 

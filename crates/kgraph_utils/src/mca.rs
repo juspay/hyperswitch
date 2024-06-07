@@ -134,6 +134,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
         api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
         api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
+        api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
     }
 }
 

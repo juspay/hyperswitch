@@ -124,7 +124,8 @@ impl TryFrom<(&types::TokenizationRouterData, domain::WalletData)> for SquareTok
             | domain::WalletData::WeChatPayRedirect(_)
             | domain::WalletData::WeChatPayQr(_)
             | domain::WalletData::CashappQr(_)
-            | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Square"),
             ))?,
         }

@@ -140,9 +140,10 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for Pay
             | domain::WalletData::SwishQr(_)
             | domain::WalletData::AliPayQr(_)
             | domain::WalletData::ApplePayRedirect(_)
-            | domain::WalletData::GooglePayRedirect(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment method".to_string()),
-            )?,
+            | domain::WalletData::GooglePayRedirect(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                "Payment method".to_string(),
+            ))?,
         };
         Ok(payment_data)
     }
