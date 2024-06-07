@@ -81,6 +81,9 @@ pub trait RouterData {
     fn get_session_token(&self) -> Result<String, Error>;
     fn get_billing_first_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_last_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_city(&self) -> Result<String, Error>;
     fn get_billing_email(&self) -> Result<Email, Error>;
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -347,6 +350,47 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             ))
     }
 
+    fn get_billing_last_name(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.last_name.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.last_name",
+            ))
+    }
+
+    fn get_billing_line1(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.line1.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line1",
+            ))
+    }
+    fn get_billing_city(&self) -> Result<String, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.city)
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.city",
+            ))
+    }
+
     fn get_billing_email(&self) -> Result<Email, Error> {
         self.address
             .get_payment_method_billing()
@@ -571,6 +615,7 @@ pub trait PaymentsPreProcessingData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -619,6 +664,16 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.connector_mandate_id.clone()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+            })
     }
 }
 
@@ -754,7 +809,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                _ => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
@@ -2564,6 +2619,7 @@ pub enum PaymentMethodDataType {
     PaySafeCar,
     CardToken,
     LocalBankTransfer,
+    Mifinity,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2609,6 +2665,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
                 domain::payments::WalletData::CashappQr(_) => Self::CashappQr,
                 domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
+                domain::payments::WalletData::Mifinity(_) => Self::Mifinity,
             },
             domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
