@@ -966,6 +966,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
+            payment_method_data: pa.payment_method_data,
             ..Default::default()
         }
     }
