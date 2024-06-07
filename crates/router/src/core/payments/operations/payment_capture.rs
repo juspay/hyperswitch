@@ -13,6 +13,7 @@ use crate::{
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
     routes::{app::ReqState, SessionState},
+    events::audit_events::{AuditEvent, AuditEventType},
     services,
     types::{
         self as core_types,
@@ -255,7 +256,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     async fn update_trackers<'b>(
         &'b self,
         db: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -294,6 +295,16 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         } else {
             payment_data.payment_attempt
         };
+        let capture_amount = payment_data.payment_attempt.amount_to_capture.clone();
+        let multiple_capture_count = payment_data.payment_attempt.multiple_capture_count.clone();
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentCapture {
+                capture_amount,
+                multiple_capture_count,
+            }))
+            .with(payment_data.to_event())
+            .emit();
         Ok((Box::new(self), payment_data))
     }
 }
