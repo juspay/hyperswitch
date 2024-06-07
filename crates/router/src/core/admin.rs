@@ -26,6 +26,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    encryption,
     routes::{metrics, SessionState},
     services::{self, api as service_api},
     types::{
@@ -120,6 +121,16 @@ pub async fn create_merchant_account(
     let payment_response_hash_key = req
         .payment_response_hash_key
         .or(Some(generate_cryptographically_secure_random_string(64)));
+
+    encryption::create_key_in_key_manager(
+        &state,
+        domain::EncryptionCreateRequest {
+            identifier: domain::Identifier::Merchant(req.merchant_id.clone()),
+        },
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+    .attach_printable("Failed to insert key to KeyManager")?;
 
     db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
         .await

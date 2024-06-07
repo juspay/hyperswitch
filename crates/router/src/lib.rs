@@ -10,6 +10,7 @@ pub mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
+pub mod encryption;
 pub mod env;
 pub(crate) mod macros;
 

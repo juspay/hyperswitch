@@ -916,6 +916,16 @@ impl UserFromStorage {
                     .change_context(UserErrors::InternalServerError)?,
                 created_at: common_utils::date_time::now(),
             };
+
+            crate::encryption::create_key_in_key_manager(
+                state,
+                super::EncryptionCreateRequest {
+                    identifier: super::Identifier::User(key_store.user_id.clone()),
+                },
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
             state
                 .store
                 .insert_user_key_store(key_store, &master_key.to_vec().into())
