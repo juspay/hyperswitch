@@ -130,7 +130,7 @@ jobs:
           done <<< "${linked_issues}"
 
   pr_labeler:
-    name: Verify PR contains appropriate label
+    name: Attach suitable labels to PR 
     if: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
 
@@ -145,16 +145,16 @@ jobs:
 
           files_changed="$(gh api --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" --paginate https://api.github.com/repos/juspay/hyperswitch/pulls/${{ github.event.pull_request.number }}/files --jq '.[] | .filename')"
 
-          if echo $files_changed | grep --quiet --extended-regexp '(migrations/*|crates/diesel_models/src/schema.rs)' ; then
-            migration_and_schema_changes='true'
+          if echo "${files_changed}" | grep --quiet --extended-regexp '(migrations/*|crates/diesel_models/src/schema.rs)' ; then  
+            migration_and_schema_changes='true'  
+          fi  
+
+          if echo "${files_changed}" | grep --quiet --extended-regexp '(api-reference/openapi_spec.json)'; then  
+            openapi_changes='true'  
           fi
 
-          if echo $files_changed | grep --quiet --extended-regexp '(api-reference/openapi_spec.json)'; then
-            openapi_changes='true'
-          fi
-
-          echo migration_and_schema_changes=${migration_and_schema_changes} >> $GITHUB_ENV
-          echo openapi_changes=${openapi_changes} >> $GITHUB_ENV
+          echo "migration_and_schema_changes=${migration_and_schema_changes}" >> "${GITHUB_ENV}"  
+          echo "openapi_changes=${openapi_changes}" >> "${GITHUB_ENV}" 
 
       - name: Add/Remove 'M-database-changes' based on Migartion or Schema changes
         shell: bash
