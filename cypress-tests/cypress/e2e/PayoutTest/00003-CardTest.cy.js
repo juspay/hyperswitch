@@ -28,7 +28,7 @@ describe("Card - Auto Fulfill", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context.only("Payout Card with Auto Fulfill", () => {
+  context("Payout Card with Auto Fulfill", () => {
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
