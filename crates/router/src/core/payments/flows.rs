@@ -978,7 +978,6 @@ default_imp_for_pre_processing_steps!(
     connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,

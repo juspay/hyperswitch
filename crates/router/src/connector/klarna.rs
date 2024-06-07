@@ -622,7 +622,8 @@ impl
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
-                        | common_enums::PaymentMethodType::PayEasy,
+                        | common_enums::PaymentMethodType::PayEasy
+                        | common_enums::PaymentMethodType::Mifinity,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",

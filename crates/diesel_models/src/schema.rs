@@ -119,6 +119,8 @@ diesel::table! {
         ds_trans_id -> Nullable<Varchar>,
         #[max_length = 128]
         directory_server_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        acquirer_country_code -> Nullable<Varchar>,
     }
 }
 
@@ -679,6 +681,7 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
+        connector_wallets_details -> Nullable<Bytea>,
     }
 }
 
