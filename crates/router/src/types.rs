@@ -842,13 +842,13 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
 #[cfg(feature = "payouts")]
 impl<F1, F2>
     ForeignFrom<(
-        &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
+        &RouterData<F1, PayoutsData, PayoutsResponseData>,
         PayoutsData,
     )> for RouterData<F2, PayoutsData, PayoutsResponseData>
 {
     fn foreign_from(
         item: (
-            &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
+            &RouterData<F1, PayoutsData, PayoutsResponseData>,
             PayoutsData,
         ),
     ) -> Self {
