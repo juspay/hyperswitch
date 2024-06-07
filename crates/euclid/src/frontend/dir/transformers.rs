@@ -169,6 +169,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(CardRedirectType = CardRedirect))
             }
             global_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+            global_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
         }
     }
 }

@@ -8079,6 +8079,126 @@ impl Default for super::settings::RequiredFields {
                                ]),
                         },
                     ),
+                    (
+                        enums::PaymentMethodType::Mifinity,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Mifinity,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "billing.first_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.first_name".to_string(),
+                                                    display_name: "first_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.last_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.last_name".to_string(),
+                                                    display_name: "last_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.phone.number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.number".to_string(),
+                                                    display_name: "phone".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                             (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.country".to_string(),
+                                                    display_name: "nationality".to_string(),
+                                                    field_type: enums::FieldType::UserCountry{
+                                                        options: vec![
+                                                                "BR".to_string(),
+                                                                "CN".to_string(),
+                                                                "SG".to_string(),
+                                                                "MY".to_string(),
+                                                                "DE".to_string(),
+                                                                "CH".to_string(),
+                                                                "DK".to_string(),
+                                                                "GB".to_string(),
+                                                                "ES".to_string(),
+                                                                "AD".to_string(),
+                                                                "GI".to_string(),
+                                                                "FI".to_string(),
+                                                                "FR".to_string(),
+                                                                "GR".to_string(),
+                                                                "HR".to_string(),
+                                                                "IT".to_string(),
+                                                                "JP".to_string(),
+                                                                "MX".to_string(),
+                                                                "AR".to_string(),
+                                                                "CO".to_string(),
+                                                                "CL".to_string(),
+                                                                "PE".to_string(),
+                                                                "VE".to_string(),
+                                                                "UY".to_string(),
+                                                                "PY".to_string(),
+                                                                "BO".to_string(),
+                                                                "EC".to_string(),
+                                                                "GT".to_string(),
+                                                                "HN".to_string(),
+                                                                "SV".to_string(),
+                                                                "NI".to_string(),
+                                                                "CR".to_string(),
+                                                                "PA".to_string(),
+                                                                "DO".to_string(),
+                                                                "CU".to_string(),
+                                                                "PR".to_string(),
+                                                                "NL".to_string(),
+                                                                "NO".to_string(),
+                                                                "PL".to_string(),
+                                                                "PT".to_string(),
+                                                                "SE".to_string(),
+                                                                "RU".to_string(),
+                                                                "TR".to_string(),
+                                                                "TW".to_string(),
+                                                                "HK".to_string(),
+                                                                "MO".to_string(), 
+                                                            ]
+                                                        },
+                                                        value: None,
+                                                    }
+
+                                            ),
+                                            (
+                                                "billing.email".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.email".to_string(),
+                                                    display_name: "email_address".to_string(),
+                                                    field_type: enums::FieldType::UserEmailAddress,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                            ]),
+                        }
+                    ),
                 ])),
             ),
             (

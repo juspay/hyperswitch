@@ -215,7 +215,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect
-                | PaymentMethodType::UpiIntent => {
+                | PaymentMethodType::UpiIntent
+                | PaymentMethodType::Mifinity => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

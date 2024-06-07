@@ -100,7 +100,7 @@ pub enum Connector {
     Helcim,
     Iatapay,
     Klarna,
-    // Mifinity, Added as template code for future usage
+    Mifinity,
     Mollie,
     Multisafepay,
     Netcetera,
@@ -216,7 +216,7 @@ impl Connector {
             | Self::Helcim
             | Self::Iatapay
             | Self::Klarna
-            // | Self::Mifinity Added as template code for future usage
+            | Self::Mifinity
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
@@ -248,7 +248,7 @@ impl Connector {
             | Self::Netcetera
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi| Self::Cybersource => true,
+            Self::Checkout | Self::Nmi | Self::Cybersource => true,
         }
     }
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {

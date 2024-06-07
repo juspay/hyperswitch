@@ -1829,10 +1829,6 @@ pub(crate) fn validate_auth_and_metadata_type(
             adyenplatform::transformers::AdyenplatformAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Mifinity => {
-        //     mifinity::transformers::MifinityAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
         // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
@@ -1959,6 +1955,11 @@ pub(crate) fn validate_auth_and_metadata_type(
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
             klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
+            Ok(())
+        }
+        api_enums::Connector::Mifinity => {
+            mifinity::transformers::MifinityAuthType::try_from(val)?;
+            mifinity::transformers::MifinityConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Mollie => {
