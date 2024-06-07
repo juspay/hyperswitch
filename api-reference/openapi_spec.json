@@ -7503,6 +7503,7 @@
           "helcim",
           "iatapay",
           "klarna",
+          "mifinity",
           "mollie",
           "multisafepay",
           "netcetera",
@@ -11782,6 +11783,22 @@
           }
         }
       },
+      "MifinityData": {
+        "type": "object",
+        "required": [
+          "destination_account_number",
+          "date_of_birth"
+        ],
+        "properties": {
+          "destination_account_number": {
+            "type": "string"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "MinorUnit": {
         "type": "integer",
         "format": "int64",
@@ -13764,7 +13781,8 @@
           "family_mart",
           "seicomart",
           "pay_easy",
-          "local_bank_transfer"
+          "local_bank_transfer",
+          "mifinity"
         ]
       },
       "PaymentMethodUpdate": {
@@ -19683,6 +19701,17 @@
             "properties": {
               "swish_qr": {
                 "$ref": "#/components/schemas/SwishQrData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/MifinityData"
               }
             }
           }
