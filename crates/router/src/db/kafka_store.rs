@@ -8,6 +8,8 @@ use diesel_models::{
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
+    fraud_check::FraudCheck,
+    fraud_check:: FraudCheckUpdate,
 };
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
@@ -54,6 +56,7 @@ use crate::{
         ephemeral_key::EphemeralKeyInterface,
         events::EventInterface,
         file::FileMetadataInterface,
+        fraud_check::FraudCheckInterface,
         gsm::GsmInterface,
         health_check::HealthCheckDbInterface,
         locker_mock_up::LockerMockUpInterface,
@@ -2008,6 +2011,92 @@ impl RefundInterface for KafkaStore {
         self.diesel_store
             .get_total_count_of_refunds(merchant_id, refund_details, storage_scheme)
             .await
+    }
+}
+
+#[async_trait::async_trait]
+impl FraudCheckInterface for KafkaStore {
+    async fn insert_fraud_check_response(
+        &self,
+        new: storage::FraudCheckNew,
+    ) -> CustomResult<FraudCheck, errors::StorageError>{
+        let frm=self.diesel_store
+            .insert_fraud_check_response(
+                new,
+            )
+            .await?;
+        if let Err(er) = self
+            .kafka_producer
+            .log_fraud_check(&frm, None, self.tenant_id.clone())
+            .await
+        {
+            logger::error!(message = "Failed to log analytics event for payment attempt", error_message = ?er);
+        }
+        Ok(frm)
+    }
+    async fn update_fraud_check_response_with_attempt_id(
+        &self,
+        this: FraudCheck,
+        fraud_check: FraudCheckUpdate,
+    ) -> CustomResult<FraudCheck, errors::StorageError>{
+        let frm=self.diesel_store
+            .update_fraud_check_response_with_attempt_id(
+                this,
+                fraud_check,
+            )
+            .await?;
+        if let Err(er) = self
+            .kafka_producer
+            .log_fraud_check(&frm, None, self.tenant_id.clone())
+            .await
+        {
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+        }
+        Ok(frm)
+    }
+    async fn find_fraud_check_by_payment_id(
+        &self,
+        payment_id: String,
+        merchant_id: String,
+    ) -> CustomResult<FraudCheck, errors::StorageError>{
+        let frm=self.diesel_store
+            .find_fraud_check_by_payment_id(
+                payment_id,
+                merchant_id,
+            )
+            .await?;
+        if let Err(er) = self
+            .kafka_producer
+            .log_fraud_check(&frm, None, self.tenant_id.clone())
+            .await
+        {
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+        }
+        Ok(frm)
+    }
+    // TODO:: Ask why optionis used here
+    async fn find_fraud_check_by_payment_id_if_present(
+        &self,
+        payment_id: String,
+        merchant_id: String,
+    ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
+        let frm = self.diesel_store
+            .find_fraud_check_by_payment_id_if_present(
+                payment_id,
+                merchant_id,
+            )
+            .await?;
+
+        if let Some(fraud_check) = frm {
+            if let Err(er) = self
+                .kafka_producer
+                .log_fraud_check(&fraud_check, None, self.tenant_id.clone())
+                .await
+            {
+                logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er);
+            }
+        }
+        Ok(frm.clone()) // one error for partial borrowing - borrow of partially moved value: `frm`
     }
 }
 

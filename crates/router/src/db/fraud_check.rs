@@ -117,32 +117,32 @@ impl FraudCheckInterface for MockDb {
     }
 }
 
-#[cfg(feature = "kafka_events")]
-#[async_trait::async_trait]
-impl FraudCheckInterface for super::KafkaStore {
-    #[instrument(skip_all)]
-    async fn insert_fraud_check_response(
-        &self,
-        _new: storage::FraudCheckNew,
-    ) -> CustomResult<FraudCheck, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
+// #[cfg(feature = "kafka_events")]
+// #[async_trait::async_trait]
+// impl FraudCheckInterface for super::KafkaStore {
+//     #[instrument(skip_all)]
+//     async fn insert_fraud_check_response(
+//         &self,
+//         _new: storage::FraudCheckNew,
+//     ) -> CustomResult<FraudCheck, errors::StorageError> {
+//         Err(errors::StorageError::MockDbError)?
+//     }
 
-    #[instrument(skip_all)]
-    async fn update_fraud_check_response_with_attempt_id(
-        &self,
-        _this: FraudCheck,
-        _fraud_check: FraudCheckUpdate,
-    ) -> CustomResult<FraudCheck, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
+//     #[instrument(skip_all)]
+//     async fn update_fraud_check_response_with_attempt_id(
+//         &self,
+//         _this: FraudCheck,
+//         _fraud_check: FraudCheckUpdate,
+//     ) -> CustomResult<FraudCheck, errors::StorageError> {
+//         Err(errors::StorageError::MockDbError)?
+//     }
 
-    #[instrument(skip_all)]
-    async fn find_fraud_check_by_payment_id(
-        &self,
-        _payment_id: String,
-        _merchant_id: String,
-    ) -> CustomResult<FraudCheck, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
-}
+//     #[instrument(skip_all)]
+//     async fn find_fraud_check_by_payment_id(
+//         &self,
+//         _payment_id: String,
+//         _merchant_id: String,
+//     ) -> CustomResult<FraudCheck, errors::StorageError> {
+//         Err(errors::StorageError::MockDbError)?
+//     }
+// }

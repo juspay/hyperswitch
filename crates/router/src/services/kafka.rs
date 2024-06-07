@@ -11,10 +11,14 @@ use rdkafka::{
 #[cfg(feature = "payouts")]
 pub mod payout;
 use crate::events::EventType;
+use diesel_models::fraud_check::FraudCheck;
+use crate::services::kafka::fraud_check_event::KafkaFraudCheckEvent;
 mod dispute;
 mod dispute_event;
 mod payment_attempt;
 mod payment_attempt_event;
+mod fraud_check;
+mod fraud_check_event;
 mod payment_intent;
 mod payment_intent_event;
 mod refund;
@@ -23,7 +27,7 @@ use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
 use time::{OffsetDateTime, PrimitiveDateTime};
-
+use crate::services::kafka::fraud_check::KafkaFraudCheck;
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
 use self::{
@@ -135,6 +139,7 @@ impl<'a, T: KafkaMessage> KafkaMessage for KafkaConsolidatedEvent<'a, T> {
 #[serde(default)]
 pub struct KafkaSettings {
     brokers: Vec<String>,
+    fraud_check_analytics_topic: String,
     intent_analytics_topic: String,
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
@@ -232,6 +237,7 @@ impl KafkaSettings {
 pub struct KafkaProducer {
     producer: Arc<RdKafkaProducer>,
     intent_analytics_topic: String,
+    fraud_check_analytics_topic: String,
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
@@ -273,6 +279,7 @@ impl KafkaProducer {
                 .change_context(KafkaError::InitializationError)?,
             )),
 
+            fraud_check_analytics_topic: conf.fraud_check_analytics_topic.clone(),
             intent_analytics_topic: conf.intent_analytics_topic.clone(),
             attempt_analytics_topic: conf.attempt_analytics_topic.clone(),
             refund_analytics_topic: conf.refund_analytics_topic.clone(),
@@ -304,6 +311,34 @@ impl KafkaProducer {
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
             .change_context(KafkaError::GenericError)
+    }
+    pub async fn log_fraud_check(
+        &self,
+        attempt: &FraudCheck,
+        old_attempt: Option<FraudCheck>,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
+        if let Some(negative_event) = old_attempt {
+            self.log_event(&KafkaEvent::old(
+                &KafkaFraudCheck::from_storage(&negative_event),
+                tenant_id.clone(),
+            ))
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative attempt event {negative_event:?}")
+            })?;
+        };
+
+        self.log_event(&KafkaEvent::new(
+            &KafkaFraudCheck::from_storage(attempt),
+            tenant_id.clone(),
+        ))
+        .attach_printable_lazy(|| format!("Failed to add positive attempt event {attempt:?}"))?;
+
+        self.log_event(&KafkaConsolidatedEvent::new(
+            &KafkaFraudCheckEvent::from_storage(attempt),
+            tenant_id.clone(),
+        ))
+        .attach_printable_lazy(|| format!("Failed to add consolidated attempt event {attempt:?}"))
     }
 
     pub async fn log_payment_attempt(
@@ -495,6 +530,7 @@ impl KafkaProducer {
 
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
+            EventType::FraudCheck => &self.fraud_check_analytics_topic,
             EventType::ApiLogs => &self.api_logs_topic,
             EventType::PaymentAttempt => &self.attempt_analytics_topic,
             EventType::PaymentIntent => &self.intent_analytics_topic,

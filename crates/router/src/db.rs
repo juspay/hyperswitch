@@ -212,42 +212,42 @@ impl RequestIdStore for KafkaStore {
     }
 }
 
-#[async_trait::async_trait]
-impl FraudCheckInterface for KafkaStore {
-    async fn insert_fraud_check_response(
-        &self,
-        new: FraudCheckNew,
-    ) -> CustomResult<FraudCheck, StorageError> {
-        self.diesel_store.insert_fraud_check_response(new).await
-    }
-    async fn update_fraud_check_response_with_attempt_id(
-        &self,
-        fraud_check: FraudCheck,
-        fraud_check_update: FraudCheckUpdate,
-    ) -> CustomResult<FraudCheck, StorageError> {
-        self.diesel_store
-            .update_fraud_check_response_with_attempt_id(fraud_check, fraud_check_update)
-            .await
-    }
-    async fn find_fraud_check_by_payment_id(
-        &self,
-        payment_id: String,
-        merchant_id: String,
-    ) -> CustomResult<FraudCheck, StorageError> {
-        self.diesel_store
-            .find_fraud_check_by_payment_id(payment_id, merchant_id)
-            .await
-    }
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        payment_id: String,
-        merchant_id: String,
-    ) -> CustomResult<Option<FraudCheck>, StorageError> {
-        self.diesel_store
-            .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
-            .await
-    }
-}
+// #[async_trait::async_trait]
+// impl FraudCheckInterface for KafkaStore {
+//     async fn insert_fraud_check_response(
+//         &self,
+//         new: FraudCheckNew,
+//     ) -> CustomResult<FraudCheck, StorageError> {
+//         self.diesel_store.insert_fraud_check_response(new).await
+//     }
+//     async fn update_fraud_check_response_with_attempt_id(
+//         &self,
+//         fraud_check: FraudCheck,
+//         fraud_check_update: FraudCheckUpdate,
+//     ) -> CustomResult<FraudCheck, StorageError> {
+//         self.diesel_store
+//             .update_fraud_check_response_with_attempt_id(fraud_check, fraud_check_update)
+//             .await
+//     }
+//     async fn find_fraud_check_by_payment_id(
+//         &self,
+//         payment_id: String,
+//         merchant_id: String,
+//     ) -> CustomResult<FraudCheck, StorageError> {
+//         self.diesel_store
+//             .find_fraud_check_by_payment_id(payment_id, merchant_id)
+//             .await
+//     }
+//     async fn find_fraud_check_by_payment_id_if_present(
+//         &self,
+//         payment_id: String,
+//         merchant_id: String,
+//     ) -> CustomResult<Option<FraudCheck>, StorageError> {
+//         self.diesel_store
+//             .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
+//             .await
+//     }
+// }
 
 #[async_trait::async_trait]
 impl OrganizationInterface for KafkaStore {
