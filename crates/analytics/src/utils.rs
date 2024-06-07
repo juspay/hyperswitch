@@ -2,9 +2,9 @@ use api_models::analytics::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
     auth_events::AuthEventMetrics,
     disputes::{DisputeDimensions, DisputeMetrics},
+    frm::{FrmDimensions, FrmMetrics},
     payments::{PaymentDimensions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
-    frm::{FrmDimensions, FrmMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
     NameDescription,
 };

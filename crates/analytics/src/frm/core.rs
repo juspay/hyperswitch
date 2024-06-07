@@ -2,11 +2,9 @@
 use std::collections::HashMap;
 
 use api_models::analytics::{
-    frm::{
-        FrmDimensions, FrmMetrics, FrmMetricsBucketIdentifier, FrmMetricsBucketResponse,
-    },
-    AnalyticsMetadata, GetFrmFilterRequest, GetFrmMetricRequest, MetricsResponse,
-    FrmFilterValue, FrmFiltersResponse,
+    frm::{FrmDimensions, FrmMetrics, FrmMetricsBucketIdentifier, FrmMetricsBucketResponse},
+    AnalyticsMetadata, FrmFilterValue, FrmFiltersResponse, GetFrmFilterRequest,
+    GetFrmMetricRequest, MetricsResponse,
 };
 use error_stack::ResultExt;
 use router_env::{
@@ -20,9 +18,9 @@ use super::{
 };
 use crate::{
     errors::{AnalyticsError, AnalyticsResult},
+    frm::FrmMetricAccumulator,
     metrics,
     types::FiltersError,
-    frm::FrmMetricAccumulator,
     AnalyticsProvider,
 };
 
@@ -37,10 +35,8 @@ pub async fn get_metrics(
     for metric_type in req.metrics.iter().cloned() {
         let req = req.clone();
         let pool = pool.clone();
-        let task_span = tracing::debug_span!(
-            "analytics_frm_query",
-            frm_metric = metric_type.as_ref()
-        );
+        let task_span =
+            tracing::debug_span!("analytics_frm_query", frm_metric = metric_type.as_ref());
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
         let merchant_id_scoped = merchant_id.to_owned();
@@ -85,12 +81,12 @@ pub async fn get_metrics(
             logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
             let metrics_builder = metrics_accumulator.entry(id).or_default();
             match metric {
-                FrmMetrics::FrmBlockedRate => metrics_builder
-                    .frm_blocked_rate
-                    .add_metrics_bucket(&value),
-                FrmMetrics::FrmTriggeredAttempts => {
-                    metrics_builder.frm_triggered_attempts.add_metrics_bucket(&value)
+                FrmMetrics::FrmBlockedRate => {
+                    metrics_builder.frm_blocked_rate.add_metrics_bucket(&value)
                 }
+                FrmMetrics::FrmTriggeredAttempts => metrics_builder
+                    .frm_triggered_attempts
+                    .add_metrics_bucket(&value),
             }
         }
 
@@ -131,8 +127,7 @@ pub async fn get_filters(
             AnalyticsProvider::Sqlx(sqlx_pool)
             | AnalyticsProvider::CombinedCkh(sqlx_pool, _)
             | AnalyticsProvider::CombinedSqlx(sqlx_pool, _) => {
-                get_frm_filter_for_dimension(dim, merchant_id, &req.time_range, sqlx_pool)
-                    .await
+                get_frm_filter_for_dimension(dim, merchant_id, &req.time_range, sqlx_pool).await
             }
         }
         .change_context(AnalyticsError::UnknownError)?
@@ -140,7 +135,9 @@ pub async fn get_filters(
         .filter_map(|fil: FrmFilterRow| match dim {
             FrmDimensions::FrmStatus => fil.frm_status.map(|i| i.as_ref().to_string()),
             FrmDimensions::FrmName => fil.frm_name,
-            FrmDimensions::FrmTransactionType => fil.frm_transaction_type.map(|i| i.as_ref().to_string()),
+            FrmDimensions::FrmTransactionType => {
+                fil.frm_transaction_type.map(|i| i.as_ref().to_string())
+            }
         })
         .collect::<Vec<String>>();
         res.query_data.push(FrmFilterValue {

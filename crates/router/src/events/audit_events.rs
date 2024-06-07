@@ -6,15 +6,22 @@ use time::PrimitiveDateTime;
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event_type")]
 pub enum AuditEventType {
-    Error { error_message: String },
+    Error {
+        error_message: String,
+    },
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentCancelled { cancellation_reason: Option<String> },
-    PaymentCapture {capture_amount: Option<MinorUnit>, multiple_capture_count: Option<i16>},
+    PaymentCancelled {
+        cancellation_reason: Option<String>,
+    },
+    PaymentCapture {
+        capture_amount: Option<MinorUnit>,
+        multiple_capture_count: Option<i16>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]

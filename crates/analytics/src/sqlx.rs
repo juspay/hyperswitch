@@ -9,7 +9,7 @@ use common_utils::{
     DbConnectionParams,
 };
 use diesel_models::enums::{
-    AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus, FraudCheckStatus,
+    AttemptStatus, AuthenticationType, Currency, FraudCheckStatus, PaymentMethod, RefundStatus,
 };
 use error_stack::ResultExt;
 use sqlx::{
@@ -233,8 +233,7 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::metrics::RefundMetricRow {
 
 impl<'a> FromRow<'a, PgRow> for super::frm::metrics::FrmMetricRow {
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
-        let frm_name: Option<String> = 
-            row.try_get("frm_name").or_else(|e| match e {
+        let frm_name: Option<String> = row.try_get("frm_name").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;

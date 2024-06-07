@@ -26,7 +26,10 @@ where
 
         if !self.frm_transaction_type.is_empty() {
             builder
-                .add_filter_in_range_clause(FrmDimensions::FrmTransactionType, &self.frm_transaction_type)
+                .add_filter_in_range_clause(
+                    FrmDimensions::FrmTransactionType,
+                    &self.frm_transaction_type,
+                )
                 .attach_printable("Error adding frm transaction type filter")?;
         }
 
