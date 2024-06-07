@@ -6824,7 +6824,7 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
             "nullable": true
           }
         },
@@ -6949,6 +6949,19 @@
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "nullable": true
+          },
+          "extended_card_info_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExtendedCardInfoConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
+            "nullable": true
           }
         }
       },
@@ -7046,9 +7059,10 @@
         "type": "object",
         "required": [
           "card_number",
-          "expiry_month",
-          "expiry_year",
-          "card_holder_name"
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
         ],
         "properties": {
           "card_number": {
@@ -7056,18 +7070,60 @@
             "description": "The card number",
             "example": "4242424242424242"
           },
-          "expiry_month": {
+          "card_exp_month": {
             "type": "string",
-            "description": "The card's expiry month"
+            "description": "The card's expiry month",
+            "example": "24"
           },
-          "expiry_year": {
+          "card_exp_year": {
             "type": "string",
-            "description": "The card's expiry year"
+            "description": "The card's expiry year",
+            "example": "24"
           },
           "card_holder_name": {
             "type": "string",
             "description": "The card holder's name",
-            "example": "John Doe"
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
           }
         }
       },
@@ -7248,6 +7304,35 @@
           "Maestro"
         ]
       },
+      "CardPayout": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          }
+        }
+      },
       "CardRedirectData": {
         "oneOf": [
           {
@@ -7317,6 +7402,29 @@
       "CashappQr": {
         "type": "object"
       },
+      "ChargeRefunds": {
+        "type": "object",
+        "description": "Charge object for refunds",
+        "required": [
+          "charge_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment"
+          },
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
+            "nullable": true
+          },
+          "revert_transfer": {
+            "type": "boolean",
+            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
+            "nullable": true
+          }
+        }
+      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
@@ -7360,6 +7468,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -7390,6 +7499,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gpayments",
           "helcim",
           "iatapay",
           "klarna",
@@ -7402,6 +7512,7 @@
           "nuvei",
           "opennode",
           "payme",
+          "payone",
           "paypal",
           "payu",
           "placetopay",
@@ -7884,6 +7995,10 @@
           "pay_currency": {
             "type": "string",
             "nullable": true
+          },
+          "network": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -8081,7 +8196,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_meowerunwiuwiwqw"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
           },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -8136,7 +8253,53 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "The identifier for the customer."
+            "description": "The identifier for the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "The customer's name",
+            "example": "John Doe",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "description": "The customer's email address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "3141592653",
+            "nullable": true,
+            "maxLength": 10
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer's phone number",
+            "example": "+1",
+            "nullable": true,
+            "maxLength": 2
+          }
+        }
+      },
+      "CustomerDetailsResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identifier for the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
           },
           "name": {
             "type": "string",
@@ -8194,7 +8357,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_meowerunwiuwiwqw"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
           },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -8341,7 +8506,9 @@
             "type": "string",
             "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
           },
           "name": {
             "type": "string",
@@ -8402,9 +8569,10 @@
         "properties": {
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "description": "The identifier for the customer object",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "name": {
             "type": "string",
@@ -8484,7 +8652,10 @@
         ],
         "properties": {
           "customer_id": {
-            "type": "string"
+            "type": "string",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
           },
           "payment_method_id": {
             "type": "string"
@@ -8736,7 +8907,10 @@
         "properties": {
           "customer_id": {
             "type": "string",
-            "description": "customer_id to which this ephemeral key belongs to"
+            "description": "customer_id to which this ephemeral key belongs to",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
           },
           "created_at": {
             "type": "integer",
@@ -8877,7 +9051,14 @@
           "dispute_won",
           "dispute_lost",
           "mandate_active",
-          "mandate_revoked"
+          "mandate_revoked",
+          "payout_success",
+          "payout_failed",
+          "payout_initiated",
+          "payout_processing",
+          "payout_cancelled",
+          "payout_expired",
+          "payout_reversed"
         ]
       },
       "ExtendedCardInfo": {
@@ -9081,7 +9262,7 @@
           {
             "type": "string",
             "enum": [
-              "user_country_code"
+              "user_phone_number_country_code"
             ]
           },
           {
@@ -9127,6 +9308,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_crypto_currency_network"
+            ]
           },
           {
             "type": "string",
@@ -11637,7 +11824,8 @@
         "type": "string",
         "enum": [
           "confirm",
-          "sync"
+          "sync",
+          "complete_authorize"
         ]
       },
       "NextActionData": {
@@ -11735,6 +11923,25 @@
           },
           {
             "type": "object",
+            "description": "Contains url to fetch Qr code data",
+            "required": [
+              "qr_code_fetch_url",
+              "type"
+            ],
+            "properties": {
+              "qr_code_fetch_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fetch_qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Contains the download url and the reference number for transaction",
             "required": [
               "voucher_details",
@@ -11790,6 +11997,24 @@
                 "type": "string",
                 "enum": [
                   "three_ds_invoke"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "next_action_data",
+              "type"
+            ],
+            "properties": {
+              "next_action_data": {
+                "$ref": "#/components/schemas/SdkNextActionData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_sdk_client"
                 ]
               }
             }
@@ -12153,6 +12378,25 @@
               },
               "object": {
                 "$ref": "#/components/schemas/MandateResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PayoutCreateResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payout_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
           }
@@ -12526,8 +12770,82 @@
             "type": "string",
             "description": "error message unified across the connectors is received here if there was an error while calling connector",
             "nullable": true
+          },
+          "client_source": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-SOURCE header during payments confirm request by the client",
+            "nullable": true
+          },
+          "client_version": {
+            "type": "string",
+            "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
+            "nullable": true
           }
         }
+      },
+      "PaymentChargeRequest": {
+        "type": "object",
+        "required": [
+          "charge_type",
+          "fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees to be collected on the payment"
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account to send the funds to"
+          }
+        }
+      },
+      "PaymentChargeResponse": {
+        "type": "object",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment",
+            "nullable": true
+          },
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees collected on the payment"
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account where the funds were transferred"
+          }
+        }
+      },
+      "PaymentChargeType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Stripe"
+            ],
+            "properties": {
+              "Stripe": {
+                "$ref": "#/components/schemas/StripeChargeType"
+              }
+            }
+          }
+        ]
       },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
@@ -12736,8 +13054,10 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for customer",
-            "example": "cus_meowuwunwiuwiwqw",
-            "nullable": true
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
           },
           "starting_after": {
             "type": "string",
@@ -12882,8 +13202,10 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_meowerunwiuwiwqw",
-            "nullable": true
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
           },
           "card_network": {
             "type": "string",
@@ -13187,7 +13509,8 @@
           "currency",
           "payment_methods",
           "mandate_payment",
-          "show_surcharge_breakup_screen"
+          "show_surcharge_breakup_screen",
+          "request_external_three_ds_authentication"
         ],
         "properties": {
           "redirect_url": {
@@ -13234,6 +13557,11 @@
               }
             ],
             "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to indicate whether to perform external 3ds authentication",
+            "example": true
           }
         }
       },
@@ -13255,8 +13583,10 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_meowerunwiuwiwqw",
-            "nullable": true
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
           },
           "payment_method_id": {
             "type": "string",
@@ -13423,6 +13753,7 @@
           "trustly",
           "twint",
           "upi_collect",
+          "upi_intent",
           "vipps",
           "venmo",
           "walley",
@@ -13712,10 +14043,11 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object.",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "off_session": {
             "type": "boolean",
@@ -13954,6 +14286,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14064,10 +14404,11 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object.",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "off_session": {
             "type": "boolean",
@@ -14327,6 +14668,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14361,7 +14710,8 @@
       "PaymentsExternalAuthenticationResponse": {
         "type": "object",
         "required": [
-          "trans_status"
+          "trans_status",
+          "three_ds_requestor_url"
         ],
         "properties": {
           "trans_status": {
@@ -14396,6 +14746,10 @@
             "type": "string",
             "description": "Contains the JWS object created by the ACS for the ARes message",
             "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL"
           }
         }
       },
@@ -14528,10 +14882,11 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object.",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "email": {
             "type": "string",
@@ -14834,6 +15189,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14927,12 +15290,13 @@
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "customer": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomerDetails"
+                "$ref": "#/components/schemas/CustomerDetailsResponse"
               }
             ],
             "nullable": true
@@ -15359,6 +15723,14 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeResponse"
+              }
+            ],
+            "nullable": true
+          },
           "frm_metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
@@ -15610,10 +15982,11 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object.",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64,
+            "minLength": 1
           },
           "off_session": {
             "type": "boolean",
@@ -15847,6 +16220,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15950,11 +16331,13 @@
         "type": "string",
         "enum": [
           "adyen",
-          "stripe",
-          "wise",
-          "paypal",
+          "adyenplatform",
+          "cybersource",
           "ebanx",
-          "cybersource"
+          "payone",
+          "paypal",
+          "stripe",
+          "wise"
         ]
       },
       "PayoutCreateRequest": {
@@ -15964,13 +16347,13 @@
           "currency",
           "confirm",
           "payout_type",
-          "customer_id",
           "auto_fulfill",
           "client_secret",
           "return_url",
           "business_country",
           "description",
-          "entity_type"
+          "entity_type",
+          "priority"
         ],
         "properties": {
           "payout_id": {
@@ -16042,6 +16425,7 @@
             "type": "string",
             "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
             "maxLength": 255
           },
           "auto_fulfill": {
@@ -16126,6 +16510,9 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "priority": {
+            "$ref": "#/components/schemas/PayoutSendPriority"
           }
         },
         "additionalProperties": false
@@ -16287,6 +16674,20 @@
             "format": "date-time",
             "description": "Time when the payout was created",
             "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Underlying processor's payout resource ID",
+            "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSendPriority"
+              }
+            ],
             "nullable": true
           },
           "attempts": {
@@ -16486,7 +16887,7 @@
             ],
             "properties": {
               "card": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardPayout"
               }
             }
           },
@@ -16591,12 +16992,26 @@
           }
         }
       },
+      "PayoutSendPriority": {
+        "type": "string",
+        "enum": [
+          "instant",
+          "fast",
+          "regular",
+          "wire",
+          "crossBorder",
+          "internal"
+        ]
+      },
       "PayoutStatus": {
         "type": "string",
         "enum": [
           "success",
           "failed",
           "cancelled",
+          "initiated",
+          "expired",
+          "reversed",
           "pending",
           "ineligible",
           "requires_creation",
@@ -16653,12 +17068,21 @@
       "PaypalSessionTokenResponse": {
         "type": "object",
         "required": [
-          "session_token"
+          "connector",
+          "session_token",
+          "sdk_next_action"
         ],
         "properties": {
+          "connector": {
+            "type": "string",
+            "description": "Name of the connector"
+          },
           "session_token": {
             "type": "string",
             "description": "The session token for PayPal"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
@@ -17096,6 +17520,14 @@
               }
             ],
             "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRefunds"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17122,7 +17554,9 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc"
+            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
+            "example": 6540,
+            "minimum": 100
           },
           "currency": {
             "type": "string",
@@ -17176,6 +17610,14 @@
           "merchant_connector_id": {
             "type": "string",
             "description": "The merchant_connector_id of the processor through which this payment went through",
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRefunds"
+              }
+            ],
             "nullable": true
           }
         }
@@ -17520,6 +17962,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -17887,6 +18330,17 @@
           }
         }
       },
+      "SdkNextActionData": {
+        "type": "object",
+        "required": [
+          "next_action"
+        ],
+        "properties": {
+          "next_action": {
+            "$ref": "#/components/schemas/NextActionCall"
+          }
+        }
+      },
       "SecretInfoToInitiateSdk": {
         "type": "object",
         "required": [
@@ -18198,6 +18652,13 @@
           "propertyName": "type"
         }
       },
+      "StripeChargeType": {
+        "type": "string",
+        "enum": [
+          "direct",
+          "destination"
+        ]
+      },
       "SurchargeDetailsResponse": {
         "type": "object",
         "required": [
@@ -18503,7 +18964,7 @@
         },
         "additionalProperties": false
       },
-      "UpiData": {
+      "UpiCollectData": {
         "type": "object",
         "properties": {
           "vpa_id": {
@@ -18512,6 +18973,35 @@
             "nullable": true
           }
         }
+      },
+      "UpiData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi_collect"
+            ],
+            "properties": {
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_intent"
+            ],
+            "properties": {
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
+              }
+            }
+          }
+        ]
+      },
+      "UpiIntentData": {
+        "type": "object"
       },
       "ValueType": {
         "oneOf": [

@@ -16,6 +16,7 @@ use std::fmt::Debug;
 
 use api_models::{enums, payments, webhooks};
 use base64::Engine;
+use common_utils::id_type;
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -159,7 +160,6 @@ impl<E> ConnectorResponseExt
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
 }
-
 #[derive(Debug)]
 pub struct QrImage {
     pub data: String,
@@ -415,6 +415,60 @@ pub async fn get_mca_from_payment_intent(
     }
 }
 
+#[cfg(feature = "payouts")]
+pub async fn get_mca_from_payout_attempt(
+    db: &dyn StorageInterface,
+    merchant_account: &domain::MerchantAccount,
+    payout_id_type: webhooks::PayoutIdType,
+    connector_name: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let payout = match payout_id_type {
+        webhooks::PayoutIdType::PayoutAttemptId(payout_attempt_id) => db
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                &merchant_account.merchant_id,
+                &payout_attempt_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
+        webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id) => db
+            .find_payout_attempt_by_merchant_id_connector_payout_id(
+                &merchant_account.merchant_id,
+                &connector_payout_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
+    };
+
+    match payout.merchant_connector_id {
+        Some(merchant_connector_id) => db
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &merchant_account.merchant_id,
+                &merchant_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id,
+            }),
+        None => db
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                &payout.profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: format!(
+                    "profile_id {} and connector_name {}",
+                    payout.profile_id, connector_name
+                ),
+            }),
+    }
+}
+
 pub async fn get_mca_from_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -477,6 +531,17 @@ pub async fn get_mca_from_object_reference_id(
                     db,
                     authentication_id_type,
                     merchant_account,
+                    key_store,
+                )
+                .await
+            }
+            #[cfg(feature = "payouts")]
+            webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
+                get_mca_from_payout_attempt(
+                    db,
+                    merchant_account,
+                    payout_id_type,
+                    connector_name,
                     key_store,
                 )
                 .await
@@ -573,7 +638,7 @@ pub trait CustomerAddress {
         &self,
         address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
@@ -641,7 +706,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         &self,
         address_details: payments::AddressDetails,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
@@ -699,7 +764,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 
             Ok(domain::CustomerAddress {
                 address,
-                customer_id: customer_id.to_string(),
+                customer_id: customer_id.to_owned(),
             })
         }
         .await
@@ -826,7 +891,7 @@ pub async fn trigger_payments_webhook<F, Op>(
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     customer: Option<domain::Customer>,
-    state: &crate::routes::AppState,
+    state: &crate::routes::SessionState,
     operation: Op,
 ) -> RouterResult<()>
 where
@@ -858,7 +923,7 @@ where
             captures,
             customer,
             services::AuthFlow::Merchant,
-            &state.conf.server,
+            &state.base_url,
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,

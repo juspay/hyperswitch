@@ -2,6 +2,7 @@ use api_models::{
     enums::Connector::{DummyConnector4, DummyConnector7},
     user::sample_data::SampleDataRequest,
 };
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
@@ -11,12 +12,12 @@ use time::OffsetDateTime;
 use crate::{
     consts,
     core::errors::sample_data::{SampleDataError, SampleDataResult},
-    AppState,
+    SessionState,
 };
 
 #[allow(clippy::type_complexity)]
 pub async fn generate_sample_data(
-    state: &AppState,
+    state: &SessionState,
     req: SampleDataRequest,
     merchant_id: &str,
 ) -> SampleDataResult<Vec<(PaymentIntentNew, PaymentAttemptBatchNew, Option<RefundNew>)>> {
@@ -143,6 +144,10 @@ pub async fn generate_sample_data(
         return Err(SampleDataError::InvalidParameters.into());
     }
 
+    // This has to be an internal server error because, this function failing means that the intended functionality is not working as expected
+    let dashboard_customer_id = id_type::CustomerId::from("hs-dashboard-user".into())
+        .change_context(SampleDataError::InternalServerError)?;
+
     for num in 1..=sample_data_size {
         let payment_id = common_utils::generate_id_with_default_len("test");
         let attempt_id = crate::utils::get_payment_attempt_id(&payment_id, 1);
@@ -174,7 +179,7 @@ pub async fn generate_sample_data(
                 true => common_enums::IntentStatus::Failed,
                 _ => common_enums::IntentStatus::Succeeded,
             },
-            amount: common_utils::types::MinorUnit::new(amount * 100),
+            amount: MinorUnit::new(amount * 100),
             currency: Some(
                 *currency_vec
                     .get((num - 1) % currency_vec_len)
@@ -191,8 +196,8 @@ pub async fn generate_sample_data(
                 attempt_id.clone(),
             ),
             attempt_count: 1,
-            customer_id: Some("hs-dashboard-user".to_string()),
-            amount_captured: Some(common_utils::types::MinorUnit::new(amount * 100)),
+            customer_id: Some(dashboard_customer_id.clone()),
+            amount_captured: Some(MinorUnit::new(amount * 100)),
             profile_id: Some(profile_id.clone()),
             return_url: Default::default(),
             metadata: Default::default(),
@@ -218,6 +223,7 @@ pub async fn generate_sample_data(
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: None,
+            charges: None,
             frm_metadata: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
@@ -285,8 +291,8 @@ pub async fn generate_sample_data(
                 currency: *currency_vec
                     .get((num - 1) % currency_vec_len)
                     .unwrap_or(&common_enums::Currency::USD),
-                total_amount: amount * 100,
-                refund_amount: amount * 100,
+                total_amount: MinorUnit::new(amount * 100),
+                refund_amount: MinorUnit::new(amount * 100),
                 refund_status: common_enums::RefundStatus::Success,
                 sent_to_gateway: true,
                 refund_type: diesel_models::enums::RefundType::InstantRefund,
@@ -295,6 +301,7 @@ pub async fn generate_sample_data(
                 profile_id: payment_intent.profile_id.clone(),
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                charges: None,
             })
         } else {
             None

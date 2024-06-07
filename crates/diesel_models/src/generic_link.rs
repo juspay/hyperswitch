@@ -1,4 +1,4 @@
-use common_utils::consts;
+use common_utils::{consts, id_type};
 use diesel::{Identifiable, Insertable, Queryable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -127,7 +127,7 @@ pub struct PaymentMethodCollectLink {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentMethodCollectLinkData {
     pub pm_collect_link_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub sdk_host: String,
     pub link: Secret<String>,
     pub client_secret: Secret<String>,
