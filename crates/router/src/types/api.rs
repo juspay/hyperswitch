@@ -325,7 +325,7 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => Ok(Box::new(connector::Bluesnap::new())),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
-                enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
+                enums::Connector::Cashtocode => Ok(Box::new(connector::Cashtocode::new())),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 enums::Connector::Cryptopay => Ok(Box::new(connector::Cryptopay::new())),
