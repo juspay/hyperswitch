@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.31.1-hotfix2
+
+### Features
+
+- **connector:** [BOA/CYB] Make state,zip optional for Non US CA Txns ([#4920](https://github.com/juspay/hyperswitch/pull/4920)) ([`b902e9c`](https://github.com/juspay/hyperswitch/commit/b902e9ca0bc2053f9d33f27a6ebfc59488d2c4f2))
+
+- - -
+
 ## 2024.05.31.1-hotfix1
 
 ### Features
