@@ -1,12 +1,10 @@
-
 // use diesel_models::enums as storage_enums;
-use diesel_models::fraud_check::FraudCheck;
-use diesel_models::enums as storage_enums;
-use time::PrimitiveDateTime;
-use diesel_models::enums::FraudCheckLastStep;
-use diesel_models::enums::FraudCheckStatus;
-use diesel_models::enums::FraudCheckType;
-use time::OffsetDateTime;
+use diesel_models::{
+    enums as storage_enums,
+    enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
+    fraud_check::FraudCheck,
+};
+use time::{OffsetDateTime, PrimitiveDateTime};
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaFraudCheckEvent<'a> {
@@ -16,12 +14,12 @@ pub struct KafkaFraudCheckEvent<'a> {
     pub attempt_id: &'a String,
     pub created_at: PrimitiveDateTime,
     pub frm_name: &'a String,
-    pub frm_transaction_id: Option<&'a String,>,
+    pub frm_transaction_id: Option<&'a String>,
     pub frm_transaction_type: FraudCheckType,
     pub frm_status: FraudCheckStatus,
     pub frm_score: Option<i32>,
     pub frm_reason: Option<serde_json::Value>,
-    pub frm_error: Option<&'a String,>,
+    pub frm_error: Option<&'a String>,
     pub payment_details: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
@@ -38,17 +36,17 @@ impl<'a> KafkaFraudCheckEvent<'a> {
             attempt_id: &check.attempt_id,
             created_at: check.created_at,
             frm_name: &check.frm_name,
-            frm_transaction_id:  check.frm_transaction_id.as_ref(),
+            frm_transaction_id: check.frm_transaction_id.as_ref(),
             frm_transaction_type: check.frm_transaction_type,
             frm_status: check.frm_status,
-            frm_score:  check.frm_score,
+            frm_score: check.frm_score,
             frm_reason: check.frm_reason.clone(),
-            frm_error:  check.frm_error.as_ref(),
-            payment_details:  check.payment_details.clone(),
-            metadata:  check.metadata.clone(),
+            frm_error: check.frm_error.as_ref(),
+            payment_details: check.payment_details.clone(),
+            metadata: check.metadata.clone(),
             modified_at: check.modified_at,
             last_step: check.last_step,
-            payment_capture_method:  check.payment_capture_method,
+            payment_capture_method: check.payment_capture_method,
         }
     }
 }

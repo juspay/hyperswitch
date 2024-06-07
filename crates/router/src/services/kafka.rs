@@ -10,15 +10,15 @@ use rdkafka::{
 };
 #[cfg(feature = "payouts")]
 pub mod payout;
-use crate::events::EventType;
 use diesel_models::fraud_check::FraudCheck;
-use crate::services::kafka::fraud_check_event::KafkaFraudCheckEvent;
+
+use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod dispute;
 mod dispute_event;
-mod payment_attempt;
-mod payment_attempt_event;
 mod fraud_check;
 mod fraud_check_event;
+mod payment_attempt;
+mod payment_attempt_event;
 mod payment_intent;
 mod payment_intent_event;
 mod refund;
@@ -27,7 +27,7 @@ use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
 use time::{OffsetDateTime, PrimitiveDateTime};
-use crate::services::kafka::fraud_check::KafkaFraudCheck;
+
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
 use self::{
@@ -36,7 +36,7 @@ use self::{
     payment_intent_event::KafkaPaymentIntentEvent, refund::KafkaRefund,
     refund_event::KafkaRefundEvent,
 };
-use crate::types::storage::Dispute;
+use crate::{services::kafka::fraud_check::KafkaFraudCheck, types::storage::Dispute};
 
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;

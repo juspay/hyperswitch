@@ -6,10 +6,9 @@ use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
+    fraud_check::{FraudCheck, FraudCheckUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
-    fraud_check::FraudCheck,
-    fraud_check:: FraudCheckUpdate,
 };
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
@@ -2019,12 +2018,8 @@ impl FraudCheckInterface for KafkaStore {
     async fn insert_fraud_check_response(
         &self,
         new: storage::FraudCheckNew,
-    ) -> CustomResult<FraudCheck, errors::StorageError>{
-        let frm=self.diesel_store
-            .insert_fraud_check_response(
-                new,
-            )
-            .await?;
+    ) -> CustomResult<FraudCheck, errors::StorageError> {
+        let frm = self.diesel_store.insert_fraud_check_response(new).await?;
         if let Err(er) = self
             .kafka_producer
             .log_fraud_check(&frm, None, self.tenant_id.clone())
@@ -2038,12 +2033,10 @@ impl FraudCheckInterface for KafkaStore {
         &self,
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
-    ) -> CustomResult<FraudCheck, errors::StorageError>{
-        let frm=self.diesel_store
-            .update_fraud_check_response_with_attempt_id(
-                this,
-                fraud_check,
-            )
+    ) -> CustomResult<FraudCheck, errors::StorageError> {
+        let frm = self
+            .diesel_store
+            .update_fraud_check_response_with_attempt_id(this, fraud_check)
             .await?;
         if let Err(er) = self
             .kafka_producer
@@ -2058,12 +2051,10 @@ impl FraudCheckInterface for KafkaStore {
         &self,
         payment_id: String,
         merchant_id: String,
-    ) -> CustomResult<FraudCheck, errors::StorageError>{
-        let frm=self.diesel_store
-            .find_fraud_check_by_payment_id(
-                payment_id,
-                merchant_id,
-            )
+    ) -> CustomResult<FraudCheck, errors::StorageError> {
+        let frm = self
+            .diesel_store
+            .find_fraud_check_by_payment_id(payment_id, merchant_id)
             .await?;
         if let Err(er) = self
             .kafka_producer
@@ -2080,11 +2071,9 @@ impl FraudCheckInterface for KafkaStore {
         payment_id: String,
         merchant_id: String,
     ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
-        let frm = self.diesel_store
-            .find_fraud_check_by_payment_id_if_present(
-                payment_id,
-                merchant_id,
-            )
+        let frm = self
+            .diesel_store
+            .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
             .await?;
 
         if let Some(fraud_check) = frm {
