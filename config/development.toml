@@ -566,7 +566,7 @@ soft_kill = false
 enabled = true
 
 [events]
-source = "logs"
+source = "kafka"
 
 [events.kafka]
 brokers = ["localhost:9092"]

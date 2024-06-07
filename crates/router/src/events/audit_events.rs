@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
@@ -13,6 +14,7 @@ pub enum AuditEventType {
     RefundSuccess,
     RefundFail,
     PaymentCancelled { cancellation_reason: Option<String> },
+    PaymentCapture { capture_amount: Option<MinorUnit>, multiple_capture_count: Option<i16> },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -45,6 +47,7 @@ impl Event for AuditEvent {
             AuditEventType::PaymentCreated => "payment_created",
             AuditEventType::ConnectorDecided => "connector_decided",
             AuditEventType::ConnectorCalled => "connector_called",
+            AuditEventType::PaymentCapture { .. } => "payment_capture",
             AuditEventType::RefundCreated => "refund_created",
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
