@@ -264,8 +264,10 @@ pub struct BillTo {
     last_name: Secret<String>,
     address1: Secret<String>,
     locality: Secret<String>,
-    administrative_area: Secret<String>,
-    postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
     country: api_enums::CountryAlpha2,
     email: pii::Email,
 }
@@ -448,17 +450,37 @@ fn build_bill_to(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
-    let mut state = address.to_state_code()?.peek().clone();
-    state.truncate(20);
+
+    let country = address.get_country()?.to_owned();
     let first_name = address.get_first_name()?;
+
+    let (administrative_area, postal_code) =
+        if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
+            let mut state = address.to_state_code()?.peek().clone();
+            state.truncate(20);
+            (
+                Some(Secret::from(state)),
+                Some(address.get_zip()?.to_owned()),
+            )
+        } else {
+            let zip = address.zip.clone();
+            let mut_state = address.state.clone().map(|state| state.expose());
+            match mut_state {
+                Some(mut state) => {
+                    state.truncate(20);
+                    (Some(Secret::from(state)), zip)
+                }
+                None => (None, zip),
+            }
+        };
     Ok(BillTo {
         first_name: first_name.clone(),
         last_name: address.get_last_name().unwrap_or(first_name).clone(),
         address1: address.get_line1()?.to_owned(),
         locality: Secret::new(address.get_city()?.to_owned()),
-        administrative_area: Secret::from(state),
-        postal_code: address.get_zip()?.to_owned(),
-        country: address.get_country()?.to_owned(),
+        administrative_area,
+        postal_code,
+        country,
         email,
     })
 }
@@ -2649,9 +2671,12 @@ impl<F> TryFrom<&BankOfAmericaRouterData<&types::RefundsRouterData<F>>>
     }
 }
 
-impl From<BankofamericaRefundStatus> for enums::RefundStatus {
-    fn from(item: BankofamericaRefundStatus) -> Self {
-        match item {
+impl From<BankOfAmericaRefundResponse> for enums::RefundStatus {
+    fn from(item: BankOfAmericaRefundResponse) -> Self {
+        let error_reason = item
+            .error_information
+            .and_then(|error_info| error_info.reason);
+        match item.status {
             BankofamericaRefundStatus::Succeeded | BankofamericaRefundStatus::Transmitted => {
                 Self::Success
             }
@@ -2659,11 +2684,18 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
             | BankofamericaRefundStatus::Failed
             | BankofamericaRefundStatus::Voided => Self::Failure,
             BankofamericaRefundStatus::Pending => Self::Pending,
+            BankofamericaRefundStatus::TwoZeroOne => {
+                if error_reason == Some("PROCESSOR_DECLINED".to_string()) {
+                    Self::Failure
+                } else {
+                    Self::Pending
+                }
+            }
         }
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaRefundResponse {
     id: String,
@@ -2678,19 +2710,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundR
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status.clone());
+        let refund_status = enums::RefundStatus::from(item.response.clone());
         let response = if utils::is_refund_failure(refund_status) {
             Err(types::ErrorResponse::foreign_from((
                 &item.response.error_information,
                 &None,
                 None,
                 item.http_code,
-                item.response.id.clone(),
+                item.response.id,
             )))
         } else {
             Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             })
         };
 
@@ -2710,6 +2742,8 @@ pub enum BankofamericaRefundStatus {
     Pending,
     Voided,
     Cancelled,
+    #[serde(rename = "201")]
+    TwoZeroOne,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2739,8 +2773,26 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
             .and_then(|application_information| application_information.status)
         {
             Some(status) => {
-                let refund_status: common_enums::RefundStatus =
-                    enums::RefundStatus::from(status.clone());
+                let error_reason = item
+                    .response
+                    .error_information
+                    .clone()
+                    .and_then(|error_info| error_info.reason);
+                let refund_status = match status {
+                    BankofamericaRefundStatus::Succeeded
+                    | BankofamericaRefundStatus::Transmitted => enums::RefundStatus::Success,
+                    BankofamericaRefundStatus::Cancelled
+                    | BankofamericaRefundStatus::Failed
+                    | BankofamericaRefundStatus::Voided => enums::RefundStatus::Failure,
+                    BankofamericaRefundStatus::Pending => enums::RefundStatus::Pending,
+                    BankofamericaRefundStatus::TwoZeroOne => {
+                        if error_reason == Some("PROCESSOR_DECLINED".to_string()) {
+                            enums::RefundStatus::Failure
+                        } else {
+                            enums::RefundStatus::Pending
+                        }
+                    }
+                };
                 if utils::is_refund_failure(refund_status) {
                     if status == BankofamericaRefundStatus::Voided {
                         Err(types::ErrorResponse::foreign_from((

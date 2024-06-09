@@ -205,10 +205,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                connector_integration
-                    .execute_pretasks(self, state)
-                    .await
-                    .to_payment_failed_response()?;
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     &metrics::CONTEXT,
