@@ -7,13 +7,19 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use clap::{arg, command, Parser};
+use clap::{arg, command, Parser, ValueEnum};
 use masking::PeekInterface;
 use regex::Regex;
 
 use crate::connector_auth::{
     ConnectorAuthType, ConnectorAuthentication, ConnectorAuthenticationMap,
 };
+
+#[derive(ValueEnum, Clone)]
+pub enum Module {
+    Connector,
+    Users,
+}
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
 pub struct Args {
@@ -28,7 +34,7 @@ pub struct Args {
     connector_name: Option<String>,
     /// Name of the module
     #[arg(short, long)]
-    module_name: Option<String>,
+    module_name: Option<Module>,
     /// Custom headers
     #[arg(short = 'H', long = "header")]
     custom_headers: Option<Vec<String>>,
@@ -46,8 +52,8 @@ pub struct Args {
 
 impl Args {
     /// Getter for the `module_name` field
-    pub fn get_module_name(&self) -> Option<&str> {
-        self.module_name.as_deref()
+    pub fn get_module_name(&self) -> Option<&Module> {
+        self.module_name.as_ref()
     }
 }
 
@@ -100,8 +106,8 @@ pub fn generate_runner() -> Result<ReturnArgs> {
     let args = Args::parse();
 
     let runner = match args.get_module_name() {
-        Some("users") => generate_newman_command_for_users(),
-        Some("connector") => generate_newman_command_for_connector(),
+        Some(Module::Users) => generate_newman_command_for_users(),
+        Some(Module::Connector) => generate_newman_command_for_connector(),
         _ => generate_newman_command_for_connector(),
     };
 
