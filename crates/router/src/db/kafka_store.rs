@@ -2540,14 +2540,15 @@ impl DashboardMetadataInterface for KafkaStore {
 impl BatchSampleDataInterface for KafkaStore {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        batch: Vec<hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew>,
+        batch: Vec<hyperswitch_domain_models::payments::PaymentIntent>,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> CustomResult<
         Vec<hyperswitch_domain_models::payments::PaymentIntent>,
         hyperswitch_domain_models::errors::StorageError,
     > {
         let payment_intents_list = self
             .diesel_store
-            .insert_payment_intents_batch_for_sample_data(batch)
+            .insert_payment_intents_batch_for_sample_data(batch, key_store)
             .await?;
 
         for payment_intent in payment_intents_list.iter() {
@@ -2602,13 +2603,14 @@ impl BatchSampleDataInterface for KafkaStore {
     async fn delete_payment_intents_for_sample_data(
         &self,
         merchant_id: &str,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> CustomResult<
         Vec<hyperswitch_domain_models::payments::PaymentIntent>,
         hyperswitch_domain_models::errors::StorageError,
     > {
         let payment_intents_list = self
             .diesel_store
-            .delete_payment_intents_for_sample_data(merchant_id)
+            .delete_payment_intents_for_sample_data(merchant_id, key_store)
             .await?;
 
         for payment_intent in payment_intents_list.iter() {

@@ -2664,6 +2664,7 @@ async fn validate_payment_method_and_client_secret(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn call_surcharge_decision_management(
     state: routes::AppState,
     merchant_account: &domain::MerchantAccount,

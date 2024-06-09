@@ -603,7 +603,7 @@ pub async fn get_token_for_recurring_mandate(
             db.find_payment_intent_by_payment_id_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
-                &merchant_key_store,
+                merchant_key_store,
                 merchant_account.storage_scheme,
             )
             .await

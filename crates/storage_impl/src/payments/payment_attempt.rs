@@ -14,6 +14,7 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    behaviour::Conversion,
     errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::{
@@ -192,11 +193,13 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        let intents = pi
-            .iter()
-            .cloned()
-            .map(|pi| pi.to_storage_model())
-            .collect::<Vec<diesel_models::PaymentIntent>>();
+        let intents = futures::future::try_join_all(pi.iter().cloned().map(|pi| async {
+            pi.convert()
+                .await
+                .change_context(errors::StorageError::EncryptionError)
+        }))
+        .await?;
+
         DieselPaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
             .await
             .map_err(|er| {

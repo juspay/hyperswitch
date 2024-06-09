@@ -459,7 +459,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 return_url,
                 updated_by,
                 incremental_authorization_allowed,
-            } => DieselPaymentIntentUpdate::ResponseUpdate {
+            } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
@@ -470,7 +470,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
-            } => DieselPaymentIntentUpdate::MetadataUpdate {
+            } => Self::MetadataUpdate {
                 metadata,
                 updated_by,
             },
@@ -481,7 +481,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 shipping_address_id,
                 billing_address_id,
                 updated_by,
-            } => DieselPaymentIntentUpdate::ReturnUrlUpdate {
+            } => Self::ReturnUrlUpdate {
                 return_url,
                 status,
                 customer_id,
@@ -494,7 +494,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 shipping_address_id,
                 billing_address_id,
                 updated_by,
-            } => DieselPaymentIntentUpdate::MerchantStatusUpdate {
+            } => Self::MerchantStatusUpdate {
                 status,
                 shipping_address_id,
                 billing_address_id,
@@ -504,7 +504,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
-            } => DieselPaymentIntentUpdate::PGStatusUpdate {
+            } => Self::PGStatusUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
@@ -531,7 +531,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 session_expiry,
                 request_external_three_ds_authentication,
                 frm_metadata,
-            } => DieselPaymentIntentUpdate::Update {
+            } => Self::Update {
                 amount,
                 currency,
                 setup_future_usage,
@@ -558,7 +558,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 active_attempt_id,
                 attempt_count,
                 updated_by,
-            } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
+            } => Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
                 attempt_count,
                 updated_by,
@@ -568,7 +568,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 active_attempt_id,
                 attempt_count,
                 updated_by,
-            } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
+            } => Self::StatusAndAttemptUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
@@ -578,7 +578,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 merchant_decision,
                 updated_by,
-            } => DieselPaymentIntentUpdate::ApproveUpdate {
+            } => Self::ApproveUpdate {
                 status,
                 merchant_decision,
                 updated_by,
@@ -587,7 +587,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 merchant_decision,
                 updated_by,
-            } => DieselPaymentIntentUpdate::RejectUpdate {
+            } => Self::RejectUpdate {
                 status,
                 merchant_decision,
                 updated_by,
@@ -595,21 +595,21 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
                 updated_by,
-            } => DieselPaymentIntentUpdate::SurchargeApplicableUpdate {
+            } => Self::SurchargeApplicableUpdate {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => {
-                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
+                Self::IncrementalAuthorizationAmountUpdate { amount }
             }
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
-            } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
+            } => Self::AuthorizationCountUpdate {
                 authorization_count,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
-            } => DieselPaymentIntentUpdate::CompleteAuthorizeUpdate {
+            } => Self::CompleteAuthorizeUpdate {
                 shipping_address_id,
             },
         }

@@ -1,6 +1,8 @@
 use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    behaviour::Conversion,
     errors::StorageError,
     merchant_key_store::MerchantKeyStore,
     payments::{
@@ -11,7 +13,6 @@ use hyperswitch_domain_models::{
 };
 
 use super::MockDb;
-use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
@@ -77,7 +78,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         this: PaymentIntent,
         update: PaymentIntentUpdate,
-        _key_store: &MerchantKeyStore,
+        key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
@@ -85,11 +86,21 @@ impl PaymentIntentInterface for MockDb {
             .iter_mut()
             .find(|item| item.payment_id == this.payment_id && item.merchant_id == this.merchant_id)
             .unwrap();
-        *payment_intent = PaymentIntent::from_storage_model(
-            update
-                .to_storage_model()
-                .apply_changeset(this.to_storage_model()),
-        );
+
+        let diesel_payment_intent_update = diesel_models::PaymentIntentUpdate::from(update);
+        let diesel_payment_intent = payment_intent
+            .clone()
+            .convert()
+            .await
+            .change_context(StorageError::EncryptionError)?;
+
+        *payment_intent = PaymentIntent::convert_back(
+            diesel_payment_intent_update.apply_changeset(diesel_payment_intent),
+            key_store.key.get_inner(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)?;
+
         Ok(payment_intent.clone())
     }
 

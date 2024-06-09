@@ -525,7 +525,7 @@ impl behaviour::Conversion for PaymentIntent {
     where
         Self: Sized,
     {
-        Ok(PaymentIntent {
+        Ok(Self {
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             status: storage_model.status,
