@@ -26,8 +26,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-#[cfg(feature = "payouts")]
-use crate::{core::payments, routes, types::transformers::ForeignFrom};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
@@ -503,44 +501,6 @@ impl
 impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for Wise
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PayoutsRouterData<api::PoCreate>,
-        app_state: &routes::SessionState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        // Create a quote
-        let quote_router_data =
-            &types::PayoutsRouterData::foreign_from((&router_data, router_data.request.clone()));
-        let quote_connector_integration: Box<
-            &(dyn services::ConnectorIntegration<
-                api::PoQuote,
-                types::PayoutsData,
-                types::PayoutsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(self);
-        let quote_router_resp = services::execute_connector_processing_step(
-            app_state,
-            quote_connector_integration,
-            quote_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-
-        match quote_router_resp.response.to_owned() {
-            Ok(resp) => {
-                router_data.quote_id = resp.connector_payout_id;
-                Ok(())
-            }
-            Err(_err) => {
-                router_data.response = quote_router_resp.response;
-                Ok(())
-            }
-        }
-    }
-
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoCreate>,
