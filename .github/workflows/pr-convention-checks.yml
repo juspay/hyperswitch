@@ -164,7 +164,7 @@ jobs:
           echo "migration_and_schema_changes=${migration_and_schema_changes}" >> "${GITHUB_ENV}"
           echo "openapi_changes=${openapi_changes}" >> "${GITHUB_ENV}"
 
-      - name: Add/Remove 'M-database-changes' based on Migartion or Schema changes
+      - name: Add/Remove 'M-database-changes' based on Migration or Schema changes
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
