@@ -8,7 +8,7 @@ pub type SampleDataApiResponse<T> = SampleDataResult<ApplicationResponse<T>>;
 
 use crate::{
     core::errors::sample_data::{SampleDataError, SampleDataResult},
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     utils::user::sample_data::generate_sample_data,
 };
