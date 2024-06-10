@@ -20,13 +20,12 @@ pub struct CryptopayRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for CryptopayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for CryptopayRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -144,7 +143,7 @@ impl<F, T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        (item, amount_captured_core): (
+        (item, amount_captured_in_minor_units): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
             Option<MinorUnit>,
         ),
@@ -189,7 +188,7 @@ impl<F, T>
                 charge_id: None,
             })
         };
-        match amount_captured_core {
+        match amount_captured_in_minor_units {
             Some(minor_amount) => {
                 let amount_captured = Some(minor_amount.get_amount_as_i64());
                 Ok(Self {
