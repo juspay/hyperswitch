@@ -8,7 +8,7 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: &Option<u64>
 
     tokio::spawn(async move {
         loop {
-            crate::guage_metrics_for_imc!(
+            crate::gauge_metrics_for_imc!(
                 CONFIG_CACHE,
                 ACCOUNTS_CACHE,
                 ROUTING_CACHE,
@@ -22,7 +22,7 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: &Option<u64>
 }
 
 #[macro_export]
-macro_rules! guage_metrics_for_imc {
+macro_rules! guaue_metrics_for_imc {
     ($($cache:ident),*) => {
         $(
             {
