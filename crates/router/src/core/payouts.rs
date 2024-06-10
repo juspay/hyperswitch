@@ -1603,13 +1603,7 @@ pub async fn create_payout_retrieve(
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    // 4. Execute pretasks
-    connector_integration
-        .execute_pretasks(&mut router_data, state)
-        .await
-        .to_payout_failed_response()?;
-
-    // 5. Call connector service
+    // 4. Call connector service
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
@@ -1620,7 +1614,7 @@ pub async fn create_payout_retrieve(
     .await
     .to_payout_failed_response()?;
 
-    // 6. Process data returned by the connector
+    // 5. Process data returned by the connector
     let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
