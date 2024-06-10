@@ -130,15 +130,24 @@ jobs:
           done <<< "${linked_issues}"
 
   pr_labeler:
-    name: Attach suitable labels to PR 
+    name: Attach suitable labels to PR
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate GitHub app token
+        id: generate_app_token
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.event.repository.owner.login }}
+
       - name: Get files changed
-        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+        shell: bash
         run: |
           migration_and_schema_changes=false
           openapi_changes=false
@@ -159,7 +168,7 @@ jobs:
       - name: Add/Remove 'M-database-changes' based on Migartion or Schema changes
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
           if ${{ env.migration_and_schema_changes == 'true' }}; then
             gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
@@ -170,7 +179,7 @@ jobs:
       - name: Add/Remove 'M-api-contract-changes' based on OpenAPI Spec changes
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
           if ${{ env.openapi_changes == 'true' }}; then
             gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
