@@ -7,13 +7,13 @@ on:
   # pull request whenever this trigger is used.
   # Since we do not have a checkout step in this workflow, this is an
   # acceptable use of this trigger.
-  pull_request:
-    # types:
-    #   - opened
-    #   - edited
-    #   - reopened
-    #   - ready_for_review
-    #   - synchronize
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - ready_for_review
+      - synchronize
 
   merge_group:
     types:
@@ -131,13 +131,12 @@ jobs:
 
   pr_labeler:
     name: Attach suitable labels to PR
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}

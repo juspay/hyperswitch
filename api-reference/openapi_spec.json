@@ -7425,9 +7425,6 @@
           }
         }
       },
-      "CiTesting": {
-        "type": "object"
-      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
