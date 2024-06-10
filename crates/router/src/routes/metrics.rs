@@ -137,4 +137,5 @@ counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
 // A counter to indicate the access token cache miss
 counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
 
+// Metrics for In-memory cache
 gauge_metric!(CACHE_ENTRY_COUNT, GLOBAL_METER);
