@@ -1127,7 +1127,7 @@ pub struct PayoutLink;
 impl PayoutLink {
     pub fn server(state: AppState) -> Scope {
         #[cfg(feature = "olap")]
-        web::scope("payout_link")
+        web::scope("/payout_link")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("/{merchant_id}/{payment_link_id}")
