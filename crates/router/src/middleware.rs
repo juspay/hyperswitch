@@ -283,7 +283,7 @@ where
                     .ok()
                     .flatten();
 
-                logger::info!("Content length from header: {content_length_header_string:?}, Bytes length: {bytes_length}");
+                logger::info!("request_id: {request_id}, Content length from header: {content_length_header_string:?}, Bytes length: {bytes_length}");
 
                 if !bytes.is_empty() {
                     let value_result: Result<serde_json::Value, serde_json::Error> =
