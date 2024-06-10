@@ -10,7 +10,9 @@ use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
-use crate::common_config::{CardProvider, GooglePayData, PaypalSdkData, Provider, ZenApplePay};
+use crate::common_config::{
+    CardProvider, GooglePayData, MetaDataInupt, PaypalSdkData, Provider, ZenApplePay,
+};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Classic {
@@ -87,7 +89,7 @@ pub struct ConfigMetadata {
     pub merchant_account_id: Option<String>,
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,
-    pub google_pay: Option<GooglePayData>,
+    pub google_pay: Option<Vec<MetaDataInupt>>,
     pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub merchant_id: Option<String>,

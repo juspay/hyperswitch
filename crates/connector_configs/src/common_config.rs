@@ -218,3 +218,24 @@ pub struct DashboardMetaData {
     pub source_balance_account: Option<String>,
     pub brand_id: Option<String>,
 }
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[serde(tag = "type", content = "options")]
+pub enum InputType {
+    Text,
+    Toggle(Vec<String>),
+    Select(Vec<String>),
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct MetaDataInupt {
+    pub name: String,
+    pub label: String,
+    pub placeholder: String,
+    pub required: bool,
+    #[serde(flatten)]
+    pub input_type: InputType,
+}

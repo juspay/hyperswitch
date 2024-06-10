@@ -232,10 +232,24 @@ key1="Adyen Account Id"
 merchant_secret="Source verification key"
 [adyen.metadata]
 endpoint_prefix="Live endpoint prefix"
-[adyen.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[adyen.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[adyen.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[adyen.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [adyen.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -349,23 +363,24 @@ merchant_secret="Source verification key"
 [authorizedotnet.connector_auth.BodyKey]
 api_key="API Login ID"
 key1="Transaction Key"
-[authorizedotnet.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
-[authorizedotnet.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="Domain"
-initiative_context="Domain Name"
-[authorizedotnet.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
-[authorizedotnet.connector_webhook_details]
-merchant_secret="Source verification key"
+[[authorizedotnet.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[authorizedotnet.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[authorizedotnet.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [bambora]
 [[bambora.credit]]
@@ -468,10 +483,24 @@ supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
 
-[bankofamerica.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[bankofamerica.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[bankofamerica.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[bankofamerica.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [bitpay]
 [[bitpay.crypto]]
@@ -528,10 +557,24 @@ key1="Username"
 [bluesnap.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[bluesnap.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[bluesnap.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[bluesnap.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[bluesnap.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [bluesnap.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -760,10 +803,24 @@ api_secret="Checkout API Secret Key"
 [checkout.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[checkout.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[checkout.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[checkout.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[checkout.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [checkout.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -859,10 +916,24 @@ supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
 
-[cybersource.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[cybersource.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[cybersource.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[cybersource.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [cybersource.metadata]
 acquirer_bin = "Acquirer Bin"
@@ -1108,10 +1179,24 @@ key1="Global App ID"
 account_name="Account Name"
 [globalpay.connector_webhook_details]
 merchant_secret="Source verification key"
-[globalpay.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[globalpay.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[globalpay.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[globalpay.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [globepay]
 [[globepay.wallet]]
@@ -1265,10 +1350,24 @@ merchant_secret="Source verification key"
 api_key="Enter API Key"
 [multisafepay.connector_webhook_details]
 merchant_secret="Source verification key"
-[multisafepay.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[multisafepay.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[multisafepay.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[multisafepay.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [nexinets]
 [[nexinets.credit]]
@@ -1390,10 +1489,24 @@ acquirer_bin = "Acquirer Bin"
 acquirer_merchant_id = "Acquirer Merchant ID"
 acquirer_country_code = "Acquirer Country Code"
 
-[nmi.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[nmi.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[nmi.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[nmi.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [nmi.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -1457,10 +1570,24 @@ api_secret="Application Identifier"
 [noon.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[noon.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[noon.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [noon.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -1536,10 +1663,24 @@ api_secret="Merchant Secret"
 [nuvei.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[nuvei.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[nuvei.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[nuvei.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[nuvei.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [nuvei.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -1728,10 +1869,24 @@ key1="Merchant POS ID"
 [payu.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[payu.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[payu.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[payu.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[payu.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [placetopay]
 [[placetopay.credit]]
@@ -2011,10 +2166,24 @@ api_key="Secret Key"
 [stripe.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[stripe.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-stripe_publishable_key="Stripe Publishable Key"
-merchant_id="Google Pay Merchant ID"
+[[stripe.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[stripe.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[stripe.metadata.google_pay]]
+name="stripe_publishable_key"
+label="Stripe Publishable Key"
+placeholder="Enter Stripe Publishable Key"
+required=true
+type="Text"
 
 [stripe.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -2335,10 +2504,24 @@ key1="Password"
 [worldpay.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[worldpay.metadata.google_pay]
-merchant_name="Google Pay Merchant Name"
-gateway_merchant_id="Google Pay Merchant Key"
-merchant_id="Google Pay Merchant ID"
+[[worldpay.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpay.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpay.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [worldpay.metadata.apple_pay.session_token_data]
 certificate="Merchant Certificate (Base64 Encoded)"
@@ -2412,12 +2595,18 @@ api_key="API Key"
 [zen.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[zen.metadata.apple_pay]
-terminal_uuid="Terminal UUID"
-pay_wall_secret="Pay Wall Secret"
-[zen.metadata.google_pay]
-terminal_uuid="Terminal UUID"
-pay_wall_secret="Pay Wall Secret"
+[[adyen.metadata.google_pay]]
+name="terminal_uuid"
+label="Terminal UUID"
+placeholder="Enter Terminal UUID"
+required=true
+type="Text"
+[[adyen.metadata.google_pay]]
+name="pay_wall_secret"
+label="Pay Wall Secret"
+placeholder="Enter Pay Wall Secret"
+required=true
+type="Text"
 
 [zsl]
 [[zsl.bank_transfer]]
