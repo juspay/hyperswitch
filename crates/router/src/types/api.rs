@@ -355,9 +355,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
                 }
                 enums::Connector::Authorizedotnet => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Authorizedotnet::new())))
                 }
-                enums::Connector::Bambora => Ok(ConnectorEnum::Old(Box::new(&connector::Bambora))),
+                enums::Connector::Bambora => Ok(ConnectorEnum::Old(Box::new(connector::Bambora::new()))),
                 enums::Connector::Bamboraapac => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
                 }

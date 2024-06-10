@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::request::RequestContent;
+use common_utils::{request::RequestContent, types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector}};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use transformers as bambora;
@@ -30,8 +30,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Bambora;
+#[derive(Clone)]
+pub struct Bambora {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Bambora {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Bambora {}
 impl api::PaymentToken for Bambora {}
@@ -210,13 +220,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bambora::BamboraRouterData::try_from((
-            &self.get_currency_unit(),
+        
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
 
+        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
         let connector_req = bambora::BamboraPaymentsRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -474,12 +485,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bambora::BamboraRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
 
         let connector_req =
             bambora::BamboraPaymentsCaptureRequest::try_from(connector_router_data)?;
@@ -568,20 +580,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bambora::BamboraRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
-                })?,
-            req.request
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
-                })?,
-            req,
-        ))?;
+       
+            let amount = connector_utils::convert_amount(
+                self.amount_converter,
+                req.request.minor_amount.unwrap_or_default(),
+                req.request.currency.unwrap_or_default(),
+            )?;
+    
+            let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
 
         let connector_req = bambora::BamboraVoidRequest::try_from(connector_router_data)?;
 
@@ -685,12 +691,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bambora::BamboraRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
         let connector_req = bambora::BamboraRefundRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
