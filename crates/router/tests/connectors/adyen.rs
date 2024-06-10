@@ -72,6 +72,7 @@ impl AdyenTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             ..Default::default()
         })
@@ -100,6 +101,7 @@ impl AdyenTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             payout_method_data: match payout_type {
                 enums::PayoutType::Card => Some(types::api::PayoutMethodData::Card(
@@ -122,6 +124,8 @@ impl AdyenTest {
                 enums::PayoutType::Wallet => Some(types::api::PayoutMethodData::Wallet(
                     types::api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
                         email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
+                        telephone_number: None,
+                        paypal_id: None,
                     }),
                 )),
             },
@@ -149,7 +153,7 @@ impl AdyenTest {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -178,6 +182,7 @@ impl AdyenTest {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         })
     }
 }

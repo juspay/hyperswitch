@@ -372,6 +372,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -455,6 +456,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -722,7 +724,8 @@ fn get_wallet_details(
         | domain::WalletData::WeChatPayRedirect(_)
         | domain::WalletData::WeChatPayQr(_)
         | domain::WalletData::CashappQr(_)
-        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+        | domain::WalletData::SwishQr(_)
+        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }

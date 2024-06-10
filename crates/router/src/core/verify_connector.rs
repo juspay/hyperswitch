@@ -6,15 +6,18 @@ use crate::{
     core::errors,
     services,
     types::{
-        api,
-        api::verify_connector::{self as types, VerifyConnector},
+        api::{
+            self,
+            verify_connector::{self as types, VerifyConnector},
+        },
+        transformers::ForeignInto,
     },
     utils::verify_connector as utils,
-    AppState,
+    SessionState,
 };
 
 pub async fn verify_connector_credentials(
-    state: AppState,
+    state: SessionState,
     req: VerifyConnectorRequest,
 ) -> errors::RouterResponse<()> {
     let boxed_connector = api::ConnectorData::get_connector_by_name(
@@ -38,7 +41,7 @@ pub async fn verify_connector_credentials(
                 &state,
                 types::VerifyConnectorData {
                     connector: *boxed_connector.connector,
-                    connector_auth: req.connector_account_details.into(),
+                    connector_auth: req.connector_account_details.foreign_into(),
                     card_details,
                 },
             )
@@ -48,7 +51,7 @@ pub async fn verify_connector_credentials(
             &state,
             types::VerifyConnectorData {
                 connector: *boxed_connector.connector,
-                connector_auth: req.connector_account_details.into(),
+                connector_auth: req.connector_account_details.foreign_into(),
                 card_details,
             },
         )

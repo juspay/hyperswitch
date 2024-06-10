@@ -1,6 +1,5 @@
 pub mod paypal;
 pub mod stripe;
-
 use error_stack::ResultExt;
 
 use crate::{
@@ -9,12 +8,12 @@ use crate::{
     services,
     services::ConnectorIntegration,
     types::{self, api, domain, storage::enums as storage_enums},
-    AppState,
+    SessionState,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VerifyConnectorData {
-    pub connector: &'static (dyn types::api::Connector + Sync),
+    pub connector: &'static (dyn api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,
     pub card_details: domain::Card,
 }
@@ -26,6 +25,7 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
+            minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
             currency: storage_enums::Currency::USD,
             metadata: None,
@@ -52,6 +52,7 @@ impl VerifyConnectorData {
             request_incremental_authorization: false,
             authentication_data: None,
             customer_acceptance: None,
+            charges: None,
         }
     }
 
@@ -81,16 +82,16 @@ impl VerifyConnectorData {
             payment_method: storage_enums::PaymentMethod::Card,
             amount_captured: None,
             preprocessing_id: None,
-            payment_method_id: None,
             connector_customer: None,
             connector_auth_type: self.connector_auth.clone(),
             connector_meta_data: None,
+            connector_wallets_details: None,
             payment_method_token: None,
             connector_api_version: None,
             recurring_mandate_payment_data: None,
             payment_method_status: None,
             connector_request_reference_id: attempt_id,
-            address: types::PaymentAddress::new(None, None, None),
+            address: types::PaymentAddress::new(None, None, None, None),
             payment_id: common_utils::generate_id_with_default_len(
                 consts::VERIFY_CONNECTOR_ID_PREFIX,
             ),
@@ -113,7 +114,7 @@ impl VerifyConnectorData {
 #[async_trait::async_trait]
 pub trait VerifyConnector {
     async fn verify(
-        state: &AppState,
+        state: &SessionState,
         connector_data: VerifyConnectorData,
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
@@ -147,7 +148,7 @@ pub trait VerifyConnector {
     }
 
     async fn get_access_token(
-        _state: &AppState,
+        _state: &SessionState,
         _connector_data: VerifyConnectorData,
     ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
         // AccessToken is None for the connectors without the AccessToken Flow.
@@ -156,11 +157,11 @@ pub trait VerifyConnector {
     }
 
     async fn handle_payment_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
+        connector: &(dyn api::Connector + Sync),
         error_response: types::Response,
     ) -> errors::RouterResponse<()>
     where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
+        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
             .get_error_response(error_response, None)
@@ -172,11 +173,11 @@ pub trait VerifyConnector {
     }
 
     async fn handle_access_token_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
+        connector: &(dyn api::Connector + Sync),
         error_response: types::Response,
     ) -> errors::RouterResult<Option<types::AccessToken>>
     where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
+        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
             .get_error_response(error_response, None)

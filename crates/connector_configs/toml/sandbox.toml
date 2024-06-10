@@ -128,8 +128,6 @@ merchant_secret="Source verification key"
 [[adyen.bank_redirect]]
   payment_method_type = "blik"
 [[adyen.bank_redirect]]
-  payment_method_type = "przelewy24"
-[[adyen.bank_redirect]]
   payment_method_type = "trustly"
 [[adyen.bank_redirect]]
   payment_method_type = "online_banking_czech_republic"
@@ -250,6 +248,14 @@ initiative_context="Domain Name"
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
+
+[adyenplatform_payout]
+[[adyenplatform_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[adyenplatform_payout.metadata]
+  source_balance_account = "Source balance account ID"
+[adyenplatform_payout.connector_auth.HeaderKey]
+api_key = "Adyen platform's API Key"
 
 [airwallex]
 [[airwallex.credit]]
@@ -398,26 +404,9 @@ merchant_secret="Source verification key"
   payment_method_type = "CartesBancaires"
 [[bambora.debit]]
   payment_method_type = "UnionPay"
-[[bambora.wallet]]
-  payment_method_type = "apple_pay"
-[[bambora.wallet]]
-  payment_method_type = "paypal"
 [bambora.connector_auth.BodyKey]
 api_key="Passcode"
 key1="Merchant Id"
-[bambora.connector_webhook_details]
-merchant_secret="Source verification key"
-[bambora.metadata.apple_pay.session_token_data]
-certificate="Merchant Certificate (Base64 Encoded)"
-certificate_keys="Merchant PrivateKey (Base64 Encoded)"
-merchant_identifier="Apple Merchant Identifier"
-display_name="Display Name"
-initiative="Domain"
-initiative_context="Domain Name"
-[bambora.metadata.apple_pay.payment_request_data]
-supported_networks=["visa","masterCard","amex","discover"]
-merchant_capabilities=["supports3DS"]
-label="apple"
 
 [bankofamerica]
 [[bankofamerica.credit]]
@@ -712,6 +701,14 @@ merchant_id_classic="MerchantId Classic"
 password_evoucher="Password Evoucher"
 username_evoucher="Username Evoucher"
 merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CNY.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CNY.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
 [cashtocode.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -783,6 +780,7 @@ label="apple"
 [checkout.metadata]
 acquirer_bin = "Acquirer Bin"
 acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [coinbase]
 [[coinbase.crypto]]
@@ -866,6 +864,53 @@ merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
 
+[cybersource.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
+
+[cybersource_payout]
+[[cybersource_payout.credit]]
+  payment_method_type = "Mastercard"
+[[cybersource_payout.credit]]
+  payment_method_type = "Visa"
+[[cybersource_payout.credit]]
+  payment_method_type = "Interac"
+[[cybersource_payout.credit]]
+  payment_method_type = "AmericanExpress"
+[[cybersource_payout.credit]]
+  payment_method_type = "JCB"
+[[cybersource_payout.credit]]
+  payment_method_type = "DinersClub"
+[[cybersource_payout.credit]]
+  payment_method_type = "Discover"
+[[cybersource_payout.credit]]
+  payment_method_type = "CartesBancaires"
+[[cybersource_payout.credit]]
+  payment_method_type = "UnionPay"
+[[cybersource_payout.debit]]
+  payment_method_type = "Mastercard"
+[[cybersource_payout.debit]]
+  payment_method_type = "Visa"
+[[cybersource_payout.debit]]
+  payment_method_type = "Interac"
+[[cybersource_payout.debit]]
+  payment_method_type = "AmericanExpress"
+[[cybersource_payout.debit]]
+  payment_method_type = "JCB"
+[[cybersource_payout.debit]]
+  payment_method_type = "DinersClub"
+[[cybersource_payout.debit]]
+  payment_method_type = "Discover"
+[[cybersource_payout.debit]]
+  payment_method_type = "CartesBancaires"
+[[cybersource_payout.debit]]
+  payment_method_type = "UnionPay"
+[cybersource_payout.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
+
 [dlocal]
 [[dlocal.credit]]
   payment_method_type = "Mastercard"
@@ -909,6 +954,12 @@ key1="X Trans Key"
 api_secret="Secret Key"
 [dlocal.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[ebanx_payout]
+[[ebanx_payout.bank_transfer]]
+  payment_method_type = "pix"
+[ebanx_payout.connector_auth.HeaderKey]
+api_key = "Integration Key"
 
 [fiserv]
 [[fiserv.credit]]
@@ -1098,10 +1149,19 @@ merchant_secret="Source verification key"
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
-[klarna.connector_auth.HeaderKey]
-api_key="Klarna API Key"
-[klarna.connector_webhook_details]
-merchant_secret="Source verification key"
+[klarna.connector_auth.BodyKey]
+key1="Klarna Merchant Username"
+api_key="Klarna Merchant ID Password"
+[klarna.metadata]
+klarna_region=["Europe","NorthAmerica","Oceania"]
+
+[mifinity]
+[[mifinity.wallet]]
+  payment_method_type = "mifinity"
+[mifinity.connector_auth.HeaderKey]
+api_key="key"
+[mifinity.metadata]
+brand_id="Brand ID"
 
 [mollie]
 [[mollie.credit]]
@@ -1324,6 +1384,11 @@ api_key="API Key"
 key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[nmi.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
+acquirer_country_code = "Acquirer Country Code"
 
 [nmi.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
@@ -1588,6 +1653,10 @@ additional_secret="Payme Client Key"
   payment_method_type = "UnionPay"
 [[paypal.wallet]]
   payment_method_type = "paypal"
+  payment_experience = "invoke_sdk_client"
+[[paypal.wallet]]
+  payment_method_type = "paypal"
+  payment_experience = "redirect_to_url"
 [[paypal.bank_redirect]]
   payment_method_type = "ideal"
 [[paypal.bank_redirect]]
@@ -1602,7 +1671,17 @@ api_key="Client Secret"
 key1="Client ID"
 [paypal.connector_webhook_details]
 merchant_secret="Source verification key"
+[paypal.metadata.paypal_sdk]
+client_id="Client ID"
 
+[paypal_payout]
+[[paypal_payout.wallet]]
+  payment_method_type = "paypal"
+[[paypal_payout.wallet]]
+  payment_method_type = "venmo"
+[paypal_payout.connector_auth.BodyKey]
+api_key="Client Secret"
+key1="Client ID"
 
 [payu]
 [[payu.credit]]
@@ -2578,6 +2657,12 @@ api_key = "Adyen API Key (Payout creation)"
 api_secret = "Adyen Key (Payout submission)"
 key1 = "Adyen Account Id"
 
+[stripe_payout]
+[[stripe_payout.bank_transfer]]
+  payment_method_type = "ach"
+[stripe_payout.connector_auth.HeaderKey]
+api_key = "Stripe API Key"
+
 [wise_payout]
 [[wise_payout.bank_transfer]]
   payment_method_type = "ach"
@@ -2596,6 +2681,19 @@ api_key="Api Key"
 mcc="MCC"
 merchant_country_code="3 digit numeric country code"
 merchant_name="Name of the merchant"
+pull_mechanism_for_external_3ds_enabled=true
+
+[netcetera]
+[netcetera.connector_auth.CertificateAuth]
+certificate="Base64 encoded PEM formatted certificate chain"
+private_key="Base64 encoded PEM formatted private key"
+[netcetera.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"
+endpoint_prefix="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
+three_ds_requestor_name="ThreeDS requestor name"
+three_ds_requestor_id="ThreeDS request id"
 
 [billwerk]
 [[billwerk.credit]]

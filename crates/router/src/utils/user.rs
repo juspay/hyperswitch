@@ -1,17 +1,17 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use api_models::user as user_api;
 use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use redis_interface::RedisConnectionPool;
 
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
     services::{
         authentication::{AuthToken, UserFromToken},
-        authorization::roles::{self, RoleInfo},
+        authorization::roles::RoleInfo,
     },
     types::domain::{self, MerchantAccount, UserFromStorage},
 };
@@ -20,11 +20,12 @@ pub mod dashboard_metadata;
 pub mod password;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod two_factor_auth;
 
 impl UserFromToken {
     pub async fn get_merchant_account_from_db(
         &self,
-        state: AppState,
+        state: SessionState,
     ) -> UserResult<MerchantAccount> {
         let key_store = state
             .store
@@ -54,27 +55,27 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user_from_db(&self, state: &AppState) -> UserResult<UserFromStorage> {
+    pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
         let user = state
-            .store
+            .global_store
             .find_user_by_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
         Ok(user.into())
     }
 
-    pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
-        roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
+    pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
+        RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
             .await
             .change_context(UserErrors::InternalServerError)
     }
 }
 
 pub async fn generate_jwt_auth_token(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
     user_role: &UserRole,
-) -> UserResult<Secret<String>> {
+) -> UserResult<masking::Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         user_role.merchant_id.clone(),
@@ -83,16 +84,16 @@ pub async fn generate_jwt_auth_token(
         user_role.org_id.clone(),
     )
     .await?;
-    Ok(Secret::new(token))
+    Ok(masking::Secret::new(token))
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
     merchant_id: String,
     org_id: String,
     role_id: String,
-) -> UserResult<Secret<String>> {
+) -> UserResult<masking::Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         merchant_id,
@@ -101,14 +102,14 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
         org_id,
     )
     .await?;
-    Ok(Secret::new(token))
+    Ok(masking::Secret::new(token))
 }
 
 pub fn get_dashboard_entry_response(
-    state: &AppState,
+    state: &SessionState,
     user: UserFromStorage,
     user_role: UserRole,
-    token: Secret<String>,
+    token: masking::Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
     let verification_days_left = get_verification_days_left(state, &user)?;
 
@@ -125,7 +126,7 @@ pub fn get_dashboard_entry_response(
 
 #[allow(unused_variables)]
 pub fn get_verification_days_left(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
 ) -> UserResult<Option<i64>> {
     #[cfg(feature = "email")]
@@ -175,19 +176,27 @@ pub fn get_multiple_merchant_details_with_status(
 }
 
 pub async fn get_user_from_db_by_email(
-    state: &AppState,
+    state: &SessionState,
     email: domain::UserEmail,
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
-        .store
-        .find_user_by_email(email.get_secret().expose().as_str())
+        .global_store
+        .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)
 }
 
-pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
+pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> masking::Secret<String> {
     match resp {
         user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
         user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
     }
+}
+
+pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnectionPool>> {
+    state
+        .store
+        .get_redis_conn()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")
 }

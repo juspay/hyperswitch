@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use crate::{
     core::{
@@ -16,7 +17,7 @@ use crate::{
         storage::enums as storage_enums,
         ConnectorAuthType, ResponseId, RouterData,
     },
-    AppState,
+    SessionState,
 };
 
 #[async_trait]
@@ -25,7 +26,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
 {
     async fn construct_router_data<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -58,14 +59,26 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             connector_auth_type: auth_type,
             description: None,
             return_url: None,
-            payment_method_id: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
+            connector_wallets_details: None,
             amount_captured: None,
             request: FraudCheckSaleData {
-                amount: self.payment_attempt.amount,
+                amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
+                currency: self.payment_attempt.currency,
+                email: customer
+                    .clone()
+                    .and_then(|customer_data| {
+                        customer_data
+                            .email
+                            .map(|email| Email::try_from(email.into_inner().expose()))
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "customer.customer_data.email",
+                    })?,
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -93,7 +106,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             external_latency: None,
             connector_api_version: None,
             apple_pay_flow: None,
-            frm_metadata: None,
+            frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
             connector_response: None,
@@ -107,7 +120,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
 impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
     async fn decide_frm_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
@@ -125,7 +138,7 @@ impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
 
 pub async fn decide_frm_flow<'a, 'b>(
     router_data: &'b mut FrmSaleRouterData,
-    state: &'a AppState,
+    state: &'a SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

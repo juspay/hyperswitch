@@ -23,22 +23,10 @@ pub struct CheckoutRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for CheckoutRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CheckoutRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -124,12 +112,11 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("checkout"),
-                    )
-                    .into())
-                }
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )
+                .into()),
             },
             domain::PaymentMethodData::Card(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -306,7 +293,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 domain::WalletData::GooglePay(_) => Ok(PaymentSource::Wallets(WalletSource {
                     source_type: CheckoutSourceTypes::Token,
                     token: match item.router_data.get_payment_method_token()? {
-                        types::PaymentMethodToken::Token(token) => token.into(),
+                        types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
                         )?,
@@ -318,7 +305,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token.into(),
+                                token: apple_pay_payment_token,
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -361,11 +348,10 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("checkout"),
-                    ))
-                }
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )),
             },
 
             domain::PaymentMethodData::PayLater(_)
@@ -395,7 +381,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 eci: authentication_data.and_then(|auth| auth.eci.clone()),
                 cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.map(|auth| auth.message_version.clone()),
+                version: authentication_data.map(|auth| auth.message_version.to_string()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
@@ -693,6 +679,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status,
@@ -745,6 +732,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status,
@@ -820,6 +808,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: response.into(),
             ..item.data
@@ -920,6 +909,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status,
             amount_captured,

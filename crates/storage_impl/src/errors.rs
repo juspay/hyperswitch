@@ -3,12 +3,12 @@ use std::fmt::Display;
 use actix_web::ResponseError;
 use common_utils::errors::ErrorSwitch;
 use config::ConfigError;
-use data_models::errors::StorageError as DataStorageError;
 use http::StatusCode;
+use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 
-use crate::{errors as storage_errors, store::errors::DatabaseError};
+use crate::store::errors::DatabaseError;
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
 
@@ -56,20 +56,16 @@ impl Into<DataStorageError> for &StorageError {
     fn into(self) -> DataStorageError {
         match self {
             StorageError::DatabaseError(i) => match i.current_context() {
-                storage_errors::DatabaseError::DatabaseConnectionError => {
-                    DataStorageError::DatabaseConnectionError
-                }
+                DatabaseError::DatabaseConnectionError => DataStorageError::DatabaseConnectionError,
                 // TODO: Update this error type to encompass & propagate the missing type (instead of generic `db value not found`)
-                storage_errors::DatabaseError::NotFound => {
+                DatabaseError::NotFound => {
                     DataStorageError::ValueNotFound(String::from("db value not found"))
                 }
                 // TODO: Update this error type to encompass & propagate the duplicate type (instead of generic `db value not found`)
-                storage_errors::DatabaseError::UniqueViolation => {
-                    DataStorageError::DuplicateValue {
-                        entity: "db entity",
-                        key: None,
-                    }
-                }
+                DatabaseError::UniqueViolation => DataStorageError::DuplicateValue {
+                    entity: "db entity",
+                    key: None,
+                },
                 err => DataStorageError::DatabaseError(error_stack::report!(*err)),
             },
             StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
@@ -102,6 +98,12 @@ impl Into<DataStorageError> for &StorageError {
 impl From<error_stack::Report<RedisError>> for StorageError {
     fn from(err: error_stack::Report<RedisError>) -> Self {
         Self::RedisError(err)
+    }
+}
+
+impl From<diesel::result::Error> for StorageError {
+    fn from(err: diesel::result::Error) -> Self {
+        Self::from(error_stack::report!(DatabaseError::from(err)))
     }
 }
 
@@ -369,6 +371,8 @@ pub enum HealthCheckDBError {
     SqlxAnalyticsError,
     #[error("Error while executing query in Clickhouse Analytics")]
     ClickhouseAnalyticsError,
+    #[error("Error while executing query in Opensearch")]
+    OpensearchError,
 }
 
 impl From<diesel::result::Error> for HealthCheckDBError {

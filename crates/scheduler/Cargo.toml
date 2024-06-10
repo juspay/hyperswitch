@@ -7,7 +7,7 @@ license.workspace = true
 
 [features]
 default = ["kv_store", "olap"]
-olap = ["storage_impl/olap"]
+olap = ["storage_impl/olap", "hyperswitch_domain_models/olap"]
 kv_store = []
 email = ["external_services/email"]
 
@@ -35,6 +35,7 @@ masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+hyperswitch_domain_models = {version = "0.1.0", path = "../hyperswitch_domain_models",  default-features = false }
 
 # [[bin]]
 # name = "scheduler"

@@ -1,6 +1,6 @@
-use common_utils::pii;
-use data_models::payouts::{payout_attempt::PayoutAttempt, payouts::Payouts};
+use common_utils::{id_type, pii};
 use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::payouts::{payout_attempt::PayoutAttempt, payouts::Payouts};
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -8,7 +8,7 @@ pub struct KafkaPayout<'a> {
     pub payout_id: &'a String,
     pub payout_attempt_id: &'a String,
     pub merchant_id: &'a String,
-    pub customer_id: &'a String,
+    pub customer_id: &'a id_type::CustomerId,
     pub address_id: &'a String,
     pub profile_id: &'a String,
     pub payout_method_id: Option<&'a String>,
@@ -28,9 +28,10 @@ pub struct KafkaPayout<'a> {
     pub last_modified_at: OffsetDateTime,
     pub attempt_count: i16,
     pub status: storage_enums::PayoutStatus,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 
     pub connector: Option<&'a String>,
-    pub connector_payout_id: &'a String,
+    pub connector_payout_id: Option<&'a String>,
     pub is_eligible: Option<bool>,
     pub error_message: Option<&'a String>,
     pub error_code: Option<&'a String>,
@@ -63,8 +64,9 @@ impl<'a> KafkaPayout<'a> {
             last_modified_at: payouts.last_modified_at.assume_utc(),
             attempt_count: payouts.attempt_count,
             status: payouts.status,
+            priority: payouts.priority,
             connector: payout_attempt.connector.as_ref(),
-            connector_payout_id: &payout_attempt.connector_payout_id,
+            connector_payout_id: payout_attempt.connector_payout_id.as_ref(),
             is_eligible: payout_attempt.is_eligible,
             error_message: payout_attempt.error_message.as_ref(),
             error_code: payout_attempt.error_code.as_ref(),
@@ -78,10 +80,6 @@ impl<'a> KafkaPayout<'a> {
 impl<'a> super::KafkaMessage for KafkaPayout<'a> {
     fn key(&self) -> String {
         format!("{}_{}", self.merchant_id, self.payout_attempt_id)
-    }
-
-    fn creation_timestamp(&self) -> Option<i64> {
-        Some(self.last_modified_at.unix_timestamp())
     }
 
     fn event_type(&self) -> crate::events::EventType {

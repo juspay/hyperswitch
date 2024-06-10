@@ -44,6 +44,7 @@ pub async fn construct_mandate_revoke_router_data(
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
         access_token: None,
         session_token: None,
@@ -59,7 +60,6 @@ pub async fn construct_mandate_revoke_router_data(
             connector_mandate_id: mandate.connector_mandate_id,
         },
         response: Err(types::ErrorResponse::get_not_implemented()),
-        payment_method_id: None,
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         test_mode: None,

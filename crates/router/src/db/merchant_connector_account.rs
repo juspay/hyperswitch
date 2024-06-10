@@ -1,4 +1,6 @@
+use async_bb8_diesel::AsyncConnection;
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
+use diesel_models::encryption::Encryption;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
@@ -24,13 +26,13 @@ pub trait ConnectorAccessToken {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError>;
 
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError>;
 }
@@ -41,12 +43,16 @@ impl ConnectorAccessToken for Store {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         //TODO: Handle race condition
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
-        let key = format!("access_token_{merchant_id}_{connector_name}");
+        let key = common_utils::access_token::create_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
+
         let maybe_token = self
             .get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
@@ -55,10 +61,9 @@ impl ConnectorAccessToken for Store {
             .change_context(errors::StorageError::KVError)
             .attach_printable("DB error when getting access token")?;
 
-        let access_token: Option<types::AccessToken> = maybe_token
-            .map(|token| token.parse_struct("AccessToken"))
+        let access_token = maybe_token
+            .map(|token| token.parse_struct::<types::AccessToken>("AccessToken"))
             .transpose()
-            .change_context(errors::ParsingError::UnknownError)
             .change_context(errors::StorageError::DeserializationFailed)?;
 
         Ok(access_token)
@@ -68,10 +73,13 @@ impl ConnectorAccessToken for Store {
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
-        let key = format!("access_token_{merchant_id}_{connector_name}");
+        let key = common_utils::access_token::create_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
         let serialized_access_token = access_token
             .encode_to_string_of_json()
             .change_context(errors::StorageError::SerializationFailed)?;
@@ -88,7 +96,7 @@ impl ConnectorAccessToken for MockDb {
     async fn get_access_token(
         &self,
         _merchant_id: &str,
-        _connector_name: &str,
+        _merchant_connector_id_or_connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         Ok(None)
     }
@@ -96,7 +104,7 @@ impl ConnectorAccessToken for MockDb {
     async fn set_access_token(
         &self,
         _merchant_id: &str,
-        _connector_name: &str,
+        _merchant_connector_id_or_connector_name: &str,
         _access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         Ok(())
@@ -159,6 +167,14 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
+    async fn update_multiple_merchant_connector_accounts(
+        &self,
+        this: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError>;
+
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -197,7 +213,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id, connector_label),
                 find_call,
@@ -242,7 +258,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", profile_id, connector_name),
                 find_call,
@@ -316,7 +332,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id, merchant_connector_id),
                 find_call,
@@ -376,6 +392,104 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn update_multiple_merchant_connector_accounts(
+        &self,
+        merchant_connector_accounts: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+
+        async fn update_call(
+            connection: &diesel_models::PgPooledConn,
+            (merchant_connector_account, mca_update): (
+                domain::MerchantConnectorAccount,
+                storage::MerchantConnectorAccountUpdateInternal,
+            ),
+        ) -> Result<(), error_stack::Report<storage_impl::errors::StorageError>> {
+            Conversion::convert(merchant_connector_account)
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .update(connection, mca_update)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+            Ok(())
+        }
+
+        conn.transaction_async(|connection_pool| async move {
+            for (merchant_connector_account, update_merchant_connector_account) in
+                merchant_connector_accounts
+            {
+                let _connector_name = merchant_connector_account.connector_name.clone();
+                let _profile_id = merchant_connector_account.profile_id.clone().ok_or(
+                    errors::StorageError::ValueNotFound("profile_id".to_string()),
+                )?;
+
+                let _merchant_id = merchant_connector_account.merchant_id.clone();
+                let _merchant_connector_id =
+                    merchant_connector_account.merchant_connector_id.clone();
+
+                let update = update_call(
+                    &connection_pool,
+                    (
+                        merchant_connector_account,
+                        update_merchant_connector_account,
+                    ),
+                );
+
+                #[cfg(feature = "accounts_cache")]
+                // Redact all caches as any of might be used because of backwards compatibility
+                cache::publish_and_redact_multiple(
+                    self,
+                    [
+                        cache::CacheKind::Accounts(
+                            format!("{}_{}", _profile_id, _connector_name).into(),
+                        ),
+                        cache::CacheKind::Accounts(
+                            format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                        ),
+                        cache::CacheKind::CGraph(
+                            format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
+                        ),
+                    ],
+                    || update,
+                )
+                .await
+                .map_err(|error| {
+                    // Returning `DatabaseConnectionError` after logging the actual error because
+                    // -> it is not possible to get the underlying from `error_stack::Report<C>`
+                    // -> it is not possible to write a `From` impl to convert the `diesel::result::Error` to `error_stack::Report<StorageError>`
+                    //    because of Rust's orphan rules
+                    router_env::logger::error!(
+                        ?error,
+                        "DB transaction for updating multiple merchant connector account failed"
+                    );
+                    errors::StorageError::DatabaseConnectionError
+                })?;
+
+                #[cfg(not(feature = "accounts_cache"))]
+                {
+                    update.await.map_err(|error| {
+                        // Returning `DatabaseConnectionError` after logging the actual error because
+                        // -> it is not possible to get the underlying from `error_stack::Report<C>`
+                        // -> it is not possible to write a `From` impl to convert the `diesel::result::Error` to `error_stack::Report<StorageError>`
+                        //    because of Rust's orphan rules
+                        router_env::logger::error!(
+                        ?error,
+                        "DB transaction for updating multiple merchant connector account failed"
+                    );
+                        errors::StorageError::DatabaseConnectionError
+                    })?;
+                }
+            }
+            Ok::<_, errors::StorageError>(())
+        })
+        .await?;
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
@@ -411,8 +525,8 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            // Redact both the caches as any one or both might be used because of backwards compatibility
-            super::cache::publish_and_redact_multiple(
+            // Redact all caches as any of might be used because of backwards compatibility
+            cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -420,6 +534,12 @@ impl MerchantConnectorAccountInterface for Store {
                     ),
                     cache::CacheKind::Accounts(
                         format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                    ),
+                    cache::CacheKind::CGraph(
+                        format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
+                    ),
+                    cache::CacheKind::PmFiltersCGraph(
+                        format!("pm_filters_cgraph_{}_{_profile_id}", _merchant_id).into(),
                     ),
                 ],
                 update_call,
@@ -469,9 +589,19 @@ impl MerchantConnectorAccountInterface for Store {
                 "profile_id".to_string(),
             ))?;
 
-            super::cache::publish_and_redact(
+            cache::publish_and_redact_multiple(
                 self,
-                cache::CacheKind::Accounts(format!("{}_{}", mca.merchant_id, _profile_id).into()),
+                [
+                    cache::CacheKind::Accounts(
+                        format!("{}_{}", mca.merchant_id, _profile_id).into(),
+                    ),
+                    cache::CacheKind::CGraph(
+                        format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                    ),
+                    cache::CacheKind::PmFiltersCGraph(
+                        format!("pm_filters_cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                    ),
+                ],
                 delete_call,
             )
             .await
@@ -486,6 +616,17 @@ impl MerchantConnectorAccountInterface for Store {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for MockDb {
+    async fn update_multiple_merchant_connector_accounts(
+        &self,
+        _merchant_connector_accounts: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError> {
+        // No need to implement this function for `MockDb` as this function will be removed after the
+        // apple pay certificate migration
+        Err(errors::StorageError::MockDbError)?
+    }
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
@@ -642,6 +783,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             applepay_verified_domains: t.applepay_verified_domains,
             pm_auth_config: t.pm_auth_config,
             status: t.status,
+            connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
         };
         accounts.push(account.clone());
         account
@@ -744,6 +886,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
 }
 
+#[cfg(feature = "accounts_cache")]
 #[cfg(test)]
 mod merchant_connector_account_cache_tests {
     use api_models::enums::CountryAlpha2;
@@ -752,7 +895,7 @@ mod merchant_connector_account_cache_tests {
     use error_stack::ResultExt;
     use masking::PeekInterface;
     use storage_impl::redis::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
+        cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };
@@ -761,7 +904,7 @@ mod merchant_connector_account_cache_tests {
     use crate::{
         core::errors,
         db::{
-            cache, merchant_connector_account::MerchantConnectorAccountInterface,
+            merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
         },
         services,
@@ -840,6 +983,14 @@ mod merchant_connector_account_cache_tests {
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
+            connector_wallets_details: Some(
+                domain::types::encrypt(
+                    serde_json::Value::default().into(),
+                    merchant_key.key.get_inner().peek(),
+                )
+                .await
+                .unwrap(),
+            ),
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)
@@ -885,10 +1036,10 @@ mod merchant_connector_account_cache_tests {
         .unwrap();
 
         assert!(ACCOUNTS_CACHE
-            .get_val::<domain::MerchantConnectorAccount>(&format!(
-                "{}_{}",
-                merchant_id, connector_label
-            ),)
+            .get_val::<domain::MerchantConnectorAccount>(CacheKey {
+                key: format!("{}_{}", merchant_id, connector_label),
+                prefix: String::default(),
+            },)
             .await
             .is_none())
     }

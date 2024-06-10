@@ -21,7 +21,7 @@ pub struct PaymentOptions {
 #[derive(Debug, Deserialize)]
 pub struct BraintreeMeta {
     merchant_account_id: Option<Secret<String>>,
-    merchant_config_currency: Option<types::storage::enums::Currency>,
+    merchant_config_currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -153,7 +153,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         | domain::WalletData::WeChatPayRedirect(_)
                         | domain::WalletData::WeChatPayQr(_)
                         | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_) => {
+                        | domain::WalletData::SwishQr(_)
+                        | domain::WalletData::Mifinity(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message("braintree"),
                             ))
@@ -282,6 +283,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(id),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -304,9 +306,13 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Paypal(Box::new(
+                session_token: api::SessionToken::Paypal(Box::new(
                     payments::PaypalSessionTokenResponse {
                         session_token: item.response.client_token.value.expose(),
+                        connector: "braintree".to_string(),
+                        sdk_next_action: payments::SdkNextAction {
+                            next_action: payments::NextActionCall::Confirm,
+                        },
                     },
                 )),
             }),
