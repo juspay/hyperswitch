@@ -15,7 +15,7 @@ use crate::connector_auth::{
     ConnectorAuthType, ConnectorAuthentication, ConnectorAuthenticationMap,
 };
 
-#[derive(ValueEnum, Clone)]
+#[derive(ValueEnum, Clone, Copy)]
 pub enum Module {
     Connector,
     Users,
@@ -52,8 +52,8 @@ pub struct Args {
 
 impl Args {
     /// Getter for the `module_name` field
-    pub fn get_module_name(&self) -> Option<&Module> {
-        self.module_name.as_ref()
+    pub fn get_module_name(&self) -> Option<Module> {
+        self.module_name
     }
 }
 
@@ -105,13 +105,12 @@ where
 pub fn generate_runner() -> Result<ReturnArgs> {
     let args = Args::parse();
 
-    let runner = match args.get_module_name() {
+    match args.get_module_name() {
         Some(Module::Users) => generate_newman_command_for_users(),
         Some(Module::Connector) => generate_newman_command_for_connector(),
-        _ => generate_newman_command_for_connector(),
-    };
-
-    runner
+        // Running connector tests when no module is passed to keep the previous test behavior same
+        None => generate_newman_command_for_connector(),
+    }
 }
 
 pub fn generate_newman_command_for_users() -> Result<ReturnArgs> {
