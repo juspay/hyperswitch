@@ -131,7 +131,7 @@ jobs:
 
   pr_labeler:
     name: Attach suitable labels to PR 
-    if: ${{ github.event_name == 'pull_request_target' }}
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
     steps:
