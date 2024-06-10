@@ -1,4 +1,3 @@
-use crate::merchant_key_store::MerchantKeyStore;
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
@@ -9,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::{payment_attempt::PaymentAttempt, PaymentIntent};
-use crate::{errors, RemoteStorageObject};
+use crate::{errors, merchant_key_store::MerchantKeyStore, RemoteStorageObject};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(

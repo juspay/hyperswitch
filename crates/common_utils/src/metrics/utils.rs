@@ -1,7 +1,8 @@
 //! metric utility functions
 
-use router_env::opentelemetry;
 use std::time;
+
+use router_env::opentelemetry;
 
 /// Record the time taken by the future to execute
 #[inline]

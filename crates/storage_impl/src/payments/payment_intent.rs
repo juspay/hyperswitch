@@ -23,10 +23,10 @@ use diesel_models::{
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
-
 use hyperswitch_domain_models::{
     behaviour::Conversion,
     errors::StorageError,
+    merchant_key_store::MerchantKeyStore,
     payments::{
         payment_attempt::PaymentAttempt,
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
@@ -48,8 +48,6 @@ use crate::{
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
-
-use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
