@@ -4,7 +4,7 @@ use diesel_models::{
     enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
     fraud_check::FraudCheck,
 };
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaFraudCheck<'a> {
@@ -12,7 +12,8 @@ pub struct KafkaFraudCheck<'a> {
     pub payment_id: &'a String,
     pub merchant_id: &'a String,
     pub attempt_id: &'a String,
-    pub created_at: PrimitiveDateTime,
+    #[serde(with = "time::serde::timestamp")]
+    pub created_at: OffsetDateTime,
     pub frm_name: &'a String,
     pub frm_transaction_id: Option<&'a String>,
     pub frm_transaction_type: FraudCheckType,
@@ -22,7 +23,8 @@ pub struct KafkaFraudCheck<'a> {
     pub frm_error: Option<&'a String>,
     pub payment_details: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
-    pub modified_at: PrimitiveDateTime,
+    #[serde(with = "time::serde::timestamp")]
+    pub modified_at: OffsetDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in payment_capture_method. It will be useful while approving the FRM decision.
 }
@@ -34,7 +36,7 @@ impl<'a> KafkaFraudCheck<'a> {
             payment_id: &check.payment_id,
             merchant_id: &check.merchant_id,
             attempt_id: &check.attempt_id,
-            created_at: check.created_at,
+            created_at: check.created_at.assume_utc(),
             frm_name: &check.frm_name,
             frm_transaction_id: check.frm_transaction_id.as_ref(),
             frm_transaction_type: check.frm_transaction_type,
@@ -44,7 +46,7 @@ impl<'a> KafkaFraudCheck<'a> {
             frm_error: check.frm_error.as_ref(),
             payment_details: check.payment_details.clone(),
             metadata: check.metadata.clone(),
-            modified_at: check.modified_at,
+            modified_at: check.modified_at.assume_utc(),
             last_step: check.last_step,
             payment_capture_method: check.payment_capture_method,
         }
