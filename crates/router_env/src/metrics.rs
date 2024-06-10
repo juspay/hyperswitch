@@ -102,7 +102,6 @@ macro_rules! histogram_metric_i64 {
     };
 }
 
-
 /// Create a [`ObservableGauge`][ObservableGauge] metric with the specified name and an optional description,
 /// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
 ///
