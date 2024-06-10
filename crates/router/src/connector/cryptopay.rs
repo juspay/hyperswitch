@@ -311,7 +311,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            data.request.currency,
             capture_amount_core,
         ))
     }
@@ -407,7 +406,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            data.request.currency,
             capture_amount_core,
         ))
     }

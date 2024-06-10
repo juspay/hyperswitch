@@ -2,12 +2,10 @@ use common_utils::{
     pii,
     types::{MinorUnit, StringMajorUnit},
 };
-use error_stack::ResultExt;
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use super::utils as connector_utils;
 use crate::{
     connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
     consts,
@@ -141,15 +139,13 @@ pub struct CryptopayPaymentsResponse {
 impl<F, T>
     ForeignTryFrom<(
         types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
-        diesel_models::enums::Currency,
         Option<MinorUnit>,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        (item, currency, amount_captured_core): (
+        (item, amount_captured_core): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
-            diesel_models::enums::Currency,
             Option<MinorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -193,23 +189,13 @@ impl<F, T>
                 charge_id: None,
             })
         };
-
-        match item.response.data.price_amount {
-            Some(price_amount) => {
-                let amount_captured = Some(
-                    connector_utils::to_currency_lower_unit(
-                        price_amount.get_amount_as_string(),
-                        currency,
-                    )?
-                    .parse::<i64>()
-                    .change_context(errors::ConnectorError::ParsingFailed)?,
-                );
-
+        match amount_captured_core {
+            Some(minor_amount) => {
+                let amount_captured = Some(minor_amount.get_amount_as_i64());
                 Ok(Self {
                     status,
                     response,
                     amount_captured,
-                    minor_amount_captured: amount_captured_core,
                     ..item.data
                 })
             }
