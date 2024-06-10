@@ -2099,7 +2099,6 @@ pub fn get_payment_link_status(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-    
 
     // Modify Html template with rendered js and rendered css files
     let html_template =
