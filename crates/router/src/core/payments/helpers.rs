@@ -4015,6 +4015,7 @@ pub fn get_applepay_metadata(
         })
 }
 
+#[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
 pub async fn get_apple_pay_retryable_connectors<F>(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -4040,7 +4041,7 @@ where
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
-        profile_id, // need to fix this
+        profile_id,
         &decided_connector_data.connector_name.to_string(),
         merchant_connector_id,
     )
@@ -4063,9 +4064,14 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
+        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
+            merchant_connector_account_list,
+            Some(profile_id.to_string()),
+        );
+
         let mut connector_data_list = vec![decided_connector_data.clone()];
 
-        for merchant_connector_account in merchant_connector_account_list {
+        for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata,
                 merchant_connector_account
@@ -4090,7 +4096,33 @@ where
                 }
             }
         }
-        Some(connector_data_list)
+
+        let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
+            &*state.clone().store,
+            profile_id,
+            &api_enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get merchant default fallback connectors config")?;
+
+        // connector_data_list is the list of connectors for which Apple Pay simplified flow is configured.
+        // This list is arranged in the same order as the merchant's default fallback connectors configuration.
+        let mut ordered_connector_data_list = vec![decided_connector_data.clone()];
+        fallback_connetors_list
+            .iter()
+            .for_each(|fallback_connector| {
+                let connector_data = connector_data_list.iter().find(|connector_data| {
+                    fallback_connector.merchant_connector_id == connector_data.merchant_connector_id
+                        && fallback_connector.merchant_connector_id
+                            != decided_connector_data.merchant_connector_id
+                });
+                if let Some(connector_data_details) = connector_data {
+                    ordered_connector_data_list.push(connector_data_details.clone());
+                }
+            });
+
+        Some(ordered_connector_data_list)
     } else {
         None
     };
