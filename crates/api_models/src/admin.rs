@@ -939,7 +939,10 @@ pub struct BusinessProfileCreate {
     /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if the MIT payments should be made connector agnostic. If set to `false`, MIT will go through the same connector as CIT
+    /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
+    /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
+    /// initiated transaction) based on the routing rules.
+    /// If set to `false`, MIT will go through the same connector as the CIT.
     pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
@@ -1020,7 +1023,10 @@ pub struct BusinessProfileResponse {
     /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if the MIT payments should be made connector agnostic. If set to `false`, MIT will go through the same connector as CIT
+    /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
+    /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
+    /// initiated transaction) based on the routing rules.
+    /// If set to `false`, MIT will go through the same connector as the CIT.
     pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
@@ -1093,7 +1099,10 @@ pub struct BusinessProfileUpdate {
     /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if the MIT payments should be made connector agnostic. If set to `false`, MIT will go through the same connector as CIT
+    /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
+    /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
+    /// initiated transaction) based on the routing rules.
+    /// If set to `false`, MIT will go through the same connector as the CIT.
     pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
