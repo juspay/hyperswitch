@@ -166,7 +166,8 @@ where
         }
         Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
             .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
-        _ => Err(report!(errors::DatabaseError::Others))
+        Err(error) => Err(error)
+            .change_context(errors::DatabaseError::Others)
             .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
     }
 }
@@ -252,7 +253,8 @@ where
         }
         Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
             .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
-        _ => Err(report!(errors::DatabaseError::Others))
+        Err(error) => Err(error)
+            .change_context(errors::DatabaseError::Others)
             .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
     }
 }

@@ -66,7 +66,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
-        MasterKeyInterface, StorageInterface,
+        CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
     services::{authentication, kafka::KafkaProducer, Store},
     types::{
@@ -942,6 +942,17 @@ impl FileMetadataInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for KafkaStore {
+    async fn update_multiple_merchant_connector_accounts(
+        &self,
+        merchant_connector_accounts: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .update_multiple_merchant_connector_accounts(merchant_connector_accounts)
+            .await
+    }
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
@@ -1555,6 +1566,21 @@ impl PayoutAttemptInterface for KafkaStore {
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
                 payout_attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    async fn find_payout_attempt_by_merchant_id_connector_payout_id(
+        &self,
+        merchant_id: &str,
+        connector_payout_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_connector_payout_id(
+                merchant_id,
+                connector_payout_id,
                 storage_scheme,
             )
             .await
@@ -2292,6 +2318,17 @@ impl StorageInterface for KafkaStore {
     }
 }
 
+impl GlobalStorageInterface for KafkaStore {}
+
+impl CommonStorageInterface for KafkaStore {
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+}
+
 #[async_trait::async_trait]
 impl SchedulerInterface for KafkaStore {}
 
@@ -2350,13 +2387,11 @@ impl UserInterface for KafkaStore {
         self.diesel_store.delete_user_by_user_id(user_id).await
     }
 
-    async fn find_users_and_roles_by_merchant_id(
+    async fn find_users_by_user_ids(
         &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, user_storage::UserRole)>, errors::StorageError> {
-        self.diesel_store
-            .find_users_and_roles_by_merchant_id(merchant_id)
-            .await
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        self.diesel_store.find_users_by_user_ids(user_ids).await
     }
 }
 
@@ -2439,6 +2474,15 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
             .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id)
+            .await
+    }
+
+    async fn list_user_roles_by_merchant_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles_by_merchant_id(user_id)
             .await
     }
 }

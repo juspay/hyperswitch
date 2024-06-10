@@ -215,7 +215,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect
-                | PaymentMethodType::UpiIntent => {
+                | PaymentMethodType::UpiIntent
+                | PaymentMethodType::Mifinity => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -1804,6 +1805,12 @@ impl api::IncomingWebhook for Adyen {
                         .original_reference
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
+            ));
+        }
+        #[cfg(feature = "payouts")]
+        if adyen::is_payout_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::PayoutAttemptId(notif.merchant_reference),
             ));
         }
         Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
