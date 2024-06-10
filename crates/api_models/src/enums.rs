@@ -155,6 +155,10 @@ impl Connector {
         matches!((self, payout_method), (_, PayoutType::Card))
     }
     #[cfg(feature = "payouts")]
+    pub fn is_payout_quote_call_required(&self) -> bool {
+        matches!(self, Self::Wise)
+    }
+    #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(&self, payout_method: PayoutType) -> bool {
         matches!((self, payout_method), (Self::Paypal, _))
     }
