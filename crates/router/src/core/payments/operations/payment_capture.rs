@@ -11,7 +11,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, types::MultipleCaptureData},
-    }, 
+    },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
