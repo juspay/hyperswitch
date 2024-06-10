@@ -1,7 +1,7 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{core::errors, types};
+use crate::{core::errors, types, types::transformers::ForeignTryFrom};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
@@ -109,9 +109,9 @@ impl TryFrom<Option<PaymentLinks>> for ResponseIdStr {
     }
 }
 
-impl TryFrom<Option<PaymentLinks>> for types::ResponseId {
+impl ForeignTryFrom<Option<PaymentLinks>> for types::ResponseId {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(links: Option<PaymentLinks>) -> Result<Self, Self::Error> {
+    fn foreign_try_from(links: Option<PaymentLinks>) -> Result<Self, Self::Error> {
         get_resource_id(links, Self::ConnectorTransactionId)
     }
 }

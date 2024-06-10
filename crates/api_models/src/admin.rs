@@ -945,7 +945,7 @@ pub struct BusinessProfileCreate {
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
@@ -1019,6 +1019,12 @@ pub struct BusinessProfileResponse {
 
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
+
+    /// Merchant's config to support extended card info feature
+    pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
+
+    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
+    pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1087,7 +1093,7 @@ pub struct BusinessProfileUpdate {
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments
+    /// A boolean value to indicate if customer shipping details needs to be sent for wallets payments
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 }
 

@@ -89,6 +89,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     status: new.status,
                     attempt_count: new.attempt_count,
                     confirm: new.confirm,
+                    priority: new.priority,
                     payout_link_id: new.payout_link_id.clone(),
                     client_secret: new.client_secret.clone(),
                 };
@@ -690,6 +691,7 @@ impl DataModelExt for Payouts {
             status: self.status,
             attempt_count: self.attempt_count,
             confirm: self.confirm,
+            priority: self.priority,
             payout_link_id: self.payout_link_id,
             client_secret: self.client_secret,
         }
@@ -718,6 +720,7 @@ impl DataModelExt for Payouts {
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
             confirm: storage_model.confirm,
+            priority: storage_model.priority,
             payout_link_id: storage_model.payout_link_id,
             client_secret: storage_model.client_secret,
         }
@@ -749,6 +752,7 @@ impl DataModelExt for PayoutsNew {
             status: self.status,
             attempt_count: self.attempt_count,
             confirm: self.confirm,
+            priority: self.priority,
             payout_link_id: self.payout_link_id,
             client_secret: self.client_secret,
         }
@@ -777,6 +781,7 @@ impl DataModelExt for PayoutsNew {
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
             confirm: storage_model.confirm,
+            priority: storage_model.priority,
             payout_link_id: storage_model.payout_link_id,
             client_secret: storage_model.client_secret,
         }

@@ -954,10 +954,11 @@ merchant_secret="Source verification key"
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
-[klarna.connector_auth.HeaderKey]
-api_key="Klarna API Key"
-[klarna.connector_webhook_details]
-merchant_secret="Source verification key"
+[klarna.connector_auth.BodyKey]
+key1="Klarna Merchant Username"
+api_key="Klarna Merchant ID Password"
+[klarna.metadata]
+klarna_region=["Europe","NorthAmerica","Oceania"]
 
 
 [mollie]
@@ -1259,12 +1260,18 @@ merchant_secret="Source verification key"
   payment_method_type = "UnionPay"
 [[paypal.wallet]]
   payment_method_type = "paypal"
+  payment_experience = "invoke_sdk_client"
+[[paypal.wallet]]
+  payment_method_type = "paypal"
+  payment_experience = "redirect_to_url"  
 is_verifiable = true
 [paypal.connector_auth.BodyKey]
 api_key="Client Secret"
 key1="Client ID"
 [paypal.connector_webhook_details]
 merchant_secret="Source verification key"
+[paypal.metadata.paypal_sdk]
+client_id="Client ID"
 
 [payu]
 [[payu.credit]]

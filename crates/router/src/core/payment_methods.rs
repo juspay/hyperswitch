@@ -1,11 +1,13 @@
 pub mod cards;
 pub mod surcharge_decision_configs;
 pub mod transformers;
+pub mod utils;
 pub mod vault;
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, payments::CardToken};
+use common_utils::id_type::CustomerId;
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -21,7 +23,7 @@ use crate::{
         payments::helpers,
         pm_auth as core_pm_auth,
     },
-    routes::{app::StorageInterface, AppState},
+    routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
     types::{
         api::{self, payments},
@@ -34,7 +36,7 @@ pub struct Oss;
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     pm_data: &Option<payments::PaymentMethodData>,
-    state: &AppState,
+    state: &SessionState,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -105,7 +107,7 @@ pub async fn retrieve_payment_method(
 }
 
 pub async fn initiate_pm_collect_link(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payment_methods::PaymentMethodCollectLinkRequest,
@@ -128,11 +130,16 @@ pub async fn initiate_pm_collect_link(
         req.return_url.clone(),
     )
     .await?;
+    let customer_id = CustomerId::from(pm_collect_link.primary_reference.into()).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "customer_id",
+        },
+    )?;
 
     // Return response
     let response = payment_methods::PaymentMethodCollectLinkResponse {
         pm_collect_link_id: pm_collect_link.link_id,
-        customer_id: pm_collect_link.primary_reference,
+        customer_id,
         expiry: pm_collect_link.expiry,
         link: pm_collect_link.url,
         return_url: pm_collect_link.return_url,
@@ -143,7 +150,7 @@ pub async fn initiate_pm_collect_link(
 }
 
 pub async fn create_pm_collect_db_entry(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     pm_collect_link_data: &PaymentMethodCollectLinkData,
     return_url: Option<String>,
@@ -156,7 +163,10 @@ pub async fn create_pm_collect_db_entry(
 
     let pm_collect_link = GenericLinkNew {
         link_id: pm_collect_link_data.pm_collect_link_id.to_string(),
-        primary_reference: pm_collect_link_data.customer_id.to_string(),
+        primary_reference: pm_collect_link_data
+            .customer_id
+            .get_string_repr()
+            .to_string(),
         merchant_id: merchant_account.merchant_id.to_string(),
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
@@ -175,7 +185,7 @@ pub async fn create_pm_collect_db_entry(
 }
 
 pub async fn render_pm_collect_link(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payment_methods::PaymentMethodCollectLinkRenderRequest,
@@ -209,10 +219,15 @@ pub async fn render_pm_collect_link(
 
             // else, send back form link
             } else {
+                let customer_id =
+                    CustomerId::from(pm_collect_link.primary_reference.clone().into())
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "customer_id",
+                        })?;
                 // Fetch customer
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
-                        &pm_collect_link.primary_reference,
+                        &customer_id,
                         &req.merchant_id,
                         &key_store,
                         merchant_account.storage_scheme,
@@ -303,7 +318,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
-    state: &AppState,
+    state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     payment_intent: &PaymentIntent,

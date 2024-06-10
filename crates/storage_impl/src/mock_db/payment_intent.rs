@@ -108,6 +108,7 @@ impl PaymentIntentInterface for MockDb {
             fingerprint_id: new.fingerprint_id,
             session_expiry: new.session_expiry,
             request_external_three_ds_authentication: new.request_external_three_ds_authentication,
+            charges: new.charges,
             frm_metadata: new.frm_metadata,
         };
         payment_intents.push(payment_intent.clone());

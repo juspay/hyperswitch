@@ -10,13 +10,13 @@ use crate::{
         errors::{self, RouterResult},
         utils as core_utils,
     },
-    routes::{app::StorageInterface, AppState},
+    routes::{app::StorageInterface, SessionState},
     types::domain,
     utils,
 };
 
 pub async fn validate_request_and_initiate_payment_method_collect_link(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &PaymentMethodCollectLinkRequest,
@@ -39,7 +39,8 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
             if err.current_context().is_db_not_found() {
                 let message = format!(
                     "customer [{}] not found for merchant [{}]",
-                    customer_id, merchant_id
+                    customer_id.get_string_repr(),
+                    merchant_id
                 );
                 Err(err)
                     .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -97,7 +98,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let domain = merchant_config
         .clone()
         .and_then(|c| c.domain_name.clone())
-        .unwrap_or_else(|| state.conf.server.base_url.clone());
+        .unwrap_or_else(|| state.base_url.clone());
 
     let (collector_name, logo, theme) = match ui_config {
         Some(config) => (

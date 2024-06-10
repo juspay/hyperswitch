@@ -29,8 +29,8 @@ use crate::{
         admin,
         errors::{self, UserErrors, UserResult},
     },
-    db::StorageInterface,
-    routes::AppState,
+    db::GlobalStorageInterface,
+    routes::SessionState,
     services::{self, authentication as auth, authentication::UserFromToken, authorization::info},
     types::transformers::ForeignFrom,
     utils::{self, user::password},
@@ -237,7 +237,7 @@ impl UserCompanyName {
 pub struct NewUserOrganization(diesel_org::OrganizationNew);
 
 impl NewUserOrganization {
-    pub async fn insert_org_in_db(self, state: AppState) -> UserResult<Organization> {
+    pub async fn insert_org_in_db(self, state: SessionState) -> UserResult<Organization> {
         state
             .store
             .insert_organization(self.0)
@@ -284,9 +284,12 @@ impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
     }
 }
 
-impl From<user_api::CreateInternalUserRequest> for NewUserOrganization {
-    fn from(_value: user_api::CreateInternalUserRequest) -> Self {
-        let new_organization = api_org::OrganizationNew::new(None);
+impl From<(user_api::CreateInternalUserRequest, String)> for NewUserOrganization {
+    fn from((_value, org_id): (user_api::CreateInternalUserRequest, String)) -> Self {
+        let new_organization = api_org::OrganizationNew {
+            org_id,
+            org_name: None,
+        };
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
     }
@@ -351,7 +354,7 @@ impl NewUserMerchant {
         self.new_organization.clone()
     }
 
-    pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
+    pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -370,7 +373,10 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    pub async fn create_new_merchant_and_insert_in_db(&self, state: AppState) -> UserResult<()> {
+    pub async fn create_new_merchant_and_insert_in_db(
+        &self,
+        state: SessionState,
+    ) -> UserResult<()> {
         self.check_if_already_exists_in_db(state.clone()).await?;
         Box::pin(admin::create_merchant_account(
             state.clone(),
@@ -455,10 +461,10 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     }
 }
 
-impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
+impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
+    fn try_from(value: (user_api::CreateInternalUserRequest, String)) -> UserResult<Self> {
         let merchant_id =
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
         let new_organization = NewUserOrganization::from(value);
@@ -540,7 +546,7 @@ impl NewUser {
 
     pub async fn insert_user_in_db(
         &self,
-        db: &dyn StorageInterface,
+        db: &dyn GlobalStorageInterface,
     ) -> UserResult<UserFromStorage> {
         match db.insert_user(self.clone().try_into()?).await {
             Ok(user) => Ok(user.into()),
@@ -555,9 +561,9 @@ impl NewUser {
         .attach_printable("Error while inserting user")
     }
 
-    pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
+    pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
-            .store
+            .global_store
             .find_user_by_email(&self.get_email().into_inner())
             .await
             .is_ok()
@@ -569,10 +575,10 @@ impl NewUser {
 
     pub async fn insert_user_and_merchant_in_db(
         &self,
-        state: AppState,
+        state: SessionState,
     ) -> UserResult<UserFromStorage> {
         self.check_if_already_exists_in_db(state.clone()).await?;
-        let db = state.store.as_ref();
+        let db = state.global_store.as_ref();
         let merchant_id = self.get_new_merchant().get_merchant_id();
         self.new_merchant
             .create_new_merchant_and_insert_in_db(state.clone())
@@ -586,7 +592,7 @@ impl NewUser {
 
     pub async fn insert_user_role_in_db(
         self,
-        state: AppState,
+        state: SessionState,
         role_id: String,
         user_status: UserStatus,
     ) -> UserResult<UserRole> {
@@ -700,15 +706,17 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     }
 }
 
-impl TryFrom<user_api::CreateInternalUserRequest> for NewUser {
+impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
+    fn try_from(
+        (value, org_id): (user_api::CreateInternalUserRequest, String),
+    ) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
         let password = UserPassword::new(value.password.clone())?;
-        let new_merchant = NewUserMerchant::try_from(value)?;
+        let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
             user_id,
@@ -775,8 +783,8 @@ impl UserFromStorage {
         self.0.user_id.as_str()
     }
 
-    pub fn compare_password(&self, candidate: Secret<String>) -> UserResult<()> {
-        match password::is_correct_password(candidate, self.0.password.clone()) {
+    pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
+        match password::is_correct_password(candidate, &self.0.password) {
             Ok(true) => Ok(()),
             Ok(false) => Err(UserErrors::InvalidCredentials.into()),
             Err(e) => Err(e),
@@ -791,7 +799,7 @@ impl UserFromStorage {
         self.0.email.clone()
     }
 
-    pub async fn get_role_from_db(&self, state: AppState) -> UserResult<UserRole> {
+    pub async fn get_role_from_db(&self, state: SessionState) -> UserResult<UserRole> {
         state
             .store
             .find_user_role_by_user_id(&self.0.user_id)
@@ -799,7 +807,7 @@ impl UserFromStorage {
             .change_context(UserErrors::InternalServerError)
     }
 
-    pub async fn get_roles_from_db(&self, state: &AppState) -> UserResult<Vec<UserRole>> {
+    pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
         state
             .store
             .list_user_roles_by_user_id(&self.0.user_id)
@@ -808,7 +816,7 @@ impl UserFromStorage {
     }
 
     #[cfg(feature = "email")]
-    pub fn get_verification_days_left(&self, state: &AppState) -> UserResult<Option<i64>> {
+    pub fn get_verification_days_left(&self, state: &SessionState) -> UserResult<Option<i64>> {
         if self.0.is_verified {
             return Ok(None);
         }
@@ -830,7 +838,7 @@ impl UserFromStorage {
         Ok(Some(days_left_for_verification.whole_days()))
     }
 
-    pub fn is_password_rotate_required(&self, state: &AppState) -> UserResult<bool> {
+    pub fn is_password_rotate_required(&self, state: &SessionState) -> UserResult<bool> {
         let last_password_modified_at =
             if let Some(last_password_modified_at) = self.0.last_password_modified_at {
                 last_password_modified_at.date()
@@ -856,7 +864,7 @@ impl UserFromStorage {
 
     pub async fn get_role_from_db_by_merchant_id(
         &self,
-        state: &AppState,
+        state: &SessionState,
         merchant_id: &str,
     ) -> CustomResult<UserRole, errors::StorageError> {
         state
@@ -867,7 +875,7 @@ impl UserFromStorage {
 
     pub async fn get_preferred_or_active_user_role_from_db(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<UserRole, errors::StorageError> {
         if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
             self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
@@ -888,10 +896,10 @@ impl UserFromStorage {
         }
     }
 
-    pub async fn get_or_create_key_store(&self, state: &AppState) -> UserResult<UserKeyStore> {
+    pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
         let master_key = state.store.get_master_key();
         let key_store_result = state
-            .store
+            .global_store
             .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
             .await;
 
@@ -915,7 +923,7 @@ impl UserFromStorage {
                 created_at: common_utils::date_time::now(),
             };
             state
-                .store
+                .global_store
                 .insert_user_key_store(key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -931,16 +939,20 @@ impl UserFromStorage {
         self.0.totp_status
     }
 
+    pub fn get_recovery_codes(&self) -> Option<Vec<Secret<String>>> {
+        self.0.totp_recovery_codes.clone()
+    }
+
     pub async fn decrypt_and_get_totp_secret(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> UserResult<Option<Secret<String>>> {
         if self.0.totp_secret.is_none() {
             return Ok(None);
         }
 
         let user_key_store = state
-            .store
+            .global_store
             .get_user_key_store_by_user_id(
                 self.get_user_id(),
                 &state.store.get_master_key().to_vec().into(),
@@ -1020,7 +1032,7 @@ impl SignInWithRoleStrategyType {
 
     pub async fn get_signin_response(
         self,
-        state: &AppState,
+        state: &SessionState,
     ) -> UserResult<user_api::SignInResponse> {
         match self {
             Self::SingleRole(strategy) => strategy.get_signin_response(state).await,
@@ -1035,7 +1047,10 @@ pub struct SignInWithSingleRoleStrategy {
 }
 
 impl SignInWithSingleRoleStrategy {
-    async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+    async fn get_signin_response(
+        self,
+        state: &SessionState,
+    ) -> UserResult<user_api::SignInResponse> {
         let token =
             utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
         utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
@@ -1055,7 +1070,10 @@ pub struct SignInWithMultipleRolesStrategy {
 }
 
 impl SignInWithMultipleRolesStrategy {
-    async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+    async fn get_signin_response(
+        self,
+        state: &SessionState,
+    ) -> UserResult<user_api::SignInResponse> {
         let merchant_accounts = state
             .store
             .list_multiple_merchant_accounts(
