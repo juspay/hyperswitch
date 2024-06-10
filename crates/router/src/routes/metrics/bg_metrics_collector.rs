@@ -22,7 +22,7 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: &Option<u64>
 }
 
 #[macro_export]
-macro_rules! guaue_metrics_for_imc {
+macro_rules! gauge_metrics_for_imc {
     ($($cache:ident),*) => {
         $(
             {
