@@ -6829,7 +6829,7 @@
           },
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
-            "description": "A boolean value to indicate if the MIT payments should be made connector agnostic. If set to `false`, MIT will go through the same connector as CIT",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
             "nullable": true
           }
         },
@@ -6970,7 +6970,7 @@
           },
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
-            "description": "A boolean value to indicate if the MIT payments should be made connector agnostic. If set to `false`, MIT will go through the same connector as CIT",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
             "nullable": true
           }
         }
