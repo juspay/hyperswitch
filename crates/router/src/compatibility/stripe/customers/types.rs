@@ -190,7 +190,7 @@ pub struct CustomerPaymentMethodListResponse {
 
 #[derive(Default, Serialize, PartialEq, Eq)]
 pub struct PaymentMethodData {
-    pub id: String,
+    pub id: Option<String>,
     pub object: &'static str,
     pub card: Option<CardDetails>,
     pub created: Option<time::PrimitiveDateTime>,
@@ -223,7 +223,7 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
         Self {
-            id: item.payment_token.unwrap_or("".to_string()),
+            id: item.payment_token,
             object: "payment_method",
             card: item.card.map(From::from),
             created: item.created,

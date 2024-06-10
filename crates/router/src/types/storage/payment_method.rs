@@ -54,7 +54,6 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
-    Null,
 }
 
 impl PaymentTokenData {
@@ -82,7 +81,7 @@ impl PaymentTokenData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
-    pub hyperswitch_token_data: PaymentTokenData,
+    pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
     pub bank_transfer_details: Option<api::BankPayout>,
 }

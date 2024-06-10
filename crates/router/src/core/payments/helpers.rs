@@ -1865,8 +1865,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
         storage::PaymentTokenData::Temporary(_)
         | storage::PaymentTokenData::TemporaryGeneric(_)
         | storage::PaymentTokenData::Permanent(_)
-        | storage::PaymentTokenData::AuthBankDebit(_)
-        | storage::PaymentTokenData::Null => Ok(None),
+        | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
     }
 }
 
@@ -4555,7 +4554,6 @@ pub async fn get_payment_method_details_from_payment_token(
         }
 
         storage::PaymentTokenData::WalletToken(_) => Ok(None),
-        storage::PaymentTokenData::Null => Ok(None),
     }
 }
 

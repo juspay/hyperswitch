@@ -3326,10 +3326,10 @@ pub async fn list_customer_payment_method_util(
     is_payment_associated: bool,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = state.store.as_ref();
-    let limit = req.clone().and_then(|pml_req| pml_req.limit);
+    let limit = req.as_ref().and_then(|pml_req| pml_req.limit);
 
     let (customer_id, payment_intent) = if is_payment_associated {
-        let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
+        let cloned_secret = req.and_then(|r| r.client_secret.clone());
         let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
             db,
             &merchant_account,
@@ -3504,13 +3504,13 @@ pub async fn list_customer_payment_method(
                         #[cfg(feature = "payouts")]
                         bank_transfer_details: None,
                         hyperswitch_token_data: if is_payment_associated {
-                            PaymentTokenData::permanent_card(
+                            Some(PaymentTokenData::permanent_card(
                                 Some(pm.payment_method_id.clone()),
                                 pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
                                 pm.locker_id.clone().unwrap_or(pm.payment_method_id.clone()),
-                            )
+                            ))
                         } else {
-                            PaymentTokenData::Null
+                            None
                         },
                     }
                 } else {
@@ -3547,11 +3547,8 @@ pub async fn list_customer_payment_method(
                     card_details: None,
                     #[cfg(feature = "payouts")]
                     bank_transfer_details: None,
-                    hyperswitch_token_data: if let Some(data) = bank_account_token_data {
-                        PaymentTokenData::AuthBankDebit(data)
-                    } else {
-                        PaymentTokenData::Null
-                    },
+                    hyperswitch_token_data: bank_account_token_data
+                        .map(PaymentTokenData::AuthBankDebit),
                 }
             }
 
@@ -3559,9 +3556,9 @@ pub async fn list_customer_payment_method(
                 card_details: None,
                 #[cfg(feature = "payouts")]
                 bank_transfer_details: None,
-                hyperswitch_token_data: PaymentTokenData::wallet_token(
+                hyperswitch_token_data: Some(PaymentTokenData::wallet_token(
                     pm.payment_method_id.clone(),
-                ),
+                )),
             },
 
             #[cfg(feature = "payouts")]
@@ -3578,21 +3575,19 @@ pub async fn list_customer_payment_method(
                     )
                     .await?,
                 ),
-                hyperswitch_token_data: if let Some(token) = parent_payment_method_token.as_ref() {
-                    PaymentTokenData::temporary_generic(token.clone())
-                } else {
-                    PaymentTokenData::Null
-                },
+                hyperswitch_token_data: parent_payment_method_token
+                    .as_ref()
+                    .map(|token| PaymentTokenData::temporary_generic(token.clone())),
             },
 
             _ => PaymentMethodListContext {
                 card_details: None,
                 #[cfg(feature = "payouts")]
                 bank_transfer_details: None,
-                hyperswitch_token_data: PaymentTokenData::temporary_generic(generate_id(
+                hyperswitch_token_data: Some(PaymentTokenData::temporary_generic(generate_id(
                     consts::ID_LENGTH,
                     "token",
-                )),
+                ))),
             },
         };
 
@@ -3650,13 +3645,18 @@ pub async fn list_customer_payment_method(
 
         let intent_created = payment_intent.as_ref().map(|intent| intent.created_at);
 
-        if let Some(token) = parent_payment_method_token.as_ref() {
+        if is_payment_associated {
+            let token = parent_payment_method_token
+                .as_ref()
+                .get_required_value("parent_payment_method_token")?;
+            let hyperswitch_token_data = payment_method_retrieval_context
+                .hyperswitch_token_data
+                .as_ref()
+                .cloned()
+                .get_required_value("PaymentTokenData")?;
+
             ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
-                .insert(
-                    intent_created,
-                    payment_method_retrieval_context.hyperswitch_token_data,
-                    state,
-                )
+                .insert(intent_created, hyperswitch_token_data, state)
                 .await?;
         }
 

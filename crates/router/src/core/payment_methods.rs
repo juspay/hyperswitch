@@ -223,13 +223,11 @@ pub async fn retrieve_payment_method_with_token(
             .unwrap_or_default()
         }
 
-        storage::PaymentTokenData::WalletToken(_) | storage::PaymentTokenData::Null => {
-            storage::PaymentMethodDataWithId {
-                payment_method: None,
-                payment_method_data: None,
-                payment_method_id: None,
-            }
-        }
+        storage::PaymentTokenData::WalletToken(_) => storage::PaymentMethodDataWithId {
+            payment_method: None,
+            payment_method_data: None,
+            payment_method_id: None,
+        },
     };
     Ok(token)
 }
