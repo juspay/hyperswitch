@@ -295,8 +295,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         } else {
             payment_data.payment_attempt
         };
-        let capture_amount = payment_data.payment_attempt.amount_to_capture.clone();
-        let multiple_capture_count = payment_data.payment_attempt.multiple_capture_count.clone();
+        let capture_amount = payment_data.payment_attempt.amount_to_capture;
+        let multiple_capture_count = payment_data.payment_attempt.multiple_capture_count;
         req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentCapture {
