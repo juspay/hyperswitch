@@ -55,6 +55,7 @@ nin = "nin" # National identification number, a field used by PayU connector
 requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
+guage = "guage" # Type of metrics
 
 [files]
 extend-exclude = [
