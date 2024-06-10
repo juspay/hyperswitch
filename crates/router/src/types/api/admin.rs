@@ -184,7 +184,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "authentication_connector_details",
                 })?,
-            is_connector_agnostic_mit_enabled: None,
+            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
             is_extended_card_info_enabled: None,
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: request
