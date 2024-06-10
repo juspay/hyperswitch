@@ -2085,62 +2085,34 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
 pub(crate) fn validate_connector_auth_type(
     auth_type: &types::ConnectorAuthType,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    let validate_non_empty_field = |field_value: &str, field_name: &str| {
+        if field_value.trim().is_empty() {
+            Err(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: format!("connector_account_details.{}", field_name),
+                expected_format: "a non empty String".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
+    };
     match auth_type {
         hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth => Ok(()),
         hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
-            if api_key.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.api_key".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else {
-                Ok(())
-            }
+            validate_non_empty_field(api_key.peek(), "api_key")
         }
         hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey { api_key, key1 } => {
-            if api_key.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.api_key".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else if key1.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.key1".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else {
-                Ok(())
-            }
+            validate_non_empty_field(api_key.peek(), "api_key")?;
+            validate_non_empty_field(key1.peek(), "key1")
         }
         hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
         } => {
-            if api_key.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.api_key".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else if key1.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.key1".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else if api_secret.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.api_secret".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else {
-                Ok(())
-            }
+            validate_non_empty_field(api_key.peek(), "api_key")?;
+            validate_non_empty_field(key1.peek(), "key1")?;
+            validate_non_empty_field(api_secret.peek(), "api_secret")
         }
         hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey {
             api_key,
@@ -2148,33 +2120,10 @@ pub(crate) fn validate_connector_auth_type(
             api_secret,
             key2,
         } => {
-            if api_key.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.api_key".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else if key1.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.key1".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else if api_secret.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.api_secret".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else if key2.is_empty_after_trim() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "connector_account_details.key2".to_string(),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else {
-                Ok(())
-            }
+            validate_non_empty_field(api_key.peek(), "api_key")?;
+            validate_non_empty_field(key1.peek(), "key1")?;
+            validate_non_empty_field(api_secret.peek(), "api_secret")?;
+            validate_non_empty_field(key2.peek(), "key2")
         }
         hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
             auth_key_map,
