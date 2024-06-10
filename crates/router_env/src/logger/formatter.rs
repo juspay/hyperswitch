@@ -174,21 +174,18 @@ where
         #[cfg(feature = "vergen")]
         let build = crate::build!().to_string();
         let env = crate::env::which().to_string();
-        default_fields = default_fields
-            .into_iter()
-            .filter(|(key, value)| {
-                if !IMPLICIT_KEYS.contains(key.as_str()) {
-                    true
-                } else {
-                    tracing::warn!(
-                        ?key,
-                        ?value,
-                        "Attempting to log a reserved entry. It won't be added to the logs"
-                    );
-                    false
-                }
-            })
-            .collect();
+        default_fields.retain(|key, value| {
+            if !IMPLICIT_KEYS.contains(key.as_str()) {
+                true
+            } else {
+                tracing::warn!(
+                    ?key,
+                    ?value,
+                    "Attempting to log a reserved entry. It won't be added to the logs"
+                );
+                false
+            }
+        });
 
         Self {
             dst_writer,
@@ -397,7 +394,7 @@ where
 
         // Prepend the span name to the message if span exists.
         if let (Some(span), Value::String(a)) = (span, message) {
-            *a = format!("{} {}", Self::span_message(span, RecordType::Event), a,).into();
+            *a = format!("{} {}", Self::span_message(span, RecordType::Event), a,);
         }
     }
 }
