@@ -7402,9 +7402,6 @@
       "CashappQr": {
         "type": "object"
       },
-      "CiTesting": {
-        "type": "object"
-      },
       "ChargeRefunds": {
         "type": "object",
         "description": "Charge object for refunds",
@@ -7427,6 +7424,9 @@
             "nullable": true
           }
         }
+      },
+      "CiTesting": {
+        "type": "object"
       },
       "Comparison": {
         "type": "object",
