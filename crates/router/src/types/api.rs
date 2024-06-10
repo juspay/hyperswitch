@@ -426,6 +426,7 @@ pub trait Payouts:
     + PayoutQuote
     + PayoutRecipient
     + PayoutRecipientAccount
+    + PayoutSync
 {
 }
 #[cfg(not(feature = "payouts"))]

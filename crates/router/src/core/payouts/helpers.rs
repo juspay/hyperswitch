@@ -879,7 +879,9 @@ pub async fn get_gsm_record(
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
     matches!(
         status,
-        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::RequiresFulfillment
+            | api_enums::PayoutStatus::Initiated
     )
 }
 
@@ -887,9 +889,17 @@ pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
     !matches!(
         status,
         api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::Initiated
             | api_enums::PayoutStatus::RequiresCreation
             | api_enums::PayoutStatus::RequiresFulfillment
             | api_enums::PayoutStatus::RequiresPayoutMethodData
+    )
+}
+
+pub fn should_call_retrieve(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::Initiated
     )
 }
 
