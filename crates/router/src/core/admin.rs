@@ -858,27 +858,7 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata).map_err(|err| {
-        match *err.current_context() {
-            errors::ConnectorError::InvalidConnectorName => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The connector name is invalid".to_string(),
-                })
-            }
-            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
-                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("The {} is invalid", field_name),
-                }),
-            errors::ConnectorError::FailedToObtainAuthType => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The auth type is invalid for the connector".to_string(),
-                })
-            }
-            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The request body is invalid".to_string(),
-            }),
-        }
-    })?;
+    validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata)?;
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
@@ -1208,27 +1188,7 @@ pub async fn update_payment_connector(
             field_name: "connector",
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
-    validate_auth_and_metadata_type(connector_enum, &auth, &metadata).map_err(|err| match *err
-        .current_context()
-    {
-        errors::ConnectorError::InvalidConnectorName => {
-            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The connector name is invalid".to_string(),
-            })
-        }
-        errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("The {} is invalid", field_name),
-            }),
-        errors::ConnectorError::FailedToObtainAuthType => {
-            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The auth type is invalid for the connector".to_string(),
-            })
-        }
-        _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "The request body is invalid".to_string(),
-        }),
-    })?;
+    validate_auth_and_metadata_type(connector_enum, &auth, &metadata)?;
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
@@ -1817,7 +1777,35 @@ pub async fn connector_agnostic_mit_toggle(
     ))
 }
 
-pub(crate) fn validate_auth_and_metadata_type(
+pub fn validate_auth_and_metadata_type(
+    connector_name: api_models::enums::Connector,
+    auth_type: &types::ConnectorAuthType,
+    connector_meta_data: &Option<pii::SecretSerdeValue>,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    validate_connector_auth_type(auth_type)?;
+    validate_auth_and_metadata_type_with_connector(connector_name, auth_type, connector_meta_data)
+        .map_err(|err| match *err.current_context() {
+            errors::ConnectorError::InvalidConnectorName => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The connector name is invalid".to_string(),
+                })
+            }
+            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("The {} is invalid", field_name),
+                }),
+            errors::ConnectorError::FailedToObtainAuthType => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The auth type is invalid for the connector".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The request body is invalid".to_string(),
+            }),
+        })
+}
+
+pub(crate) fn validate_auth_and_metadata_type_with_connector(
     connector_name: api_models::enums::Connector,
     val: &types::ConnectorAuthType,
     connector_meta_data: &Option<pii::SecretSerdeValue>,
@@ -2091,6 +2079,135 @@ pub(crate) fn validate_auth_and_metadata_type(
             threedsecureio::transformers::ThreedsecureioAuthType::try_from(val)?;
             Ok(())
         }
+    }
+}
+
+pub(crate) fn validate_connector_auth_type(
+    auth_type: &types::ConnectorAuthType,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    match auth_type {
+        hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth => Ok(()),
+        hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
+            if api_key.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.api_key".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else {
+                Ok(())
+            }
+        }
+        hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey { api_key, key1 } => {
+            if api_key.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.api_key".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else if key1.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.key1".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else {
+                Ok(())
+            }
+        }
+        hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } => {
+            if api_key.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.api_key".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else if key1.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.key1".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else if api_secret.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.api_secret".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else {
+                Ok(())
+            }
+        }
+        hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        } => {
+            if api_key.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.api_key".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else if key1.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.key1".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else if api_secret.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.api_secret".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else if key2.is_empty_after_trim() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.key2".to_string(),
+                    expected_format: "a non empty String".to_string(),
+                }
+                .into())
+            } else {
+                Ok(())
+            }
+        }
+        hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
+            auth_key_map,
+        } => {
+            if auth_key_map.is_empty() {
+                Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details.auth_key_map".to_string(),
+                    expected_format: "a non empty map".to_string(),
+                }
+                .into())
+            } else {
+                Ok(())
+            }
+        }
+        hyperswitch_domain_models::router_data::ConnectorAuthType::CertificateAuth {
+            certificate,
+            private_key,
+        } => {
+            helpers::create_identity_from_certificate_and_key(
+                certificate.to_owned(),
+                private_key.to_owned(),
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name:
+                    "connector_account_details.certificate or connector_account_details.private_key"
+                        .to_string(),
+                expected_format:
+                    "a valid base64 encoded string of PEM encoded Certificate and Private Key"
+                        .to_string(),
+            })?;
+            Ok(())
+        }
+        hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey => Ok(()),
     }
 }
 
