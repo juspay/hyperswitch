@@ -232,7 +232,7 @@ SELECT
     'sdk' AS flow_type
 FROM 
     sdk_events_queue
-WHERE length(_error) = 0 AND payment_id != '' AND merchant_id != '';
+WHERE length(_error) = 0;
 
 CREATE MATERIALIZED VIEW api_active_payments_mv TO active_payments ( 
     `payment_id` Nullable(String),
@@ -243,7 +243,7 @@ CREATE MATERIALIZED VIEW api_active_payments_mv TO active_payments (
 SELECT
     payment_id,
     merchant_id,
-    toDateTime64(timestamp, 3) AS created_at,
+    created_at_timestamp AS created_at,
     flow_type
 FROM 
     api_events_queue
