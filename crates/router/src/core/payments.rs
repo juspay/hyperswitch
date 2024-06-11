@@ -3705,8 +3705,11 @@ where
         if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
         } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
-            if connector_data.connector.connector_name == choice.connector.connector_name {
-                connector_data.business_sub_label = choice.sub_label.clone();
+            let routing_choice = choice
+                .first()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name {
+                connector_data.business_sub_label = routing_choice.sub_label.clone();
                 final_list.push(connector_data);
             }
         }
