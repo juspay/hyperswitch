@@ -10,6 +10,7 @@ log_format = "default"
 traces_enabled = false
 metrics_enabled = false
 use_xray_generator = false
+bg_metrics_collection_interval_in_secs = 15
 
 # TODO: Update database credentials before running application
 [master_database]
