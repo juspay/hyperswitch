@@ -19,6 +19,7 @@ use common_utils::{
     impl_misc_api_event_type,
 };
 
+#[cfg(feature = "payouts")]
 use crate::payouts::PayoutLinkInitiateRequest;
 #[allow(unused_imports)]
 use crate::{

@@ -141,11 +141,11 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Provide a reference to a stored payment method
+    /// Provide a reference to a stored payout method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payout_token: Option<String>,
 
-    /// The business profile to use for this payment, if not passed the default business profile
+    /// The business profile to use for this payout, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
 
@@ -153,11 +153,11 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = PayoutSendPriority, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
 
-    /// Whether to get the payment link (if applicable)
+    /// Whether to get the payout link (if applicable)
     #[schema(default = false, example = true)]
     pub payout_link: Option<bool>,
 
-    /// custom payment link config for the particular payment
+    /// custom payout link config for the particular payout
     #[schema(value_type = Option<PayoutCreatePayoutLinkConfig>)]
     pub payout_link_config: Option<PayoutCreatePayoutLinkConfig>,
 }
@@ -176,7 +176,7 @@ pub struct PayoutCreatePayoutLinkConfig {
     #[schema(value_type = Option<u32>, example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// List of payment methods shown on collect UI
+    /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<api_enums::EnabledPaymentMethod>>,
 }
@@ -464,7 +464,7 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = String, example = "E0001")]
     pub error_code: Option<String>,
 
-    /// The business profile that is associated with this payment
+    /// The business profile that is associated with this payout
     pub profile_id: String,
 
     /// Time when the payout was created
@@ -689,9 +689,9 @@ pub struct PayoutListFilters {
     pub connector: Vec<api_enums::PayoutConnectors>,
     /// The list of available currency filters
     pub currency: Vec<common_enums::Currency>,
-    /// The list of available payment status filters
+    /// The list of available payout status filters
     pub status: Vec<common_enums::PayoutStatus>,
-    /// The list of available payment method filters
+    /// The list of available payout method filters
     pub payout_method: Vec<common_enums::PayoutType>,
 }
 
