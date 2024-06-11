@@ -204,7 +204,7 @@ WHERE
     (length(_error) = 0)
     AND (payment_id IS NOT NULL);
 
-CREATE TABLE sdk_active_payments ( 
+CREATE TABLE active_payments ( 
     `payment_id` String,
     `merchant_id` String,
     `created_at` DateTime64,
@@ -218,7 +218,7 @@ TTL
 SETTINGS 
     index_granularity = 8192;
 
-CREATE MATERIALIZED VIEW sdk_active_payments_mv TO sdk_active_payments ( 
+CREATE MATERIALIZED VIEW active_payments_mv TO active_payments ( 
     `payment_id` Nullable(String),
     `merchant_id` String,
     `created_at` DateTime64
@@ -230,3 +230,16 @@ SELECT
 FROM 
     sdk_events_queue
 WHERE length(_error) = 0 AND payment_id != '' AND merchant_id != '';
+
+CREATE MATERIALIZED VIEW api_active_payments_mv TO active_payments ( 
+    `payment_id` Nullable(String),
+    `merchant_id` String,
+    `created_at` DateTime64
+) AS 
+SELECT
+    payment_id,
+    merchant_id,
+    toDateTime64(timestamp, 3) AS created_at
+FROM 
+    api_events_queue
+WHERE length(_error) = 0 AND payment_id != '' AND merchant_id != '' AND flow_type IN ('payment', 'payment_redirection_response');
