@@ -18,7 +18,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{CardData, RouterData,PayoutsData},
+    connector::utils::{CardData, PayoutsData, RouterData},
     core::errors,
     types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
     utils::OptionExt,

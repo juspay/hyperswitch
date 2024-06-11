@@ -143,7 +143,9 @@ impl Connector {
     pub fn supports_instant_payout(&self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, Some(PayoutType::Wallet)) | (_, Some(PayoutType::Card)) | (Self::Adyenplatform, _)
+            (Self::Paypal, Some(PayoutType::Wallet))
+                | (_, Some(PayoutType::Card))
+                | (Self::Adyenplatform, _)
         )
     }
     #[cfg(feature = "payouts")]

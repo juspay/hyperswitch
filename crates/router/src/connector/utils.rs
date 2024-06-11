@@ -1191,10 +1191,10 @@ impl PayoutsData for types::PayoutsData {
             .ok_or_else(missing_field_err("vendor_details"))
     }
     #[cfg(feature = "payouts")]
-    fn get_payout_type(&self) -> Result<storage_enums::PayoutType,Error> {
+    fn get_payout_type(&self) -> Result<storage_enums::PayoutType, Error> {
         self.payout_type
-        .to_owned()
-        .ok_or_else(missing_field_err("payout_type"))
+            .to_owned()
+            .ok_or_else(missing_field_err("payout_type"))
     }
 }
 

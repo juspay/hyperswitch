@@ -16,7 +16,8 @@ use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData, RouterData,PayoutsData
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, PayoutsData,
+        RecurringMandateData, RouterData,
     },
     consts,
     core::errors,

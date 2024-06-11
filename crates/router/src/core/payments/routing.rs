@@ -138,7 +138,10 @@ pub fn make_dsl_input_for_payouts(
         setup_future_usage: None,
     };
     let payment_method = dsl_inputs::PaymentMethodInput {
-        payment_method: payout_data.payouts.payout_type.map(api_enums::PaymentMethod::foreign_from),
+        payment_method: payout_data
+            .payouts
+            .payout_type
+            .map(api_enums::PaymentMethod::foreign_from),
         payment_method_type: payout_data
             .payout_method_data
             .clone()
