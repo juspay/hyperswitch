@@ -8,7 +8,6 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
-
 use crate::{enums as api_enums, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
@@ -712,7 +711,7 @@ pub struct PayoutLinkDetails {
     pub pub_key: Secret<String>,
     pub client_secret: Secret<String>,
     pub payout_link_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,
     pub return_url: Option<String>,

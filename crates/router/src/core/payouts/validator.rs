@@ -2,6 +2,7 @@ use api_models::admin;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
 use common_utils::ext_traits::ValueExt;
+use common_utils::id_type::CustomerId;
 use diesel_models::{enums::CollectLinkConfig, generic_link::PaymentMethodCollectLinkData};
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
@@ -185,10 +186,10 @@ pub(super) fn validate_payout_list_request_for_joins(
 }
 
 pub async fn create_payout_link(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     req: &api_models::payouts::PayoutCreatePayoutLinkConfig,
-    customer_id: &String,
+    customer_id: &CustomerId,
     return_url: Option<String>,
     payout_id: &String,
 ) -> RouterResult<Option<PaymentMethodCollectLinkData>> {
@@ -231,7 +232,7 @@ pub async fn create_payout_link(
     let domain = merchant_config
         .clone()
         .and_then(|c| c.domain_name.clone())
-        .unwrap_or_else(|| state.conf.server.base_url.clone());
+        .unwrap_or_else(|| state.base_url.clone());
 
     let (collector_name, logo, theme) = match ui_config {
         Some(config) => (
@@ -267,7 +268,7 @@ pub async fn create_payout_link(
 
     let data = PaymentMethodCollectLinkData {
         pm_collect_link_id: payout_link_id.clone(),
-        customer_id: customer_id.to_string(),
+        customer_id: customer_id.clone(),
         link,
         sdk_host,
         client_secret: Secret::new(client_secret),

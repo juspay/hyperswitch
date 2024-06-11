@@ -343,7 +343,7 @@ pub async fn payouts_create_core(
 
 #[instrument(skip_all)]
 pub async fn payouts_confirm_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,

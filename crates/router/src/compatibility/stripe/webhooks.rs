@@ -158,7 +158,8 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresFulfillment
             | common_enums::PayoutStatus::RequiresPayoutMethodData
-            | common_enums::PayoutStatus::RequiresVendorAccountCreation => Self::PayoutProcessing,
+            | common_enums::PayoutStatus::RequiresVendorAccountCreation
+            | common_enums::PayoutStatus::RequiresConfirmation => Self::PayoutProcessing,
         }
     }
 }

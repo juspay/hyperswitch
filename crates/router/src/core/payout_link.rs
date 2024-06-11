@@ -3,16 +3,17 @@ use diesel_models::enums;
 
 use crate::{
     errors,
-    routes::{app::StorageInterface, AppState},
+    routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
     types::domain,
 };
 use error_stack::ResultExt;
+use common_utils::id_type::CustomerId;
 
 use super::errors::{RouterResponse, StorageErrorExt};
 
 pub async fn initiate_payout_link(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: api_models::payouts::PayoutLinkInitiateRequest,
@@ -61,10 +62,15 @@ pub async fn initiate_payout_link(
 
             // else, send back form link
             } else {
+                let customer_id =
+                    CustomerId::from(payout_link.primary_reference.clone().into())
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "customer_id",
+                        })?;
                 // Fetch customer
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
-                        &payout_link.primary_reference,
+                        &customer_id,
                         &req.merchant_id,
                         &key_store,
                         merchant_account.storage_scheme,
