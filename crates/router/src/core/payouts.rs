@@ -1331,13 +1331,13 @@ pub async fn complete_create_payout(
                 .attach_printable("Error updating payouts in db")?;
         } else {
             // create payout_object in connector as well as router
-            create_payout(
+            Box::pin(create_payout(
                 state,
                 merchant_account,
                 key_store,
                 connector_data,
                 payout_data,
-            )
+            ))
             .await
             .attach_printable("Payout creation failed for given Payout request")?;
         }
