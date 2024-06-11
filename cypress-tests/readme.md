@@ -42,34 +42,16 @@ To run test cases, follow these steps:
 
 4. Run Cypress test cases
 
-   To run the tests in interactive mode run the following command
+   To run the tests in a browser in interactive mode run the following command
 
    ```shell
    npm run cypress
    ```
 
-   To run all the tests in headless mode run the following command
+   To run the tests in headless mode run the following command
 
    ```shell
    npm run cypress:ci
-   ```
-
-   To run payment tests in headless mode run the following command
-
-   ```shell
-   npm run cypress:payments
-   ```
-
-   To run payout tests in headless mode run the following command
-
-   ```shell
-   npm run cypress:payouts
-   ```
-
-   To run routing tests in headless mode run the following command
-
-   ```shell
-   npm run cypress:routing
    ```
 
 > [!NOTE]

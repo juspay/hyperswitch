@@ -2,28 +2,16 @@ import captureBody from "../../fixtures/capture-flow-body.json";
 import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import State from "../../utils/State";
-import getConnectorDetails, * as utils from "../PaymentUtils/utils";
+import getConnectorDetails from "../PaymentUtils/utils";
+import * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
 describe("Card - MultiUse Mandates flow test", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-
-      // Check if the connector supports card payments (based on the connector configuration in creds)
-      if (!globalState.get("paymentsExecution")) {
-        should_continue = false;
-      }
     });
-  });
-
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
   });
 
   after("flush global state", () => {
@@ -33,6 +21,14 @@ describe("Card - MultiUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -49,7 +45,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState
+          globalState,
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -61,7 +57,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -70,15 +66,23 @@ describe("Card - MultiUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
         );
       });
-    }
+    },
   );
 
   context(
     "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -95,7 +99,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState
+          globalState,
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -119,7 +123,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           6500,
           true,
           "manual",
-          globalState
+          globalState,
         );
       });
 
@@ -141,7 +145,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           6500,
           true,
           "manual",
-          globalState
+          globalState,
         );
       });
 
@@ -156,12 +160,20 @@ describe("Card - MultiUse Mandates flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    }
+    },
   );
 
   context(
     "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
       it("Confirm No 3DS CIT", () => {
         console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -178,7 +190,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState
+          globalState,
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -202,9 +214,9 @@ describe("Card - MultiUse Mandates flow test", () => {
           6500,
           true,
           "automatic",
-          globalState
+          globalState,
         );
       });
-    }
+    },
   );
 });
