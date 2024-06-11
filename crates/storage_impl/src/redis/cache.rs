@@ -28,6 +28,12 @@ const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
 /// Prefix for routing cache key
 const ROUTING_CACHE_PREFIX: &str = "routing";
 
+/// Prefix for three ds decision manager cache key
+const DECISION_MANAGER_CACHE_PREFIX: &str = "decision_manager";
+
+/// Prefix for surcharge cache key
+const SURCHARGE_CACHE_PREFIX: &str = "surcharge";
+
 /// Prefix for cgraph cache key
 const CGRAPH_CACHE_PREFIX: &str = "cgraph";
 
@@ -57,6 +63,14 @@ pub static ACCOUNTS_CACHE: Lazy<Cache> =
 pub static ROUTING_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
+/// 3DS Decision Manager Cache
+pub static DECISION_MANAGER_CACHE: Lazy<Cache> =
+    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
+/// Surcharge Cache
+pub static SURCHARGE_CACHE: Lazy<Cache> =
+    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
 /// CGraph Cache
 pub static CGRAPH_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
@@ -74,6 +88,8 @@ pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
     Routing(Cow<'a, str>),
+    DecisionManager(Cow<'a, str>),
+    Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
@@ -85,6 +101,8 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
             CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
             CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
             CacheKind::Routing(s) => format!("{ROUTING_CACHE_PREFIX},{s}"),
+            CacheKind::DecisionManager(s) => format!("{DECISION_MANAGER_CACHE_PREFIX},{s}"),
+            CacheKind::Surcharge(s) => format!("{SURCHARGE_CACHE_PREFIX},{s}"),
             CacheKind::CGraph(s) => format!("{CGRAPH_CACHE_PREFIX},{s}"),
             CacheKind::PmFiltersCGraph(s) => format!("{PM_FILTERS_CGRAPH_CACHE_PREFIX},{s}"),
             CacheKind::All(s) => format!("{ALL_CACHE_PREFIX},{s}"),
@@ -105,10 +123,15 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
             ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
             CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
             ROUTING_CACHE_PREFIX => Ok(Self::Routing(Cow::Owned(split.1.to_string()))),
+            DECISION_MANAGER_CACHE_PREFIX => {
+                Ok(Self::DecisionManager(Cow::Owned(split.1.to_string())))
+            }
+            SURCHARGE_CACHE_PREFIX => Ok(Self::Surcharge(Cow::Owned(split.1.to_string()))),
             CGRAPH_CACHE_PREFIX => Ok(Self::CGraph(Cow::Owned(split.1.to_string()))),
             PM_FILTERS_CGRAPH_CACHE_PREFIX => {
                 Ok(Self::PmFiltersCGraph(Cow::Owned(split.1.to_string())))
             }
+
             ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
