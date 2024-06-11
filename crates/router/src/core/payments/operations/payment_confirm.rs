@@ -181,7 +181,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let shipping_address_fut = tokio::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
-                    state,
+                    &state,
                     m_request_shipping.as_ref(),
                     m_payment_intent_shipping_address_id.as_deref(),
                     m_merchant_id.as_str(),

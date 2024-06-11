@@ -37,7 +37,11 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(tracking_data.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                state,
+                tracking_data.merchant_id.as_str(),
+                &key_store,
+            )
             .await?;
 
         let email_id = merchant_account
