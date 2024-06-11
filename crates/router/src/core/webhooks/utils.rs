@@ -86,6 +86,7 @@ pub async fn construct_webhook_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
         request: types::VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),

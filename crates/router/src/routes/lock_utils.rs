@@ -35,6 +35,7 @@ pub enum ApiIdentifier {
     ConnectorOnboarding,
     Recon,
     Poll,
+    ApplePayCertificatesMigration,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -188,6 +189,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleRetrieve
             | Flow::GsmRuleUpdate
             | Flow::GsmRuleDelete => Self::Gsm,
+
+            Flow::ApplePayCertificatesMigration => Self::ApplePayCertificatesMigration,
 
             Flow::UserConnectAccount
             | Flow::UserSignUp

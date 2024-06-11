@@ -407,6 +407,19 @@ export const connectorDetails = {
             pix: {},
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
         currency: "BRL",
       },
     }),
@@ -435,6 +448,19 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
       },
     }),
     giropay: getCustomExchange({
@@ -452,6 +478,19 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
       },
     }),
     sofort: getCustomExchange({
@@ -466,6 +505,19 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
       },
     }),
     eps: getCustomExchange({
@@ -476,6 +528,35 @@ export const connectorDetails = {
           bank_redirect: {
             eps: {
               bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+    }),
+    przelewy24: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
             },
           },
         },

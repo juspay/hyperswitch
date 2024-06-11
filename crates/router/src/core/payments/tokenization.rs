@@ -727,7 +727,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
         payments::TokenizationAction::TokenizeInConnector
-        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
+        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::PaymentMethodToken,
@@ -738,17 +738,12 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
                 Err(types::ErrorResponse::default());
 
-            let mut pm_token_router_data =
+            let pm_token_router_data =
                 helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
                     router_data.clone(),
                     pm_token_request_data,
                     pm_token_response_data,
                 );
-
-            connector_integration
-                .execute_pretasks(&mut pm_token_router_data, state)
-                .await
-                .to_payment_failed_response()?;
 
             router_data
                 .request

@@ -235,7 +235,7 @@ pub async fn list_customer_payment_method_api_client(
     path = "/payment_methods/collect",
     request_body=PaymentMethodCollectLinkRequest,
     responses(
-        (status = 200, description = "Payment method collect link generated", body = CustomerPaymentMethodCollectLinkResponse),
+        (status = 200, description = "Payment method collect link generated", body = PaymentMethodCollectLinkResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payment Methods Collect",

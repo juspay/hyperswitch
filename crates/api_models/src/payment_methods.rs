@@ -955,6 +955,7 @@ pub struct PaymentMethodCollectLinkRequest {
     pub customer_id: id_type::CustomerId,
 
     #[serde(flatten)]
+    #[schema(value_type = CollectLinkConfig)]
     pub ui_config: Option<api_enums::CollectLinkConfig>,
 
     /// Will be used to expire client secret after certain amount of time to be supplied in seconds
@@ -996,6 +997,7 @@ pub struct PaymentMethodCollectLinkResponse {
 
     /// Collect link config used
     #[serde(flatten)]
+    #[schema(value_type = CollectLinkConfig)]
     pub ui_config: api_enums::CollectLinkConfig,
 
     /// List of payment methods shown on collect UI

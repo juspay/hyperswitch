@@ -246,7 +246,14 @@ pub async fn do_retry(
 
     modify_trackers(state, &connector, merchant_account, payout_data).await?;
 
-    call_connector_payout(state, merchant_account, key_store, &connector, payout_data).await
+    Box::pin(call_connector_payout(
+        state,
+        merchant_account,
+        key_store,
+        &connector,
+        payout_data,
+    ))
+    .await
 }
 
 #[instrument(skip_all)]

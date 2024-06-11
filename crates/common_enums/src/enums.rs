@@ -1452,6 +1452,7 @@ pub enum PaymentMethodType {
     Seicomart,
     PayEasy,
     LocalBankTransfer,
+    Mifinity,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
@@ -2323,11 +2324,6 @@ pub enum ReconStatus {
     Active,
     Disabled,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ApplePayFlow {
-    Simplified,
-    Manual,
-}
 
 #[derive(
     Clone,
@@ -2820,16 +2816,27 @@ pub enum PaymentMethodCollectStatus {
     Submitted,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
 pub struct CollectLinkConfig {
+    /// Primary color to be used in the form represented in hex format
+    #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
     pub theme: String,
+
+    /// Merchant's display logo
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg")]
     pub logo: String,
+
+    /// Custom merchant name for collect link
+    #[schema(value_type = Option<String>, max_length = 255, example = "hyperswitch")]
     pub collector_name: masking::Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct EnabledPaymentMethod {
+    /// Payment method (banks, cards, wallets) enabled for the operation
     pub payment_method: PaymentMethod,
+
+    /// An array of associated payment method types
     pub payment_method_types: Vec<PaymentMethodType>,
 }
 
