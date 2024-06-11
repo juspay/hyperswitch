@@ -67,7 +67,10 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
-        CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
+        CommonStorageInterface,
+        GlobalStorageInterface,
+        MasterKeyInterface,
+        StorageInterface,
     },
     services::{authentication, kafka::KafkaProducer, Store},
     types::{

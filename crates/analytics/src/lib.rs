@@ -421,8 +421,7 @@ impl AnalyticsProvider {
         filters: &FrmFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
-    ) -> types::MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> 
-    {
+    ) -> types::MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
         metrics::request::record_operation_time(
             async {
@@ -513,7 +512,6 @@ impl AnalyticsProvider {
         )
         .await
     }
-
 
     pub async fn get_dispute_metrics(
         &self,
