@@ -1,5 +1,6 @@
 pub mod aci;
 pub mod adyen;
+pub mod adyenplatform;
 pub mod airwallex;
 pub mod authorizedotnet;
 pub mod bambora;
@@ -66,13 +67,13 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
-    bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
-    checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource,
-    dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
-    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim,
-    iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
+    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    authorizedotnet::Authorizedotnet, bambora::Bambora, bankofamerica::Bankofamerica,
+    billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
+    cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay,
+    cybersource::Cybersource, dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte,
+    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
+    helcim::Helcim, iatapay::Iatapay, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
     multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
     nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone,
     paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
