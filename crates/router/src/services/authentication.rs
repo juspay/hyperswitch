@@ -124,6 +124,9 @@ impl AuthenticationType {
 pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
+    // The purposes will be inserted into this vector in reverse order,
+    // that means, the first purpose in this vector will be the current purpose
+    pub jumps: Vec<TokenPurpose>,
 }
 
 #[cfg(feature = "olap")]
@@ -132,6 +135,7 @@ pub struct SinglePurposeToken {
     pub user_id: String,
     pub purpose: TokenPurpose,
     pub origin: domain::Origin,
+    pub jumps: Vec<TokenPurpose>,
     pub exp: u64,
 }
 
@@ -151,6 +155,7 @@ impl SinglePurposeToken {
             purpose,
             origin,
             exp,
+            jumps: vec![],
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -356,6 +361,7 @@ where
             UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
                 origin: payload.origin.clone(),
+                jumps: payload.jumps,
             },
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,

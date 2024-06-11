@@ -17,9 +17,14 @@ pub enum UserFlow {
 }
 
 impl UserFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &SessionState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        user: &UserFromStorage,
+        jumps: &[TokenPurpose],
+        state: &SessionState,
+    ) -> UserResult<bool> {
         match self {
-            Self::SPTFlow(flow) => flow.is_required(user, state).await,
+            Self::SPTFlow(flow) => flow.is_required(user, jumps, state).await,
             Self::JWTFlow(flow) => flow.is_required(user, state).await,
         }
     }
@@ -27,6 +32,7 @@ impl UserFlow {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum SPTFlow {
+    SSO,
     TOTP,
     VerifyEmail,
     AcceptInvitationFromEmail,
@@ -36,15 +42,25 @@ pub enum SPTFlow {
 }
 
 impl SPTFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &SessionState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        user: &UserFromStorage,
+        jumps: &[TokenPurpose],
+        state: &SessionState,
+    ) -> UserResult<bool> {
         match self {
+            // SSO
+            // Should be decided based on the auth methods configured for the org
+            Self::SSO => Ok(false),
             // TOTP
             Self::TOTP => Ok(true),
             // Main email APIs
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
-            Self::VerifyEmail => Ok(!user.0.is_verified),
+            Self::VerifyEmail => Ok(!user.0.is_verified && !jumps.contains(&TokenPurpose::SSO)),
             // Final Checks
-            Self::ForceSetPassword => user.is_password_rotate_required(state),
+            Self::ForceSetPassword => user
+                .is_password_rotate_required(state)
+                .map(|rotate_required| rotate_required && !jumps.contains(&TokenPurpose::SSO)),
             Self::MerchantSelect => user
                 .get_roles_from_db(state)
                 .await
@@ -103,6 +119,8 @@ impl JWTFlow {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Origin {
+    #[serde(rename = "sign_in_with_sso")]
+    SignInWithSSO,
     SignIn,
     SignUp,
     MagicLink,
@@ -114,6 +132,7 @@ pub enum Origin {
 impl Origin {
     fn get_flows(&self) -> &'static [UserFlow] {
         match self {
+            Self::SignInWithSSO => &SIGNIN_WITH_SSO_FLOW,
             Self::SignIn => &SIGNIN_FLOW,
             Self::SignUp => &SIGNUP_FLOW,
             Self::VerifyEmail => &VERIFY_EMAIL_FLOW,
@@ -123,6 +142,11 @@ impl Origin {
         }
     }
 }
+
+const SIGNIN_WITH_SSO_FLOW: [UserFlow; 2] = [
+    UserFlow::SPTFlow(SPTFlow::MerchantSelect),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
+];
 
 const SIGNIN_FLOW: [UserFlow; 4] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
@@ -154,7 +178,8 @@ const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 6] = [
+    UserFlow::SPTFlow(SPTFlow::SSO),
     UserFlow::SPTFlow(SPTFlow::TOTP),
     UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
@@ -171,27 +196,39 @@ const RESET_PASSWORD_FLOW: [UserFlow; 3] = [
 pub struct CurrentFlow {
     origin: Origin,
     current_flow_index: usize,
+    jumps: Vec<TokenPurpose>,
 }
 
 impl CurrentFlow {
-    pub fn new(origin: Origin, current_flow: UserFlow) -> UserResult<Self> {
-        let flows = origin.get_flows();
+    pub fn new(
+        token: auth::UserFromSinglePurposeToken,
+        current_flow: UserFlow,
+    ) -> UserResult<Self> {
+        let flows = token.origin.get_flows();
         let index = flows
             .iter()
             .position(|flow| flow == &current_flow)
             .ok_or(UserErrors::InternalServerError)?;
+        let mut jumps = token.jumps;
+        jumps.push(current_flow.into());
 
         Ok(Self {
-            origin,
+            origin: token.origin,
             current_flow_index: index,
+            jumps,
         })
     }
 
-    pub async fn next(&self, user: UserFromStorage, state: &SessionState) -> UserResult<NextFlow> {
+    pub async fn next(
+        self,
+        user: UserFromStorage,
+        state: &SessionState,
+    ) -> UserResult<NextFlow> {
         let flows = self.origin.get_flows();
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
+
         for flow in remaining_flows {
-            if flow.is_required(&user, state).await? {
+            if flow.is_required(&user, &self.jumps, state).await? {
                 return Ok(NextFlow {
                     origin: self.origin.clone(),
                     next_flow: *flow,
@@ -217,7 +254,7 @@ impl NextFlow {
     ) -> UserResult<Self> {
         let flows = origin.get_flows();
         for flow in flows {
-            if flow.is_required(&user, state).await? {
+            if flow.is_required(&user, &[], state).await? {
                 return Ok(Self {
                     origin,
                     next_flow: *flow,
@@ -286,6 +323,7 @@ impl From<UserFlow> for TokenPurpose {
 impl From<SPTFlow> for TokenPurpose {
     fn from(value: SPTFlow) -> Self {
         match value {
+            SPTFlow::SSO => Self::SSO,
             SPTFlow::TOTP => Self::TOTP,
             SPTFlow::VerifyEmail => Self::VerifyEmail,
             SPTFlow::AcceptInvitationFromEmail => Self::AcceptInvitationFromEmail,

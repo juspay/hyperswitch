@@ -1026,7 +1026,7 @@ pub async fn accept_invite_from_email_token_only_flow(
         .map_err(|e| logger::error!(?e));
 
     let current_flow = domain::CurrentFlow::new(
-        user_token.origin,
+        user_token,
         domain::SPTFlow::AcceptInvitationFromEmail.into(),
     )?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
@@ -1464,7 +1464,7 @@ pub async fn verify_email_token_only_flow(
     }
 
     let current_flow =
-        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
+        domain::CurrentFlow::new(user_token, domain::SPTFlow::VerifyEmail.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 
@@ -1920,7 +1920,7 @@ pub async fn terminate_two_factor_auth(
         }
     }
 
-    let current_flow = domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::TOTP.into())?;
+    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::TOTP.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 

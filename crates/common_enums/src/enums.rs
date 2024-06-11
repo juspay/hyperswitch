@@ -2717,6 +2717,9 @@ pub enum BankHolderType {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TokenPurpose {
+    #[serde(rename = "sso")]
+    #[strum(serialize = "sso")]
+    SSO,
     #[serde(rename = "totp")]
     #[strum(serialize = "totp")]
     TOTP,
