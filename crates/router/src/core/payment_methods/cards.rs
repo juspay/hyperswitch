@@ -319,7 +319,9 @@ pub async fn get_client_secret_or_add_payment_method(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method task in process tracker")?;
+            .attach_printable(
+                "Failed to add payment method status update task in process tracker",
+            )?;
         }
 
         Ok(services::api::ApplicationResponse::Json(

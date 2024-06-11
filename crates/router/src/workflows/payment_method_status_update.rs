@@ -41,11 +41,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
 
         let payment_method = db
-            .find_payment_method(pm_id.as_str(), merchant_account.storage_scheme)
+            .find_payment_method(&pm_id, merchant_account.storage_scheme)
             .await?;
 
         if payment_method.status != prev_pm_status {

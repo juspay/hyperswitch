@@ -28,6 +28,9 @@ use crate::{
     },
 };
 
+const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
+const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     pm_data: &Option<payments::PaymentMethodData>,
@@ -101,7 +104,7 @@ pub async fn retrieve_payment_method(
     }
 }
 
-fn generate_task_id_for_payment_method_status_workflow(
+fn generate_task_id_for_payment_method_status_update_workflow(
     key_id: &str,
     runner: &storage::ProcessTrackerRunner,
     task: &str,
@@ -128,10 +131,10 @@ pub async fn add_payment_method_status_update_task(
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow;
-    let task = "PAYMENT_METHOD_STATUS_UPDATE";
-    let tag = ["PAYMENT_METHOD_STATUS"];
+    let task = PAYMENT_METHOD_STATUS_UPDATE_TASK;
+    let tag = [PAYMENT_METHOD_STATUS_TAG];
 
-    let process_tracker_id = generate_task_id_for_payment_method_status_workflow(
+    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
         payment_method.payment_method_id.as_str(),
         &runner,
         task,
