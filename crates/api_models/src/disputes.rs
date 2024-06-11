@@ -17,7 +17,7 @@ pub struct DisputeResponse {
     pub amount: String,
     /// The three-letter ISO currency code
     pub currency: String,
-    /// Stage of the dispute
+    
     pub dispute_stage: DisputeStage,
     /// Status of the dispute
     pub dispute_status: DisputeStatus,
