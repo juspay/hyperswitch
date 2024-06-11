@@ -44,7 +44,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::metrics,
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -324,11 +324,12 @@ pub async fn find_payment_intent_from_mandate_id_type(
 }
 
 pub async fn find_mca_from_authentication_id_type(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     authentication_id_type: webhooks::AuthenticationIdType,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let db = &*state.store;
     let authentication = match authentication_id_type {
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
             .find_authentication_by_merchant_id_authentication_id(
@@ -347,6 +348,7 @@ pub async fn find_mca_from_authentication_id_type(
         }
     };
     db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        state,
         &merchant_account.merchant_id,
         &authentication.merchant_connector_id,
         key_store,
@@ -358,12 +360,13 @@ pub async fn find_mca_from_authentication_id_type(
 }
 
 pub async fn get_mca_from_payment_intent(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_intent: PaymentIntent,
     key_store: &domain::MerchantKeyStore,
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let db = &*state.store;
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
@@ -376,6 +379,7 @@ pub async fn get_mca_from_payment_intent(
     match payment_attempt.merchant_connector_id {
         Some(merchant_connector_id) => db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                state,
                 &merchant_account.merchant_id,
                 &merchant_connector_id,
                 key_store,
@@ -401,6 +405,7 @@ pub async fn get_mca_from_payment_intent(
             };
 
             db.find_merchant_connector_account_by_profile_id_connector_name(
+                state,
                 &profile_id,
                 connector_name,
                 key_store,
@@ -417,12 +422,13 @@ pub async fn get_mca_from_payment_intent(
 
 #[cfg(feature = "payouts")]
 pub async fn get_mca_from_payout_attempt(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payout_id_type: webhooks::PayoutIdType,
     connector_name: &str,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let db = &*state.store;
     let payout = match payout_id_type {
         webhooks::PayoutIdType::PayoutAttemptId(payout_attempt_id) => db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
@@ -445,6 +451,7 @@ pub async fn get_mca_from_payout_attempt(
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                state,
                 &merchant_account.merchant_id,
                 &merchant_connector_id,
                 key_store,
@@ -455,6 +462,7 @@ pub async fn get_mca_from_payout_attempt(
             }),
         None => db
             .find_merchant_connector_account_by_profile_id_connector_name(
+                state,
                 &payout.profile_id,
                 connector_name,
                 key_store,
@@ -470,15 +478,17 @@ pub async fn get_mca_from_payout_attempt(
 }
 
 pub async fn get_mca_from_object_reference_id(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
     connector_name: &str,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let db = &*state.store;
     match merchant_account.default_profile.as_ref() {
         Some(profile_id) => db
             .find_merchant_connector_account_by_profile_id_connector_name(
+                state,
                 profile_id,
                 connector_name,
                 key_store,
@@ -490,7 +500,7 @@ pub async fn get_mca_from_object_reference_id(
         _ => match object_reference_id {
             webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
                 get_mca_from_payment_intent(
-                    db,
+                    state,
                     merchant_account,
                     find_payment_intent_from_payment_id_type(db, payment_id_type, merchant_account)
                         .await?,
@@ -501,7 +511,7 @@ pub async fn get_mca_from_object_reference_id(
             }
             webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
                 get_mca_from_payment_intent(
-                    db,
+                    state,
                     merchant_account,
                     find_payment_intent_from_refund_id_type(
                         db,
@@ -517,7 +527,7 @@ pub async fn get_mca_from_object_reference_id(
             }
             webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
                 get_mca_from_payment_intent(
-                    db,
+                    state,
                     merchant_account,
                     find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
                         .await?,
@@ -528,7 +538,7 @@ pub async fn get_mca_from_object_reference_id(
             }
             webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) => {
                 find_mca_from_authentication_id_type(
-                    db,
+                    state,
                     authentication_id_type,
                     merchant_account,
                     key_store,
@@ -538,7 +548,7 @@ pub async fn get_mca_from_object_reference_id(
             #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
                 get_mca_from_payout_attempt(
-                    db,
+                    state,
                     merchant_account,
                     payout_id_type,
                     connector_name,
@@ -629,6 +639,7 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
 pub trait CustomerAddress {
     async fn get_address_update(
         &self,
+        state: &SessionState,
         address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
@@ -636,6 +647,7 @@ pub trait CustomerAddress {
 
     async fn get_domain_address(
         &self,
+        state: &SessionState,
         address_details: payments::AddressDetails,
         merchant_id: &str,
         customer_id: &id_type::CustomerId,
@@ -648,6 +660,7 @@ pub trait CustomerAddress {
 impl CustomerAddress for api_models::customers::CustomerRequest {
     async fn get_address_update(
         &self,
+        state: &SessionState,
         address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
@@ -658,36 +671,36 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 country: address_details.country,
                 line1: address_details
                     .line1
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 line2: address_details
                     .line2
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 line3: address_details
                     .line3
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 zip: address_details
                     .zip
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 state: address_details
                     .state
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 first_name: address_details
                     .first_name
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 last_name: address_details
                     .last_name
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 phone_number: self
                     .phone
                     .clone()
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 updated_by: storage_scheme.to_string(),
@@ -695,7 +708,9 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .email
                     .as_ref()
                     .cloned()
-                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .async_lift(|inner| {
+                        encrypt_optional(state, inner.map(|inner| inner.expose()), key)
+                    })
                     .await?,
             })
         }
@@ -704,6 +719,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 
     async fn get_domain_address(
         &self,
+        state: &SessionState,
         address_details: payments::AddressDetails,
         merchant_id: &str,
         customer_id: &id_type::CustomerId,
@@ -717,36 +733,36 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 country: address_details.country,
                 line1: address_details
                     .line1
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 line2: address_details
                     .line2
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 line3: address_details
                     .line3
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 zip: address_details
                     .zip
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 state: address_details
                     .state
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 first_name: address_details
                     .first_name
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 last_name: address_details
                     .last_name
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 phone_number: self
                     .phone
                     .clone()
-                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .async_lift(|inner| encrypt_optional(&state, inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 merchant_id: merchant_id.to_string(),
@@ -758,7 +774,9 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .email
                     .as_ref()
                     .cloned()
-                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .async_lift(|inner| {
+                        encrypt_optional(&state, inner.map(|inner| inner.expose()), key)
+                    })
                     .await?,
             };
 
@@ -891,7 +909,7 @@ pub async fn trigger_payments_webhook<F, Op>(
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     customer: Option<domain::Customer>,
-    state: &crate::routes::SessionState,
+    state: &SessionState,
     operation: Op,
 ) -> RouterResult<()>
 where

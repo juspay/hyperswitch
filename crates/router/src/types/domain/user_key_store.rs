@@ -8,6 +8,7 @@ use time::PrimitiveDateTime;
 
 use crate::{
     errors::{CustomResult, ValidationError},
+    routes::SessionState,
     types::domain::types::TypeEncryption,
 };
 
@@ -32,6 +33,7 @@ impl super::behaviour::Conversion for UserKeyStore {
     }
 
     async fn convert_back(
+        state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
@@ -39,7 +41,7 @@ impl super::behaviour::Conversion for UserKeyStore {
         Self: Sized,
     {
         Ok(Self {
-            key: Encryptable::decrypt(item.key, key.peek(), GcmAes256)
+            key: Encryptable::decrypt(state, item.key, key.peek(), GcmAes256)
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

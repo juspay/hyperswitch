@@ -31,6 +31,7 @@ pub async fn generate_sample_data(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            state,
             merchant_id.as_str(),
             &state.store.get_master_key().to_vec().into(),
         )
@@ -39,7 +40,7 @@ pub async fn generate_sample_data(
 
     let merchant_from_db = state
         .store
-        .find_merchant_account_by_merchant_id(merchant_id.as_str(), &key_store)
+        .find_merchant_account_by_merchant_id(state, merchant_id.as_str(), &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 

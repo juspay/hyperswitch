@@ -89,7 +89,7 @@ pub async fn upsert_surcharge_decision_config(
                 .attach_printable("Error serializing the config")?;
 
             algo_id.update_surcharge_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            update_merchant_active_algorithm_ref(&state, &key_store, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -125,7 +125,7 @@ pub async fn upsert_surcharge_decision_config(
                 .attach_printable("Error fetching the config")?;
 
             algo_id.update_surcharge_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            update_merchant_active_algorithm_ref(&state, &key_store, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -154,7 +154,7 @@ pub async fn delete_surcharge_decision_config(
         .attach_printable("Could not decode the surcharge conditional_config algorithm")?
         .unwrap_or_default();
     algo_id.surcharge_config_algo_id = None;
-    update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+    update_merchant_active_algorithm_ref(&state, &key_store, algo_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update deleted algorithm ref")?;

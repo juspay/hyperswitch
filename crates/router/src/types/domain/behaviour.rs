@@ -1,6 +1,6 @@
 use common_utils::errors::{CustomResult, ValidationError};
 
-use crate::pii::Secret;
+use crate::{pii::Secret, routes::SessionState};
 
 /// Trait for converting domain types to storage models
 #[async_trait::async_trait]
@@ -10,6 +10,7 @@ pub trait Conversion {
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError>;
 
     async fn convert_back(
+        state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
@@ -21,12 +22,20 @@ pub trait Conversion {
 
 #[async_trait::async_trait]
 pub trait ReverseConversion<SrcType: Conversion> {
-    async fn convert(self, key: &Secret<Vec<u8>>) -> CustomResult<SrcType, ValidationError>;
+    async fn convert(
+        self,
+        state: &SessionState,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<SrcType, ValidationError>;
 }
 
 #[async_trait::async_trait]
 impl<T: Send, U: Conversion<DstType = T>> ReverseConversion<U> for T {
-    async fn convert(self, key: &Secret<Vec<u8>>) -> CustomResult<U, ValidationError> {
-        U::convert_back(self, key).await
+    async fn convert(
+        self,
+        state: &SessionState,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<U, ValidationError> {
+        U::convert_back(state, self, key).await
     }
 }

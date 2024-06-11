@@ -9,7 +9,10 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
-use crate::routes::metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME};
+use crate::routes::{
+    metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME},
+    SessionState,
+};
 
 #[async_trait]
 pub trait TypeEncryption<
@@ -19,12 +22,14 @@ pub trait TypeEncryption<
 >: Sized
 {
     async fn encrypt(
+        state: &SessionState,
         masked_data: Secret<T, S>,
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
 
     async fn decrypt(
+        state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -39,17 +44,18 @@ impl<
 {
     #[instrument(skip_all)]
     async fn encrypt(
+        _state: &SessionState,
         masked_data: Secret<String, S>,
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
-
         Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
     async fn decrypt(
+        _state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -74,6 +80,7 @@ impl<
 {
     #[instrument(skip_all)]
     async fn encrypt(
+        _state: &SessionState,
         masked_data: Secret<serde_json::Value, S>,
         key: &[u8],
         crypt_algo: V,
@@ -87,6 +94,7 @@ impl<
 
     #[instrument(skip_all)]
     async fn decrypt(
+        _state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -109,6 +117,7 @@ impl<
 {
     #[instrument(skip_all)]
     async fn encrypt(
+        _state: &SessionState,
         masked_data: Secret<Vec<u8>, S>,
         key: &[u8],
         crypt_algo: V,
@@ -120,6 +129,7 @@ impl<
 
     #[instrument(skip_all)]
     async fn decrypt(
+        _state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -179,6 +189,7 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
 
 #[inline]
 pub async fn encrypt<E: Clone, S>(
+    state: &SessionState,
     inner: Secret<E, S>,
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, errors::CryptoError>
@@ -187,7 +198,7 @@ where
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
+        crypto::Encryptable::encrypt(state, inner, key, crypto::GcmAes256),
         &ENCRYPTION_TIME,
         &[],
     )
@@ -196,6 +207,7 @@ where
 
 #[inline]
 pub async fn encrypt_optional<E: Clone, S>(
+    state: &SessionState,
     inner: Option<Secret<E, S>>,
     key: &[u8],
 ) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
@@ -204,11 +216,15 @@ where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
-    inner.async_map(|f| encrypt(f, key)).await.transpose()
+    inner
+        .async_map(|f| encrypt(state, f, key))
+        .await
+        .transpose()
 }
 
 #[inline]
 pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+    state: &SessionState,
     inner: Option<Encryption>,
     key: &[u8],
 ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
@@ -216,7 +232,7 @@ where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        inner.async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256)),
+        inner.async_map(|item| crypto::Encryptable::decrypt(state, item, key, crypto::GcmAes256)),
         &DECRYPTION_TIME,
         &[],
     )

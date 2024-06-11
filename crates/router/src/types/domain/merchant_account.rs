@@ -14,6 +14,7 @@ use router_env::logger;
 
 use crate::{
     errors::{CustomResult, ValidationError},
+    routes::SessionState,
     types::domain::types::{self, AsyncLift},
 };
 
@@ -188,6 +189,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     }
 
     async fn convert_back(
+        state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
@@ -204,11 +206,11 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| types::decrypt(state, inner, key.peek()))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| types::decrypt(state, inner, key.peek()))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,

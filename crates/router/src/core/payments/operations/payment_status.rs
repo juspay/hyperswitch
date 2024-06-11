@@ -58,7 +58,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
@@ -71,8 +71,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
+            state,
             Box::new(self),
-            db,
             payment_data,
             request,
             &key_store.merchant_id,
@@ -203,7 +203,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
             payment_id,
             merchant_account,
             key_store,
-            &*state.store,
+            state,
             request,
             self,
             merchant_account.storage_scheme,
@@ -220,7 +220,7 @@ async fn get_tracker_for_sync<
     payment_id: &api::PaymentIdType,
     merchant_account: &domain::MerchantAccount,
     mechant_key_store: &domain::MerchantKeyStore,
-    db: &dyn StorageInterface,
+    state: &SessionState,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
@@ -228,7 +228,7 @@ async fn get_tracker_for_sync<
     let (payment_intent, mut payment_attempt, currency, amount);
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
-        db,
+        &*state.store,
         payment_id,
         &merchant_account.merchant_id,
         storage_scheme,
@@ -243,7 +243,7 @@ async fn get_tracker_for_sync<
     amount = payment_attempt.get_total_amount().into();
 
     let shipping_address = helpers::get_address_by_id(
-        db,
+        state,
         payment_intent.shipping_address_id.clone(),
         mechant_key_store,
         &payment_intent.payment_id.clone(),
@@ -252,7 +252,7 @@ async fn get_tracker_for_sync<
     )
     .await?;
     let billing_address = helpers::get_address_by_id(
-        db,
+        state,
         payment_intent.billing_address_id.clone(),
         mechant_key_store,
         &payment_intent.payment_id.clone(),
@@ -262,7 +262,7 @@ async fn get_tracker_for_sync<
     .await?;
 
     let payment_method_billing = helpers::get_address_by_id(
-        db,
+        state,
         payment_attempt.payment_method_billing_address_id.clone(),
         mechant_key_store,
         &payment_intent.payment_id.clone(),
@@ -272,7 +272,7 @@ async fn get_tracker_for_sync<
     .await?;
 
     payment_attempt.encoded_data.clone_from(&request.param);
-
+    let db = &*state.store;
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db

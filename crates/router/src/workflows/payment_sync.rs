@@ -40,6 +40,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
+                state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -50,6 +51,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
+                state,
                 tracking_data
                     .merchant_id
                     .as_ref()

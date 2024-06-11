@@ -122,7 +122,7 @@ where
 pub async fn should_call_frm<F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &payments::PaymentData<F>,
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResult<(
     bool,
@@ -148,14 +148,15 @@ where
                 payment_data.payment_intent.business_label.as_ref(),
                 merchant_account,
                 payment_data.payment_intent.profile_id.as_ref(),
-                db,
+                &*state.store,
                 false,
             )
             .await
             .attach_printable("Could not find profile id from business details")?;
-
+            let db = &*state.store;
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
+                    state,
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
                     &key_store,
@@ -543,7 +544,6 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn call_frm_before_connector_call<'a, F, Req>(
-    db: &dyn StorageInterface,
     operation: &BoxedOperation<'_, F, Req>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
@@ -558,13 +558,13 @@ where
     F: Send + Clone,
 {
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
-        should_call_frm(merchant_account, payment_data, db, key_store.clone()).await?;
+        should_call_frm(merchant_account, payment_data, state, key_store.clone()).await?;
     if let Some((frm_routing_algorithm_val, profile_id)) =
         frm_routing_algorithm.zip(frm_connector_label)
     {
         if let Some(frm_configs) = frm_configs.clone() {
             let mut updated_frm_info = Box::pin(make_frm_data_and_fraud_check_operation(
-                db,
+                &*state.store,
                 state,
                 merchant_account,
                 payment_data.to_owned(),

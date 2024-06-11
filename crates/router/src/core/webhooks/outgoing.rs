@@ -101,6 +101,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         initial_attempt_id: Some(event_id.clone()),
         request: Some(
             domain_types::encrypt(
+                &state,
                 request_content
                     .encode_to_string_of_json()
                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -118,7 +119,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(new_event, merchant_key_store)
+        .insert_event(&state, new_event, merchant_key_store)
         .await;
 
     let event = match event_insert_result {
@@ -293,6 +294,7 @@ async fn trigger_webhook_to_merchant(
                 is_webhook_notified,
                 response: Some(
                     domain_types::encrypt(
+                        &state,
                         response_to_store
                             .encode_to_string_of_json()
                             .change_context(
@@ -310,6 +312,7 @@ async fn trigger_webhook_to_merchant(
             state
                 .store
                 .update_event_by_merchant_id_event_id(
+                    &state,
                     &merchant_id,
                     &event_id,
                     event_update,
@@ -393,6 +396,7 @@ async fn trigger_webhook_to_merchant(
             is_webhook_notified,
             response: Some(
                 domain_types::encrypt(
+                    &state,
                     response_to_store
                         .encode_to_string_of_json()
                         .change_context(
@@ -409,6 +413,7 @@ async fn trigger_webhook_to_merchant(
         state
             .store
             .update_event_by_merchant_id_event_id(
+                &state,
                 &merchant_id,
                 &event_id,
                 event_update,

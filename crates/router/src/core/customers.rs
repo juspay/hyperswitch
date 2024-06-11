@@ -51,6 +51,7 @@ pub async fn create_customer(
     // it errors out, now the address that was inserted is not deleted
     match db
         .find_customer_by_customer_id_merchant_id(
+            &state,
             &customer_id,
             merchant_id,
             &key_store,
@@ -76,6 +77,7 @@ pub async fn create_customer(
 
         let address = customer_data
             .get_domain_address(
+                &state,
                 customer_address,
                 merchant_id,
                 &customer_id,
@@ -87,7 +89,7 @@ pub async fn create_customer(
             .attach_printable("Failed while encrypting address")?;
 
         Some(
-            db.insert_address_for_customers(address, &key_store)
+            db.insert_address_for_customers(&state, address, &key_store)
                 .await
                 .switch()
                 .attach_printable("Failed while inserting new address")?,
@@ -102,15 +104,17 @@ pub async fn create_customer(
             merchant_id: merchant_id.to_string(),
             name: customer_data
                 .name
-                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .async_lift(|inner| types::encrypt_optional(&state, inner, key))
                 .await?,
             email: customer_data
                 .email
-                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
+                .async_lift(|inner| {
+                    types::encrypt_optional(&state, inner.map(|inner| inner.expose()), key)
+                })
                 .await?,
             phone: customer_data
                 .phone
-                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .async_lift(|inner| types::encrypt_optional(&state, inner, key))
                 .await?,
             description: customer_data.description,
             phone_country_code: customer_data.phone_country_code,
@@ -129,7 +133,12 @@ pub async fn create_customer(
     .attach_printable("Failed while encrypting Customer")?;
 
     let customer = db
-        .insert_customer(new_customer, &key_store, merchant_account.storage_scheme)
+        .insert_customer(
+            &state,
+            new_customer,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
         .await
         .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
 
@@ -150,6 +159,7 @@ pub async fn retrieve_customer(
     let db = state.store.as_ref();
     let response = db
         .find_customer_by_customer_id_merchant_id(
+            &state,
             &req.customer_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -159,7 +169,7 @@ pub async fn retrieve_customer(
         .switch()?;
     let address = match &response.address_id {
         Some(address_id) => Some(api_models::payments::AddressDetails::from(
-            db.find_address_by_address_id(address_id, &key_store)
+            db.find_address_by_address_id(&state, address_id, &key_store)
                 .await
                 .switch()?,
         )),
@@ -179,7 +189,7 @@ pub async fn list_customers(
     let db = state.store.as_ref();
 
     let domain_customers = db
-        .list_customers_by_merchant_id(&merchant_id, &key_store)
+        .list_customers_by_merchant_id(&state, &merchant_id, &key_store)
         .await
         .switch()?;
 
@@ -202,6 +212,7 @@ pub async fn delete_customer(
 
     let customer_orig = db
         .find_customer_by_customer_id_merchant_id(
+            &state,
             &req.customer_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -264,13 +275,13 @@ pub async fn delete_customer(
     let key = key_store.key.get_inner().peek();
 
     let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
-        Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
+        Encryptable::encrypt(&state, REDACTED.to_string().into(), key, GcmAes256)
             .await
             .switch()?;
 
     let redacted_encrypted_email: Encryptable<
         masking::Secret<_, common_utils::pii::EmailStrategy>,
-    > = Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
+    > = Encryptable::encrypt(&state, REDACTED.to_string().into(), key, GcmAes256)
         .await
         .switch()?;
 
@@ -292,6 +303,7 @@ pub async fn delete_customer(
 
     match db
         .update_address_by_merchant_id_customer_id(
+            &state,
             &req.customer_id,
             &merchant_account.merchant_id,
             update_address,
@@ -314,7 +326,7 @@ pub async fn delete_customer(
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(redacted_encrypted_value.clone()),
         email: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
+            Encryptable::encrypt(&state, REDACTED.to_string().into(), key, GcmAes256)
                 .await
                 .switch()?,
         ),
@@ -326,6 +338,7 @@ pub async fn delete_customer(
         address_id: None,
     };
     db.update_customer_by_customer_id_merchant_id(
+        &state,
         req.customer_id.clone(),
         merchant_account.merchant_id,
         customer_orig,
@@ -365,6 +378,7 @@ pub async fn update_customer(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
+            &state,
             customer_id,
             &merchant_account.merchant_id,
             &key_store,
@@ -380,12 +394,17 @@ pub async fn update_customer(
             Some(address_id) => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
                 let update_address = update_customer
-                    .get_address_update(customer_address, key, merchant_account.storage_scheme)
+                    .get_address_update(
+                        &state,
+                        customer_address,
+                        key,
+                        merchant_account.storage_scheme,
+                    )
                     .await
                     .switch()
                     .attach_printable("Failed while encrypting Address while Update")?;
                 Some(
-                    db.update_address(address_id, update_address, &key_store)
+                    db.update_address(&state, address_id, update_address, &key_store)
                         .await
                         .switch()
                         .attach_printable(format!(
@@ -399,6 +418,7 @@ pub async fn update_customer(
 
                 let address = update_customer
                     .get_domain_address(
+                        &state,
                         customer_address,
                         &merchant_account.merchant_id,
                         &customer.customer_id,
@@ -409,7 +429,7 @@ pub async fn update_customer(
                     .switch()
                     .attach_printable("Failed while encrypting address")?;
                 Some(
-                    db.insert_address_for_customers(address, &key_store)
+                    db.insert_address_for_customers(&state, address, &key_store)
                         .await
                         .switch()
                         .attach_printable("Failed while inserting new address")?,
@@ -419,7 +439,7 @@ pub async fn update_customer(
     } else {
         match &customer.address_id {
             Some(address_id) => Some(
-                db.find_address_by_address_id(address_id, &key_store)
+                db.find_address_by_address_id(&state, address_id, &key_store)
                     .await
                     .switch()?,
             ),
@@ -429,6 +449,7 @@ pub async fn update_customer(
 
     let response = db
         .update_customer_by_customer_id_merchant_id(
+            &state,
             customer_id.to_owned(),
             merchant_account.merchant_id.to_owned(),
             customer,
@@ -436,18 +457,18 @@ pub async fn update_customer(
                 Ok(storage::CustomerUpdate::Update {
                     name: update_customer
                         .name
-                        .async_lift(|inner| types::encrypt_optional(inner, key))
+                        .async_lift(|inner| types::encrypt_optional(&state, inner, key))
                         .await?,
                     email: update_customer
                         .email
                         .async_lift(|inner| {
-                            types::encrypt_optional(inner.map(|inner| inner.expose()), key)
+                            types::encrypt_optional(&state, inner.map(|inner| inner.expose()), key)
                         })
                         .await?,
                     phone: Box::new(
                         update_customer
                             .phone
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .async_lift(|inner| types::encrypt_optional(&state, inner, key))
                             .await?,
                     ),
                     phone_country_code: update_customer.phone_country_code,

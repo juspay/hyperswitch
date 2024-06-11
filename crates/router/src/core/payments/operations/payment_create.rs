@@ -140,7 +140,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-            db,
+            state,
             request.shipping.as_ref(),
             None,
             merchant_id,
@@ -152,7 +152,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .await?;
 
         let billing_address = helpers::create_or_find_address_for_payment_by_request(
-            db,
+            state,
             request.billing.as_ref(),
             None,
             merchant_id,
@@ -165,7 +165,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let payment_method_billing_address =
             helpers::create_or_find_address_for_payment_by_request(
-                db,
+                state,
                 request
                     .payment_method_data
                     .as_ref()
@@ -470,7 +470,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
@@ -483,8 +483,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
+            state,
             Box::new(self),
-            db,
             payment_data,
             request,
             &key_store.merchant_id,
@@ -814,6 +814,7 @@ impl PaymentCreate {
                 .as_ref()
                 .async_map(|pm_info| async {
                     domain::types::decrypt::<serde_json::Value, masking::WithType>(
+                        state,
                         pm_info.payment_method_data.clone(),
                         key_store.key.get_inner().peek(),
                     )

@@ -8,6 +8,7 @@ use masking::{PeekInterface, Secret};
 
 use crate::{
     errors::{CustomResult, ValidationError},
+    routes::SessionState,
     types::domain::types::{self, AsyncLift},
 };
 
@@ -78,6 +79,7 @@ impl super::behaviour::Conversion for Event {
     }
 
     async fn convert_back(
+        state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
@@ -100,11 +102,11 @@ impl super::behaviour::Conversion for Event {
                 initial_attempt_id: item.initial_attempt_id,
                 request: item
                     .request
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| types::decrypt(state, inner, key.peek()))
                     .await?,
                 response: item
                     .response
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
+                    .async_lift(|inner| types::decrypt(state, inner, key.peek()))
                     .await?,
                 delivery_attempt: item.delivery_attempt,
             })

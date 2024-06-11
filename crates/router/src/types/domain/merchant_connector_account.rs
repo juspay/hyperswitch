@@ -15,6 +15,7 @@ use super::{
     behaviour,
     types::{self, AsyncLift, TypeEncryption},
 };
+use crate::routes::SessionState;
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
@@ -106,6 +107,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     }
 
     async fn convert_back(
+        state: &SessionState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
@@ -114,6 +116,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
             connector_account_details: Encryptable::decrypt(
+                state,
                 other.connector_account_details,
                 key.peek(),
                 GcmAes256,
@@ -143,7 +146,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_lift(|inner| types::decrypt(inner, key.peek()))
+                .async_lift(|inner| types::decrypt(state, inner, key.peek()))
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),

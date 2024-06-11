@@ -13,6 +13,7 @@ use super::{
     behaviour,
     types::{self, AsyncLift},
 };
+use crate::routes::SessionState;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -73,6 +74,7 @@ impl behaviour::Conversion for CustomerAddress {
     }
 
     async fn convert_back(
+        state: &SessionState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
@@ -84,7 +86,7 @@ impl behaviour::Conversion for CustomerAddress {
                     field_name: "customer_id".to_string(),
                 })?;
 
-        let address = Address::convert_back(other, key).await?;
+        let address = Address::convert_back(state, other, key).await?;
 
         Ok(Self {
             address,
@@ -117,6 +119,7 @@ impl behaviour::Conversion for PaymentAddress {
     }
 
     async fn convert_back(
+        state: &SessionState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
@@ -129,7 +132,7 @@ impl behaviour::Conversion for PaymentAddress {
 
         let customer_id = other.customer_id.clone();
 
-        let address = Address::convert_back(other, key).await?;
+        let address = Address::convert_back(state, other, key).await?;
 
         Ok(Self {
             address,
@@ -180,12 +183,13 @@ impl behaviour::Conversion for Address {
     }
 
     async fn convert_back(
+        state: &SessionState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt = |inner| types::decrypt(state, inner, key.peek());
+            let inner_decrypt_email = |inner| types::decrypt(state, inner, key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: other.id,
                 address_id: other.address_id,

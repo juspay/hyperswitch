@@ -8,6 +8,7 @@ use crate::{
     connection,
     core::errors::{self, CustomResult},
     db::MockDb,
+    routes::SessionState,
     services::Store,
     types::domain::{
         self,
@@ -19,12 +20,14 @@ use crate::{
 pub trait MerchantKeyStoreInterface {
     async fn insert_merchant_key_store(
         &self,
+        state: &SessionState,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError>;
 
     async fn get_merchant_key_store_by_merchant_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError>;
@@ -37,6 +40,7 @@ pub trait MerchantKeyStoreInterface {
     #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
+        state: &SessionState,
         merchant_ids: Vec<String>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
@@ -47,6 +51,7 @@ impl MerchantKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn insert_merchant_key_store(
         &self,
+        state: &SessionState,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
@@ -58,7 +63,7 @@ impl MerchantKeyStoreInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(key)
+            .convert(state, key)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -66,6 +71,7 @@ impl MerchantKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn get_merchant_key_store_by_merchant_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
@@ -84,7 +90,7 @@ impl MerchantKeyStoreInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(key)
+                .convert(state, key)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -99,7 +105,7 @@ impl MerchantKeyStoreInterface for Store {
                 &ACCOUNTS_CACHE,
             )
             .await?
-            .convert(key)
+            .convert(state, key)
             .await
             .change_context(errors::StorageError::DecryptionError)
         }
@@ -141,6 +147,7 @@ impl MerchantKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn list_multiple_key_stores(
         &self,
+        state: &SessionState,
         merchant_ids: Vec<String>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
@@ -157,7 +164,7 @@ impl MerchantKeyStoreInterface for Store {
 
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
             key_store
-                .convert(key)
+                .convert(state, key)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -169,6 +176,7 @@ impl MerchantKeyStoreInterface for Store {
 impl MerchantKeyStoreInterface for MockDb {
     async fn insert_merchant_key_store(
         &self,
+        state: &SessionState,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
@@ -190,13 +198,14 @@ impl MerchantKeyStoreInterface for MockDb {
         locked_merchant_key_store.push(merchant_key.clone());
 
         merchant_key
-            .convert(key)
+            .convert(state, key)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn get_merchant_key_store_by_merchant_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
@@ -209,7 +218,7 @@ impl MerchantKeyStoreInterface for MockDb {
             .ok_or(errors::StorageError::ValueNotFound(String::from(
                 "merchant_key_store",
             )))?
-            .convert(key)
+            .convert(state, key)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -233,6 +242,7 @@ impl MerchantKeyStoreInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
+        state: &SessionState,
         merchant_ids: Vec<String>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
@@ -244,7 +254,7 @@ impl MerchantKeyStoreInterface for MockDb {
                 .map(|merchant_key| async {
                     merchant_key
                         .to_owned()
-                        .convert(key)
+                        .convert(state, key)
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }),
@@ -255,17 +265,36 @@ impl MerchantKeyStoreInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use time::macros::datetime;
+    use tokio::sync::oneshot;
 
     use crate::{
         db::{merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb},
+        routes::{
+            self,
+            app::{settings::Settings, StorageImpl},
+        },
         services,
-        types::domain::{self},
+        types::domain,
     };
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mock_db_merchant_key_store_interface() {
+        let conf = Settings::new().expect("invalid settings");
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let app_state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            Box::new(services::MockApiClient),
+        ))
+        .await;
+        let state = &Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         #[allow(clippy::expect_used)]
         let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
             .await
@@ -275,9 +304,11 @@ mod tests {
 
         let merchant_key1 = mock_db
             .insert_merchant_key_store(
+                state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.into(),
                     key: domain::types::encrypt(
+                        state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
                         master_key,
                     )
@@ -291,7 +322,7 @@ mod tests {
             .unwrap();
 
         let found_merchant_key1 = mock_db
-            .get_merchant_key_store_by_merchant_id(merchant_id, &master_key.to_vec().into())
+            .get_merchant_key_store_by_merchant_id(state, merchant_id, &master_key.to_vec().into())
             .await
             .unwrap();
 
@@ -300,9 +331,11 @@ mod tests {
 
         let insert_duplicate_merchant_key1_result = mock_db
             .insert_merchant_key_store(
+                state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.into(),
                     key: domain::types::encrypt(
+                        state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
                         master_key,
                     )
@@ -316,12 +349,16 @@ mod tests {
         assert!(insert_duplicate_merchant_key1_result.is_err());
 
         let find_non_existent_merchant_key_result = mock_db
-            .get_merchant_key_store_by_merchant_id("non_existent", &master_key.to_vec().into())
+            .get_merchant_key_store_by_merchant_id(
+                state,
+                "non_existent",
+                &master_key.to_vec().into(),
+            )
             .await;
         assert!(find_non_existent_merchant_key_result.is_err());
 
         let find_merchant_key_with_incorrect_master_key_result = mock_db
-            .get_merchant_key_store_by_merchant_id(merchant_id, &vec![0; 32].into())
+            .get_merchant_key_store_by_merchant_id(state, merchant_id, &vec![0; 32].into())
             .await;
         assert!(find_merchant_key_with_incorrect_master_key_result.is_err());
     }

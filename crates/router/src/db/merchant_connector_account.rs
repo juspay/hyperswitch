@@ -11,6 +11,7 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    routes::SessionState,
     types::{
         self,
         domain::{
@@ -121,6 +122,7 @@ where
 {
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
@@ -128,6 +130,7 @@ where
 
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
+        state: &SessionState,
         profile_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -135,6 +138,7 @@ where
 
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -142,12 +146,14 @@ where
 
     async fn insert_merchant_connector_account(
         &self,
+        state: &SessionState,
         t: domain::MerchantConnectorAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -155,6 +161,7 @@ where
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
@@ -162,6 +169,7 @@ where
 
     async fn update_merchant_connector_account(
         &self,
+        state: &SessionState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
@@ -187,6 +195,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
@@ -221,7 +230,7 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .async_and_then(|item| async {
-                item.convert(key_store.key.get_inner())
+                item.convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -232,6 +241,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
+        state: &SessionState,
         profile_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -266,7 +276,7 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .async_and_then(|item| async {
-                item.convert(key_store.key.get_inner())
+                item.convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -277,6 +287,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -293,7 +304,7 @@ impl MerchantConnectorAccountInterface for Store {
             let mut output = Vec::with_capacity(items.len());
             for item in items.into_iter() {
                 output.push(
-                    item.convert(key_store.key.get_inner())
+                    item.convert(state, key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 )
@@ -306,6 +317,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -339,7 +351,7 @@ impl MerchantConnectorAccountInterface for Store {
                 &cache::ACCOUNTS_CACHE,
             )
             .await?
-            .convert(key_store.key.get_inner())
+            .convert(state, key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
         }
@@ -348,6 +360,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
+        state: &SessionState,
         t: domain::MerchantConnectorAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -359,7 +372,7 @@ impl MerchantConnectorAccountInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|item| async {
-                item.convert(key_store.key.get_inner())
+                item.convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -369,6 +382,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
@@ -381,7 +395,7 @@ impl MerchantConnectorAccountInterface for Store {
                 let mut output = Vec::with_capacity(items.len());
                 for item in items.into_iter() {
                     output.push(
-                        item.convert(key_store.key.get_inner())
+                        item.convert(state, key_store.key.get_inner())
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     )
@@ -492,6 +506,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[instrument(skip_all)]
     async fn update_merchant_connector_account(
         &self,
+        state: &SessionState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
@@ -516,7 +531,7 @@ impl MerchantConnectorAccountInterface for Store {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|item| async {
-                    item.convert(key_store.key.get_inner())
+                    item.convert(state, key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -629,6 +644,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         connector: &str,
         key_store: &domain::MerchantKeyStore,
@@ -645,7 +661,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .async_map(|account| async {
                 account
-                    .convert(key_store.key.get_inner())
+                    .convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -663,6 +679,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -681,7 +698,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         for account in accounts.into_iter() {
             output.push(
                 account
-                    .convert(key_store.key.get_inner())
+                    .convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
             )
@@ -691,6 +708,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
+        state: &SessionState,
         profile_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
@@ -709,7 +727,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         match maybe_mca {
             Some(mca) => mca
                 .to_owned()
-                .convert(key_store.key.get_inner())
+                .convert(state, key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => Err(errors::StorageError::ValueNotFound(
@@ -721,6 +739,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -737,7 +756,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .async_map(|account| async {
                 account
-                    .convert(key_store.key.get_inner())
+                    .convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -755,6 +774,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn insert_merchant_connector_account(
         &self,
+        state: &SessionState,
         t: domain::MerchantConnectorAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -787,13 +807,14 @@ impl MerchantConnectorAccountInterface for MockDb {
         };
         accounts.push(account.clone());
         account
-            .convert(key_store.key.get_inner())
+            .convert(state, key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
@@ -817,7 +838,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         for account in accounts.into_iter() {
             output.push(
                 account
-                    .convert(key_store.key.get_inner())
+                    .convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
             )
@@ -827,6 +848,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn update_merchant_connector_account(
         &self,
+        state: &SessionState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
@@ -845,7 +867,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             })
             .async_map(|account| async {
                 account
-                    .convert(key_store.key.get_inner())
+                    .convert(state, key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -889,6 +911,8 @@ impl MerchantConnectorAccountInterface for MockDb {
 #[cfg(feature = "accounts_cache")]
 #[cfg(test)]
 mod merchant_connector_account_cache_tests {
+    use std::sync::Arc;
+
     use api_models::enums::CountryAlpha2;
     use common_utils::date_time;
     use diesel_models::enums::ConnectorType;
@@ -900,12 +924,17 @@ mod merchant_connector_account_cache_tests {
         pub_sub::PubSubInterface,
     };
     use time::macros::datetime;
+    use tokio::sync::oneshot;
 
     use crate::{
         core::errors,
         db::{
             merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
+        },
+        routes::{
+            self,
+            app::{settings::Settings, StorageImpl},
         },
         services,
         types::{
@@ -917,6 +946,20 @@ mod merchant_connector_account_cache_tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_connector_profile_id_cache() {
+        let conf = Settings::new().unwrap();
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+
+        let app_state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            Box::new(services::MockApiClient),
+        ))
+        .await;
+        let state = &Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
+
         #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())
             .await
@@ -935,9 +978,11 @@ mod merchant_connector_account_cache_tests {
         let profile_id = "pro_max_ultra";
 
         db.insert_merchant_key_store(
+            state,
             domain::MerchantKeyStore {
                 merchant_id: merchant_id.into(),
                 key: domain::types::encrypt(
+                    state,
                     services::generate_aes256_key().unwrap().to_vec().into(),
                     master_key,
                 )
@@ -951,7 +996,7 @@ mod merchant_connector_account_cache_tests {
         .unwrap();
 
         let merchant_key = db
-            .get_merchant_key_store_by_merchant_id(merchant_id, &master_key.to_vec().into())
+            .get_merchant_key_store_by_merchant_id(state, merchant_id, &master_key.to_vec().into())
             .await
             .unwrap();
 
@@ -960,6 +1005,7 @@ mod merchant_connector_account_cache_tests {
             merchant_id: merchant_id.to_string(),
             connector_name: "stripe".to_string(),
             connector_account_details: domain::types::encrypt(
+                state,
                 serde_json::Value::default().into(),
                 merchant_key.key.get_inner().peek(),
             )
@@ -985,6 +1031,7 @@ mod merchant_connector_account_cache_tests {
             status: common_enums::ConnectorStatus::Inactive,
             connector_wallets_details: Some(
                 domain::types::encrypt(
+                    state,
                     serde_json::Value::default().into(),
                     merchant_key.key.get_inner().peek(),
                 )
@@ -993,13 +1040,14 @@ mod merchant_connector_account_cache_tests {
             ),
         };
 
-        db.insert_merchant_connector_account(mca.clone(), &merchant_key)
+        db.insert_merchant_connector_account(state, mca.clone(), &merchant_key)
             .await
             .unwrap();
 
         let find_call = || async {
             Conversion::convert(
                 db.find_merchant_connector_account_by_profile_id_connector_name(
+                    state,
                     profile_id,
                     &mca.connector_name,
                     &merchant_key,

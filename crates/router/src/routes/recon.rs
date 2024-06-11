@@ -86,6 +86,7 @@ pub async fn send_recon_request(
         .merchant_id;
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
+            &state,
             merchant_id.as_str(),
             &db.get_master_key().to_vec().into(),
         )

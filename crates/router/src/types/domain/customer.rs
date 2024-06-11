@@ -5,7 +5,10 @@ use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use super::types::{self, AsyncLift};
-use crate::errors::{CustomResult, ValidationError};
+use crate::{
+    errors::{CustomResult, ValidationError},
+    routes::SessionState,
+};
 
 #[derive(Clone, Debug)]
 pub struct Customer {
@@ -53,6 +56,7 @@ impl super::behaviour::Conversion for Customer {
     }
 
     async fn convert_back(
+        state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
@@ -60,8 +64,8 @@ impl super::behaviour::Conversion for Customer {
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt = |inner| types::decrypt(state, inner, key.peek());
+            let inner_decrypt_email = |inner| types::decrypt(state, inner, key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,

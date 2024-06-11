@@ -147,7 +147,7 @@ pub async fn create_routing_config(
         .await?;
 
         helpers::validate_connectors_in_routing_config(
-            db,
+            &state,
             &key_store,
             &merchant_account.merchant_id,
             &profile_id,
@@ -232,7 +232,8 @@ pub async fn create_routing_config(
         if records_are_empty {
             merchant_dictionary.active_id = Some(algorithm_id.clone());
             algorithm_ref.update_algorithm_id(algorithm_id);
-            helpers::update_merchant_active_algorithm_ref(db, &key_store, algorithm_ref).await?;
+            helpers::update_merchant_active_algorithm_ref(&state, &key_store, algorithm_ref)
+                .await?;
         }
 
         helpers::update_merchant_routing_dictionary(

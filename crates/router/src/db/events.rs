@@ -6,6 +6,7 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    routes::SessionState,
     types::{
         domain::{
             self,
@@ -23,12 +24,14 @@ where
 {
     async fn insert_event(
         &self,
+        state: &SessionState,
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
     async fn find_event_by_merchant_id_event_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -36,6 +39,7 @@ where
 
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -43,6 +47,7 @@ where
 
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
@@ -53,6 +58,7 @@ where
 
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -60,6 +66,7 @@ where
 
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
+        state: &SessionState,
         profile_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -67,6 +74,7 @@ where
 
     async fn list_initial_events_by_profile_id_constraints(
         &self,
+        state: &SessionState,
         profile_id: &str,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
@@ -77,6 +85,7 @@ where
 
     async fn list_events_by_profile_id_initial_attempt_id(
         &self,
+        state: &SessionState,
         profile_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -84,6 +93,7 @@ where
 
     async fn update_event_by_merchant_id_event_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         event_id: &str,
         event: domain::EventUpdate,
@@ -96,6 +106,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn insert_event(
         &self,
+        state: &SessionState,
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
@@ -107,7 +118,7 @@ impl EventInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(merchant_key_store.key.get_inner())
+            .convert(state, merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -115,6 +126,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn find_event_by_merchant_id_event_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -123,7 +135,7 @@ impl EventInterface for Store {
         storage::Event::find_by_merchant_id_event_id(&conn, merchant_id, event_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(merchant_key_store.key.get_inner())
+            .convert(state, merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -131,6 +143,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -148,7 +161,7 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(merchant_key_store.key.get_inner())
+                        .convert(state, merchant_key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -161,6 +174,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
@@ -184,7 +198,7 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(merchant_key_store.key.get_inner())
+                        .convert(state, merchant_key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -197,6 +211,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -214,7 +229,7 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(merchant_key_store.key.get_inner())
+                        .convert(state, merchant_key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -227,6 +242,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
+        state: &SessionState,
         profile_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -244,7 +260,7 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(merchant_key_store.key.get_inner())
+                        .convert(state, merchant_key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -257,6 +273,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_profile_id_constraints(
         &self,
+        state: &SessionState,
         profile_id: &str,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
@@ -280,7 +297,7 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(merchant_key_store.key.get_inner())
+                        .convert(state, merchant_key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -293,6 +310,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_events_by_profile_id_initial_attempt_id(
         &self,
+        state: &SessionState,
         profile_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -306,7 +324,7 @@ impl EventInterface for Store {
                 for event in events.into_iter() {
                     domain_events.push(
                         event
-                            .convert(merchant_key_store.key.get_inner())
+                            .convert(state, merchant_key_store.key.get_inner())
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     );
@@ -319,6 +337,7 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn update_event_by_merchant_id_event_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         event_id: &str,
         event: domain::EventUpdate,
@@ -328,7 +347,7 @@ impl EventInterface for Store {
         storage::Event::update_by_merchant_id_event_id(&conn, merchant_id, event_id, event.into())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(merchant_key_store.key.get_inner())
+            .convert(state, merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -338,6 +357,7 @@ impl EventInterface for Store {
 impl EventInterface for MockDb {
     async fn insert_event(
         &self,
+        state: &SessionState,
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
@@ -350,13 +370,14 @@ impl EventInterface for MockDb {
         locked_events.push(stored_event.clone());
 
         stored_event
-            .convert(merchant_key_store.key.get_inner())
+            .convert(state, merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn find_event_by_merchant_id_event_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -370,7 +391,7 @@ impl EventInterface for MockDb {
             .cloned()
             .async_map(|event| async {
                 event
-                    .convert(merchant_key_store.key.get_inner())
+                    .convert(state, merchant_key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -386,6 +407,7 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -405,7 +427,7 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(merchant_key_store.key.get_inner())
+                .convert(state, merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -416,6 +438,7 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
@@ -470,7 +493,7 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(merchant_key_store.key.get_inner())
+                .convert(state, merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -481,6 +504,7 @@ impl EventInterface for MockDb {
 
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -498,7 +522,7 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(merchant_key_store.key.get_inner())
+                .convert(state, merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -509,6 +533,7 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
+        state: &SessionState,
         profile_id: &str,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -528,7 +553,7 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(merchant_key_store.key.get_inner())
+                .convert(state, merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -539,6 +564,7 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_profile_id_constraints(
         &self,
+        state: &SessionState,
         profile_id: &str,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
@@ -593,7 +619,7 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(merchant_key_store.key.get_inner())
+                .convert(state, merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -604,6 +630,7 @@ impl EventInterface for MockDb {
 
     async fn list_events_by_profile_id_initial_attempt_id(
         &self,
+        state: &SessionState,
         profile_id: &str,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -621,7 +648,7 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(merchant_key_store.key.get_inner())
+                .convert(state, merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -632,6 +659,7 @@ impl EventInterface for MockDb {
 
     async fn update_event_by_merchant_id_event_id(
         &self,
+        state: &SessionState,
         merchant_id: &str,
         event_id: &str,
         event: domain::EventUpdate,
@@ -657,7 +685,7 @@ impl EventInterface for MockDb {
 
         event_to_update
             .clone()
-            .convert(merchant_key_store.key.get_inner())
+            .convert(state, merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -665,6 +693,8 @@ impl EventInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use diesel_models::enums;
     use time::macros::datetime;
 
@@ -673,6 +703,7 @@ mod tests {
             events::EventInterface, merchant_key_store::MerchantKeyStoreInterface,
             MasterKeyInterface, MockDb,
         },
+        routes::{self, app::settings::Settings},
         services,
         types::domain,
     };
@@ -684,6 +715,16 @@ mod tests {
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
+        let (tx, _) = tokio::sync::oneshot::channel();
+        let app_state = Box::pin(routes::AppState::new(
+            Settings::default(),
+            tx,
+            Box::new(services::MockApiClient),
+        ))
+        .await;
+        let state = &Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
         let event_id = "test_event_id";
         let merchant_id = "merchant1";
         let business_profile_id = "profile1";
@@ -691,9 +732,11 @@ mod tests {
         let master_key = mockdb.get_master_key();
         mockdb
             .insert_merchant_key_store(
+                state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.into(),
                     key: domain::types::encrypt(
+                        state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
                         master_key,
                     )
@@ -706,12 +749,13 @@ mod tests {
             .await
             .unwrap();
         let merchant_key_store = mockdb
-            .get_merchant_key_store_by_merchant_id(merchant_id, &master_key.to_vec().into())
+            .get_merchant_key_store_by_merchant_id(state, merchant_id, &master_key.to_vec().into())
             .await
             .unwrap();
 
         let event1 = mockdb
             .insert_event(
+                state,
                 domain::Event {
                     event_id: event_id.into(),
                     event_type: enums::EventType::PaymentSucceeded,
@@ -738,6 +782,7 @@ mod tests {
 
         let updated_event = mockdb
             .update_event_by_merchant_id_event_id(
+                state,
                 merchant_id,
                 event_id,
                 domain::EventUpdate::UpdateResponse {
