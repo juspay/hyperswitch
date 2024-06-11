@@ -45,6 +45,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
         state: &SessionState,
@@ -72,6 +73,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn list_initial_events_by_profile_id_constraints(
         &self,
         state: &SessionState,

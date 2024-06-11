@@ -346,7 +346,7 @@ pub async fn create_business_profile_from_business_labels(
 ) -> RouterResult<()> {
     let db = &*state.store;
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&state, merchant_id, key_store)
+        .find_merchant_account_by_merchant_id(state, merchant_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1083,8 +1083,7 @@ async fn validate_pm_auth(
 
     for conn_choice in config.enabled_payment_methods {
         let pm_auth_mca = all_mcas
-            .clone()
-            .into_iter()
+            .iter()
             .find(|mca| mca.merchant_connector_id == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth connector account not found".to_string(),

@@ -177,11 +177,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_key_store = key_store.clone();
+        let session_state = state.clone();
 
         let shipping_address_fut = tokio::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
-                    &state,
+                    &session_state,
                     m_request_shipping.as_ref(),
                     m_payment_intent_shipping_address_id.as_deref(),
                     m_merchant_id.as_str(),
@@ -204,11 +205,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = key_store.clone();
+        let session_state = state.clone();
 
         let billing_address_fut = tokio::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
-                    state,
+                    &session_state,
                     m_request_billing.as_ref(),
                     m_payment_intent_billing_address_id.as_deref(),
                     m_merchant_id.as_ref(),
@@ -450,11 +452,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let m_key_store = key_store.clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_merchant_id = merchant_id.clone();
+        let session_state = state.clone();
 
         let payment_method_billing_future = tokio::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
-                    state,
+                    &session_state,
                     n_request_payment_method_billing_address.as_ref(),
                     n_payment_method_billing_address_id.as_deref(),
                     m_merchant_id.as_str(),
@@ -1213,6 +1216,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
+        let session_state = state.clone();
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -1259,7 +1263,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 tokio::spawn(
                     async move {
                         m_db.update_customer_by_customer_id_merchant_id(
-                            state,
+                            &session_state,
                             m_customer_customer_id,
                             m_customer_merchant_id,
                             customer,

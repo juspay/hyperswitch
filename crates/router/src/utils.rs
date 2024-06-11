@@ -733,36 +733,36 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 country: address_details.country,
                 line1: address_details
                     .line1
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 line2: address_details
                     .line2
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 line3: address_details
                     .line3
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 zip: address_details
                     .zip
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 state: address_details
                     .state
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 first_name: address_details
                     .first_name
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 last_name: address_details
                     .last_name
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 phone_number: self
                     .phone
                     .clone()
-                    .async_lift(|inner| encrypt_optional(&state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 merchant_id: merchant_id.to_string(),
@@ -775,7 +775,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .as_ref()
                     .cloned()
                     .async_lift(|inner| {
-                        encrypt_optional(&state, inner.map(|inner| inner.expose()), key)
+                        encrypt_optional(state, inner.map(|inner| inner.expose()), key)
                     })
                     .await?,
             };

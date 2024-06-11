@@ -159,7 +159,7 @@ pub async fn create_payment_method(
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
-            &state,
+            state,
             merchant_id.to_string(),
             key_store.clone(),
             customer_id,
@@ -538,7 +538,7 @@ pub async fn add_payment_method(
         #[cfg(feature = "payouts")]
         api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
             Some(bank) => add_bank_to_locker(
-                &state,
+                state,
                 req.clone(),
                 merchant_account,
                 key_store,
@@ -558,7 +558,7 @@ pub async fn add_payment_method(
             Some(card) => {
                 helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
                 Box::pin(add_card_to_locker(
-                    &state,
+                    state,
                     req.clone(),
                     &card,
                     &customer_id,
@@ -614,7 +614,7 @@ pub async fn add_payment_method(
                     let client_secret = existing_pm.client_secret.clone();
 
                     delete_card_from_locker(
-                        &state,
+                        state,
                         &customer_id,
                         merchant_id,
                         existing_pm
@@ -625,7 +625,7 @@ pub async fn add_payment_method(
                     .await?;
 
                     let add_card_resp = add_card_hs(
-                        &state,
+                        state,
                         req.clone(),
                         &card,
                         &customer_id,

@@ -37,6 +37,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         state: &SessionState,
