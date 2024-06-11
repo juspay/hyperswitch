@@ -1,5 +1,6 @@
 import routingConfigBody from "../../fixtures/routing-config-body.json";
 import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
+import customerCreateBody from "../../fixtures/create-customer-body.json";
 import State from "../../utils/State";
 import * as utils from "../RoutingUtils/utils";
 
@@ -43,6 +44,10 @@ describe("Routing Test", () => {
       cy.createJWTToken(req_data, res_data, globalState);
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("customer-create-call-test", () => {
+      cy.createCustomerCallTest(customerCreateBody, globalState);
     });
 
     it("add-routing-config", () => {
