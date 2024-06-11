@@ -32,7 +32,9 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: &Option<u16>
                 ACCOUNTS_CACHE,
                 ROUTING_CACHE,
                 CGRAPH_CACHE,
-                PM_FILTERS_CGRAPH_CACHE
+                PM_FILTERS_CGRAPH_CACHE,
+                DECISION_MANAGER_CACHE,
+                SURCHARGE_CACHE
             );
 
             tokio::time::sleep(std::time::Duration::from_secs(
