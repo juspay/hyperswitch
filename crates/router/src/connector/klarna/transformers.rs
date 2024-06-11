@@ -1,6 +1,7 @@
 use api_models::payments;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data::KlarnaSdkResponse;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -84,6 +85,41 @@ pub struct KlarnaPaymentsRequest {
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
+    authorized_payment_method: AuthorizedPaymentMethod,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthorizedPaymentMethod {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[derive(strum::Display)]
+pub enum PaymentType {
+    Invoice,
+    FixedAmount,
+    BaseAccount,
+    DirectDebit,
+    DirectBankTransfer,
+    B2BInvoice,
+    Card,
+    SliceItByCard,
+    PayLaterByCard,
+    PayByCard,
+    FixedSumCredit,
+    AlternativePaymentMethod,
+}
+
+impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
+    fn from(item: AuthorizedPaymentMethod) -> Self {
+        Self::PayLater {
+            klarna_sdk: Some(KlarnaSdkResponse {
+                payment_type: Some(item.payment_type.to_string()),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -236,6 +272,12 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
+            types::AdditionalPaymentMethodConnectorResponse::from(
+                item.response.authorized_payment_method,
+            ),
+        );
+
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -253,6 +295,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 item.response.fraud_status,
                 item.data.request.is_auto_capture()?,
             )),
+            connector_response: Some(connector_response),
             ..item.data
         })
     }

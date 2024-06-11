@@ -1797,7 +1797,9 @@ pub enum AdditionalPaymentData {
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
     },
-    PayLater {},
+    PayLater {
+        klarna_sdk: Option<KlarnaSdkPaymentMethod>,
+    },
     BankTransfer {},
     Crypto {},
     BankDebit {},
@@ -1808,6 +1810,12 @@ pub enum AdditionalPaymentData {
     Voucher {},
     CardRedirect {},
     CardToken {},
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub struct KlarnaSdkPaymentMethod {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2734,7 +2742,7 @@ where
                 | PaymentMethodDataResponse::Crypto {}
                 | PaymentMethodDataResponse::MandatePayment {}
                 | PaymentMethodDataResponse::GiftCard {}
-                | PaymentMethodDataResponse::PayLater {}
+                | PaymentMethodDataResponse::PayLater(_)
                 | PaymentMethodDataResponse::Paypal {}
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
@@ -2759,7 +2767,7 @@ pub enum PaymentMethodDataResponse {
     Card(Box<CardResponse>),
     BankTransfer {},
     Wallet {},
-    PayLater {},
+    PayLater(PaylaterResponse),
     Paypal {},
     BankRedirect {},
     Crypto {},
@@ -2771,6 +2779,17 @@ pub enum PaymentMethodDataResponse {
     GiftCard {},
     CardRedirect {},
     CardToken {},
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaylaterResponse {
+    klarna_sdk: Option<KlarnaSdkPaymentMethodResponse>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub struct KlarnaSdkPaymentMethodResponse {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3871,11 +3890,23 @@ impl From<AdditionalCardInfo> for CardResponse {
     }
 }
 
+impl From<Option<KlarnaSdkPaymentMethod>> for PaylaterResponse {
+    fn from(klarna_sdk: Option<KlarnaSdkPaymentMethod>) -> Self {
+        Self {
+            klarna_sdk: klarna_sdk.map(|sdk| KlarnaSdkPaymentMethodResponse {
+                payment_type: sdk.payment_type,
+            }),
+        }
+    }
+}
+
 impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater {} => Self::PayLater {},
+            AdditionalPaymentData::PayLater { klarna_sdk } => {
+                Self::PayLater(PaylaterResponse::from(klarna_sdk))
+            }
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
             AdditionalPaymentData::Crypto {} => Self::Crypto {},
