@@ -7,17 +7,17 @@ use scheduler::{
 use crate::{
     errors,
     logger::error,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     types::storage::{self, PaymentMethodStatusTrackingData},
 };
 
 pub struct PaymentMethodStatusUpdateWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -101,7 +101,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentMethodStatusUpdateWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         process: storage::ProcessTracker,
         _error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
