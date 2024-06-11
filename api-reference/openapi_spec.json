@@ -12824,7 +12824,8 @@
           "fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees to be collected on the payment"
+            "description": "Platform fees to be collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",
@@ -12851,7 +12852,8 @@
           "application_fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees collected on the payment"
+            "description": "Platform fees collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",

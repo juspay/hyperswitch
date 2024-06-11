@@ -3343,6 +3343,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         merchant_id: router_data.merchant_id,
         address: router_data.address,
         amount_captured: router_data.amount_captured,
+        minor_amount_captured: router_data.minor_amount_captured,
         auth_type: router_data.auth_type,
         connector: router_data.connector,
         connector_auth_type: router_data.connector_auth_type,
