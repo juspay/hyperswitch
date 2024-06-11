@@ -36,14 +36,6 @@ pub struct PaymentMethodCreate {
     #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
-    /// Card Details
-    #[schema(example = json!({
-    "card_number": "4111111145551142",
-    "card_exp_month": "10",
-    "card_exp_year": "25",
-    "card_holder_name": "John Doe"}))]
-    pub card: Option<CardDetail>,
-
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -55,16 +47,6 @@ pub struct PaymentMethodCreate {
     /// The card network
     #[schema(example = "Visa")]
     pub card_network: Option<String>,
-
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
-    pub bank_transfer: Option<payouts::Bank>,
-
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Wallet>)]
-    pub wallet: Option<payouts::Wallet>,
 
     /// For Client based calls, SDK will use the client_secret
     /// in order to call /payment_methods
@@ -100,6 +82,24 @@ pub struct PaymentMethodUpdate {
 
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Bank)]
+    BankTransfer(payouts::Bank),
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Wallet)]
+    Wallet(payouts::Wallet),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
+
+pub enum PaymentMethodResponseData {
+    Card(CardDetailFromLocker),
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Bank)]
+    BankTransfer(payouts::Bank),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -209,10 +209,6 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
-    /// Card details from card locker
-    #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
-    pub card: Option<CardDetailFromLocker>,
-
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
     pub recurring_enabled: bool,
@@ -234,18 +230,14 @@ pub struct PaymentMethodResponse {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bank_transfer: Option<payouts::Bank>,
-
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
     /// For Client based calls
     pub client_secret: Option<String>,
+
+    pub payment_method_data: Option<PaymentMethodResponseData>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

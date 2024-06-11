@@ -186,9 +186,6 @@ pub fn store_default_payment_method(
         payment_method_id: pm_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
-        #[cfg(feature = "payouts")]
-        bank_transfer: None,
-        card: None,
         metadata: req.metadata.clone(),
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           //[#219]
@@ -196,6 +193,7 @@ pub fn store_default_payment_method(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
+        payment_method_data: None,
     };
 
     (payment_method_response, None)
@@ -280,10 +278,7 @@ pub async fn get_client_secret_or_add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    #[cfg(not(feature = "payouts"))]
-    let condition = req.card.is_some();
-    #[cfg(feature = "payouts")]
-    let condition = req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some();
+    let condition = req.payment_method_data.is_some();
 
     if condition {
         Box::pin(add_payment_method(state, req, merchant_account, key_store)).await
@@ -742,10 +737,12 @@ pub async fn insert_payment_method(
     storage_scheme: MerchantStorageScheme,
     payment_method_billing_address: Option<Encryption>,
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
-    let pm_card_details = resp
-        .card
-        .as_ref()
-        .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+    let pm_card_details = match &resp.payment_method_data {
+        Some(api::PaymentMethodResponseData::Card(card_data)) => Some(PaymentMethodsData::Card(
+            CardDetailsPaymentMethod::from(card_data.clone()),
+        )),
+        _ => None,
+    };
     let pm_data_encrypted = create_encrypted_data(key_store, pm_card_details).await;
     create_payment_method(
         db,
@@ -865,15 +862,12 @@ pub async fn update_customer_payment_method(
                 payment_method_type: pm.payment_method_type,
                 payment_method_issuer: pm.payment_method_issuer.clone(),
                 payment_method_issuer_code: pm.payment_method_issuer_code,
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
-                card: Some(updated_card_details.clone()),
-                #[cfg(feature = "payouts")]
-                wallet: None,
                 metadata: None,
                 customer_id: Some(pm.customer_id.clone()),
                 client_secret: pm.client_secret.clone(),
-                payment_method_data: None,
+                payment_method_data: Some(api::PaymentMethodCreateData::Card(
+                    updated_card_details.clone(),
+                )),
                 card_network: None,
             };
             new_pm.validate()?;
@@ -950,9 +944,6 @@ pub async fn update_customer_payment_method(
                 payment_method_id: pm.payment_method_id,
                 payment_method: pm.payment_method,
                 payment_method_type: pm.payment_method_type,
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
-                card: Some(existing_card_data),
                 metadata: pm.metadata,
                 created: Some(pm.created_at),
                 recurring_enabled: false,
@@ -960,6 +951,7 @@ pub async fn update_customer_payment_method(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: pm.client_secret.clone(),
+                payment_method_data: Some(api::PaymentMethodResponseData::Card(existing_card_data)),
             }
         };
 
@@ -3963,9 +3955,7 @@ pub async fn retrieve_payment_method(
             payment_method_id: pm.payment_method_id,
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,
-            #[cfg(feature = "payouts")]
-            bank_transfer: None,
-            card,
+            payment_method_data: card.map(api::PaymentMethodResponseData::Card),
             metadata: pm.metadata,
             created: Some(pm.created_at),
             recurring_enabled: false,
