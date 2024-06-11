@@ -219,7 +219,7 @@ TTL
 SETTINGS 
     index_granularity = 8192;
 
-CREATE MATERIALIZED VIEW active_payments_mv TO active_payments ( 
+CREATE MATERIALIZED VIEW sdk_active_payments_mv TO active_payments ( 
     `payment_id` Nullable(String),
     `merchant_id` String,
     `created_at` DateTime64,
