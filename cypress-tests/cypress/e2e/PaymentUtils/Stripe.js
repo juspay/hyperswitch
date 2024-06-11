@@ -392,8 +392,24 @@ export const connectorDetails = {
           bank_redirect: {
             ideal: {
               bank_name: "ing",
-              country: "NL",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -410,9 +426,24 @@ export const connectorDetails = {
         payment_method_type: "giropay",
         payment_method_data: {
           bank_redirect: {
-            giropay: {             
-              country: "DE",
-            },
+            giropay: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -429,10 +460,24 @@ export const connectorDetails = {
         payment_method_type: "sofort",
         payment_method_data: {
           bank_redirect: {
-            sofort: {
-              country: "DE",
-              preferred_language: "en",
-            },
+            sofort: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -452,6 +497,23 @@ export const connectorDetails = {
             eps: {
               bank_name: "bank_austria",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },

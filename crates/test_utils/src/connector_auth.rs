@@ -76,6 +76,7 @@ pub struct ConnectorAuthentication {
     pub zen: Option<HeaderKey>,
     pub zsl: Option<BodyKey>,
     pub automation_configs: Option<AutomationConfigs>,
+    pub users: Option<UsersConfigs>,
 }
 
 impl Default for ConnectorAuthentication {
@@ -338,4 +339,13 @@ pub enum ConnectorAuthType {
     },
     #[default]
     NoKey,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UsersConfigs {
+    pub user_email: String,
+    pub user_password: String,
+    pub wrong_password: String,
+    pub user_base_email_for_signup: String,
+    pub user_domain_for_signup: String,
 }

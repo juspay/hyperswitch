@@ -195,12 +195,14 @@ impl DashboardRequestPayload {
             merchant_name: None,
             acquirer_bin: None,
             acquirer_merchant_id: None,
+            acquirer_country_code: None,
             three_ds_requestor_name: None,
             three_ds_requestor_id: None,
             pull_mechanism_for_external_3ds_enabled: None,
             paypal_sdk: None,
             klarna_region: None,
             source_balance_account: None,
+            brand_id: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -221,12 +223,14 @@ impl DashboardRequestPayload {
         let merchant_name = meta_data.merchant_name;
         let acquirer_bin = meta_data.acquirer_bin;
         let acquirer_merchant_id = meta_data.acquirer_merchant_id;
+        let acquirer_country_code = meta_data.acquirer_country_code;
         let three_ds_requestor_name = meta_data.three_ds_requestor_name;
         let three_ds_requestor_id = meta_data.three_ds_requestor_id;
         let pull_mechanism_for_external_3ds_enabled =
             meta_data.pull_mechanism_for_external_3ds_enabled;
         let klarna_region = meta_data.klarna_region;
         let source_balance_account = meta_data.source_balance_account;
+        let brand_id = meta_data.brand_id;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -244,11 +248,13 @@ impl DashboardRequestPayload {
             merchant_name,
             acquirer_bin,
             acquirer_merchant_id,
+            acquirer_country_code,
             three_ds_requestor_name,
             three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled,
             klarna_region,
             source_balance_account,
+            brand_id,
         })
     }
 

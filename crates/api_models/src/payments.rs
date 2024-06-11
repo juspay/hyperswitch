@@ -20,7 +20,7 @@ use serde::{
     ser::Serializer,
     Deserialize, Deserializer, Serialize,
 };
-use time::PrimitiveDateTime;
+use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
@@ -512,7 +512,8 @@ pub struct PaymentChargeRequest {
     pub charge_type: api_enums::PaymentChargeType,
 
     /// Platform fees to be collected on the payment
-    pub fees: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub fees: MinorUnit,
 
     /// Identifier for the reseller's account to send the funds to
     pub transfer_account_id: String,
@@ -1604,6 +1605,7 @@ impl GetPaymentMethodType for WalletData {
             }
             Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
+            Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
         }
     }
 }
@@ -2415,6 +2417,8 @@ pub enum WalletData {
     CashappQr(Box<CashappQr>),
     // The wallet data for Swish
     SwishQr(SwishQrData),
+    // The wallet data for Mifinity Ewallet
+    Mifinity(MifinityData),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
@@ -2441,7 +2445,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
                     phone: None,
                 })
             }
-            Self::AliPayQr(_)
+            Self::Mifinity(_)
+            | Self::AliPayQr(_)
             | Self::AliPayRedirect(_)
             | Self::AliPayHkRedirect(_)
             | Self::MomoRedirect(_)
@@ -2572,6 +2577,14 @@ pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SwishQrData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MifinityData {
+    #[schema(value_type = String)]
+    pub destination_account_number: Secret<String>,
+    #[schema(value_type = Date)]
+    pub date_of_birth: Secret<Date>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
@@ -3535,7 +3548,8 @@ pub struct PaymentChargeResponse {
     pub charge_type: api_enums::PaymentChargeType,
 
     /// Platform fees collected on the payment
-    pub application_fees: i64,
+    #[schema(value_type = i64, example = 6540)]
+    pub application_fees: MinorUnit,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,

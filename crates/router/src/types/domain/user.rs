@@ -1,8 +1,4 @@
-use std::{
-    collections::HashSet,
-    ops::{self, Not},
-    str::FromStr,
-};
+use std::{collections::HashSet, ops, str::FromStr};
 
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
@@ -518,9 +514,8 @@ pub struct NewUser {
     user_id: String,
     name: UserName,
     email: UserEmail,
-    password: UserPassword,
+    password: Option<UserPassword>,
     new_merchant: NewUserMerchant,
-    is_temporary_password: bool,
 }
 
 impl NewUser {
@@ -540,7 +535,7 @@ impl NewUser {
         self.new_merchant.clone()
     }
 
-    pub fn get_password(&self) -> UserPassword {
+    pub fn get_password(&self) -> Option<UserPassword> {
         self.password.clone()
     }
 
@@ -624,7 +619,12 @@ impl TryFrom<NewUser> for storage_user::UserNew {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: NewUser) -> UserResult<Self> {
-        let hashed_password = password::generate_password_hash(value.password.get_secret())?;
+        let hashed_password = value
+            .password
+            .as_ref()
+            .map(|password| password::generate_password_hash(password.get_secret()))
+            .transpose()?;
+
         let now = common_utils::date_time::now();
         Ok(Self {
             user_id: value.get_user_id(),
@@ -638,7 +638,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
-            last_password_modified_at: value.is_temporary_password.not().then_some(now),
+            last_password_modified_at: value.password.is_some().then_some(now),
         })
     }
 }
@@ -656,10 +656,9 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
         Ok(Self {
             name,
             email,
-            password,
+            password: Some(password),
             user_id,
             new_merchant,
-            is_temporary_password: false,
         })
     }
 }
@@ -678,9 +677,8 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
             user_id,
             name,
             email,
-            password,
+            password: Some(password),
             new_merchant,
-            is_temporary_password: false,
         })
     }
 }
@@ -692,16 +690,14 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(password::get_temp_password())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
             user_id,
             name,
             email,
-            password,
+            password: None,
             new_merchant,
-            is_temporary_password: true,
         })
     }
 }
@@ -722,9 +718,8 @@ impl TryFrom<(user_api::CreateInternalUserRequest, String)> for NewUser {
             user_id,
             name,
             email,
-            password,
+            password: Some(password),
             new_merchant,
-            is_temporary_password: false,
         })
     }
 }
@@ -740,11 +735,12 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: UserPassword::new_password_without_validation(user.0.password)?,
+            password: user
+                .0
+                .password
+                .map(UserPassword::new_password_without_validation)
+                .transpose()?,
             new_merchant,
-            // This is true because we are not creating a user with this request. And if it is set
-            // to false, last_password_modified_at will be overwritten if this user is inserted.
-            is_temporary_password: true,
         })
     }
 }
@@ -755,7 +751,8 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = UserPassword::new(password::get_temp_password())?;
+        let password = cfg!(not(feature = "email"))
+            .then_some(UserPassword::new(password::get_temp_password())?);
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -764,7 +761,6 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
             email,
             password,
             new_merchant,
-            is_temporary_password: true,
         })
     }
 }
@@ -784,10 +780,14 @@ impl UserFromStorage {
     }
 
     pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
-        match password::is_correct_password(candidate, &self.0.password) {
-            Ok(true) => Ok(()),
-            Ok(false) => Err(UserErrors::InvalidCredentials.into()),
-            Err(e) => Err(e),
+        if let Some(password) = self.0.password.as_ref() {
+            match password::is_correct_password(candidate, password) {
+                Ok(true) => Ok(()),
+                Ok(false) => Err(UserErrors::InvalidCredentials.into()),
+                Err(e) => Err(e),
+            }
+        } else {
+            Err(UserErrors::InvalidCredentials.into())
         }
     }
 
@@ -922,6 +922,16 @@ impl UserFromStorage {
                     .change_context(UserErrors::InternalServerError)?,
                 created_at: common_utils::date_time::now(),
             };
+
+            crate::encryption::create_key_in_key_manager(
+                state,
+                super::EncryptionCreateRequest {
+                    identifier: super::Identifier::User(key_store.user_id.clone()),
+                },
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
             state
                 .global_store
                 .insert_user_key_store(state, key_store, &master_key.to_vec().into())

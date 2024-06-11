@@ -57,6 +57,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::Swish => Self::Swish,
             enums::WalletType::Cashapp => Self::Cashapp,
             enums::WalletType::Venmo => Self::Venmo,
+            enums::WalletType::Mifinity => Self::Mifinity,
         }
     }
 }

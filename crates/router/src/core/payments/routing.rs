@@ -558,9 +558,9 @@ pub async fn get_merchant_cgraph<'a>(
 
     #[cfg(not(feature = "business_profile_routing"))]
     let key = match transaction_type {
-        api_enums::TransactionType::Payment => format!("kgraph_{}", merchant_id),
+        api_enums::TransactionType::Payment => format!("cgraph_{}", merchant_id),
         #[cfg(feature = "payouts")]
-        api_enums::TransactionType::Payout => format!("kgraph_po_{}", merchant_id),
+        api_enums::TransactionType::Payout => format!("cgraph_po_{}", merchant_id),
     };
 
     let cached_cgraph = CGRAPH_CACHE
