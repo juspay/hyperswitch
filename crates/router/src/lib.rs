@@ -48,6 +48,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
+    pub const KEY: &str = "key";
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
     pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
@@ -145,6 +146,7 @@ pub fn mk_app(
             .service(routes::Routing::server(state.clone()))
             .service(routes::Blocklist::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
+            .service(routes::ApplePayCertificatesMigration::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))

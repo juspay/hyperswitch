@@ -148,6 +148,9 @@ pub enum RedirectForm {
         customer_vault_id: String,
         order_id: String,
     },
+    Mifinity {
+        initialization_token: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -182,7 +185,7 @@ pub struct RetrieveFileResponse {
 #[derive(Clone, Debug, Default)]
 pub struct PayoutsResponseData {
     pub status: Option<common_enums::PayoutStatus>,
-    pub connector_payout_id: String,
+    pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub should_add_next_step_to_process_tracker: bool,
 }

@@ -1,0 +1,31 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Cookie",
+      "value": "Cookie_1=value"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw_json_formatted": {
+      "email": "{{user_email}}",
+      "password": "{{wrong_password}}"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/user/v2/signin",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "user",
+      "v2",
+      "signin"
+    ]
+  }
+}

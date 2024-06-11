@@ -7,7 +7,7 @@ use redis_interface::RedisConnectionPool;
 
 use super::AuthToken;
 #[cfg(feature = "olap")]
-use super::SinglePurposeToken;
+use super::{SinglePurposeOrLoginToken, SinglePurposeToken};
 #[cfg(feature = "email")]
 use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
@@ -159,6 +159,17 @@ impl BlackList for AuthToken {
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 impl BlackList for SinglePurposeToken {
+    async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
+    where
+        A: SessionStateInfo + Sync,
+    {
+        check_user_in_blacklist(state, &self.user_id, self.exp).await
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+impl BlackList for SinglePurposeOrLoginToken {
     async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
     where
         A: SessionStateInfo + Sync,
