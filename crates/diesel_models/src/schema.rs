@@ -813,11 +813,11 @@ diesel::table! {
         #[max_length = 64]
         payment_method_billing_address_id -> Nullable<Varchar>,
         #[max_length = 64]
+        #[max_length = 64]
+        charge_id -> Nullable<Varchar>,
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
-        #[max_length = 64]
-        charge_id -> Nullable<Varchar>,
     }
 }
 
@@ -886,8 +886,8 @@ diesel::table! {
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
         request_external_three_ds_authentication -> Nullable<Bool>,
-        frm_metadata -> Nullable<Jsonb>,
         charges -> Nullable<Jsonb>,
+        frm_metadata -> Nullable<Jsonb>,
     }
 }
 
