@@ -223,7 +223,7 @@ CREATE MATERIALIZED VIEW active_payments_mv TO active_payments (
     `payment_id` Nullable(String),
     `merchant_id` String,
     `created_at` DateTime64,
-    `flow_type` String
+    `flow_type` LowCardinality(Nullable(String))
 ) AS 
 SELECT
     payment_id,
@@ -238,7 +238,7 @@ CREATE MATERIALIZED VIEW api_active_payments_mv TO active_payments (
     `payment_id` Nullable(String),
     `merchant_id` String,
     `created_at` DateTime64,
-    `flow_type` String
+    `flow_type` LowCardinality(Nullable(String))
 ) AS 
 SELECT
     payment_id,
