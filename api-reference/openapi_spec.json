@@ -5221,6 +5221,7 @@
       },
       "AttemptStatus": {
         "type": "string",
+        "description": "The status of the attempt",
         "enum": [
           "started",
           "authentication_failed",
@@ -5287,6 +5288,7 @@
       },
       "AuthenticationType": {
         "type": "string",
+        "description": "Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set",
         "enum": [
           "three_ds",
           "no_three_ds"
@@ -6977,6 +6979,7 @@
       },
       "CaptureMethod": {
         "type": "string",
+        "description": "Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors",
         "enum": [
           "automatic",
           "manual",
@@ -7058,6 +7061,7 @@
       },
       "CaptureStatus": {
         "type": "string",
+        "description": "The status of the capture",
         "enum": [
           "started",
           "charged",
@@ -7550,6 +7554,7 @@
       },
       "ConnectorMetadata": {
         "type": "object",
+        "description": "additional data related to some connectors",
         "properties": {
           "apple_pay": {
             "allOf": [
@@ -8166,6 +8171,7 @@
       },
       "CustomerAcceptance": {
         "type": "object",
+        "description": "Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client",
         "required": [
           "acceptance_type"
         ],
@@ -8301,6 +8307,7 @@
       },
       "CustomerDetailsResponse": {
         "type": "object",
+        "description": "Details of customer attached to this payment",
         "required": [
           "id"
         ],
@@ -8845,6 +8852,7 @@
       },
       "DisputeStage": {
         "type": "string",
+        "description": "Stage of the dispute",
         "enum": [
           "pre_dispute",
           "dispute",
@@ -8853,6 +8861,7 @@
       },
       "DisputeStatus": {
         "type": "string",
+        "description": "Status of the dispute",
         "enum": [
           "dispute_opened",
           "dispute_expired",
@@ -8909,6 +8918,7 @@
       },
       "EphemeralKeyCreateResponse": {
         "type": "object",
+        "description": "ephemeral_key for the customer_id mentioned",
         "required": [
           "customer_id",
           "created_at",
@@ -9215,6 +9225,7 @@
       },
       "FeatureMetadata": {
         "type": "object",
+        "description": "additional data that might be required by hyperswitch",
         "properties": {
           "redirect_response": {
             "allOf": [
@@ -9619,6 +9630,7 @@
       },
       "FutureUsage": {
         "type": "string",
+        "description": "Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.",
         "enum": [
           "off_session",
           "on_session"
@@ -10375,6 +10387,7 @@
       },
       "IntentStatus": {
         "type": "string",
+        "description": "The status of the current payment that was made",
         "enum": [
           "succeeded",
           "failed",
@@ -11349,6 +11362,7 @@
       },
       "MerchantConnectorDetailsWrap": {
         "type": "object",
+        "description": "Merchant connector details used to make payments.",
         "required": [
           "creds_identifier"
         ],
@@ -12818,6 +12832,7 @@
       },
       "PaymentChargeRequest": {
         "type": "object",
+        "description": "Fee information to be charged on the payment being collected",
         "required": [
           "charge_type",
           "fees",
@@ -12895,7 +12910,8 @@
           {
             "type": "object"
           }
-        ]
+        ],
+        "description": "custom payment link config for the particular payment"
       },
       "PaymentExperience": {
         "type": "string",
@@ -13480,7 +13496,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "The payment method information provided for making a payment"
       },
       "PaymentMethodDeleteResponse": {
         "type": "object",
@@ -14309,22 +14326,6 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -14363,29 +14364,13 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
-            "nullable": true
-          },
-          "recurring_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecurringDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "charges": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
-              }
-            ],
             "nullable": true
           }
         }
@@ -14678,22 +14663,6 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -14745,29 +14714,13 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
-            "nullable": true
-          },
-          "recurring_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecurringDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "charges": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
-              }
-            ],
             "nullable": true
           }
         }
@@ -15266,7 +15219,7 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
@@ -15352,7 +15305,7 @@
           "amount_received": {
             "type": "integer",
             "format": "int64",
-            "description": "The amount which is already captured from the payment",
+            "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
             "example": 6540
           },
           "connector": {
@@ -15405,7 +15358,7 @@
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
             },
-            "description": "List of refund that happened on this intent",
+            "description": "List of refund that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
             "nullable": true
           },
           "disputes": {
@@ -15434,7 +15387,7 @@
           },
           "mandate_id": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data, in case of setting up recurring payments",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -15704,7 +15657,7 @@
           },
           "reference_id": {
             "type": "string",
-            "description": "reference to the payment at connector side",
+            "description": "reference(Identifier) to the payment at connector side",
             "example": "993672945374576J",
             "nullable": true
           },
@@ -15779,13 +15732,13 @@
           "expires_on": {
             "type": "string",
             "format": "date-time",
-            "description": "Date Time expiry of the payment",
+            "description": "Date Time for expiry of the payment",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "fingerprint": {
             "type": "string",
-            "description": "Payment Fingerprint",
+            "description": "Payment Fingerprint, to identify a particular card.\nIt is a 20 character long alphanumeric code.",
             "nullable": true
           },
           "browser_info": {
@@ -15798,7 +15751,7 @@
           },
           "payment_method_id": {
             "type": "string",
-            "description": "Payment Method Id",
+            "description": "Identifier for Payment Method",
             "nullable": true
           },
           "payment_method_status": {
@@ -16235,22 +16188,6 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -16297,29 +16234,13 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
-            "nullable": true
-          },
-          "recurring_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecurringDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "charges": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
-              }
-            ],
             "nullable": true
           }
         }
@@ -17421,6 +17342,7 @@
             }
           }
         ],
+        "description": "Details required for recurring payment",
         "discriminator": {
           "propertyName": "type"
         }
@@ -17823,6 +17745,7 @@
       },
       "RequestSurchargeDetails": {
         "type": "object",
+        "description": "surcharge_details for this payment",
         "required": [
           "surcharge_amount"
         ],
@@ -17983,6 +17906,7 @@
       },
       "RetryAction": {
         "type": "string",
+        "description": "Denotes the retry action",
         "enum": [
           "manual_retry",
           "requeue"
