@@ -862,6 +862,49 @@ impl
 }
 
 // for cybersource each item in Billing is mandatory
+// fn build_bill_to(
+//     address_details: &payments::Address,
+//     email: pii::Email,
+// ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
+//     let address = address_details
+//         .address
+//         .as_ref()
+//         .ok_or_else(utils::missing_field_err("billing.address"))?;
+
+//     let country = address.get_country()?.to_owned();
+//     let first_name = address.get_first_name()?;
+
+//     let (administrative_area, postal_code) =
+//         if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
+//             let mut state = address.to_state_code()?.peek().clone();
+//             state.truncate(20);
+//             (
+//                 Some(Secret::from(state)),
+//                 Some(address.get_zip()?.to_owned()),
+//             )
+//         } else {
+//             let zip = address.zip.clone();
+//             let mut_state = address.state.clone().map(|state| state.expose());
+//             match mut_state {
+//                 Some(mut state) => {
+//                     state.truncate(20);
+//                     (Some(Secret::from(state)), zip)
+//                 }
+//                 None => (None, zip),
+//             }
+//         };
+//     Ok(BillTo {
+//         first_name: first_name.clone(),
+//         last_name: address.get_last_name().unwrap_or(first_name).clone(),
+//         address1: address.get_line1()?.to_owned(),
+//         locality: address.get_city()?.to_owned(),
+//         administrative_area,
+//         postal_code,
+//         country,
+//         email,
+//     })
+// }
+
 fn build_bill_to(
     address_details: Option<&payments::Address>,
     email: pii::Email,
