@@ -230,3 +230,6 @@ api_key="API Key"
 
 [gpayments]
 api_key="API Key"
+
+[adyenplatform]
+api_key="API Key"

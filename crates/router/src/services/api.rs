@@ -1,21 +1,22 @@
 pub mod client;
 pub mod request;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     error::Error,
     fmt::Debug,
     future::Future,
     str,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
+use actix_http::header::HeaderMap;
 use actix_web::{
     body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
     ResponseError,
 };
 use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -23,7 +24,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
+pub use hyperswitch_domain_models::router_response_types::RedirectForm;
+use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -45,9 +47,9 @@ use crate::{
     },
     logger,
     routes::{
-        app::{AppStateInfo, ReqState},
+        app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics::{self, request as metrics_request},
-        AppState,
+        AppState, SessionState,
     },
     types::{
         self,
@@ -169,26 +171,6 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
-    /// This module can be called before executing a payment flow where a pre-task is needed
-    /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
-    async fn execute_pretasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    /// This module can be called after executing a payment flow where a post-task needed
-    /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
-    async fn execute_posttasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
     fn build_request(
         &self,
         req: &types::RouterData<T, Req, Resp>,
@@ -297,7 +279,7 @@ pub async fn execute_connector_processing_step<
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    state: &'b AppState,
+    state: &'b SessionState,
     connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
@@ -555,7 +537,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn call_connector_api(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
     flow_name: &str,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
@@ -591,7 +573,7 @@ pub async fn call_connector_api(
 
 #[instrument(skip_all)]
 pub async fn send_request(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
@@ -901,62 +883,6 @@ pub struct ApplicationRedirectResponse {
     pub url: String,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub enum RedirectForm {
-    Form {
-        endpoint: String,
-        method: Method,
-        form_fields: HashMap<String, String>,
-    },
-    Html {
-        html_data: String,
-    },
-    BlueSnap {
-        payment_fields_token: String, // payment-field-token
-    },
-    CybersourceAuthSetup {
-        access_token: String,
-        ddc_url: String,
-        reference_id: String,
-    },
-    CybersourceConsumerAuth {
-        access_token: String,
-        step_up_url: String,
-    },
-    Payme,
-    Braintree {
-        client_token: String,
-        card_token: String,
-        bin: String,
-    },
-    Nmi {
-        amount: String,
-        currency: Currency,
-        public_key: Secret<String>,
-        customer_vault_id: String,
-        order_id: String,
-    },
-}
-
-impl From<(url::Url, Method)> for RedirectForm {
-    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
-        let form_fields = HashMap::from_iter(
-            redirect_url
-                .query_pairs()
-                .map(|(key, value)| (key.to_string(), value.to_string())),
-        );
-
-        // Do not include query params in the endpoint
-        redirect_url.set_query(None);
-
-        Self::Form {
-            endpoint: redirect_url.to_string(),
-            method,
-            form_fields,
-        }
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AuthFlow {
     Client,
@@ -971,15 +897,16 @@ pub enum AuthFlow {
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
+    incoming_request_header: &HeaderMap,
     mut request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a + ApiEventMetric,
@@ -1001,17 +928,49 @@ where
 
     let mut app_state = state.get_ref().clone();
 
-    app_state.add_request_id(request_id);
     let start_instant = Instant::now();
     let serialized_request = masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
+    let tenants: HashSet<_> = state
+        .conf
+        .multitenancy
+        .get_tenant_names()
+        .into_iter()
+        .collect();
+    let tenant_id = if !state.conf.multitenancy.enabled {
+        common_utils::consts::DEFAULT_TENANT.to_string()
+    } else {
+        incoming_request_header
+            .get("x-tenant-id")
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
+            .map(|req_tenant_id| {
+                if !tenants.contains(req_tenant_id) {
+                    Err(errors::ApiErrorResponse::InvalidTenant {
+                        tenant_id: req_tenant_id.to_string(),
+                    }
+                    .switch())
+                } else {
+                    Ok(req_tenant_id.to_string())
+                }
+            })??
+    };
+    // let tenant_id = "public".to_string();
+    let mut session_state =
+        Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.clone(),
+            }
+            .switch()
+        })?;
+    session_state.add_request_id(request_id);
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
-        .authenticate_and_fetch(request.headers(), &app_state)
+        .authenticate_and_fetch(request.headers(), &session_state)
         .await
         .switch()?;
 
@@ -1031,14 +990,14 @@ where
     let output = {
         lock_action
             .clone()
-            .perform_locking_action(&app_state, merchant_id.to_owned())
+            .perform_locking_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
-        let res = func(app_state.clone(), auth_out, payload, request_state)
+        let res = func(session_state.clone(), auth_out, payload, request_state)
             .await
             .switch();
         lock_action
-            .free_lock_action(&app_state, merchant_id.to_owned())
+            .free_lock_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
         res
@@ -1120,11 +1079,11 @@ pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + ApiEventMetric + 'a,
     T: Debug + Serialize + ApiEventMetric,
@@ -1165,6 +1124,7 @@ where
         server_wrap_util(
             &flow,
             state.clone(),
+            incoming_request_header,
             req_state,
             request,
             payload,
@@ -1768,7 +1728,7 @@ pub fn build_redirection_form(
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
-                    (PreEscaped(format!("<script>
+                (PreEscaped(format!("<script>
                                 {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
@@ -1967,6 +1927,29 @@ pub fn build_redirection_form(
             </script>"
             )))
                 }
+        }
+        RedirectForm::Mifinity {
+            initialization_token,
+        } => {
+            maud::html! {
+                        (maud::DOCTYPE)
+                        head {
+                            (PreEscaped(r#"<script src='https://demo.mifinity.com/widgets/sgpg.js?58190a411dc3'></script>"#))
+                        }
+
+                        (PreEscaped(format!("<div id='widget-container'></div>
+	  <script>
+		  var widget = showPaymentIframe('widget-container', {{
+			  token: '{initialization_token}',
+			  complete: function() {{
+				  setTimeout(function() {{
+					widget.close();
+				  }}, 5000);
+			  }}
+		   }});
+	   </script>")))
+
+            }
         }
     }
 }

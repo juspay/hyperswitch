@@ -1,6 +1,8 @@
 #[cfg(feature = "olap")]
 use std::collections::HashSet;
 
+#[cfg(feature = "olap")]
+use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 use error_stack::ResultExt;
 
@@ -1024,8 +1026,10 @@ impl RefundInterface for MockDb {
                     .amount_filter
                     .as_ref()
                     .map_or(true, |amount| {
-                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
-                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                        refund.refund_amount
+                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                            && refund.refund_amount
+                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
                     })
             })
             .filter(|refund| {
@@ -1173,8 +1177,10 @@ impl RefundInterface for MockDb {
                     .amount_filter
                     .as_ref()
                     .map_or(true, |amount| {
-                        refund.refund_amount >= amount.start_amount.unwrap_or(i64::MIN)
-                            && refund.refund_amount <= amount.end_amount.unwrap_or(i64::MAX)
+                        refund.refund_amount
+                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                            && refund.refund_amount
+                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
                     })
             })
             .filter(|refund| {

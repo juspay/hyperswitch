@@ -21,7 +21,7 @@ use crate::{
         pm_auth as core_pm_auth,
     },
     db,
-    routes::AppState,
+    routes::SessionState,
     types::{
         api::{self, payments},
         domain, storage,
@@ -31,7 +31,7 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     pm_data: &Option<payments::PaymentMethodData>,
-    state: &AppState,
+    state: &SessionState,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -163,7 +163,7 @@ pub async fn add_payment_method_status_update_task(
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
-    state: &AppState,
+    state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     payment_intent: &PaymentIntent,

@@ -153,7 +153,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         | domain::WalletData::WeChatPayRedirect(_)
                         | domain::WalletData::WeChatPayQr(_)
                         | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_) => {
+                        | domain::WalletData::SwishQr(_)
+                        | domain::WalletData::Mifinity(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message("braintree"),
                             ))
@@ -308,6 +309,10 @@ impl<F, T>
                 session_token: api::SessionToken::Paypal(Box::new(
                     payments::PaypalSessionTokenResponse {
                         session_token: item.response.client_token.value.expose(),
+                        connector: "braintree".to_string(),
+                        sdk_next_action: payments::SdkNextAction {
+                            next_action: payments::NextActionCall::Confirm,
+                        },
                     },
                 )),
             }),

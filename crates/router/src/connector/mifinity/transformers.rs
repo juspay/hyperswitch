@@ -1,24 +1,27 @@
-use masking::Secret;
+use common_utils::pii::{self, Email};
+use error_stack::ResultExt;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::Date;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
+    connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
+    core::errors::{self, CustomResult},
+    services,
     types::{self, api, domain, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct MifinityRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: String,
     pub router_data: T,
 }
 
 impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MifinityRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -26,20 +29,73 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MifinityRoute
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct MifinityPaymentsRequest {
-    amount: i64,
-    card: MifinityCard,
+pub mod auth_headers {
+    pub const API_VERSION: &str = "api-version";
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct MifinityCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct MifinityConnectorMetadataObject {
+    pub brand_id: Secret<String>,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
+fn get_brand_id(
+    connector_metadata: &Option<pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let mifinity_metadata = MifinityConnectorMetadataObject::try_from(connector_metadata)?;
+    let brand_id = mifinity_metadata.brand_id.clone().expose();
+    Ok(brand_id)
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPaymentsRequest {
+    money: Money,
+    client: MifinityClient,
+    address: MifinityAddress,
+    validation_key: String,
+    client_reference: common_utils::id_type::CustomerId,
+    trace_id: String,
+    description: String,
+    destination_account_number: Secret<String>,
+    brand_id: Secret<String>,
+    return_url: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct Money {
+    amount: String,
+    currency: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityClient {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    phone: Secret<String>,
+    dialing_code: String,
+    nationality: api_models::enums::CountryAlpha2,
+    email_address: Email,
+    dob: Secret<Date>,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityAddress {
+    address_line1: Secret<String>,
+    country_code: api_models::enums::CountryAlpha2,
+    city: String,
 }
 
 impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for MifinityPaymentsRequest {
@@ -48,28 +104,109 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
         item: &MifinityRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
-                let card = MifinityCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
-                })
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain::WalletData::Mifinity(data) => {
+                    let money = Money {
+                        amount: item.amount.clone(),
+                        currency: item.router_data.request.currency.to_string(),
+                    };
+                    let phone_details = item.router_data.get_billing_phone()?;
+                    let client = MifinityClient {
+                        first_name: item.router_data.get_billing_first_name()?,
+                        last_name: item.router_data.get_billing_last_name()?,
+                        phone: phone_details.get_number()?,
+                        dialing_code: phone_details.get_country_code()?,
+                        nationality: item.router_data.get_billing_country()?,
+                        email_address: item.router_data.get_billing_email()?,
+                        dob: data.date_of_birth.clone(),
+                    };
+                    let address = MifinityAddress {
+                        address_line1: item.router_data.get_billing_line1()?,
+                        country_code: item.router_data.get_billing_country()?,
+                        city: item.router_data.get_billing_city()?,
+                    };
+                    let validation_key = format!(
+                        "payment_validation_key_{}_{}",
+                        item.router_data.merchant_id,
+                        item.router_data.connector_request_reference_id.clone()
+                    );
+                    let client_reference = item.router_data.customer_id.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "client_reference",
+                        },
+                    )?;
+                    let destination_account_number = data.destination_account_number;
+                    let trace_id = item.router_data.connector_request_reference_id.clone();
+                    let brand_id =
+                        Secret::new(get_brand_id(&item.router_data.connector_meta_data)?);
+                    Ok(Self {
+                        money,
+                        client,
+                        address,
+                        validation_key,
+                        client_reference,
+                        trace_id: trace_id.clone(),
+                        description: trace_id.clone(), //Connector recommend to use the traceId for a better experience in the BackOffice application later.
+                        destination_account_number,
+                        brand_id,
+                        return_url: item.router_data.request.get_router_return_url()?,
+                    })
+                }
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePay(_)
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                )
+                .into()),
+            },
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                )
+                .into())
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct MifinityAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MifinityAuthType {
@@ -77,38 +214,23 @@ impl TryFrom<&types::ConnectorAuthType> for MifinityAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+                key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum MifinityPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
-impl From<MifinityPaymentStatus> for enums::AttemptStatus {
-    fn from(item: MifinityPaymentStatus) -> Self {
-        match item {
-            MifinityPaymentStatus::Succeeded => Self::Charged,
-            MifinityPaymentStatus::Failed => Self::Failure,
-            MifinityPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MifinityPaymentsResponse {
-    status: MifinityPaymentStatus,
-    id: String,
+    payload: Vec<MifinityPayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPayload {
+    trace_id: String,
+    initialization_token: String,
 }
 
 impl<F, T>
@@ -124,110 +246,168 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+        let payload = item.response.payload.first();
+        match payload {
+            Some(payload) => {
+                let trace_id = payload.trace_id.clone();
+                let initialization_token = payload.initialization_token.clone();
+                Ok(Self {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
+                        redirection_data: Some(services::RedirectForm::Mifinity {
+                            initialization_token,
+                        }),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(trace_id),
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    ..item.data
+                })
+            }
+            None => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct MifinityRefundRequest {
-    pub amount: i64,
-}
-
-impl<F> TryFrom<&MifinityRouterData<&types::RefundsRouterData<F>>> for MifinityRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &MifinityRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPsyncResponse {
+    payload: Vec<MifinityPsyncPayload>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPsyncPayload {
+    status: MifinityPaymentStatus,
+    payment_response: Option<PaymentResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentResponse {
+    trace_id: Option<String>,
+    client_reference: Option<String>,
+    validation_key: Option<String>,
+    transaction_reference: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MifinityPaymentStatus {
+    Successful,
+    Pending,
+    Failed,
+    NotCompleted,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+        let payload = item.response.payload.first();
+
+        match payload {
+            Some(payload) => {
+                let status = payload.to_owned().status.clone();
+                let payment_response = payload.payment_response.clone();
+
+                match payment_response {
+                    Some(payment_response) => {
+                        let transaction_reference = payment_response.transaction_reference.clone();
+                        Ok(Self {
+                            status: enums::AttemptStatus::from(status),
+                            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                                resource_id: types::ResponseId::ConnectorTransactionId(
+                                    transaction_reference,
+                                ),
+                                redirection_data: None,
+                                mandate_reference: None,
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charge_id: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                    None => Ok(Self {
+                        status: enums::AttemptStatus::from(status),
+                        response: Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::NoResponseId,
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        }),
+                        ..item.data
+                    }),
+                }
+            }
+            None => Ok(Self {
+                status: item.data.status,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
+impl From<MifinityPaymentStatus> for enums::AttemptStatus {
+    fn from(item: MifinityPaymentStatus) -> Self {
+        match item {
+            MifinityPaymentStatus::Successful => Self::Charged,
+            MifinityPaymentStatus::Failed => Self::Failure,
+            MifinityPaymentStatus::NotCompleted => Self::AuthenticationPending,
+            MifinityPaymentStatus::Pending => Self::Pending,
+        }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MifinityErrorResponse {
-    pub status_code: u16,
-    pub code: String,
+    pub errors: Vec<MifinityErrorList>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityErrorList {
+    #[serde(rename = "type")]
+    pub error_type: String,
+    pub error_code: String,
     pub message: String,
-    pub reason: Option<String>,
+    pub field: Option<String>,
 }

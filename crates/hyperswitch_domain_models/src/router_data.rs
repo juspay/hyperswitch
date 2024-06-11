@@ -1,14 +1,15 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use common_utils::id_type;
 use masking::Secret;
 
-use crate::payment_address::PaymentAddress;
+use crate::{payment_address::PaymentAddress, payment_method_data};
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub connector: String,
     pub payment_id: String,
@@ -21,6 +22,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub connector_wallets_details: Option<common_utils::pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
@@ -55,7 +57,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_http_status_code: Option<u16>,
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
-    pub apple_pay_flow: Option<common_enums::enums::ApplePayFlow>,
+    pub apple_pay_flow: Option<payment_method_data::ApplePayFlow>,
 
     pub frm_metadata: Option<common_utils::pii::SecretSerdeValue>,
 

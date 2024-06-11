@@ -10,7 +10,7 @@ use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
-use crate::common_config::{CardProvider, GooglePayData, Provider, ZenApplePay};
+use crate::common_config::{CardProvider, GooglePayData, PaypalSdkData, Provider, ZenApplePay};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Classic {
@@ -67,8 +67,17 @@ pub enum ConnectorAuthType {
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum ApplePayTomlConfig {
-    Standard(payments::ApplePayMetadata),
+    Standard(Box<payments::ApplePayMetadata>),
     Zen(ZenApplePay),
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+
+pub enum KlarnaEndpoint {
+    Europe,
+    NorthAmerica,
+    Oceania,
 }
 
 #[serde_with::skip_serializing_none]
@@ -79,6 +88,7 @@ pub struct ConfigMetadata {
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,
     pub google_pay: Option<GooglePayData>,
+    pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub merchant_id: Option<String>,
     pub endpoint_prefix: Option<String>,
@@ -87,9 +97,13 @@ pub struct ConfigMetadata {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub klarna_region: Option<Vec<KlarnaEndpoint>>,
+    pub source_balance_account: Option<String>,
+    pub brand_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -120,6 +134,8 @@ pub struct ConnectorConfig {
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub adyen_payout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub adyenplatform_payout: Option<ConnectorTomlConfig>,
     pub airwallex: Option<ConnectorTomlConfig>,
     pub authorizedotnet: Option<ConnectorTomlConfig>,
     pub bankofamerica: Option<ConnectorTomlConfig>,
@@ -148,6 +164,7 @@ pub struct ConnectorConfig {
     pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
+    pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
@@ -155,6 +172,8 @@ pub struct ConnectorConfig {
     pub noon: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
@@ -222,11 +241,13 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
+            PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
+            PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
+            PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Payone => Ok(connector_data.payone_payout),
+            PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
-            PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
-            PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
-            PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
         }
     }
 
@@ -248,6 +269,7 @@ impl ConnectorConfig {
         match connector {
             Connector::Aci => Ok(connector_data.aci),
             Connector::Adyen => Ok(connector_data.adyen),
+            Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),
@@ -271,9 +293,10 @@ impl ConnectorConfig {
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
-            // Connector::Gpayments => Ok(connector_data.gpayments),  Added as template code for future usage
+            Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Klarna => Ok(connector_data.klarna),
+            Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Multisafepay => Ok(connector_data.multisafepay),
             Connector::Nexinets => Ok(connector_data.nexinets),
@@ -282,6 +305,7 @@ impl ConnectorConfig {
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Payme => Ok(connector_data.payme),
+            Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
             Connector::Payu => Ok(connector_data.payu),
             Connector::Placetopay => Ok(connector_data.placetopay),

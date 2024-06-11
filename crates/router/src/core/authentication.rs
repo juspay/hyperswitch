@@ -12,21 +12,21 @@ use masking::ExposeInterface;
 use super::errors::StorageErrorExt;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
-    routes::AppState,
+    routes::SessionState,
     types::{self as core_types, api, domain, storage},
     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
-    state: &AppState,
+    state: &SessionState,
+    merchant_id: String,
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
     billing_address: payments::Address,
     shipping_address: Option<payments::Address>,
     browser_details: Option<core_types::BrowserInformation>,
-    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<common_utils::types::MinorUnit>,
     currency: Option<Currency>,
@@ -38,8 +38,10 @@ pub async fn perform_authentication(
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
+    three_ds_requestor_url: String,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
+        merchant_id,
         authentication_connector.clone(),
         payment_method_data,
         payment_method,
@@ -50,7 +52,6 @@ pub async fn perform_authentication(
         currency,
         message_category,
         device_channel,
-        business_profile,
         merchant_connector_account,
         authentication_data.clone(),
         return_url,
@@ -58,6 +59,7 @@ pub async fn perform_authentication(
         threeds_method_comp_ind,
         email,
         webhook_url,
+        three_ds_requestor_url,
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
@@ -76,7 +78,7 @@ pub async fn perform_authentication(
 }
 
 pub async fn perform_post_authentication(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: storage::BusinessProfile,
     authentication_id: String,
@@ -115,7 +117,7 @@ pub async fn perform_post_authentication(
 }
 
 pub async fn perform_pre_authentication(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,

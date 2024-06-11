@@ -675,6 +675,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Paypal
             | enums::PaymentMethodType::Pix
             | enums::PaymentMethodType::UpiCollect
+            | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
             | enums::PaymentMethodType::Oxxo => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -734,7 +735,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Seicomart
             | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::LocalBankTransfer
-            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::Walley
+            | enums::PaymentMethodType::Mifinity => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1048,11 +1050,10 @@ impl ForeignTryFrom<&domain::WalletData> for Option<StripePaymentMethodType> {
             | domain::WalletData::VippsRedirect {}
             | domain::WalletData::TouchNGoRedirect(_)
             | domain::WalletData::SwishQr(_)
-            | domain::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                ))
-            }
+            | domain::WalletData::WeChatPayRedirect(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )),
         }
     }
 }
@@ -1438,12 +1439,11 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
             | domain::WalletData::VippsRedirect {}
             | domain::WalletData::TouchNGoRedirect(_)
             | domain::WalletData::SwishQr(_)
-            | domain::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                )
-                .into())
-            }
+            | domain::WalletData::WeChatPayRedirect(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
+            .into()),
         }
     }
 }
@@ -2376,7 +2376,7 @@ impl<F, T>
         let status = enums::AttemptStatus::from(item.response.status);
 
         let response = if connector_util::is_payment_failure(status) {
-            types::PaymentsResponseData::try_from((
+            types::PaymentsResponseData::foreign_try_from((
                 &item.response.last_payment_error,
                 item.http_code,
                 item.response.id.clone(),
@@ -2557,7 +2557,7 @@ impl<F, T>
             .and_then(extract_payment_method_connector_response_from_latest_charge);
 
         let response = if connector_util::is_payment_failure(status) {
-            types::PaymentsResponseData::try_from((
+            types::PaymentsResponseData::foreign_try_from((
                 &item.response.payment_intent_fields.last_payment_error,
                 item.http_code,
                 item.response.id.clone(),
@@ -2638,7 +2638,7 @@ impl<F, T>
             .and_then(extract_payment_method_connector_response_from_latest_attempt);
 
         let response = if connector_util::is_payment_failure(status) {
-            types::PaymentsResponseData::try_from((
+            types::PaymentsResponseData::foreign_try_from((
                 &item.response.last_setup_error,
                 item.http_code,
                 item.response.id.clone(),
@@ -3909,9 +3909,9 @@ fn get_transaction_metadata(
     meta_data
 }
 
-impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
+impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
     type Error = types::ErrorResponse;
-    fn try_from(
+    fn foreign_try_from(
         (response, http_code, response_id): (&Option<ErrorDetails>, u16, String),
     ) -> Result<Self, Self::Error> {
         let (code, error_message) = match response {

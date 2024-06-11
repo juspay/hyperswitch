@@ -1,6 +1,7 @@
 use common_utils::pii::{self, Email};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::Date;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -20,6 +21,12 @@ pub enum PaymentMethodData {
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
     CardToken(CardToken),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplePayFlow {
+    Simplified(api_models::payments::PaymentProcessingDetails),
+    Manual,
 }
 
 impl PaymentMethodData {
@@ -105,6 +112,13 @@ pub enum WalletData {
     WeChatPayQr(Box<WeChatPayQr>),
     CashappQr(Box<CashappQr>),
     SwishQr(SwishQrData),
+    Mifinity(MifinityData),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MifinityData {
+    pub destination_account_number: Secret<String>,
+    pub date_of_birth: Secret<Date>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -285,13 +299,24 @@ pub enum BankRedirectData {
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {
     pub pay_currency: Option<String>,
+    pub network: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct UpiData {
+pub enum UpiData {
+    UpiCollect(UpiCollectData),
+    UpiIntent(UpiIntentData),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiCollectData {
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct UpiIntentData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -567,6 +592,12 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::CashappQr(Box::new(CashappQr {}))
             }
             api_models::payments::WalletData::SwishQr(_) => Self::SwishQr(SwishQrData {}),
+            api_models::payments::WalletData::Mifinity(mifinity_data) => {
+                Self::Mifinity(MifinityData {
+                    destination_account_number: mifinity_data.destination_account_number,
+                    date_of_birth: mifinity_data.date_of_birth,
+                })
+            }
         }
     }
 }
@@ -683,15 +714,25 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
 
 impl From<api_models::payments::CryptoData> for CryptoData {
     fn from(value: api_models::payments::CryptoData) -> Self {
-        let api_models::payments::CryptoData { pay_currency } = value;
-        Self { pay_currency }
+        let api_models::payments::CryptoData {
+            pay_currency,
+            network,
+        } = value;
+        Self {
+            pay_currency,
+            network,
+        }
     }
 }
 
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
-        let api_models::payments::UpiData { vpa_id } = value;
-        Self { vpa_id }
+        match value {
+            api_models::payments::UpiData::UpiCollect(upi) => {
+                Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id })
+            }
+            api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
+        }
     }
 }
 

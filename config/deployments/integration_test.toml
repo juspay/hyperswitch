@@ -20,6 +20,7 @@ przelewy24.stripe.banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_peka
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyen.secondary_base_url = "https://pal-test.adyen.com/"
+adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -49,7 +50,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api-na.playground.klarna.com/"
+klarna.base_url =  "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
@@ -114,6 +115,7 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2aw
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
+totp_issuer_name = "Hyperswitch Integ"
 
 [frm]
 enabled = true
@@ -169,7 +171,7 @@ sofort = { country = "ES,GB,SE,AT,NL,DE,CH,BE,FR,FI,IT,PL", currency = "EUR" }
 [pm_filters.adyen]
 ach = { country = "US", currency = "USD" }
 affirm = { country = "US", currency = "USD" }
-afterpay_clearpay = { country = "AU,NZ,ES,GB,FR,IT,CA,US", currency = "GBP" }
+afterpay_clearpay = { country = "US,CA,GB,AU,NZ", currency = "GBP,AUD,NZD,CAD,USD" }
 alfamart = { country = "ID", currency = "IDR" }
 ali_pay = { country = "AU,JP,HK,SG,MY,TH,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,FI,RO,MT,SI,GR,PT,IE,IT,CA,US", currency = "USD,EUR,GBP,JPY,AUD,SGD,CHF,SEK,NOK,NZD,THB,HKD,CAD" }
 ali_pay_hk = { country = "HK", currency = "HKD" }
@@ -257,6 +259,9 @@ we_chat_pay.currency = "GBP,CNY"
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
+
+[pm_filters.mifinity]
+mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD" }
 
 [pm_filters.prophetpay]
 card_redirect.currency = "USD"
