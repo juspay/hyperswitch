@@ -34,7 +34,6 @@ pub mod routing_algorithm;
 pub mod user;
 pub mod user_key_store;
 pub mod user_role;
-use router_env::logger;
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -51,13 +50,14 @@ use hyperswitch_domain_models::payouts::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
+use router_env::logger;
 use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
 
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
 pub use crate::{
-    errors::CustomResult,
     core::errors::{self, ProcessTrackerError},
+    errors::CustomResult,
     services::{
         kafka::{KafkaError, KafkaProducer, MQResult},
         Store,
@@ -225,7 +225,9 @@ impl FraudCheckInterface for KafkaStore {
         new: storage::FraudCheckNew,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self.diesel_store.insert_fraud_check_response(new).await?;
-        if let Err(er) = self.kafka_producer.log_fraud_check(&frm, None, self.tenant_id.clone())
+        if let Err(er) = self
+            .kafka_producer
+            .log_fraud_check(&frm, None, self.tenant_id.clone())
             .await
         {
             logger::error!(message = "Failed to log analytics event for payment attempt", error_message = ?er);
