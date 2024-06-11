@@ -3210,11 +3210,11 @@ where
                 routing_data.business_sub_label = choice.sub_label.clone();
             }
 
-            #[cfg(feature = "retry")]
+            #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
             let should_do_retry =
                 retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id).await;
 
-            #[cfg(feature = "retry")]
+            #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
             if payment_data.payment_attempt.payment_method_type
                 == Some(storage_enums::PaymentMethodType::ApplePay)
                 && should_do_retry
@@ -3225,15 +3225,15 @@ where
                     payment_data,
                     key_store,
                     connector_data.clone(),
-                    #[cfg(feature = "connector_choice_mca_id")]
                     choice.merchant_connector_id.clone().as_ref(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
                 .await?;
 
                 if let Some(connector_data_list) = retryable_connector_data {
-                    return Ok(ConnectorCallType::Retryable(connector_data_list));
+                    if connector_data_list.len() > 1 {
+                        logger::info!("Constructed apple pay retryable connector list");
+                        return Ok(ConnectorCallType::Retryable(connector_data_list));
+                    }
                 }
             }
 

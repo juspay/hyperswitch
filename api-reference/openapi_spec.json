@@ -6826,6 +6826,11 @@
             "type": "boolean",
             "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
             "nullable": true
+          },
+          "is_connector_agnostic_mit_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -6961,6 +6966,11 @@
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
             "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
+            "nullable": true
+          },
+          "is_connector_agnostic_mit_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
             "nullable": true
           }
         }
