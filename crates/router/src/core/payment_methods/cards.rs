@@ -73,6 +73,7 @@ use crate::{
         domain::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
+            Identifier,
         },
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::ForeignFrom,
@@ -811,7 +812,9 @@ pub async fn update_customer_payment_method(
         let existing_card_data = decrypt::<serde_json::Value, masking::WithType>(
             &state,
             pm.payment_method_data.clone(),
-            key_store.key.get_inner().peek(),
+            Identifier::Merchant(
+                String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string(),
+            ),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1057,7 +1060,13 @@ pub async fn add_bank_to_locker(
                 let secret: Secret<String> = Secret::new(v.to_string());
                 secret
             })
-            .async_lift(|inner| encrypt_optional(state, inner, key))
+            .async_lift(|inner| {
+                encrypt_optional(
+                    state,
+                    inner,
+                    Identifier::Merchant(String::from_utf8_lossy(key).to_string()),
+                )
+            })
             .await
     }
     .await
@@ -1261,13 +1270,17 @@ pub async fn decode_and_decrypt_locker_data(
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;
     // Decrypt
-    decrypt(state, Some(Encryption::new(decoded_bytes.into())), key)
-        .await
-        .change_context(errors::VaultError::FetchPaymentMethodFailed)?
-        .map_or(
-            Err(report!(errors::VaultError::FetchPaymentMethodFailed)),
-            |d| Ok(d.into_inner()),
-        )
+    decrypt(
+        state,
+        Some(Encryption::new(decoded_bytes.into())),
+        Identifier::Merchant(String::from_utf8_lossy(key).to_string()),
+    )
+    .await
+    .change_context(errors::VaultError::FetchPaymentMethodFailed)?
+    .map_or(
+        Err(report!(errors::VaultError::FetchPaymentMethodFailed)),
+        |d| Ok(d.into_inner()),
+    )
 }
 
 #[instrument(skip_all)]
@@ -3501,7 +3514,8 @@ pub async fn decrypt_generic_data<T>(
 where
     T: serde::de::DeserializeOwned,
 {
-    let decrypted_data = decrypt::<serde_json::Value, masking::WithType>(state, data, key)
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+    let decrypted_data = decrypt::<serde_json::Value, masking::WithType>(state, data, identifier)
         .await
         .change_context(errors::StorageError::DecryptionError)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3520,19 +3534,23 @@ pub async fn get_card_details_with_locker_fallback(
     key: &[u8],
     state: &routes::SessionState,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    let card_decrypted =
-        decrypt::<serde_json::Value, masking::WithType>(state, pm.payment_method_data.clone(), key)
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-            .attach_printable("unable to decrypt card details")
-            .ok()
-            .flatten()
-            .map(|x| x.into_inner().expose())
-            .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-            .and_then(|pmd| match pmd {
-                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                _ => None,
-            });
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+    let card_decrypted = decrypt::<serde_json::Value, masking::WithType>(
+        state,
+        pm.payment_method_data.clone(),
+        identifier,
+    )
+    .await
+    .change_context(errors::StorageError::DecryptionError)
+    .attach_printable("unable to decrypt card details")
+    .ok()
+    .flatten()
+    .map(|x| x.into_inner().expose())
+    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+    .and_then(|pmd| match pmd {
+        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+        _ => None,
+    });
 
     Ok(if let Some(mut crd) = card_decrypted {
         if crd.saved_to_locker {
@@ -3551,19 +3569,23 @@ pub async fn get_card_details_without_locker_fallback(
     key: &[u8],
     state: &routes::SessionState,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card_decrypted =
-        decrypt::<serde_json::Value, masking::WithType>(state, pm.payment_method_data.clone(), key)
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-            .attach_printable("unable to decrypt card details")
-            .ok()
-            .flatten()
-            .map(|x| x.into_inner().expose())
-            .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-            .and_then(|pmd| match pmd {
-                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                _ => None,
-            });
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+    let card_decrypted = decrypt::<serde_json::Value, masking::WithType>(
+        state,
+        pm.payment_method_data.clone(),
+        identifier,
+    )
+    .await
+    .change_context(errors::StorageError::DecryptionError)
+    .attach_printable("unable to decrypt card details")
+    .ok()
+    .flatten()
+    .map(|x| x.into_inner().expose())
+    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+    .and_then(|pmd| match pmd {
+        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+        _ => None,
+    });
 
     Ok(if let Some(mut crd) = card_decrypted {
         crd.scheme.clone_from(&pm.scheme);
@@ -3617,22 +3639,26 @@ async fn get_masked_bank_details(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
 ) -> errors::RouterResult<Option<MaskedBankDetails>> {
-    let payment_method_data =
-        decrypt::<serde_json::Value, masking::WithType>(state, pm.payment_method_data.clone(), key)
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to decrypt bank details")?
-            .map(|x| x.into_inner().expose())
-            .map(
-                |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
-                    v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
-                        .change_context(errors::StorageError::DeserializationFailed)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to deserialize Payment Method Auth config")
-                },
-            )
-            .transpose()?;
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+    let payment_method_data = decrypt::<serde_json::Value, masking::WithType>(
+        state,
+        pm.payment_method_data.clone(),
+        identifier,
+    )
+    .await
+    .change_context(errors::StorageError::DecryptionError)
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("unable to decrypt bank details")?
+    .map(|x| x.into_inner().expose())
+    .map(
+        |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
+            v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+                .change_context(errors::StorageError::DeserializationFailed)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize Payment Method Auth config")
+        },
+    )
+    .transpose()?;
 
     match payment_method_data {
         Some(pmd) => match pmd {
@@ -3651,22 +3677,26 @@ async fn get_bank_account_connector_details(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
 ) -> errors::RouterResult<Option<BankAccountTokenData>> {
-    let payment_method_data =
-        decrypt::<serde_json::Value, masking::WithType>(state, pm.payment_method_data.clone(), key)
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to decrypt bank details")?
-            .map(|x| x.into_inner().expose())
-            .map(
-                |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
-                    v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
-                        .change_context(errors::StorageError::DeserializationFailed)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to deserialize Payment Method Auth config")
-                },
-            )
-            .transpose()?;
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+    let payment_method_data = decrypt::<serde_json::Value, masking::WithType>(
+        state,
+        pm.payment_method_data.clone(),
+        identifier,
+    )
+    .await
+    .change_context(errors::StorageError::DecryptionError)
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("unable to decrypt bank details")?
+    .map(|x| x.into_inner().expose())
+    .map(
+        |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
+            v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+                .change_context(errors::StorageError::DeserializationFailed)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize Payment Method Auth config")
+        },
+    )
+    .transpose()?;
 
     match payment_method_data {
         Some(pmd) => match pmd {
@@ -4098,6 +4128,7 @@ where
     T: Debug + serde::Serialize,
 {
     let key = key_store.key.get_inner().peek();
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
 
     let encrypted_data: Option<Encryption> = data
         .as_ref()
@@ -4110,7 +4141,7 @@ where
             None
         })
         .map(Secret::<_, masking::WithType>::new)
-        .async_lift(|inner| encrypt_optional(state, inner, key))
+        .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
         .await
         .change_context(errors::StorageError::EncryptionError)
         .attach_printable("Unable to encrypt data")

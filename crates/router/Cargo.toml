@@ -30,6 +30,7 @@ payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_mod
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
+encryption_service = []
 
 [dependencies]
 actix-cors = "0.6.5"

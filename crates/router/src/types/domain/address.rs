@@ -12,6 +12,7 @@ use time::{OffsetDateTime, PrimitiveDateTime};
 use super::{
     behaviour,
     types::{self, AsyncLift},
+    Identifier,
 };
 use crate::routes::SessionState;
 
@@ -188,8 +189,9 @@ impl behaviour::Conversion for Address {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
         async {
-            let inner_decrypt = |inner| types::decrypt(state, inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(state, inner, key.peek());
+            let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
+            let inner_decrypt = |inner| types::decrypt(state, inner, identifier.clone());
+            let inner_decrypt_email = |inner| types::decrypt(state, inner, identifier.clone());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: other.id,
                 address_id: other.address_id,

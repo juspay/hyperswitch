@@ -51,6 +51,7 @@ use crate::{
         domain::{
             self,
             types::{encrypt_optional, AsyncLift},
+            Identifier,
         },
         storage,
         transformers::ForeignFrom,
@@ -665,42 +666,43 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
+        let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
         async {
             Ok(storage::AddressUpdate::Update {
                 city: address_details.city,
                 country: address_details.country,
                 line1: address_details
                     .line1
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 line2: address_details
                     .line2
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 line3: address_details
                     .line3
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 zip: address_details
                     .zip
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 state: address_details
                     .state
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 first_name: address_details
                     .first_name
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 last_name: address_details
                     .last_name
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 phone_number: self
                     .phone
                     .clone()
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 updated_by: storage_scheme.to_string(),
@@ -709,7 +711,11 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .as_ref()
                     .cloned()
                     .async_lift(|inner| {
-                        encrypt_optional(state, inner.map(|inner| inner.expose()), key)
+                        encrypt_optional(
+                            state,
+                            inner.map(|inner| inner.expose()),
+                            identifier.clone(),
+                        )
                     })
                     .await?,
             })
@@ -726,6 +732,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
+        let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
         async {
             let address = domain::Address {
                 id: None,
@@ -733,36 +740,36 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 country: address_details.country,
                 line1: address_details
                     .line1
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 line2: address_details
                     .line2
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 line3: address_details
                     .line3
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 zip: address_details
                     .zip
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 state: address_details
                     .state
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 first_name: address_details
                     .first_name
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 last_name: address_details
                     .last_name
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 phone_number: self
                     .phone
                     .clone()
-                    .async_lift(|inner| encrypt_optional(state, inner, key))
+                    .async_lift(|inner| encrypt_optional(state, inner, identifier.clone()))
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 merchant_id: merchant_id.to_string(),
@@ -775,7 +782,11 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .as_ref()
                     .cloned()
                     .async_lift(|inner| {
-                        encrypt_optional(state, inner.map(|inner| inner.expose()), key)
+                        encrypt_optional(
+                            state,
+                            inner.map(|inner| inner.expose()),
+                            identifier.clone(),
+                        )
                     })
                     .await?,
             };

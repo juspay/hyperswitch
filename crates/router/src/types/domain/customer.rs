@@ -4,7 +4,10 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
-use super::types::{self, AsyncLift};
+use super::{
+    types::{self, AsyncLift},
+    Identifier,
+};
 use crate::{
     errors::{CustomResult, ValidationError},
     routes::SessionState,
@@ -63,9 +66,10 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
+        let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
         async {
-            let inner_decrypt = |inner| types::decrypt(state, inner, key.peek());
-            let inner_decrypt_email = |inner| types::decrypt(state, inner, key.peek());
+            let inner_decrypt = |inner| types::decrypt(state, inner, identifier.clone());
+            let inner_decrypt_email = |inner| types::decrypt(state, inner, identifier.clone());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,

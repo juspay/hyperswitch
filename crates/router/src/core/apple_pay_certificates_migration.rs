@@ -10,7 +10,10 @@ use super::{
 use crate::{
     routes::SessionState,
     services::{self, logger},
-    types::{domain::types as domain_types, storage},
+    types::{
+        domain::{types as domain_types, Identifier},
+        storage,
+    },
 };
 
 pub async fn apple_pay_certificates_migration(
@@ -71,7 +74,9 @@ pub async fn apple_pay_certificates_migration(
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to serialize apple pay metadata as JSON")?,
                     ),
-                    key_store.key.get_inner().peek(),
+                    Identifier::Merchant(
+                        String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string(),
+                    ),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

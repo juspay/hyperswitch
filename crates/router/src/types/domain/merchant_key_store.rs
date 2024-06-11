@@ -6,6 +6,7 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
+use super::Identifier;
 use crate::{
     errors::{CustomResult, ValidationError},
     routes::SessionState,
@@ -40,8 +41,9 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     where
         Self: Sized,
     {
+        let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
         Ok(Self {
-            key: Encryptable::decrypt(state, item.key, key.peek(), GcmAes256)
+            key: Encryptable::decrypt_via_api(state, item.key, identifier, GcmAes256)
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

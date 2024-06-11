@@ -32,6 +32,7 @@ use crate::{
         domain::{
             self,
             types::{self as domain_types, AsyncLift},
+            Identifier,
         },
         storage,
         transformers::ForeignFrom,
@@ -241,7 +242,13 @@ pub async fn save_payout_data_to_locker(
                             let secret: Secret<String> = Secret::new(v.to_string());
                             secret
                         })
-                        .async_lift(|inner| domain_types::encrypt_optional(state, inner, key))
+                        .async_lift(|inner| {
+                            domain_types::encrypt_optional(
+                                state,
+                                inner,
+                                Identifier::Merchant(String::from_utf8_lossy(key).to_string()),
+                            )
+                        })
                         .await
                 }
                 .await
@@ -602,23 +609,28 @@ pub async fn get_or_create_customer_details(
     {
         Some(customer) => Ok(Some(customer)),
         None => {
+            let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
             let customer = domain::Customer {
                 customer_id,
                 merchant_id: merchant_id.to_string(),
-                name: domain_types::encrypt_optional(state, customer_details.name.to_owned(), key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                name: domain_types::encrypt_optional(
+                    state,
+                    customer_details.name.to_owned(),
+                    identifier.clone(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 email: domain_types::encrypt_optional(
                     state,
                     customer_details.email.to_owned().map(|e| e.expose()),
-                    key,
+                    identifier.clone(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 phone: domain_types::encrypt_optional(
                     state,
                     customer_details.phone.to_owned(),
-                    key,
+                    identifier.clone(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,

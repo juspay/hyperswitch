@@ -20,6 +20,7 @@ use crate::{
         domain::{
             self,
             types::{self, AsyncLift, TypeEncryption},
+            Identifier,
         },
         storage::{self, enums},
     },
@@ -98,23 +99,28 @@ pub async fn create_customer(
         None
     };
 
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
     let new_customer = async {
         Ok(domain::Customer {
             customer_id: customer_id.to_owned(),
             merchant_id: merchant_id.to_string(),
             name: customer_data
                 .name
-                .async_lift(|inner| types::encrypt_optional(&state, inner, key))
+                .async_lift(|inner| types::encrypt_optional(&state, inner, identifier.clone()))
                 .await?,
             email: customer_data
                 .email
                 .async_lift(|inner| {
-                    types::encrypt_optional(&state, inner.map(|inner| inner.expose()), key)
+                    types::encrypt_optional(
+                        &state,
+                        inner.map(|inner| inner.expose()),
+                        identifier.clone(),
+                    )
                 })
                 .await?,
             phone: customer_data
                 .phone
-                .async_lift(|inner| types::encrypt_optional(&state, inner, key))
+                .async_lift(|inner| types::encrypt_optional(&state, inner, identifier.clone()))
                 .await?,
             description: customer_data.description,
             phone_country_code: customer_data.phone_country_code,
@@ -272,18 +278,28 @@ pub async fn delete_customer(
         }
     };
 
-    let key = key_store.key.get_inner().peek();
+    let key = String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string();
+    let identifier = Identifier::Merchant(key);
 
-    let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
-        Encryptable::encrypt(&state, REDACTED.to_string().into(), key, GcmAes256)
-            .await
-            .switch()?;
+    let redacted_encrypted_value: Encryptable<masking::Secret<_>> = Encryptable::encrypt_via_api(
+        &state,
+        REDACTED.to_string().into(),
+        identifier.clone(),
+        GcmAes256,
+    )
+    .await
+    .switch()?;
 
     let redacted_encrypted_email: Encryptable<
         masking::Secret<_, common_utils::pii::EmailStrategy>,
-    > = Encryptable::encrypt(&state, REDACTED.to_string().into(), key, GcmAes256)
-        .await
-        .switch()?;
+    > = Encryptable::encrypt_via_api(
+        &state,
+        REDACTED.to_string().into(),
+        identifier.clone(),
+        GcmAes256,
+    )
+    .await
+    .switch()?;
 
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
@@ -326,9 +342,14 @@ pub async fn delete_customer(
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(redacted_encrypted_value.clone()),
         email: Some(
-            Encryptable::encrypt(&state, REDACTED.to_string().into(), key, GcmAes256)
-                .await
-                .switch()?,
+            Encryptable::encrypt_via_api(
+                &state,
+                REDACTED.to_string().into(),
+                identifier,
+                GcmAes256,
+            )
+            .await
+            .switch()?,
         ),
         phone: Box::new(Some(redacted_encrypted_value.clone())),
         description: Some(REDACTED.to_string()),
@@ -447,6 +468,7 @@ pub async fn update_customer(
         }
     };
 
+    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
     let response = db
         .update_customer_by_customer_id_merchant_id(
             &state,
@@ -457,18 +479,26 @@ pub async fn update_customer(
                 Ok(storage::CustomerUpdate::Update {
                     name: update_customer
                         .name
-                        .async_lift(|inner| types::encrypt_optional(&state, inner, key))
+                        .async_lift(|inner| {
+                            types::encrypt_optional(&state, inner, identifier.clone())
+                        })
                         .await?,
                     email: update_customer
                         .email
                         .async_lift(|inner| {
-                            types::encrypt_optional(&state, inner.map(|inner| inner.expose()), key)
+                            types::encrypt_optional(
+                                &state,
+                                inner.map(|inner| inner.expose()),
+                                identifier.clone(),
+                            )
                         })
                         .await?,
                     phone: Box::new(
                         update_customer
                             .phone
-                            .async_lift(|inner| types::encrypt_optional(&state, inner, key))
+                            .async_lift(|inner| {
+                                types::encrypt_optional(&state, inner, identifier.clone())
+                            })
                             .await?,
                     ),
                     phone_country_code: update_customer.phone_country_code,

@@ -14,6 +14,7 @@ use masking::{PeekInterface, Secret};
 use super::{
     behaviour,
     types::{self, AsyncLift, TypeEncryption},
+    Identifier,
 };
 use crate::routes::SessionState;
 #[derive(Clone, Debug)]
@@ -111,14 +112,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
+        let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
-            connector_account_details: Encryptable::decrypt(
+            connector_account_details: Encryptable::decrypt_via_api(
                 state,
                 other.connector_account_details,
-                key.peek(),
+                identifier,
                 GcmAes256,
             )
             .await
@@ -146,7 +148,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_lift(|inner| types::decrypt(state, inner, key.peek()))
+                .async_lift(|inner| {
+                    types::decrypt(
+                        state,
+                        inner,
+                        Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string()),
+                    )
+                })
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),

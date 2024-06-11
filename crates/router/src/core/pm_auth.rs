@@ -313,7 +313,7 @@ async fn store_bank_details_in_payment_methods(
             let bank_details_pm_data = decrypt::<serde_json::Value, masking::WithType>(
                 &state,
                 pm.payment_method_data.clone(),
-                key,
+                domain::Identifier::Merchant(String::from_utf8_lossy(key).to_string()),
             )
             .await
             .change_context(ApiErrorResponse::InternalServerError)

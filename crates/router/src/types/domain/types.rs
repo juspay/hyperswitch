@@ -1,17 +1,29 @@
 use async_trait::async_trait;
+#[allow(unused_imports)]
 use common_utils::{
     crypto,
     errors::{self, CustomResult},
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, BytesExt},
 };
 use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;
+#[allow(unused_imports)]
+use masking::{ExposeInterface, StrongSecret};
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
-use crate::routes::{
-    metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME},
-    SessionState,
+#[allow(unused_imports)]
+use super::{
+    DecryptDataRequest, DecryptDataResponse, DecryptedData, EncryptDataRequest,
+    EncryptDataResponse, EncryptedData, Identifier, Version,
+};
+#[allow(unused_imports)]
+use crate::{
+    encryption::call_encryption_service,
+    routes::{
+        metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME},
+        SessionState,
+    },
 };
 
 #[async_trait]
@@ -21,15 +33,27 @@ pub trait TypeEncryption<
     S: masking::Strategy<T>,
 >: Sized
 {
-    async fn encrypt(
+    async fn encrypt_via_api(
         state: &SessionState,
+        masked_data: Secret<T, S>,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError>;
+
+    async fn decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Encryption,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError>;
+
+    async fn encrypt(
         masked_data: Secret<T, S>,
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
 
     async fn decrypt(
-        state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -43,8 +67,118 @@ impl<
     > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
 {
     #[instrument(skip_all)]
+    #[allow(unused_variables)]
+    async fn encrypt_via_api(
+        state: &SessionState,
+        masked_data: Secret<String, S>,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let request_body = EncryptDataRequest {
+                data: DecryptedData::from_data(StrongSecret::new(
+                    masked_data.clone().expose().as_bytes().to_vec(),
+                )),
+                identifier: identifier.clone(),
+            };
+            let result = call_encryption_service(state, "encrypt", request_body).await;
+            match result {
+                Ok(response) => match response {
+                    Ok(encrypt_response) => {
+                        let encrypt_object = encrypt_response
+                            .response
+                            .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
+                            .change_context(errors::CryptoError::EncodingFailed);
+                        match encrypt_object {
+                            Ok(encrypted) => Ok(Self::new(
+                                masked_data,
+                                encrypted.data.data.peek().clone().into(),
+                            )),
+                            Err(_) => {
+                                Self::encrypt(
+                                    masked_data,
+                                    identifier.inner().as_bytes(),
+                                    crypt_algo,
+                                )
+                                .await
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+                    }
+                },
+                Err(_) => {
+                    Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+                }
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    #[allow(unused_variables)]
+    async fn decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Encryption,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let request_body = DecryptDataRequest {
+                data: EncryptedData {
+                    data: StrongSecret::new(encrypted_data.clone().into_inner().expose()),
+                    version: Version::from("v1".to_string()),
+                },
+                identifier: identifier.clone(),
+            };
+            let result = call_encryption_service(state, "decrypt", request_body).await;
+            match result {
+                Ok(response) => match response {
+                    Ok(decrypt_response) => {
+                        let decrypt_object = decrypt_response
+                            .response
+                            .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
+                            .change_context(errors::CryptoError::DecodingFailed);
+                        match decrypt_object {
+                            Ok(decrypted) => Ok(Self::new(
+                                String::from_utf8_lossy(decrypted.data.inner().peek())
+                                    .to_string()
+                                    .into(),
+                                encrypted_data.into_inner(),
+                            )),
+                            Err(_) => {
+                                Self::decrypt(
+                                    encrypted_data,
+                                    identifier.inner().as_bytes(),
+                                    crypt_algo,
+                                )
+                                .await
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo)
+                            .await
+                    }
+                },
+                Err(_) => {
+                    Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+                }
+            }
+        }
+    }
+
     async fn encrypt(
-        _state: &SessionState,
         masked_data: Secret<String, S>,
         key: &[u8],
         crypt_algo: V,
@@ -53,9 +187,7 @@ impl<
         Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
-    #[instrument(skip_all)]
     async fn decrypt(
-        _state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -79,8 +211,130 @@ impl<
     for crypto::Encryptable<Secret<serde_json::Value, S>>
 {
     #[instrument(skip_all)]
+    #[allow(unused_variables)]
+    async fn encrypt_via_api(
+        state: &SessionState,
+        masked_data: Secret<serde_json::Value, S>,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let request_body = EncryptDataRequest {
+                data: DecryptedData::from_data(StrongSecret::new(
+                    masked_data.clone().expose().to_string().as_bytes().to_vec(),
+                )),
+                identifier: identifier.clone(),
+            };
+            let result = call_encryption_service(state, "encrypt", request_body).await;
+            match result {
+                Ok(response) => match response {
+                    Ok(encrypt_response) => {
+                        let encrypt_object = encrypt_response
+                            .response
+                            .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
+                            .change_context(errors::CryptoError::EncodingFailed);
+                        match encrypt_object {
+                            Ok(encrypted) => Ok(Self::new(
+                                masked_data,
+                                encrypted.data.data.peek().clone().into(),
+                            )),
+                            Err(_) => {
+                                Self::encrypt(
+                                    masked_data,
+                                    identifier.inner().as_bytes(),
+                                    crypt_algo,
+                                )
+                                .await
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+                    }
+                },
+                Err(_) => {
+                    Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+                }
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    #[allow(unused_variables)]
+    async fn decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Encryption,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let request_body = DecryptDataRequest {
+                data: EncryptedData {
+                    data: StrongSecret::new(encrypted_data.clone().into_inner().expose()),
+                    version: Version::from("v1".to_string()),
+                },
+                identifier: identifier.clone(),
+            };
+            let result = call_encryption_service(state, "decrypt", request_body).await;
+            match result {
+                Ok(response) => match response {
+                    Ok(decrypt_response) => {
+                        let decrypt_object = decrypt_response
+                            .response
+                            .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
+                            .change_context(errors::CryptoError::DecodingFailed);
+                        match decrypt_object {
+                            Ok(decrypted) => {
+                                let value: Result<serde_json::Value, serde_json::Error> =
+                                    serde_json::from_slice(decrypted.data.inner().peek());
+                                match value {
+                                    Ok(val) => {
+                                        Ok(Self::new(val.into(), encrypted_data.into_inner()))
+                                    }
+                                    Err(_) => {
+                                        Self::decrypt(
+                                            encrypted_data,
+                                            identifier.inner().as_bytes(),
+                                            crypt_algo,
+                                        )
+                                        .await
+                                    }
+                                }
+                            }
+                            Err(_) => {
+                                Self::decrypt(
+                                    encrypted_data,
+                                    identifier.inner().as_bytes(),
+                                    crypt_algo,
+                                )
+                                .await
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo)
+                            .await
+                    }
+                },
+                Err(_) => {
+                    Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+                }
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
     async fn encrypt(
-        _state: &SessionState,
         masked_data: Secret<serde_json::Value, S>,
         key: &[u8],
         crypt_algo: V,
@@ -94,7 +348,6 @@ impl<
 
     #[instrument(skip_all)]
     async fn decrypt(
-        _state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -116,8 +369,117 @@ impl<
     > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
 {
     #[instrument(skip_all)]
+    #[allow(unused_variables)]
+    async fn encrypt_via_api(
+        state: &SessionState,
+        masked_data: Secret<Vec<u8>, S>,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let request_body = EncryptDataRequest {
+                data: DecryptedData::from_data(StrongSecret::new(
+                    masked_data.clone().expose().to_vec(),
+                )),
+                identifier: identifier.clone(),
+            };
+            let result = call_encryption_service(state, "encrypt", request_body).await;
+            match result {
+                Ok(response) => match response {
+                    Ok(encrypt_response) => {
+                        let encrypt_object = encrypt_response
+                            .response
+                            .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
+                            .change_context(errors::CryptoError::EncodingFailed);
+                        match encrypt_object {
+                            Ok(encrypted) => Ok(Self::new(
+                                masked_data.clone(),
+                                encrypted.data.data.peek().clone().into(),
+                            )),
+                            Err(_) => {
+                                Self::encrypt(
+                                    masked_data,
+                                    identifier.inner().as_bytes(),
+                                    crypt_algo,
+                                )
+                                .await
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+                    }
+                },
+                Err(_) => {
+                    Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+                }
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    #[allow(unused_variables)]
+    async fn decrypt_via_api(
+        state: &SessionState,
+        encrypted_data: Encryption,
+        identifier: Identifier,
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+        }
+        #[cfg(feature = "encryption_service")]
+        {
+            let request_body = DecryptDataRequest {
+                data: EncryptedData {
+                    data: StrongSecret::new(encrypted_data.clone().into_inner().expose()),
+                    version: Version::from("v1".to_string()),
+                },
+                identifier: identifier.clone(),
+            };
+            let result = call_encryption_service(state, "decrypt", request_body).await;
+            match result {
+                Ok(response) => match response {
+                    Ok(decrypt_response) => {
+                        let decrypt_object = decrypt_response
+                            .response
+                            .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
+                            .change_context(errors::CryptoError::DecodingFailed);
+                        match decrypt_object {
+                            Ok(decrypted) => Ok(Self::new(
+                                decrypted.data.inner().peek().clone().into(),
+                                encrypted_data.into_inner(),
+                            )),
+                            Err(_) => {
+                                Self::decrypt(
+                                    encrypted_data,
+                                    identifier.inner().as_bytes(),
+                                    crypt_algo,
+                                )
+                                .await
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo)
+                            .await
+                    }
+                },
+                Err(_) => {
+                    Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+                }
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
     async fn encrypt(
-        _state: &SessionState,
         masked_data: Secret<Vec<u8>, S>,
         key: &[u8],
         crypt_algo: V,
@@ -129,7 +491,6 @@ impl<
 
     #[instrument(skip_all)]
     async fn decrypt(
-        _state: &SessionState,
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
@@ -191,14 +552,14 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
 pub async fn encrypt<E: Clone, S>(
     state: &SessionState,
     inner: Secret<E, S>,
-    key: &[u8],
+    identifier: Identifier,
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, errors::CryptoError>
 where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        crypto::Encryptable::encrypt(state, inner, key, crypto::GcmAes256),
+        crypto::Encryptable::encrypt_via_api(state, inner, identifier, crypto::GcmAes256),
         &ENCRYPTION_TIME,
         &[],
     )
@@ -209,7 +570,7 @@ where
 pub async fn encrypt_optional<E: Clone, S>(
     state: &SessionState,
     inner: Option<Secret<E, S>>,
-    key: &[u8],
+    identifier: Identifier,
 ) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
 where
     Secret<E, S>: Send,
@@ -217,7 +578,7 @@ where
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     inner
-        .async_map(|f| encrypt(state, f, key))
+        .async_map(|f| encrypt(state, f, identifier))
         .await
         .transpose()
 }
@@ -226,13 +587,15 @@ where
 pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     state: &SessionState,
     inner: Option<Encryption>,
-    key: &[u8],
+    identifier: Identifier,
 ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        inner.async_map(|item| crypto::Encryptable::decrypt(state, item, key, crypto::GcmAes256)),
+        inner.async_map(|item| {
+            crypto::Encryptable::decrypt_via_api(state, item, identifier, crypto::GcmAes256)
+        }),
         &DECRYPTION_TIME,
         &[],
     )

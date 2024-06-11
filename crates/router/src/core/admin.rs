@@ -109,10 +109,14 @@ pub async fn create_merchant_account(
 
     let key_store = domain::MerchantKeyStore {
         merchant_id: req.merchant_id.clone(),
-        key: domain_types::encrypt(&state, key.to_vec().into(), master_key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to decrypt data from key store")?,
+        key: domain_types::encrypt(
+            &state,
+            key.to_vec().into(),
+            domain::Identifier::Merchant(String::from_utf8_lossy(master_key).to_string()),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to decrypt data from key store")?,
         created_at: date_time::now(),
     };
 
@@ -185,15 +189,20 @@ pub async fn create_merchant_account(
         organization.org_id
     };
 
+    let identifier = domain::Identifier::Merchant(String::from_utf8_lossy(&key).to_string());
     let mut merchant_account = async {
         Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(domain::MerchantAccount {
             merchant_id: req.merchant_id,
             merchant_name: req
                 .merchant_name
-                .async_lift(|inner| domain_types::encrypt_optional(&state, inner, &key))
+                .async_lift(|inner| {
+                    domain_types::encrypt_optional(&state, inner, identifier.clone())
+                })
                 .await?,
             merchant_details: merchant_details
-                .async_lift(|inner| domain_types::encrypt_optional(&state, inner, &key))
+                .async_lift(|inner| {
+                    domain_types::encrypt_optional(&state, inner, identifier.clone())
+                })
                 .await?,
             return_url: req.return_url.map(|a| a.to_string()),
             webhook_details,
@@ -564,11 +573,12 @@ pub async fn merchant_account_update(
     // Update the business profile, This is for backwards compatibility
     update_business_profile_cascade(state.clone(), req.clone(), merchant_id.to_string()).await?;
 
+    let identifier = domain::Identifier::Merchant(String::from_utf8_lossy(key).to_string());
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
             .merchant_name
             .map(Secret::new)
-            .async_lift(|inner| domain_types::encrypt_optional(&state, inner, key))
+            .async_lift(|inner| domain_types::encrypt_optional(&state, inner, identifier.clone()))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt merchant name")?,
@@ -581,7 +591,7 @@ pub async fn merchant_account_update(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to convert merchant_details to a value")?
             .map(Secret::new)
-            .async_lift(|inner| domain_types::encrypt_optional(&state, inner, key))
+            .async_lift(|inner| domain_types::encrypt_optional(&state, inner, identifier.clone()))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt merchant details")?,
@@ -957,7 +967,7 @@ pub async fn create_payment_connector(
                     field_name: "connector_account_details",
                 },
             )?,
-            key_store.key.peek(),
+            domain::Identifier::Merchant(String::from_utf8_lossy(key_store.key.peek()).to_string()),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1294,7 +1304,13 @@ pub async fn update_payment_connector(
         connector_account_details: req
             .connector_account_details
             .async_lift(|inner| {
-                domain_types::encrypt_optional(&state, inner, key_store.key.get_inner().peek())
+                domain_types::encrypt_optional(
+                    &state,
+                    inner,
+                    domain::Identifier::Merchant(
+                        String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string(),
+                    ),
+                )
             })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

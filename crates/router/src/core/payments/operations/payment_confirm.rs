@@ -1046,7 +1046,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 decrypt::<serde_json::Value, masking::WithType>(
                     state,
                     pm.payment_method_data.clone(),
-                    key,
+                    domain::Identifier::Merchant(String::from_utf8_lossy(key).to_string()),
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)

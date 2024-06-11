@@ -301,7 +301,8 @@ mod tests {
             .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
         let merchant_id = "merchant1";
-
+        let identifier =
+            domain::Identifier::Merchant(String::from_utf8_lossy(master_key).to_string());
         let merchant_key1 = mock_db
             .insert_merchant_key_store(
                 state,
@@ -310,7 +311,7 @@ mod tests {
                     key: domain::types::encrypt(
                         state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
-                        master_key,
+                        identifier.clone(),
                     )
                     .await
                     .unwrap(),
@@ -337,7 +338,7 @@ mod tests {
                     key: domain::types::encrypt(
                         state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
-                        master_key,
+                        identifier.clone(),
                     )
                     .await
                     .unwrap(),

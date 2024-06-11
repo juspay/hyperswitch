@@ -6,6 +6,7 @@ use diesel_models::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
+use super::Identifier;
 use crate::{
     errors::{CustomResult, ValidationError},
     routes::SessionState,
@@ -87,6 +88,7 @@ impl super::behaviour::Conversion for Event {
         Self: Sized,
     {
         async {
+            let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 event_id: item.event_id,
                 event_type: item.event_type,
@@ -102,11 +104,11 @@ impl super::behaviour::Conversion for Event {
                 initial_attempt_id: item.initial_attempt_id,
                 request: item
                     .request
-                    .async_lift(|inner| types::decrypt(state, inner, key.peek()))
+                    .async_lift(|inner| types::decrypt(state, inner, identifier.clone()))
                     .await?,
                 response: item
                     .response
-                    .async_lift(|inner| types::decrypt(state, inner, key.peek()))
+                    .async_lift(|inner| types::decrypt(state, inner, identifier.clone()))
                     .await?,
                 delivery_attempt: item.delivery_attempt,
             })
