@@ -5221,6 +5221,7 @@
       },
       "AttemptStatus": {
         "type": "string",
+        "description": "The status of the attempt",
         "enum": [
           "started",
           "authentication_failed",
@@ -7060,6 +7061,7 @@
       },
       "CaptureStatus": {
         "type": "string",
+        "description": "The status of the capture",
         "enum": [
           "started",
           "charged",
@@ -7552,6 +7554,7 @@
       },
       "ConnectorMetadata": {
         "type": "object",
+        "description": "additional data related to some connectors",
         "properties": {
           "apple_pay": {
             "allOf": [
@@ -8168,6 +8171,7 @@
       },
       "CustomerAcceptance": {
         "type": "object",
+        "description": "Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client",
         "required": [
           "acceptance_type"
         ],
@@ -8303,6 +8307,7 @@
       },
       "CustomerDetailsResponse": {
         "type": "object",
+        "description": "Details of customer attached to this payment",
         "required": [
           "id"
         ],
@@ -8847,6 +8852,7 @@
       },
       "DisputeStage": {
         "type": "string",
+        "description": "Stage of the dispute",
         "enum": [
           "pre_dispute",
           "dispute",
@@ -8855,6 +8861,7 @@
       },
       "DisputeStatus": {
         "type": "string",
+        "description": "Status of the dispute",
         "enum": [
           "dispute_opened",
           "dispute_expired",
@@ -8911,6 +8918,7 @@
       },
       "EphemeralKeyCreateResponse": {
         "type": "object",
+        "description": "ephemeral_key for the customer_id mentioned",
         "required": [
           "customer_id",
           "created_at",
@@ -9217,6 +9225,7 @@
       },
       "FeatureMetadata": {
         "type": "object",
+        "description": "additional data that might be required by hyperswitch",
         "properties": {
           "redirect_response": {
             "allOf": [
@@ -9483,6 +9492,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_date_of_birth"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -10372,6 +10387,7 @@
       },
       "IntentStatus": {
         "type": "string",
+        "description": "The status of the current payment that was made",
         "enum": [
           "succeeded",
           "failed",
@@ -11346,6 +11362,7 @@
       },
       "MerchantConnectorDetailsWrap": {
         "type": "object",
+        "description": "Merchant connector details used to make payments.",
         "required": [
           "creds_identifier"
         ],
@@ -12815,6 +12832,7 @@
       },
       "PaymentChargeRequest": {
         "type": "object",
+        "description": "Fee information to be charged on the payment being collected",
         "required": [
           "charge_type",
           "fees",
@@ -12827,7 +12845,8 @@
           "fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees to be collected on the payment"
+            "description": "Platform fees to be collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",
@@ -12854,7 +12873,8 @@
           "application_fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees collected on the payment"
+            "description": "Platform fees collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",
@@ -12890,7 +12910,8 @@
           {
             "type": "object"
           }
-        ]
+        ],
+        "description": "custom payment link config for the particular payment"
       },
       "PaymentExperience": {
         "type": "string",
@@ -14140,7 +14161,7 @@
           },
           "off_session": {
             "type": "boolean",
-            "description": "Set to true to indicates that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
             "example": true,
             "nullable": true
           },
@@ -14225,7 +14246,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification",
+            "description": "It's a token used for client side verification.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
             "nullable": true
           },
@@ -14305,22 +14326,6 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -14359,29 +14364,13 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
-            "nullable": true
-          },
-          "recurring_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecurringDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "charges": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
-              }
-            ],
             "nullable": true
           }
         }
@@ -14501,7 +14490,7 @@
           },
           "off_session": {
             "type": "boolean",
-            "description": "Set to true to indicates that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
             "example": true,
             "nullable": true
           },
@@ -14674,22 +14663,6 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -14741,29 +14714,13 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
-            "nullable": true
-          },
-          "recurring_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecurringDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "charges": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
-              }
-            ],
             "nullable": true
           }
         }
@@ -15011,7 +14968,7 @@
           },
           "off_session": {
             "type": "boolean",
-            "description": "Set to true to indicates that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
             "example": true,
             "nullable": true
           },
@@ -15096,7 +15053,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification",
+            "description": "It's a token used for client side verification.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
             "nullable": true
           },
@@ -15262,7 +15219,7 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
@@ -15348,7 +15305,7 @@
           "amount_received": {
             "type": "integer",
             "format": "int64",
-            "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't captured all amount at once.",
+            "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
             "example": 6540
           },
           "connector": {
@@ -15401,7 +15358,7 @@
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
             },
-            "description": "List of refund that happened on this intent, as same payment intent can have multiple refund requests on the basis of order details",
+            "description": "List of refund that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
             "nullable": true
           },
           "disputes": {
@@ -15430,7 +15387,7 @@
           },
           "mandate_id": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data, If we are setting up recurring payments",
+            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data, in case of setting up recurring payments",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -15700,7 +15657,7 @@
           },
           "reference_id": {
             "type": "string",
-            "description": "reference to the payment at connector side",
+            "description": "reference(Identifier) to the payment at connector side",
             "example": "993672945374576J",
             "nullable": true
           },
@@ -16079,7 +16036,7 @@
           },
           "off_session": {
             "type": "boolean",
-            "description": "Set to true to indicates that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
             "example": true,
             "nullable": true
           },
@@ -16231,22 +16188,6 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -16293,29 +16234,13 @@
           },
           "frm_metadata": {
             "type": "object",
-            "description": "additional data related to some frm connectors",
+            "description": "additional data related to some frm(Fraud Risk Management) connectors",
             "nullable": true
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
-            "nullable": true
-          },
-          "recurring_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecurringDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "charges": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
-              }
-            ],
             "nullable": true
           }
         }
@@ -17417,6 +17342,7 @@
             }
           }
         ],
+        "description": "Details required for recurring payment",
         "discriminator": {
           "propertyName": "type"
         }
@@ -17819,6 +17745,7 @@
       },
       "RequestSurchargeDetails": {
         "type": "object",
+        "description": "surcharge_details for this payment",
         "required": [
           "surcharge_amount"
         ],
@@ -17979,6 +17906,7 @@
       },
       "RetryAction": {
         "type": "string",
+        "description": "Denotes the retry action",
         "enum": [
           "manual_retry",
           "requeue"

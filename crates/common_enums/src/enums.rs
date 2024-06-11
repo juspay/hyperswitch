@@ -19,7 +19,6 @@ pub mod diesel_exports {
     };
 }
 
-
 /// The status of the attempt
 #[derive(
     Clone,
@@ -205,7 +204,6 @@ impl AttemptStatus {
         }
     }
 }
-
 
 /// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
 #[derive(
@@ -1604,7 +1602,6 @@ pub enum CardNetwork {
     Maestro,
 }
 
-
 /// Stage of the dispute
 #[derive(
     Clone,
@@ -1629,7 +1626,6 @@ pub enum DisputeStage {
     Dispute,
     PreArbitration,
 }
-
 
 /// Status of the dispute
 #[derive(
