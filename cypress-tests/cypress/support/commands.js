@@ -1224,8 +1224,8 @@ Cypress.Commands.add(
   "createJWTToken",
   (req_data, res_data, globalState) => {
     const jwt_body = {
-      email: `sk.sakil+8@juspay.in`,
-      password: `ghjTYU67^^`,
+      email: `${globalState.get("email")}`,
+      password: `${globalState.get("password")}`,
     }
 
     cy.request({
@@ -1244,14 +1244,16 @@ Cypress.Commands.add(
 
       if (response.status === 200) {
         expect(response.body).to.have.property("token");
+        //set jwt_token
         globalState.set("jwtToken", response.body.token);
 
-        // get session cookie
+        // set session cookie
         const sessionCookie = response.headers["set-cookie"][0];
         const sessionValue = sessionCookie.split(';')[0];
         globalState.set("cookie",sessionValue);
 
-        globalState.set("apiKey", "snd_qNK4Ci4CG2VsA4U1EJZCP59SRVJaMISpQHpLxZnpu6lO6QF7683dchBRKZhxF8AT")
+        // set api key
+        globalState.set("apiKey", globalState.get("routingApiKey"))
 
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
@@ -1272,7 +1274,8 @@ Cypress.Commands.add(
     for (const key in req_data) {
       routingBody[key] = req_data[key];
     }
-    routingBody.profile_id = "pro_UPGqxOCCDxeA593xCsv4";
+    // set profile id from env
+    routingBody.profile_id = globalState.get("profileId");
     routingBody.algorithm.type = type;
     routingBody.algorithm.data = data;
 

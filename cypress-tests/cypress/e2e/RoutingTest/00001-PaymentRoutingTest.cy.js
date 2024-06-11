@@ -41,8 +41,6 @@ describe("Routing Test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-
-
       cy.createJWTToken(
         req_data,
         res_data,
@@ -60,11 +58,11 @@ describe("Routing Test", () => {
       let routing_data = [
         {
           connector: "stripe",
-          merchant_connector_id: "mca_ljMxCY9Ry1JDkS5mGMdy",
+          merchant_connector_id: globalState.get("stripeMcaId"),
         },
         {
           connector: "adyen",
-          merchant_connector_id: "mca_gfbpoVELONI92ikLhdNU",
+          merchant_connector_id: globalState.get("adyenMcaId"),
         },
       ];
       cy.addRoutingConfig(
