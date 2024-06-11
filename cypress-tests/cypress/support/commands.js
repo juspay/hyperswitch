@@ -1220,53 +1220,50 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add(
-  "createJWTToken",
-  (req_data, res_data, globalState) => {
-    const jwt_body = {
-      email: `${globalState.get("email")}`,
-      password: `${globalState.get("password")}`,
-    }
+Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
+  const jwt_body = {
+    email: `${globalState.get("email")}`,
+    password: `${globalState.get("password")}`,
+  };
 
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/user/v2/signin`,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      failOnStatusCode: false,
-      body: jwt_body,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/user/v2/signin`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+    body: jwt_body,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      expect(res_data.status).to.equal(response.status);
-      expect(response.headers["content-type"]).to.include("application/json");
+    expect(res_data.status).to.equal(response.status);
+    expect(response.headers["content-type"]).to.include("application/json");
 
-      if (response.status === 200) {
-        expect(response.body).to.have.property("token");
-        //set jwt_token
-        globalState.set("jwtToken", response.body.token);
+    if (response.status === 200) {
+      expect(response.body).to.have.property("token");
+      //set jwt_token
+      globalState.set("jwtToken", response.body.token);
 
-        // set session cookie
-        const sessionCookie = response.headers["set-cookie"][0];
-        const sessionValue = sessionCookie.split(';')[0];
-        globalState.set("cookie",sessionValue);
+      // set session cookie
+      const sessionCookie = response.headers["set-cookie"][0];
+      const sessionValue = sessionCookie.split(";")[0];
+      globalState.set("cookie", sessionValue);
 
-        // set api key
-        globalState.set("apiKey", globalState.get("routingApiKey"))
+      // set api key
+      globalState.set("apiKey", globalState.get("routingApiKey"));
 
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
-        }
-      } else {
-        expect(response.body).to.have.property("error");
-        for (const key in res_data.body.error) {
-          expect(res_data.body.error[key]).to.equal(response.body.error[key]);
-        }
+      for (const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
       }
-    });
-  },
-);
+    } else {
+      expect(response.body).to.have.property("error");
+      for (const key in res_data.body.error) {
+        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+      }
+    }
+  });
+});
 
 Cypress.Commands.add(
   "addRoutingConfig",
@@ -1284,7 +1281,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/routing`,
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `${globalState.get("cookie")}`,
+        Cookie: `${globalState.get("cookie")}`,
         "api-key": `Bearer ${globalState.get("jwtToken")}`,
       },
       failOnStatusCode: false,
@@ -1320,7 +1317,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `${globalState.get("cookie")}`,
+        Cookie: `${globalState.get("cookie")}`,
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
@@ -1354,7 +1351,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `${globalState.get("cookie")}`,
+        Cookie: `${globalState.get("cookie")}`,
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,

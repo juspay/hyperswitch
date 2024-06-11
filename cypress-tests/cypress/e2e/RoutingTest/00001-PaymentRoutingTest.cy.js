@@ -35,17 +35,12 @@ describe("Routing Test", () => {
   });
 
   context("Routing with Stripe as top priority", () => {
-
     it("create-jwt-token", () => {
       let data = utils.getConnectorDetails("common")["jwt"];
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.createJWTToken(
-        req_data,
-        res_data,
-        globalState,
-      );
+      cy.createJWTToken(req_data, res_data, globalState);
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
