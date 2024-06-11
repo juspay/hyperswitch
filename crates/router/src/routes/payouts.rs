@@ -174,7 +174,6 @@ pub async fn payouts_confirm(
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
-    
 
     Box::pin(api::server_wrap(
         flow,
