@@ -854,7 +854,8 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice>> {
+) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
+{
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
 
@@ -961,8 +962,10 @@ pub async fn perform_session_flow_routing(
             );
     }
 
-    let mut result: FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice> =
-        FxHashMap::default();
+    let mut result: FxHashMap<
+        api_enums::PaymentMethodType,
+        Vec<routing_types::SessionRoutingChoice>,
+    > = FxHashMap::default();
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -984,30 +987,45 @@ pub async fn perform_session_flow_routing(
             ))]
             profile_id: session_input.payment_intent.profile_id.clone(),
         };
-        let maybe_choice =
-            perform_session_routing_for_pm_type(session_pm_input, transaction_type).await?;
+        let routable_connector_choice =
+            perform_session_routing_for_pm_type(&session_pm_input, transaction_type).await?;
 
-        // (connector, sub_label)
-        if let Some(data) = maybe_choice {
-            result.insert(
-                pm_type,
-                routing_types::SessionRoutingChoice {
-                    connector: data.0,
+        let mut session_routing_choice: Vec<routing_types::SessionRoutingChoice> = Vec::new();
+
+        for selection in routable_connector_choice {
+            let connector_name = selection.connector.to_string();
+            if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &session_pm_input.state.clone().conf.connectors,
+                    &connector_name,
+                    get_token.clone(),
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    selection.merchant_connector_id,
                     #[cfg(not(feature = "connector_choice_mca_id"))]
-                    sub_label: data.1,
+                    None,
+                )
+                .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                let sub_label = selection.sub_label;
+
+                session_routing_choice.push(routing_types::SessionRoutingChoice {
+                    connector: connector_data,
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    sub_label: sub_label,
                     payment_method_type: pm_type,
-                },
-            );
+                });
+            }
         }
+        result.insert(pm_type, session_routing_choice);
     }
 
     Ok(result)
 }
 
 async fn perform_session_routing_for_pm_type(
-    session_pm_input: SessionRoutingPmTypeInput<'_>,
+    session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Option<(api::ConnectorData, Option<String>)>> {
+) -> RoutingResult<Vec<api_models::routing::RoutableConnectorChoice>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
     let chosen_connectors = match session_pm_input.routing_algorithm {
@@ -1090,7 +1108,7 @@ async fn perform_session_routing_for_pm_type(
             &session_pm_input.state.clone(),
             session_pm_input.key_store,
             fallback,
-            session_pm_input.backend_input,
+            session_pm_input.backend_input.clone(),
             None,
             #[cfg(feature = "business_profile_routing")]
             session_pm_input.profile_id.clone(),
@@ -1099,32 +1117,7 @@ async fn perform_session_routing_for_pm_type(
         .await?;
     }
 
-    let mut final_choice: Option<(api::ConnectorData, Option<String>)> = None;
-
-    for selection in final_selection {
-        let connector_name = selection.connector.to_string();
-        if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
-            let connector_data = api::ConnectorData::get_connector_by_name(
-                &session_pm_input.state.clone().conf.connectors,
-                &connector_name,
-                get_token.clone(),
-                #[cfg(feature = "connector_choice_mca_id")]
-                selection.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                None,
-            )
-            .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let sub_label = selection.sub_label;
-            #[cfg(feature = "connector_choice_mca_id")]
-            let sub_label = None;
-
-            final_choice = Some((connector_data, sub_label));
-            break;
-        }
-    }
-
-    Ok(final_choice)
+    Ok(final_selection)
 }
 
 pub fn make_dsl_input_for_surcharge(
