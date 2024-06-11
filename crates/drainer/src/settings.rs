@@ -31,7 +31,7 @@ pub struct CmdLineConf {
 #[derive(Clone)]
 pub struct AppState {
     pub conf: Arc<Settings<RawSecret>>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 
 impl AppState {

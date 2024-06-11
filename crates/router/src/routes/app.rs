@@ -82,7 +82,7 @@ pub struct SessionState {
     pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
     pub tenant: String,
@@ -144,8 +144,8 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
