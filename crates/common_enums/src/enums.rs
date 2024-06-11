@@ -2832,7 +2832,7 @@ pub struct CollectLinkConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct EnabledPaymentMethod {
-    /// Payment method (banks, cards, wallets) enabled for the operation 
+    /// Payment method (banks, cards, wallets) enabled for the operation
     pub payment_method: PaymentMethod,
 
     /// An array of associated payment method types
