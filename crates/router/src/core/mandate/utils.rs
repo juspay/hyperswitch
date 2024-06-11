@@ -46,6 +46,7 @@ pub async fn construct_mandate_revoke_router_data(
         connector_meta_data: None,
         connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,

@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.11.0
+
+### Features
+
+- **events:** Add audit events payment confirm ([#4763](https://github.com/juspay/hyperswitch/pull/4763)) ([`eb0101f`](https://github.com/juspay/hyperswitch/commit/eb0101fa7d617afb226cd024881b53dcd080d129))
+
+### Bug Fixes
+
+- **multitenancy:** Remove tenant id from redis stream key of kafkaStore ([#4916](https://github.com/juspay/hyperswitch/pull/4916)) ([`9c7dcbe`](https://github.com/juspay/hyperswitch/commit/9c7dcbe1a042f92dbdd74ec138b56e09fd604a27))
+- **payments:** Populate payment method data in payments list ([#4919](https://github.com/juspay/hyperswitch/pull/4919)) ([`7085a46`](https://github.com/juspay/hyperswitch/commit/7085a46271791ca3f1c7b86afa7c8b199b93c0cd))
+
+### Refactors
+
+- **business_profile:** Add `is_connector_agnostic_mit_enabled` in the business profile APIs ([#4925](https://github.com/juspay/hyperswitch/pull/4925)) ([`894560f`](https://github.com/juspay/hyperswitch/commit/894560f07bbc820152941ea8ad4005dbc9fb3477))
+- **connector:** [CRYPTOPAY] amount conversion framework added ([#4928](https://github.com/juspay/hyperswitch/pull/4928)) ([`adb9b11`](https://github.com/juspay/hyperswitch/commit/adb9b11f69ee4ab2f79af83aa5124b994840d9a0))
+- **users:** Make password nullable in `users` table ([#4902](https://github.com/juspay/hyperswitch/pull/4902)) ([`e3e31f3`](https://github.com/juspay/hyperswitch/commit/e3e31f392bc40b5d153d1f4dac6f91decd65b723))
+
+**Full Changelog:** [`2024.06.10.0...2024.06.11.0`](https://github.com/juspay/hyperswitch/compare/2024.06.10.0...2024.06.11.0)
+
+- - -
+
 ## 2024.06.10.0
 
 ### Features

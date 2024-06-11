@@ -89,9 +89,10 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
 
 Cypress.Commands.add(
   "createConnectorCallTest",
-  (createConnectorBody, globalState) => {
+  (createConnectorBody, payment_methods_enabled, globalState) => {
     const merchantId = globalState.get("merchantId");
     createConnectorBody.connector_name = globalState.get("connectorId");
+    createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
@@ -145,6 +146,15 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           `${connectorName}_payout`,
         );
+
+        // If the connector does not have payout connector creds in creds file, set payoutsExecution to false
+        if (authDetails === null) {
+          globalState.set("payoutsExecution", false);
+          return false;
+        } else {
+          globalState.set("payoutsExecution", true);
+        } 
+
         createConnectorBody.connector_account_details = authDetails;
         cy.request({
           method: "POST",
