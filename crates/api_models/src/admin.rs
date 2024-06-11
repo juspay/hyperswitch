@@ -97,6 +97,7 @@ pub struct MerchantAccountCreate {
     pub organization_id: Option<String>,
 
     /// Default payment method collect link config
+    #[schema(value_type = Option<MerchantCollectLinkConfig>, example = r#"{"theme":"\#1B1B1B","logo":"https://upload.wikimedia.org/wikipedia/commons/8/84/Spotify_icon.svg","collector_name":"Spotify","enabled_payment_methods":[{"payment_method":"card","payment_method_types":["credit","debit"]},{"payment_method":"bank_transfer","payment_method_types":["ach","bacs","sepa"]}]}"#)]
     pub pm_collect_link_config: Option<MerchantCollectLinkConfig>,
 }
 
@@ -1122,26 +1123,12 @@ pub struct MerchantCollectLinkConfig {
 
     /// Collect UI config
     #[serde(flatten)]
+    #[schema(value_type = CollectLinkConfig)]
     pub ui_config: api_enums::CollectLinkConfig,
 
     /// List of payment methods shown on collect UI
     #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct CollectLinkConfigRequest {
-    /// Primary color to be used in the form represented in hex format
-    #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
-    pub theme: Option<String>,
-
-    /// Merchant's display logo
-    #[schema(value_type = Option<String>, max_length = 255, example = "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg")]
-    pub logo: Option<String>,
-
-    /// Custom merchant name for collect link
-    #[schema(value_type = Option<Secret<String>>, max_length = 255, example = "hyperswitch")]
-    pub collector_name: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
