@@ -36,7 +36,7 @@ pub mod user_key_store;
 pub mod user_role;
 use router_env::logger;
 use diesel_models::{
-    fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
+    fraud_check::{FraudCheck, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
@@ -223,7 +223,7 @@ impl FraudCheckInterface for KafkaStore {
     async fn insert_fraud_check_response(
         &self,
         new: storage::FraudCheckNew,
-    ) -> CustomResult<FraudCheck, errors::StorageError> {
+    ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self.diesel_store.insert_fraud_check_response(new).await?;
         if let Err(er) = self.kafka_producer.log_fraud_check(&frm, None, self.tenant_id.clone())
             .await
@@ -236,7 +236,7 @@ impl FraudCheckInterface for KafkaStore {
         &self,
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
-    ) -> CustomResult<FraudCheck, errors::StorageError> {
+    ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
             .diesel_store
             .update_fraud_check_response_with_attempt_id(this, fraud_check)
@@ -254,7 +254,7 @@ impl FraudCheckInterface for KafkaStore {
         &self,
         payment_id: String,
         merchant_id: String,
-    ) -> CustomResult<FraudCheck, errors::StorageError> {
+    ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
             .diesel_store
             .find_fraud_check_by_payment_id(payment_id, merchant_id)
@@ -268,12 +268,11 @@ impl FraudCheckInterface for KafkaStore {
         }
         Ok(frm)
     }
-    // TODO:: Ask why optionis used here
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
         payment_id: String,
         merchant_id: String,
-    ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
+    ) -> CustomResult<Option<FraudCheck>, StorageError> {
         let frm = self
             .diesel_store
             .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
@@ -293,42 +292,6 @@ impl FraudCheckInterface for KafkaStore {
     }
 }
 
-// #[async_trait::async_trait]
-// impl FraudCheckInterface for KafkaStore {
-//     async fn insert_fraud_check_response(
-//         &self,
-//         new: FraudCheckNew,
-//     ) -> CustomResult<FraudCheck, StorageError> {
-//         self.diesel_store.insert_fraud_check_response(new).await
-//     }
-//     async fn update_fraud_check_response_with_attempt_id(
-//         &self,
-//         fraud_check: FraudCheck,
-//         fraud_check_update: FraudCheckUpdate,
-//     ) -> CustomResult<FraudCheck, StorageError> {
-//         self.diesel_store
-//             .update_fraud_check_response_with_attempt_id(fraud_check, fraud_check_update)
-//             .await
-//     }
-//     async fn find_fraud_check_by_payment_id(
-//         &self,
-//         payment_id: String,
-//         merchant_id: String,
-//     ) -> CustomResult<FraudCheck, StorageError> {
-//         self.diesel_store
-//             .find_fraud_check_by_payment_id(payment_id, merchant_id)
-//             .await
-//     }
-//     async fn find_fraud_check_by_payment_id_if_present(
-//         &self,
-//         payment_id: String,
-//         merchant_id: String,
-//     ) -> CustomResult<Option<FraudCheck>, StorageError> {
-//         self.diesel_store
-//             .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
-//             .await
-//     }
-// }
 
 #[async_trait::async_trait]
 impl OrganizationInterface for KafkaStore {

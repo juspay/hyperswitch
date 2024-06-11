@@ -20,7 +20,6 @@ use crate::{
     errors::{AnalyticsError, AnalyticsResult},
     frm::FrmMetricAccumulator,
     metrics,
-    types::FiltersError,
     AnalyticsProvider,
 };
 
@@ -120,16 +119,61 @@ pub async fn get_filters(
     let mut res = FrmFiltersResponse::default();
     for dim in req.group_by_names {
         let values = match pool {
-            AnalyticsProvider::Clickhouse(_pool) => Err(FiltersError::NotImplemented(
-                "Frm not implemented for Clickhouse",
-            ))
-            .attach_printable("Clickhouse Analytics is not implemented for Clickhouse"),
-            AnalyticsProvider::Sqlx(sqlx_pool)
-            | AnalyticsProvider::CombinedCkh(sqlx_pool, _)
-            | AnalyticsProvider::CombinedSqlx(sqlx_pool, _) => {
-                get_frm_filter_for_dimension(dim, merchant_id, &req.time_range, sqlx_pool).await
-            }
-        }
+            AnalyticsProvider::Sqlx(pool) => {
+    get_frm_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+        .await
+}
+            AnalyticsProvider::Clickhouse(pool) => {
+    get_frm_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+        .await
+}
+        AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) => {
+    let ckh_result = get_frm_filter_for_dimension(
+        dim,
+        merchant_id,
+        &req.time_range,
+        ckh_pool,
+    )
+    .await;
+    let sqlx_result = get_frm_filter_for_dimension(
+        dim,
+        merchant_id,
+        &req.time_range,
+        sqlx_pool,
+    )
+    .await;
+    match (&sqlx_result, &ckh_result) {
+        (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+            router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
+        },
+        _ => {}
+    };
+    ckh_result
+}
+        AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
+    let ckh_result = get_frm_filter_for_dimension(
+        dim,
+        merchant_id,
+        &req.time_range,
+        ckh_pool,
+    )
+    .await;
+    let sqlx_result = get_frm_filter_for_dimension(
+        dim,
+        merchant_id,
+        &req.time_range,
+        sqlx_pool,
+    )
+    .await;
+    match (&sqlx_result, &ckh_result) {
+        (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+            router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
+        },
+        _ => {}
+    };
+    sqlx_result
+}
+}
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
         .filter_map(|fil: FrmFilterRow| match dim {

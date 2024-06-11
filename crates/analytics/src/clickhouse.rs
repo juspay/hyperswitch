@@ -14,6 +14,7 @@ use super::{
     },
     query::{Aggregate, ToSql, Window},
     refunds::{filters::RefundFilterRow, metrics::RefundMetricRow},
+    frm::{filters::FrmFilterRow, metrics::FrmMetricRow},
     sdk_events::{filters::SdkEventFilter, metrics::SdkEventMetricRow},
     types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, QueryExecutionError},
 };
@@ -158,6 +159,8 @@ impl super::payments::metrics::PaymentMetricAnalytics for ClickhouseClient {}
 impl super::payments::distribution::PaymentDistributionAnalytics for ClickhouseClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for ClickhouseClient {}
 impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
+impl super::frm::metrics::FrmMetricAnalytics for ClickhouseClient {}
+impl super::frm::filters::FrmFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::metrics::SdkEventMetricAnalytics for ClickhouseClient {}
 impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
@@ -261,6 +264,26 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     fn try_into(self) -> Result<RefundFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse RefundFilterRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<FrmMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<FrmMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse FrmMetricRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<FrmFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<FrmFilterRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse FrmFilterRow in clickhouse results",
         ))
     }
 }

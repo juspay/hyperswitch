@@ -4,7 +4,7 @@ use diesel_models::{
     enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
     fraud_check::FraudCheck,
 };
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaFraudCheckEvent<'a> {

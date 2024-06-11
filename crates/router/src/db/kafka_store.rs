@@ -6,7 +6,6 @@ use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
-    fraud_check::{FraudCheck, FraudCheckUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };

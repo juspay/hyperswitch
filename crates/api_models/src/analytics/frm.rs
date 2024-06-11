@@ -21,8 +21,8 @@ use diesel_models::enums::FraudCheckStatus;
 #[strum(serialize_all = "snake_case")]
 pub enum FrmTransactionType {
     #[default]
-    PreFlow,
-    PostFlow,
+    PreFrm,
+    PostFrm,
 }
 
 use super::{NameDescription, TimeRange};
