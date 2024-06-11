@@ -6824,7 +6824,12 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if cusomter shipping details needs to be sent for wallets payments",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
+            "nullable": true
+          },
+          "is_connector_agnostic_mit_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
             "nullable": true
           }
         },
@@ -6956,6 +6961,16 @@
                 "$ref": "#/components/schemas/ExtendedCardInfoConfig"
               }
             ],
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be sent for wallets payments",
+            "nullable": true
+          },
+          "is_connector_agnostic_mit_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
             "nullable": true
           }
         }
@@ -7463,6 +7478,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -7497,6 +7513,7 @@
           "helcim",
           "iatapay",
           "klarna",
+          "mifinity",
           "mollie",
           "multisafepay",
           "netcetera",
@@ -9045,7 +9062,14 @@
           "dispute_won",
           "dispute_lost",
           "mandate_active",
-          "mandate_revoked"
+          "mandate_revoked",
+          "payout_success",
+          "payout_failed",
+          "payout_initiated",
+          "payout_processing",
+          "payout_cancelled",
+          "payout_expired",
+          "payout_reversed"
         ]
       },
       "ExtendedCardInfo": {
@@ -9249,7 +9273,7 @@
           {
             "type": "string",
             "enum": [
-              "user_country_code"
+              "user_phone_number_country_code"
             ]
           },
           {
@@ -11769,6 +11793,22 @@
           }
         }
       },
+      "MifinityData": {
+        "type": "object",
+        "required": [
+          "destination_account_number",
+          "date_of_birth"
+        ],
+        "properties": {
+          "destination_account_number": {
+            "type": "string"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
       "MinorUnit": {
         "type": "integer",
         "format": "int64",
@@ -12367,6 +12407,25 @@
                 "$ref": "#/components/schemas/MandateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "PayoutCreateResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payout_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PayoutCreateResponse"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -12765,7 +12824,8 @@
           "fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees to be collected on the payment"
+            "description": "Platform fees to be collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",
@@ -12792,7 +12852,8 @@
           "application_fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees collected on the payment"
+            "description": "Platform fees collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",
@@ -13732,7 +13793,8 @@
           "family_mart",
           "seicomart",
           "pay_easy",
-          "local_bank_transfer"
+          "local_bank_transfer",
+          "mifinity"
         ]
       },
       "PaymentMethodUpdate": {
@@ -13780,6 +13842,63 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentProcessingDetails": {
+        "type": "object",
+        "required": [
+          "payment_processing_certificate",
+          "payment_processing_certificate_key"
+        ],
+        "properties": {
+          "payment_processing_certificate": {
+            "type": "string"
+          },
+          "payment_processing_certificate_key": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentProcessingDetailsAt": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentProcessingDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payment_processing_details_at"
+                ],
+                "properties": {
+                  "payment_processing_details_at": {
+                    "type": "string",
+                    "enum": [
+                      "Hyperswitch"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_processing_details_at"
+            ],
+            "properties": {
+              "payment_processing_details_at": {
+                "type": "string",
+                "enum": [
+                  "Connector"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "payment_processing_details_at"
+        }
       },
       "PaymentRetrieveBody": {
         "type": "object",
@@ -16299,11 +16418,12 @@
         "type": "string",
         "enum": [
           "adyen",
-          "stripe",
+          "adyenplatform",
+          "cybersource",
+          "ebanx",
           "payone",
           "paypal",
-          "ebanx",
-          "cybersource",
+          "stripe",
           "wise"
         ]
       },
@@ -16319,7 +16439,8 @@
           "return_url",
           "business_country",
           "description",
-          "entity_type"
+          "entity_type",
+          "priority"
         ],
         "properties": {
           "payout_id": {
@@ -16476,6 +16597,9 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "priority": {
+            "$ref": "#/components/schemas/PayoutSendPriority"
           }
         },
         "additionalProperties": false
@@ -16637,6 +16761,20 @@
             "format": "date-time",
             "description": "Time when the payout was created",
             "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Underlying processor's payout resource ID",
+            "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSendPriority"
+              }
+            ],
             "nullable": true
           },
           "attempts": {
@@ -16941,12 +17079,26 @@
           }
         }
       },
+      "PayoutSendPriority": {
+        "type": "string",
+        "enum": [
+          "instant",
+          "fast",
+          "regular",
+          "wire",
+          "crossBorder",
+          "internal"
+        ]
+      },
       "PayoutStatus": {
         "type": "string",
         "enum": [
           "success",
           "failed",
           "cancelled",
+          "initiated",
+          "expired",
+          "reversed",
           "pending",
           "ineligible",
           "requires_creation",
@@ -17897,6 +18049,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "adyenplatform",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -18478,43 +18631,55 @@
         }
       },
       "SessionTokenInfo": {
-        "type": "object",
-        "required": [
-          "certificate",
-          "certificate_keys",
-          "merchant_identifier",
-          "display_name",
-          "initiative",
-          "initiative_context"
-        ],
-        "properties": {
-          "certificate": {
-            "type": "string"
-          },
-          "certificate_keys": {
-            "type": "string"
-          },
-          "merchant_identifier": {
-            "type": "string"
-          },
-          "display_name": {
-            "type": "string"
-          },
-          "initiative": {
-            "type": "string"
-          },
-          "initiative_context": {
-            "type": "string"
-          },
-          "merchant_business_country": {
+        "allOf": [
+          {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CountryAlpha2"
+                "$ref": "#/components/schemas/PaymentProcessingDetailsAt"
               }
             ],
             "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "certificate",
+              "certificate_keys",
+              "merchant_identifier",
+              "display_name",
+              "initiative",
+              "initiative_context"
+            ],
+            "properties": {
+              "certificate": {
+                "type": "string"
+              },
+              "certificate_keys": {
+                "type": "string"
+              },
+              "merchant_identifier": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "initiative": {
+                "type": "string"
+              },
+              "initiative_context": {
+                "type": "string"
+              },
+              "merchant_business_country": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                ],
+                "nullable": true
+              }
+            }
           }
-        }
+        ]
       },
       "StraightThroughAlgorithm": {
         "oneOf": [
@@ -19548,6 +19713,17 @@
             "properties": {
               "swish_qr": {
                 "$ref": "#/components/schemas/SwishQrData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/MifinityData"
               }
             }
           }

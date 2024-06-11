@@ -106,6 +106,7 @@ pub enum BankOfAmericaActionsList {
 #[serde(rename_all = "camelCase")]
 pub enum BankOfAmericaActionsTokenType {
     PaymentInstrument,
+    Customer,
 }
 
 #[derive(Debug, Serialize)]
@@ -202,11 +203,11 @@ pub struct ApplePayPaymentInformation {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentInformation {
-    Cards(CardPaymentInformation),
-    GooglePay(GooglePayPaymentInformation),
-    ApplePay(ApplePayPaymentInformation),
-    ApplePayToken(ApplePayTokenPaymentInformation),
-    MandatePayment(MandatePaymentInformation),
+    Cards(Box<CardPaymentInformation>),
+    GooglePay(Box<GooglePayPaymentInformation>),
+    ApplePay(Box<ApplePayPaymentInformation>),
+    ApplePayToken(Box<ApplePayTokenPaymentInformation>),
+    MandatePayment(Box<MandatePaymentInformation>),
 }
 
 #[derive(Debug, Serialize)]
@@ -263,8 +264,10 @@ pub struct BillTo {
     last_name: Secret<String>,
     address1: Secret<String>,
     locality: Secret<String>,
-    administrative_area: Secret<String>,
-    postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
     country: api_enums::CountryAlpha2,
     email: pii::Email,
 }
@@ -304,7 +307,8 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?,
             },
@@ -422,9 +426,9 @@ impl<F, T>
                     ..item.data
                 })
             }
-            BankOfAmericaSetupMandatesResponse::ErrorInformation(ref error_response) => {
+            BankOfAmericaSetupMandatesResponse::ErrorInformation(error_response) => {
                 let response = Err(types::ErrorResponse::foreign_from((
-                    error_response,
+                    &*error_response,
                     item.http_code,
                 )));
                 Ok(Self {
@@ -446,17 +450,37 @@ fn build_bill_to(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
-    let mut state = address.to_state_code()?.peek().clone();
-    state.truncate(20);
+
+    let country = address.get_country()?.to_owned();
     let first_name = address.get_first_name()?;
+
+    let (administrative_area, postal_code) =
+        if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
+            let mut state = address.to_state_code()?.peek().clone();
+            state.truncate(20);
+            (
+                Some(Secret::from(state)),
+                Some(address.get_zip()?.to_owned()),
+            )
+        } else {
+            let zip = address.zip.clone();
+            let mut_state = address.state.clone().map(|state| state.expose());
+            match mut_state {
+                Some(mut state) => {
+                    state.truncate(20);
+                    (Some(Secret::from(state)), zip)
+                }
+                None => (None, zip),
+            }
+        };
     Ok(BillTo {
         first_name: first_name.clone(),
         last_name: address.get_last_name().unwrap_or(first_name).clone(),
         address1: address.get_line1()?.to_owned(),
         locality: Secret::new(address.get_city()?.to_owned()),
-        administrative_area: Secret::from(state),
-        postal_code: address.get_zip()?.to_owned(),
-        country: address.get_country()?.to_owned(),
+        administrative_area,
+        postal_code,
+        country,
         email,
     })
 }
@@ -640,7 +664,10 @@ impl
             if is_customer_initiated_mandate_payment(&item.router_data.request) {
                 (
                     Some(vec![BankOfAmericaActionsList::TokenCreate]),
-                    Some(vec![BankOfAmericaActionsTokenType::PaymentInstrument]),
+                    Some(vec![
+                        BankOfAmericaActionsTokenType::PaymentInstrument,
+                        BankOfAmericaActionsTokenType::Customer,
+                    ]),
                     Some(BankOfAmericaAuthorizationOptions {
                         initiator: Some(BankOfAmericaPaymentInitiator {
                             initiator_type: Some(BankOfAmericaPaymentInitiatorTypes::Customer),
@@ -831,7 +858,7 @@ pub struct ClientRiskInformationRules {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
-    code: String,
+    code: Option<String>,
     code_raw: Option<String>,
 }
 
@@ -1130,7 +1157,8 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         | domain::WalletData::WeChatPayRedirect(_)
                         | domain::WalletData::WeChatPayQr(_)
                         | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_) => {
+                        | domain::WalletData::SwishQr(_)
+                        | domain::WalletData::Mifinity(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "Bank of America",
@@ -1237,16 +1265,11 @@ impl
         let payment_instrument = BankOfAmericaPaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let email = item.router_data.request.get_email().ok();
-        let bill_to = email.and_then(|email_id| {
-            item.router_data
-                .get_billing()
-                .ok()
-                .and_then(|billing_details| build_bill_to(billing_details, email_id).ok())
-        });
-        let order_information = OrderInformationWithBill::from((item, bill_to));
+        let order_information = OrderInformationWithBill::from((item, None));
         let payment_information =
-            PaymentInformation::MandatePayment(MandatePaymentInformation { payment_instrument });
+            PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
+                payment_instrument,
+            }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -1356,21 +1379,21 @@ pub struct ClientAuthSetupInfoResponse {
 #[serde(untagged)]
 pub enum BankOfAmericaAuthSetupResponse {
     ClientAuthSetupInfo(Box<ClientAuthSetupInfoResponse>),
-    ErrorInformation(BankOfAmericaErrorInformationResponse),
+    ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPaymentsResponse {
     ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
-    ErrorInformation(BankOfAmericaErrorInformationResponse),
+    ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaSetupMandatesResponse {
     ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
-    ErrorInformation(BankOfAmericaErrorInformationResponse),
+    ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -1539,6 +1562,7 @@ pub struct BankOfAmericaErrorInformationResponse {
 pub struct BankOfAmericaErrorInformation {
     reason: Option<String>,
     message: Option<String>,
+    details: Option<Vec<Details>>,
 }
 
 impl<F, T>
@@ -1560,22 +1584,41 @@ impl<F, T>
             Option<enums::AttemptStatus>,
         ),
     ) -> Self {
-        let error_reason = error_response
-            .error_information
-            .message
-            .to_owned()
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
-        let error_message = error_response.error_information.reason.to_owned();
+        let detailed_error_info =
+            error_response
+                .error_information
+                .details
+                .as_ref()
+                .map(|details| {
+                    details
+                        .iter()
+                        .map(|details| format!("{} : {}", details.field, details.reason))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                });
+
+        let reason = get_error_reason(
+            error_response.error_information.message.clone(),
+            detailed_error_info,
+            None,
+        );
         let response = Err(types::ErrorResponse {
-            code: error_message
+            code: error_response
+                .error_information
+                .reason
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason),
+            message: error_response
+                .error_information
+                .reason
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason,
             status_code: item.http_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
         });
+
         match transaction_status {
             Some(status) => Self {
                 response,
@@ -1704,18 +1747,37 @@ impl<F, T>
                 ..item.data
             }),
             BankOfAmericaAuthSetupResponse::ErrorInformation(error_response) => {
-                let error_reason = error_response
-                    .error_information
-                    .message
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
-                let error_message = error_response.error_information.reason;
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .to_owned()
+                        .details
+                        .map(|error_details| {
+                            error_details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
+
                 Ok(Self {
                     response: Err(types::ErrorResponse {
-                        code: error_message
+                        code: error_response
+                            .error_information
+                            .reason
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                        message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                        reason: Some(error_reason),
+                        message: error_response
+                            .error_information
+                            .reason
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason,
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
@@ -1767,8 +1829,8 @@ pub struct BankOfAmericaAuthValidateRequest {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPreProcessingRequest {
-    AuthEnrollment(BankOfAmericaAuthEnrollmentRequest),
-    AuthValidate(BankOfAmericaAuthValidateRequest),
+    AuthEnrollment(Box<BankOfAmericaAuthEnrollmentRequest>),
+    AuthValidate(Box<BankOfAmericaAuthValidateRequest>),
 }
 
 impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
@@ -1840,16 +1902,21 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
                     amount_details,
                     bill_to: Some(bill_to),
                 };
-                Ok(Self::AuthEnrollment(BankOfAmericaAuthEnrollmentRequest {
-                    payment_information,
-                    client_reference_information,
-                    consumer_authentication_information:
-                        BankOfAmericaConsumerAuthInformationRequest {
-                            return_url: item.router_data.request.get_complete_authorize_url()?,
-                            reference_id,
-                        },
-                    order_information,
-                }))
+                Ok(Self::AuthEnrollment(Box::new(
+                    BankOfAmericaAuthEnrollmentRequest {
+                        payment_information,
+                        client_reference_information,
+                        consumer_authentication_information:
+                            BankOfAmericaConsumerAuthInformationRequest {
+                                return_url: item
+                                    .router_data
+                                    .request
+                                    .get_complete_authorize_url()?,
+                                reference_id,
+                            },
+                        order_information,
+                    },
+                )))
             }
             Some(_) | None => {
                 let redirect_payload: BankOfAmericaRedirectionAuthResponse = redirect_response
@@ -1862,15 +1929,17 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
                     .parse_value("BankOfAmericaRedirectionAuthResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 let order_information = OrderInformation { amount_details };
-                Ok(Self::AuthValidate(BankOfAmericaAuthValidateRequest {
-                    payment_information,
-                    client_reference_information,
-                    consumer_authentication_information:
-                        BankOfAmericaConsumerAuthInformationValidateRequest {
-                            authentication_transaction_id: redirect_payload.transaction_id,
-                        },
-                    order_information,
-                }))
+                Ok(Self::AuthValidate(Box::new(
+                    BankOfAmericaAuthValidateRequest {
+                        payment_information,
+                        client_reference_information,
+                        consumer_authentication_information:
+                            BankOfAmericaConsumerAuthInformationValidateRequest {
+                                authentication_transaction_id: redirect_payload.transaction_id,
+                            },
+                        order_information,
+                    },
+                )))
             }
         }
     }
@@ -1960,7 +2029,7 @@ pub struct ClientAuthCheckInfoResponse {
 #[serde(untagged)]
 pub enum BankOfAmericaPreProcessingResponse {
     ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
-    ErrorInformation(BankOfAmericaErrorInformationResponse),
+    ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
 }
 
 impl From<BankOfAmericaAuthEnrollmentStatus> for enums::AttemptStatus {
@@ -2061,9 +2130,9 @@ impl<F>
                     })
                 }
             }
-            BankOfAmericaPreProcessingResponse::ErrorInformation(ref error_response) => {
+            BankOfAmericaPreProcessingResponse::ErrorInformation(error_response) => {
                 let response = Err(types::ErrorResponse::foreign_from((
-                    error_response,
+                    &*error_response,
                     item.http_code,
                 )));
                 Ok(Self {
@@ -2141,7 +2210,7 @@ impl<F>
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
                 Ok(Self::foreign_from((
-                    &error_response.clone(),
+                    &*error_response.clone(),
                     item,
                     Some(enums::AttemptStatus::Failure),
                 )))
@@ -2214,7 +2283,7 @@ impl<F>
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
                 Ok(Self::foreign_from((
-                    &error_response.clone(),
+                    &*error_response.clone(),
                     item,
                     Some(enums::AttemptStatus::Failure),
                 )))
@@ -2291,7 +2360,7 @@ impl<F>
                 })
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(Self::foreign_from((&error_response.clone(), item, None)))
+                Ok(Self::foreign_from((&*error_response.clone(), item, None)))
             }
         }
     }
@@ -2328,22 +2397,15 @@ impl<F>
                 })
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(Self::foreign_from((&error_response.clone(), item, None)))
+                Ok(Self::foreign_from((&*error_response.clone(), item, None)))
             }
         }
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum BankOfAmericaTransactionResponse {
-    ApplicationInformation(Box<BankOfAmericaApplicationInfoResponse>),
-    ErrorInformation(BankOfAmericaErrorInformationResponse),
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaApplicationInfoResponse {
+pub struct BankOfAmericaTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
     client_reference_information: Option<ClientReferenceInformation>,
@@ -2368,7 +2430,7 @@ pub struct FraudMarkingInformation {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
-    status: BankofamericaPaymentStatus,
+    status: Option<BankofamericaPaymentStatus>,
 }
 
 impl<F>
@@ -2390,19 +2452,20 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            BankOfAmericaTransactionResponse::ApplicationInformation(app_response) => {
+        match item.response.application_information.status {
+            Some(app_status) => {
                 let status = enums::AttemptStatus::foreign_from((
-                    app_response.application_information.status,
+                    app_status,
                     item.data.request.is_auto_capture()?,
                 ));
 
                 let connector_response = match item.data.payment_method {
-                    common_enums::PaymentMethod::Card => app_response
+                    common_enums::PaymentMethod::Card => item
+                        .response
                         .processor_information
                         .as_ref()
                         .and_then(|processor_information| {
-                            app_response
+                            item.response
                                 .consumer_authentication_information
                                 .as_ref()
                                 .map(|consumer_auth_information| {
@@ -2430,11 +2493,11 @@ impl<F>
                 if utils::is_payment_failure(status) {
                     Ok(Self {
                         response: Err(types::ErrorResponse::foreign_from((
-                            &app_response.error_information,
+                            &item.response.error_information,
                             &risk_info,
                             Some(status),
                             item.http_code,
-                            app_response.id.clone(),
+                            item.response.id.clone(),
                         ))),
                         status: enums::AttemptStatus::Failure,
                         connector_response,
@@ -2445,16 +2508,17 @@ impl<F>
                         status,
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                app_response.id.clone(),
+                                item.response.id.clone(),
                             ),
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
-                            connector_response_reference_id: app_response
+                            connector_response_reference_id: item
+                                .response
                                 .client_reference_information
                                 .map(|cref| cref.code)
-                                .unwrap_or(Some(app_response.id)),
+                                .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
                             charge_id: None,
                         }),
@@ -2463,17 +2527,17 @@ impl<F>
                     })
                 }
             }
-            BankOfAmericaTransactionResponse::ErrorInformation(error_response) => Ok(Self {
+            None => Ok(Self {
                 status: item.data.status,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        error_response.id.clone(),
+                        item.response.id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(error_response.id),
+                    connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 }),
@@ -2607,9 +2671,12 @@ impl<F> TryFrom<&BankOfAmericaRouterData<&types::RefundsRouterData<F>>>
     }
 }
 
-impl From<BankofamericaRefundStatus> for enums::RefundStatus {
-    fn from(item: BankofamericaRefundStatus) -> Self {
-        match item {
+impl From<BankOfAmericaRefundResponse> for enums::RefundStatus {
+    fn from(item: BankOfAmericaRefundResponse) -> Self {
+        let error_reason = item
+            .error_information
+            .and_then(|error_info| error_info.reason);
+        match item.status {
             BankofamericaRefundStatus::Succeeded | BankofamericaRefundStatus::Transmitted => {
                 Self::Success
             }
@@ -2617,11 +2684,18 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
             | BankofamericaRefundStatus::Failed
             | BankofamericaRefundStatus::Voided => Self::Failure,
             BankofamericaRefundStatus::Pending => Self::Pending,
+            BankofamericaRefundStatus::TwoZeroOne => {
+                if error_reason == Some("PROCESSOR_DECLINED".to_string()) {
+                    Self::Failure
+                } else {
+                    Self::Pending
+                }
+            }
         }
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaRefundResponse {
     id: String,
@@ -2636,19 +2710,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundR
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status.clone());
+        let refund_status = enums::RefundStatus::from(item.response.clone());
         let response = if utils::is_refund_failure(refund_status) {
             Err(types::ErrorResponse::foreign_from((
                 &item.response.error_information,
                 &None,
                 None,
                 item.http_code,
-                item.response.id.clone(),
+                item.response.id,
             )))
         } else {
             Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             })
         };
 
@@ -2668,6 +2742,8 @@ pub enum BankofamericaRefundStatus {
     Pending,
     Voided,
     Cancelled,
+    #[serde(rename = "201")]
+    TwoZeroOne,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2697,14 +2773,33 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
             .and_then(|application_information| application_information.status)
         {
             Some(status) => {
-                let refund_status: common_enums::RefundStatus =
-                    enums::RefundStatus::from(status.clone());
+                let error_reason = item
+                    .response
+                    .error_information
+                    .clone()
+                    .and_then(|error_info| error_info.reason);
+                let refund_status = match status {
+                    BankofamericaRefundStatus::Succeeded
+                    | BankofamericaRefundStatus::Transmitted => enums::RefundStatus::Success,
+                    BankofamericaRefundStatus::Cancelled
+                    | BankofamericaRefundStatus::Failed
+                    | BankofamericaRefundStatus::Voided => enums::RefundStatus::Failure,
+                    BankofamericaRefundStatus::Pending => enums::RefundStatus::Pending,
+                    BankofamericaRefundStatus::TwoZeroOne => {
+                        if error_reason == Some("PROCESSOR_DECLINED".to_string()) {
+                            enums::RefundStatus::Failure
+                        } else {
+                            enums::RefundStatus::Pending
+                        }
+                    }
+                };
                 if utils::is_refund_failure(refund_status) {
                     if status == BankofamericaRefundStatus::Voided {
                         Err(types::ErrorResponse::foreign_from((
                             &Some(BankOfAmericaErrorInformation {
                                 message: Some(consts::REFUND_VOIDED.to_string()),
-                                reason: None,
+                                reason: Some(consts::REFUND_VOIDED.to_string()),
+                                details: None,
                             }),
                             &None,
                             None,
@@ -2793,6 +2888,7 @@ pub struct Details {
 pub struct ErrorInformation {
     pub message: String,
     pub reason: String,
+    pub details: Option<Vec<Details>>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -2830,13 +2926,24 @@ impl
                 })
             })
             .unwrap_or(Some("".to_string()));
-        let error_reason = error_data
-            .clone()
-            .map(|error_details| {
-                error_details.message.unwrap_or("".to_string())
-                    + &avs_message.unwrap_or("".to_string())
+
+        let detailed_error_info = error_data.to_owned().and_then(|error_info| {
+            error_info.details.map(|error_details| {
+                error_details
+                    .iter()
+                    .map(|details| format!("{} : {}", details.field, details.reason))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             })
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+        });
+
+        let reason = get_error_reason(
+            error_data
+                .clone()
+                .and_then(|error_details| error_details.message),
+            detailed_error_info,
+            avs_message,
+        );
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -2848,7 +2955,7 @@ impl
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason.clone()),
+            reason,
             status_code,
             attempt_status,
             connector_transaction_id: Some(transaction_id.clone()),
@@ -3012,7 +3119,7 @@ impl TryFrom<&domain::Card> for PaymentInformation {
             Ok(issuer) => Some(String::from(issuer)),
             Err(_) => None,
         };
-        Ok(Self::Cards(CardPaymentInformation {
+        Ok(Self::Cards(Box::new(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number.clone(),
                 expiration_month: ccard.card_exp_month.clone(),
@@ -3020,7 +3127,7 @@ impl TryFrom<&domain::Card> for PaymentInformation {
                 security_code: ccard.card_cvc.clone(),
                 card_type,
             },
-        }))
+        })))
     }
 }
 
@@ -3031,7 +3138,7 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
 
-        Ok(Self::ApplePay(ApplePayPaymentInformation {
+        Ok(Self::ApplePay(Box::new(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
                 number: apple_pay_data.application_primary_account_number.clone(),
                 cryptogram: apple_pay_data
@@ -3042,32 +3149,32 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
                 expiration_year,
                 expiration_month,
             },
-        }))
+        })))
     }
 }
 
 impl From<&domain::ApplePayWalletData> for PaymentInformation {
     fn from(apple_pay_data: &domain::ApplePayWalletData) -> Self {
-        Self::ApplePayToken(ApplePayTokenPaymentInformation {
+        Self::ApplePayToken(Box::new(ApplePayTokenPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(apple_pay_data.payment_data.clone()),
             },
             tokenized_card: ApplePayTokenizedCard {
                 transaction_type: TransactionType::ApplePay,
             },
-        })
+        }))
     }
 }
 
 impl From<&domain::GooglePayWalletData> for PaymentInformation {
     fn from(google_pay_data: &domain::GooglePayWalletData) -> Self {
-        Self::GooglePay(GooglePayPaymentInformation {
+        Self::GooglePay(Box::new(GooglePayPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(
                     consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token.clone()),
                 ),
             },
-        })
+        }))
     }
 }
 
@@ -3075,18 +3182,36 @@ impl ForeignFrom<(&BankOfAmericaErrorInformationResponse, u16)> for types::Error
     fn foreign_from(
         (error_response, status_code): (&BankOfAmericaErrorInformationResponse, u16),
     ) -> Self {
-        let error_reason = error_response
-            .error_information
-            .message
-            .to_owned()
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
-        let error_message = error_response.error_information.reason.to_owned();
+        let detailed_error_info =
+            error_response
+                .error_information
+                .to_owned()
+                .details
+                .map(|error_details| {
+                    error_details
+                        .iter()
+                        .map(|details| format!("{} : {}", details.field, details.reason))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                });
+
+        let reason = get_error_reason(
+            error_response.error_information.message.to_owned(),
+            detailed_error_info,
+            None,
+        );
         Self {
-            code: error_message
+            code: error_response
+                .error_information
+                .reason
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason),
+            message: error_response
+                .error_information
+                .reason
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason,
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(error_response.id.clone()),
@@ -3101,7 +3226,10 @@ fn get_boa_mandate_action_details() -> (
 ) {
     (
         Some(vec![BankOfAmericaActionsList::TokenCreate]),
-        Some(vec![BankOfAmericaActionsTokenType::PaymentInstrument]),
+        Some(vec![
+            BankOfAmericaActionsTokenType::PaymentInstrument,
+            BankOfAmericaActionsTokenType::Customer,
+        ]),
         Some(BankOfAmericaAuthorizationOptions {
             initiator: Some(BankOfAmericaPaymentInitiator {
                 initiator_type: Some(BankOfAmericaPaymentInitiatorTypes::Customer),
@@ -3136,4 +3264,31 @@ fn is_customer_initiated_mandate_payment(item: &types::CompleteAuthorizeData) ->
         matches!(future_usage, common_enums::FutureUsage::OffSession)
     })
     // add check for customer_acceptance
+}
+
+pub fn get_error_reason(
+    error_info: Option<String>,
+    detailed_error_info: Option<String>,
+    avs_error_info: Option<String>,
+) -> Option<String> {
+    match (error_info, detailed_error_info, avs_error_info) {
+        (Some(message), Some(details), Some(avs_message)) => Some(format!(
+            "{}, detailed_error_information: {}, avs_message: {}",
+            message, details, avs_message
+        )),
+        (Some(message), Some(details), None) => Some(format!(
+            "{}, detailed_error_information: {}",
+            message, details
+        )),
+        (Some(message), None, Some(avs_message)) => {
+            Some(format!("{}, avs_message: {}", message, avs_message))
+        }
+        (None, Some(details), Some(avs_message)) => {
+            Some(format!("{}, avs_message: {}", details, avs_message))
+        }
+        (Some(message), None, None) => Some(message),
+        (None, Some(details), None) => Some(details),
+        (None, None, Some(avs_message)) => Some(avs_message),
+        (None, None, None) => None,
+    }
 }

@@ -499,7 +499,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.store, &user_id)
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
 
@@ -541,7 +541,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.store, &user_id)
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
 
@@ -583,7 +583,7 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.store, &user_id)
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
 

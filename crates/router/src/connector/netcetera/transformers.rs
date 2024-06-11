@@ -516,7 +516,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let acquirer_details = netcetera_types::AcquirerData {
             acquirer_bin: request.pre_authentication_data.acquirer_bin,
             acquirer_merchant_id: request.pre_authentication_data.acquirer_merchant_id,
-            acquirer_country_code: None,
+            acquirer_country_code: request.pre_authentication_data.acquirer_country_code,
         };
         let connector_meta_data: NetceteraMetaData = item
             .router_data

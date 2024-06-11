@@ -188,6 +188,7 @@ pub async fn update_routing_algorithm(
 pub async fn update_merchant_active_algorithm_ref(
     db: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
+    config_key: cache::CacheKind<'_>,
     algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
     let ref_value = algorithm_id
@@ -225,6 +226,11 @@ pub async fn update_merchant_active_algorithm_ref(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in merchant account")?;
+
+    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [config_key])
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate the config cache")?;
 
     Ok(())
 }
@@ -277,6 +283,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         extended_card_info_config: None,
         use_billing_as_payment_method_billing: None,
         collect_shipping_details_from_wallet_connector: None,
+        is_connector_agnostic_mit_enabled: None,
     };
 
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)

@@ -1,21 +1,21 @@
-use std::sync::Arc;
-
 use api_models::{
     payment_methods::SurchargeDetailsResponse,
     payments, routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
-use common_utils::{ext_traits::StringExt, static_cache::StaticCache, types as common_utils_types};
+use common_utils::{ext_traits::StringExt, types as common_utils_types};
 use error_stack::{self, ResultExt};
 use euclid::{
     backend,
     backend::{inputs as dsl_inputs, EuclidBackend},
 };
 use router_env::{instrument, tracing};
+use serde::{Deserialize, Serialize};
+use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
 
 use crate::{
     core::{
-        errors::ConditionalConfigError as ConfigError,
+        errors::{self, ConditionalConfigError as ConfigError},
         payments::{
             conditional_configs::ConditionalConfigResult, routing::make_dsl_input_for_surcharge,
             types, PaymentData,
@@ -29,9 +29,8 @@ use crate::{
     SessionState,
 };
 
-static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
-
-struct VirInterpreterBackendCacheWrapper {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VirInterpreterBackendCacheWrapper {
     cached_algorithm: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
     merchant_surcharge_configs: surcharge_decision_configs::MerchantSurchargeConfigs,
 }
@@ -53,7 +52,7 @@ impl TryFrom<SurchargeDecisionManagerRecord> for VirInterpreterBackendCacheWrapp
 
 enum SurchargeSource {
     /// Surcharge will be generated through the surcharge rules
-    Generate(Arc<VirInterpreterBackendCacheWrapper>),
+    Generate(VirInterpreterBackendCacheWrapper),
     /// Surcharge is predefined by the merchant through payment create request
     Predetermined(payments::RequestSurchargeDetails),
 }
@@ -116,19 +115,13 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
             surcharge_decision_configs::MerchantSurchargeConfigs::default(),
         ),
         (None, Some(algorithm_id)) => {
-            let key = ensure_algorithm_cached(
+            let cached_algo = ensure_algorithm_cached(
                 &*state.store,
                 &payment_attempt.merchant_id,
-                algorithm_ref.timestamp,
                 algorithm_id.as_str(),
             )
             .await?;
-            let cached_algo = CONF_CACHE
-                .retrieve(&key)
-                .change_context(ConfigError::CacheMiss)
-                .attach_printable(
-                    "Unable to retrieve cached routing algorithm even after refresh",
-                )?;
+
             let merchant_surcharge_config = cached_algo.merchant_surcharge_configs.clone();
             (
                 SurchargeSource::Generate(cached_algo),
@@ -233,19 +226,13 @@ where
             SurchargeSource::Predetermined(request_surcharge_details)
         }
         (None, Some(algorithm_id)) => {
-            let key = ensure_algorithm_cached(
+            let cached_algo = ensure_algorithm_cached(
                 &*state.store,
                 &payment_data.payment_attempt.merchant_id,
-                algorithm_ref.timestamp,
                 algorithm_id.as_str(),
             )
             .await?;
-            let cached_algo = CONF_CACHE
-                .retrieve(&key)
-                .change_context(ConfigError::CacheMiss)
-                .attach_printable(
-                    "Unable to retrieve cached routing algorithm even after refresh",
-                )?;
+
             SurchargeSource::Generate(cached_algo)
         }
         (None, None) => return Ok(surcharge_metadata),
@@ -291,19 +278,13 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
             SurchargeSource::Predetermined(request_surcharge_details)
         }
         (None, Some(algorithm_id)) => {
-            let key = ensure_algorithm_cached(
+            let cached_algo = ensure_algorithm_cached(
                 &*state.store,
                 &payment_attempt.merchant_id,
-                algorithm_ref.timestamp,
                 algorithm_id.as_str(),
             )
             .await?;
-            let cached_algo = CONF_CACHE
-                .retrieve(&key)
-                .change_context(ConfigError::CacheMiss)
-                .attach_printable(
-                    "Unable to retrieve cached routing algorithm even after refresh",
-                )?;
+
             SurchargeSource::Generate(cached_algo)
         }
         (None, None) => return Ok(surcharge_metadata),
@@ -388,48 +369,31 @@ fn get_surcharge_details_from_surcharge_output(
 pub async fn ensure_algorithm_cached(
     store: &dyn StorageInterface,
     merchant_id: &str,
-    timestamp: i64,
     algorithm_id: &str,
-) -> ConditionalConfigResult<String> {
+) -> ConditionalConfigResult<VirInterpreterBackendCacheWrapper> {
     let key = format!("surcharge_dsl_{merchant_id}");
-    let present = CONF_CACHE
-        .present(&key)
-        .change_context(ConfigError::DslCachePoisoned)
-        .attach_printable("Error checking presence of DSL")?;
-    let expired = CONF_CACHE
-        .expired(&key, timestamp)
-        .change_context(ConfigError::DslCachePoisoned)
-        .attach_printable("Error checking presence of DSL")?;
 
-    if !present || expired {
-        refresh_surcharge_algorithm_cache(store, key.clone(), algorithm_id, timestamp).await?
-    }
-    Ok(key)
-}
-
-#[instrument(skip_all)]
-pub async fn refresh_surcharge_algorithm_cache(
-    store: &dyn StorageInterface,
-    key: String,
-    algorithm_id: &str,
-    timestamp: i64,
-) -> ConditionalConfigResult<()> {
-    let config = store
-        .find_config_by_key(algorithm_id)
-        .await
-        .change_context(ConfigError::DslMissingInDb)
-        .attach_printable("Error parsing DSL from config")?;
-    let record: SurchargeDecisionManagerRecord = config
-        .config
-        .parse_struct("Program")
-        .change_context(ConfigError::DslParsingError)
-        .attach_printable("Error parsing routing algorithm from configs")?;
-    let value_to_cache = VirInterpreterBackendCacheWrapper::try_from(record)?;
-    CONF_CACHE
-        .save(key, value_to_cache, timestamp)
-        .change_context(ConfigError::DslCachePoisoned)
-        .attach_printable("Error saving DSL to cache")?;
-    Ok(())
+    let value_to_cache = || async {
+        let config: diesel_models::Config = store.find_config_by_key(algorithm_id).await?;
+        let record: SurchargeDecisionManagerRecord = config
+            .config
+            .parse_struct("Program")
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Error parsing routing algorithm from configs")?;
+        VirInterpreterBackendCacheWrapper::try_from(record)
+            .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
+            .attach_printable("Error initializing DSL interpreter backend")
+    };
+    let interpreter = cache::get_or_populate_in_memory(
+        store.get_cache_store().as_ref(),
+        &key,
+        value_to_cache,
+        &SURCHARGE_CACHE,
+    )
+    .await
+    .change_context(ConfigError::CacheMiss)
+    .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
+    Ok(interpreter)
 }
 
 pub fn execute_dsl_and_get_conditional_config(
