@@ -5,3 +5,5 @@
 pub mod secrets_interface;
 
 pub mod encryption_interface;
+
+pub mod api;

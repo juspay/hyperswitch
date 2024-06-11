@@ -3697,8 +3697,12 @@ dependencies = [
  "async-trait",
  "common_utils",
  "dyn-clone",
+ "hyperswitch_domain_models",
  "masking",
+ "mime",
+ "reqwest",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 
