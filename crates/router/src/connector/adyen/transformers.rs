@@ -11,8 +11,7 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
-        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, PayoutsData, PhoneDetailsData, RouterData
     },
     consts,
     core::errors,
@@ -4757,7 +4756,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
     type Error = Error;
     fn try_from(item: &AdyenRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let payout_type = item.router_data.request.payout_type.to_owned();
+        let payout_type = item.router_data.request.get_payout_type()?;
         let merchant_account = auth_type.merchant_account;
         match payout_type {
             storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {

@@ -16,7 +16,7 @@ use super::utils::is_mandate_supported;
 use crate::{
     capture_method_not_supported,
     configs::settings,
-    connector::utils::PaymentMethodDataType,
+    connector::utils::{PaymentMethodDataType,PayoutsData},
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -1447,11 +1447,12 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             req.test_mode,
             &req.connector_meta_data,
         )?;
+        let payout_type = req.request.get_payout_type()?;
         Ok(format!(
             "{}pal/servlet/Payout/{}/{}",
             endpoint,
             ADYEN_API_VERSION,
-            match req.request.payout_type {
+            match payout_type {
                 storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet =>
                     "confirmThirdParty".to_string(),
                 storage_enums::PayoutType::Card => "payout".to_string(),
@@ -1472,9 +1473,12 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         )];
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let payout_type = req.request.payout_type.to_owned().get_required_value("payout_type").change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "payout_type",
+        })?;
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
-            match req.request.payout_type {
+            match payout_type {
                 storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
