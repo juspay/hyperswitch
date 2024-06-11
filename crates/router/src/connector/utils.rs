@@ -609,6 +609,7 @@ pub trait PaymentsPreProcessingData {
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -633,6 +634,12 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
     }
+
+    // New minor amount function for amount framework
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
+        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    }
+
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(enums::CaptureMethod::Automatic) | None => Ok(true),
@@ -672,7 +679,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                _ => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
             })
     }
 }
@@ -809,7 +816,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                _ => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {

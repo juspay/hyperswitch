@@ -389,6 +389,23 @@ export const connectorDetails = {
             pix: {},
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
+          },
+        },
         currency: "BRL",
       },
       Response: {
@@ -419,8 +436,24 @@ export const connectorDetails = {
           bank_redirect: {
             ideal: {
               bank_name: "ing",
-              country: "NL",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -441,8 +474,24 @@ export const connectorDetails = {
               bank_name: "",
               bank_account_bic: "",
               bank_account_iban: "",
-              country: "DE",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -460,9 +509,25 @@ export const connectorDetails = {
         payment_method_data: {
           bank_redirect: {
             sofort: {
-              country: "DE",
               preferred_language: "en",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -482,6 +547,23 @@ export const connectorDetails = {
             eps: {
               bank_name: "ing",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },

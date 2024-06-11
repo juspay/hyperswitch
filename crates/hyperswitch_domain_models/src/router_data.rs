@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::id_type;
+use common_utils::{id_type, types::MinorUnit};
 use masking::Secret;
 
 use crate::{payment_address::PaymentAddress, payment_method_data};
@@ -67,6 +67,9 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+
+    // minor amount for amount framework
+    pub minor_amount_captured: Option<MinorUnit>,
 }
 
 // Different patterns of authentication.
