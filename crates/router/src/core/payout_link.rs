@@ -1,20 +1,21 @@
 #[cfg(feature = "payouts")]
-use common_utils::{id_type::CustomerId,ext_traits::OptionExt};
+use api_models::payouts;
+#[cfg(feature = "payouts")]
+use common_utils::{ext_traits::OptionExt, id_type::CustomerId};
 #[cfg(feature = "payouts")]
 use diesel_models::enums;
 #[cfg(feature = "payouts")]
 use error_stack::ResultExt;
+
 #[cfg(feature = "payouts")]
 use super::errors::{RouterResponse, StorageErrorExt};
 #[cfg(feature = "payouts")]
 use crate::{
+    errors,
     routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
     types::domain,
-    errors,
 };
-#[cfg(feature = "payouts")]
-use api_models::payouts;
 
 #[cfg(feature = "payouts")]
 pub async fn initiate_payout_link(

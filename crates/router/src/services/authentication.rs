@@ -1,10 +1,10 @@
 use actix_web::http::header::HeaderMap;
-use api_models::{
-    payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
-    payments
-};
 #[cfg(feature = "payouts")]
 use api_models::payouts;
+use api_models::{
+    payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
+    payments,
+};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
 use common_utils::{date_time, id_type};

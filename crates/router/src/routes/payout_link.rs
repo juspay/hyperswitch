@@ -1,16 +1,17 @@
 #[cfg(feature = "payouts")]
 use actix_web::{web, Responder};
 #[cfg(feature = "payouts")]
-use router_env::Flow;
-#[cfg(feature = "payouts")]
 use api_models::payouts::PayoutLinkInitiateRequest;
+#[cfg(feature = "payouts")]
+use router_env::Flow;
+
 #[cfg(feature = "payouts")]
 use crate::{
     core::{api_locking, payout_link::*},
     services::{api, authentication as auth},
     AppState,
 };
-#[cfg(feature= "payouts")]
+#[cfg(feature = "payouts")]
 pub async fn render_payout_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
