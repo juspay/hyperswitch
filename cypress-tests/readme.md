@@ -42,16 +42,34 @@ To run test cases, follow these steps:
 
 4. Run Cypress test cases
 
-   To run the tests in a browser in interactive mode run the following command
+   To run the tests in interactive mode run the following command
 
    ```shell
    npm run cypress
    ```
 
-   To run the tests in headless mode run the following command
+   To run all the tests in headless mode run the following command
 
    ```shell
    npm run cypress:ci
+   ```
+
+   To run payment tests in headless mode run the following command
+
+   ```shell
+   npm run cypress:payments
+   ```
+
+   To run payout tests in headless mode run the following command
+
+   ```shell
+   npm run cypress:payouts
+   ```
+
+   To run routing tests in headless mode run the following command
+
+   ```shell
+   npm run cypress:routing
    ```
 
 > [!NOTE]
@@ -65,21 +83,21 @@ The folder structure of this directory is as follows:
 .                                                        # The root directory for the Cypress tests.
 ├── .gitignore
 ├── cypress                                              # Contains Cypress-related files and folders.
-│   ├── e2e                                              # End-to-end test directory.
-│   │   ├── ConnectorTest                                # Directory for test scenarios related to connectors.
-│   │   │   ├── your_testcase1_files_here.cy.js
-│   │   │   ├── your_testcase2_files_here.cy.js
-│   │   │   └── ...
-│   │   └── ConnectorUtils                               # Directory for utility functions related to connectors.
-│   │       ├── connector_detail_files_here.js
-│   │       └── utils.js
-│   ├── fixtures                                         # Directory for storing test data API request.
-│   │   └── your_fixture_files_here.json
-│   ├── support                                          # Directory for Cypress support files.
-│   │   ├── commands.js                                  # File containing custom Cypress commands and utilities.
-│   │   └── e2e.js
-│   └── utils
-│       └── utility_files_go_here.js
+│   ├── e2e                                              # End-to-end test directory.
+│   │   ├── ConnectorTest                                # Directory for test scenarios related to connectors.
+│   │   │   ├── your_testcase1_files_here.cy.js
+│   │   │   ├── your_testcase2_files_here.cy.js
+│   │   │   └── ...
+│   │   └── ConnectorUtils                               # Directory for utility functions related to connectors.
+│   │       ├── connector_detail_files_here.js
+│   │       └── utils.js
+│   ├── fixtures                                         # Directory for storing test data API request.
+│   │   └── your_fixture_files_here.json
+│   ├── support                                          # Directory for Cypress support files.
+│   │   ├── commands.js                                  # File containing custom Cypress commands and utilities.
+│   │   └── e2e.js
+│   └── utils
+│       └── utility_files_go_here.js
 ├── cypress.config.js                                    # Cypress configuration file.
 ├── cypress.env.json                                     # File is used to store environment-specific configuration values,such as base URLs, which can be accessed within your Cypress tests.
 ├── package.json                                         # Node.js package file.

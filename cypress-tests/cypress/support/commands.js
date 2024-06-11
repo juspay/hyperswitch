@@ -151,7 +151,9 @@ Cypress.Commands.add(
         if (authDetails === null) {
           globalState.set("payoutsExecution", false);
           return false;
-        }
+        } else {
+          globalState.set("payoutsExecution", true);
+        } 
 
         createConnectorBody.connector_account_details = authDetails;
         cy.request({

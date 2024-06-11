@@ -9,6 +9,7 @@ describe("Account Create flow test", () => {
       globalState = new State(state);
     });
   });
+
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
@@ -16,6 +17,7 @@ describe("Account Create flow test", () => {
   it("merchant-create-call-test", () => {
     cy.merchantCreateCallTest(merchantCreateBody, globalState);
   });
+
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
   });
