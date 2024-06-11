@@ -205,9 +205,10 @@ WHERE
     AND (payment_id IS NOT NULL);
 
 CREATE TABLE active_payments ( 
-    `payment_id` String,
+    `payment_id` Nullable(String),
     `merchant_id` String,
     `created_at` DateTime64,
+    `flow_type` LowCardinality(Nullable(String)),
     INDEX merchantIndex merchant_id TYPE bloom_filter GRANULARITY 1
 ) ENGINE = MergeTree
 PARTITION BY toStartOfSecond(created_at)
@@ -221,12 +222,14 @@ SETTINGS
 CREATE MATERIALIZED VIEW active_payments_mv TO active_payments ( 
     `payment_id` Nullable(String),
     `merchant_id` String,
-    `created_at` DateTime64
+    `created_at` DateTime64,
+    `flow_type` String
 ) AS 
 SELECT
     payment_id,
     merchant_id,
-    toDateTime64(timestamp, 3) AS created_at
+    toDateTime64(timestamp, 3) AS created_at,
+    'sdk' AS flow_type
 FROM 
     sdk_events_queue
 WHERE length(_error) = 0 AND payment_id != '' AND merchant_id != '';
@@ -234,12 +237,14 @@ WHERE length(_error) = 0 AND payment_id != '' AND merchant_id != '';
 CREATE MATERIALIZED VIEW api_active_payments_mv TO active_payments ( 
     `payment_id` Nullable(String),
     `merchant_id` String,
-    `created_at` DateTime64
+    `created_at` DateTime64,
+    `flow_type` String
 ) AS 
 SELECT
     payment_id,
     merchant_id,
-    toDateTime64(timestamp, 3) AS created_at
+    toDateTime64(timestamp, 3) AS created_at,
+    flow_type
 FROM 
     api_events_queue
-WHERE length(_error) = 0 AND payment_id != '' AND merchant_id != '' AND flow_type IN ('payment', 'payment_redirection_response');
+WHERE length(_error) = 0;
