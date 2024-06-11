@@ -172,26 +172,6 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
-    /// This module can be called before executing a payment flow where a pre-task is needed
-    /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
-    async fn execute_pretasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &SessionState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    /// This module can be called after executing a payment flow where a post-task needed
-    /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
-    async fn execute_posttasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &SessionState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
     fn build_request(
         &self,
         req: &types::RouterData<T, Req, Resp>,
@@ -1791,7 +1771,7 @@ pub fn build_redirection_form(
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
-                    (PreEscaped(format!("<script>
+                (PreEscaped(format!("<script>
                                 {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
@@ -1990,6 +1970,29 @@ pub fn build_redirection_form(
             </script>"
             )))
                 }
+        }
+        RedirectForm::Mifinity {
+            initialization_token,
+        } => {
+            maud::html! {
+                        (maud::DOCTYPE)
+                        head {
+                            (PreEscaped(r#"<script src='https://demo.mifinity.com/widgets/sgpg.js?58190a411dc3'></script>"#))
+                        }
+
+                        (PreEscaped(format!("<div id='widget-container'></div>
+	  <script>
+		  var widget = showPaymentIframe('widget-container', {{
+			  token: '{initialization_token}',
+			  complete: function() {{
+				  setTimeout(function() {{
+					widget.close();
+				  }}, 5000);
+			  }}
+		   }});
+	   </script>")))
+
+            }
         }
     }
 }

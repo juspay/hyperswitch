@@ -454,6 +454,7 @@ pub async fn update_business_profile_cascade(
             extended_card_info_config: None,
             use_billing_as_payment_method_billing: None,
             collect_shipping_details_from_wallet_connector: None,
+            is_connector_agnostic_mit_enabled: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -961,7 +962,7 @@ pub async fn create_payment_connector(
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled,
-        metadata: req.metadata,
+        metadata: req.metadata.clone(),
         frm_configs,
         connector_label: Some(connector_label.clone()),
         business_country: req.business_country,
@@ -985,6 +986,7 @@ pub async fn create_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
         status: connector_status,
+        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(&key_store, &req.metadata).await?,
     };
 
     let transaction_type = match req.connector_type {
@@ -1224,6 +1226,7 @@ pub async fn update_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
     let metadata = req.metadata.clone().or(mca.metadata.clone());
+
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1299,6 +1302,10 @@ pub async fn update_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
         status: Some(connector_status),
+        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
+            &key_store, &metadata,
+        )
+        .await?,
     };
 
     // Profile id should always be present
@@ -1746,6 +1753,7 @@ pub async fn update_business_profile(
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
         collect_shipping_details_from_wallet_connector: request
             .collect_shipping_details_from_wallet_connector,
+        is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
     };
 
     let updated_business_profile = db
@@ -1847,10 +1855,6 @@ pub(crate) fn validate_auth_and_metadata_type(
             adyenplatform::transformers::AdyenplatformAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Mifinity => {
-        //     mifinity::transformers::MifinityAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
         // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
@@ -1977,6 +1981,11 @@ pub(crate) fn validate_auth_and_metadata_type(
         api_enums::Connector::Klarna => {
             klarna::transformers::KlarnaAuthType::try_from(val)?;
             klarna::transformers::KlarnaConnectorMetadataObject::try_from(connector_meta_data)?;
+            Ok(())
+        }
+        api_enums::Connector::Mifinity => {
+            mifinity::transformers::MifinityAuthType::try_from(val)?;
+            mifinity::transformers::MifinityConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Mollie => {

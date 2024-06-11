@@ -153,6 +153,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         address,
         auth_type: common_enums::AuthenticationType::NoThreeDs,
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
         access_token: None,
         session_token: None,

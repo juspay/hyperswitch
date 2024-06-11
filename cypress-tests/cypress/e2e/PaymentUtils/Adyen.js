@@ -389,6 +389,23 @@ export const connectorDetails = {
             pix: {},
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
+          },
+        },
         currency: "BRL",
       },
       Response: {
@@ -419,8 +436,24 @@ export const connectorDetails = {
           bank_redirect: {
             ideal: {
               bank_name: "ing",
-              country: "NL",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -441,9 +474,24 @@ export const connectorDetails = {
               bank_name: "",
               bank_account_bic: "",
               bank_account_iban: "",
-              preferred_language: "en",
-              country: "DE",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -461,9 +509,25 @@ export const connectorDetails = {
         payment_method_data: {
           bank_redirect: {
             sofort: {
-              country: "DE",
               preferred_language: "en",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
           },
         },
       },
@@ -485,11 +549,55 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
+          },
+        },
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "HE_03",
+            reason: "automatic for przelewy24 is not supported by adyen",
+          },
         },
       },
     },

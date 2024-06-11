@@ -125,6 +125,7 @@ where
     };
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
+        state,
         &payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
     );
@@ -154,6 +155,7 @@ where
             .authentication_type
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         request: T::try_from(additional_data)?,
         response,
         amount_captured: payment_data
@@ -964,6 +966,15 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
+            payment_method_data: pa.payment_method_data.and_then(|data| {
+                match data.parse_value("PaymentMethodDataResponseWithBilling") {
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {}", e);
+                        None
+                    }
+                }
+            }),
             ..Default::default()
         }
     }
@@ -1795,6 +1806,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response: None,
+            mandate_id: payment_data.mandate_id,
+            related_transaction_id: None,
+            enrolled_for_3ds: true,
         })
     }
 }

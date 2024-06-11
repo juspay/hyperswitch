@@ -195,7 +195,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?,
             },
@@ -481,8 +482,10 @@ pub struct BillTo {
     last_name: Secret<String>,
     address1: Secret<String>,
     locality: String,
-    administrative_area: Secret<String>,
-    postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
     country: api_enums::CountryAlpha2,
     email: pii::Email,
 }
@@ -867,17 +870,37 @@ fn build_bill_to(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
-    let mut state = address.to_state_code()?.peek().clone();
-    state.truncate(20);
+
+    let country = address.get_country()?.to_owned();
     let first_name = address.get_first_name()?;
+
+    let (administrative_area, postal_code) =
+        if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
+            let mut state = address.to_state_code()?.peek().clone();
+            state.truncate(20);
+            (
+                Some(Secret::from(state)),
+                Some(address.get_zip()?.to_owned()),
+            )
+        } else {
+            let zip = address.zip.clone();
+            let mut_state = address.state.clone().map(|state| state.expose());
+            match mut_state {
+                Some(mut state) => {
+                    state.truncate(20);
+                    (Some(Secret::from(state)), zip)
+                }
+                None => (None, zip),
+            }
+        };
     Ok(BillTo {
         first_name: first_name.clone(),
         last_name: address.get_last_name().unwrap_or(first_name).clone(),
         address1: address.get_line1()?.to_owned(),
         locality: address.get_city()?.to_owned(),
-        administrative_area: Secret::from(state),
-        postal_code: address.get_zip()?.to_owned(),
-        country: address.get_country()?.to_owned(),
+        administrative_area,
+        postal_code,
+        country,
         email,
     })
 }
@@ -1286,7 +1309,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                         | domain::WalletData::WeChatPayRedirect(_)
                         | domain::WalletData::WeChatPayQr(_)
                         | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_) => {
+                        | domain::WalletData::SwishQr(_)
+                        | domain::WalletData::Mifinity(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "Cybersource",
@@ -1766,7 +1790,7 @@ pub struct CardVerification {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
-    code: String,
+    code: Option<String>,
     code_raw: Option<String>,
 }
 
