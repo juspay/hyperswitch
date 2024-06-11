@@ -1,11 +1,16 @@
+#[cfg(feature = "payouts")]
 use actix_web::{web, Responder};
+#[cfg(feature = "payouts")]
 use router_env::Flow;
-
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutLinkInitiateRequest;
+#[cfg(feature = "payouts")]
 use crate::{
     core::{api_locking, payout_link::*},
     services::{api, authentication as auth},
     AppState,
 };
+#[cfg(feature= "payouts")]
 pub async fn render_payout_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
@@ -13,7 +18,7 @@ pub async fn render_payout_link(
 ) -> impl Responder {
     let flow = Flow::PayoutLinkInitiate;
     let (merchant_id, payout_id) = path.into_inner();
-    let payload = api_models::payouts::PayoutLinkInitiateRequest {
+    let payload = PayoutLinkInitiateRequest {
         merchant_id: merchant_id.clone(),
         payout_id,
     };

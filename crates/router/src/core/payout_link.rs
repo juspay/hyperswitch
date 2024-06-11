@@ -1,20 +1,27 @@
-use common_utils::{ext_traits::OptionExt, id_type::CustomerId};
+#[cfg(feature = "payouts")]
+use common_utils::{id_type::CustomerId,ext_traits::OptionExt};
+#[cfg(feature = "payouts")]
 use diesel_models::enums;
+#[cfg(feature = "payouts")]
 use error_stack::ResultExt;
-
+#[cfg(feature = "payouts")]
 use super::errors::{RouterResponse, StorageErrorExt};
+#[cfg(feature = "payouts")]
 use crate::{
-    errors,
     routes::{app::StorageInterface, SessionState},
     services::{self, GenericLinks},
     types::domain,
+    errors,
 };
+#[cfg(feature = "payouts")]
+use api_models::payouts;
 
+#[cfg(feature = "payouts")]
 pub async fn initiate_payout_link(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    req: api_models::payouts::PayoutLinkInitiateRequest,
+    req: payouts::PayoutLinkInitiateRequest,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
@@ -84,7 +91,7 @@ pub async fn initiate_payout_link(
                         payout_link.primary_reference
                     ))?;
 
-                let js_data = api_models::payouts::PayoutLinkDetails {
+                let js_data = payouts::PayoutLinkDetails {
                     pub_key: merchant_account
                         .publishable_key
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
@@ -100,7 +107,7 @@ pub async fn initiate_payout_link(
                     enabled_payment_methods: link_data.enabled_payment_methods,
                     amount: payout.amount,
                     currency: payout.destination_currency,
-                    flow: api_models::payouts::PayoutLinkFlow::PayoutLinkInitiate,
+                    flow: payouts::PayoutLinkFlow::PayoutLinkInitiate,
                 };
 
                 let serialized_css_content = "".to_string();
@@ -146,7 +153,7 @@ pub async fn initiate_payout_link(
         }
     }
 }
-
+#[cfg(feature = "payouts")]
 fn serialize<D>(data: &D) -> errors::RouterResult<String>
 where
     D: serde::Serialize,
