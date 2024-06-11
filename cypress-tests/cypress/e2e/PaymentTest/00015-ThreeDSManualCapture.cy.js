@@ -1,14 +1,15 @@
-import createPaymentBody from "../../fixtures/create-payment-body.json";
-import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
-import confirmBody from "../../fixtures/confirm-body.json";
-import getConnectorDetails from "../PaymentUtils/utils";
-import State from "../../utils/State";
 import captureBody from "../../fixtures/capture-flow-body.json";
-import * as utils from "../PaymentUtils/utils";
+import confirmBody from "../../fixtures/confirm-body.json";
+import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
+import createPaymentBody from "../../fixtures/create-payment-body.json";
+import State from "../../utils/State";
+import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
 describe("Card - ThreeDS Manual payment flow test", () => {
+  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -19,16 +20,13 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
   context("Card - ThreeDS Manual Full Capture payment flow test", () => {
     context("payment Create and Confirm", () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-      beforeEach(function () {
-        if (!should_continue) {
-          this.skip();
-        }
-      });
-
       it("create-payment-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -41,7 +39,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           res_data,
           "three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -88,14 +86,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     });
 
     context("Payment Create+Confirm", () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-      beforeEach(function () {
-        if (!should_continue) {
-          this.skip();
-        }
-      });
-
       it("create+confirm-payment-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -108,7 +98,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           res_data,
           "three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -144,14 +134,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     "Card - ThreeDS Manual Partial Capture payment flow test - Create and Confirm",
     () => {
       context("payment Create and Payment Confirm", () => {
-        let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-        beforeEach(function () {
-          if (!should_continue) {
-            this.skip();
-          }
-        });
-
         it("create-payment-call-test", () => {
           let data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
@@ -164,7 +146,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             res_data,
             "three_ds",
             "manual",
-            globalState,
+            globalState
           );
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
@@ -185,7 +167,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             req_data,
             res_data,
             true,
-            globalState,
+            globalState
           );
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
@@ -217,14 +199,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       context("payment + Confirm", () => {
-        let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-        beforeEach(function () {
-          if (!should_continue) {
-            this.skip();
-          }
-        });
-
         it("create+confirm-payment-call-test", () => {
           let data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
@@ -237,7 +211,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             res_data,
             "three_ds",
             "manual",
-            globalState,
+            globalState
           );
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
@@ -267,6 +241,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           cy.retrievePaymentCallTest(globalState);
         });
       });
-    },
+    }
   );
 });
