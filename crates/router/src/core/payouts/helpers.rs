@@ -2,8 +2,7 @@ use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    generate_customer_id_of_default_length, id_type,
-    fp_utils,
+    fp_utils, generate_customer_id_of_default_length, id_type,
 };
 use diesel_models::encryption::Encryption;
 use error_stack::ResultExt;

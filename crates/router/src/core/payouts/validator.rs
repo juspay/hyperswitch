@@ -1,8 +1,7 @@
 use api_models::admin;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::ext_traits::ValueExt;
-use common_utils::id_type::CustomerId;
+use common_utils::{ext_traits::ValueExt, id_type::CustomerId};
 use diesel_models::{enums::CollectLinkConfig, generic_link::PaymentMethodCollectLinkData};
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
