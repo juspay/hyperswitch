@@ -20,14 +20,17 @@ transforms:
     type: remap
     inputs:
       - kafka_payments
+    drop_on_error: true
+    reroute_dropped: true
     source: >-
       .sessionizer = {
         "table": "${CASSANDRA_TABLE:-payments}",
         "id": string!(.log.merchant_id) + "_" + string!(.log.payment_id),
         "db_log_type": "payment_intent"
       };
+      log({"log": ., "type": "individual"}, rate_limit_secs:0);
 
-  buffer_with_reduce:
+  buffer_each_log_type:
     type: reduce
     inputs:
       - init_sessionizer_vars
@@ -40,12 +43,33 @@ transforms:
       - log.dispute_id
     merge_strategies:
       log: retain
+    expire_after_ms: 3000
+
+  concat_all_log_types:
+    type: reduce
+    inputs:
+      - buffer_each_log_type
+    group_by:
+      - log.merchant_id
+      - log.payment_id
+    merge_strategies:
+      log: array
+      log_type: array
     expire_after_ms: 5000
+
+  debug_log:
+    type: remap
+    drop_on_error: true
+    reroute_dropped: true
+    inputs:
+      - concat_all_log_types
+    source: >-
+      log({"log": ., "type": "combined"}, rate_limit_secs:0);
 
   cassandra_sessionize:
     type: lua
     inputs:
-      - buffer_with_reduce
+      - debug_log
     version: "2"
     hooks:
       init: init
@@ -104,7 +128,7 @@ transforms:
       function db_get_wait(table, id, version)
         local is_success, data = pcall(db_get, table, id, version)
         while not is_success do
-          sleep(5)
+          sleep(1)
 
           print(string.format("db_get - recreate cassandra connection start - reason - %s", data))
           local connection_closed, err = pcall(client_close)
@@ -122,7 +146,7 @@ transforms:
         local is_success, res = pcall(db_set, table, state, id, version)
 
         while not is_success do
-          sleep(5)
+          sleep(1)
 
           print(string.format("db_set - recreate cassandra connection start - reason - %s", res))
           local connection_closed, err = pcall(client_close)
@@ -158,43 +182,50 @@ transforms:
         return tb
       end
 
-      function init(emit)
+      function merge_log(db_log, new_log, traverse_map)
+        local log = get_value(db_log, traverse_map)
+
+        for k, v in pairs(new_log) do
+          log[k] = v
+        end
+
+        return set_value(db_log, traverse_map, log)
+      end
+
+      function init(emit) 
         create_cassandra_connection()  
       end
 
       function process(event, emit)
+        local start_time = os.clock()
         local sessionizer = event.log.sessionizer
-        local new_log_type = event.log.log_type
-        local new_log = event.log.log
+        local new_log_types = event.log.log_type
+        local new_logs = event.log.log
         local db_log = {}
 
         local data = db_get_wait(sessionizer.table, sessionizer.id)
-
-        local traverse_map = nil
-
-        if new_log_type == "payment_intent" then
-          traverse_map = {}
-        elseif new_log_type == "payment_attempt" then
-          traverse_map = {"attempts", new_log.attempt_id}
-        elseif new_log_type == "refund" then
-          traverse_map = {"attempts", new_log.attempt_id, "refunds", new_log.refund_id}
-        elseif new_log_type == "dispute" then
-          traverse_map = {"attempts", new_log.attempt_id, "disputes", new_log.dispute_id}
-        end
 
         if #data == 1 then
           event.log.old_log = data[1].state
           db_log = json.decode(data[1].state)
         end
+        
 
-        if type(traverse_map) ~= nil then
-          local log = get_value(db_log, traverse_map)
+        for i, new_log in ipairs(new_logs) do
+          new_log_type = new_log_types[i];
 
-          for k, v in pairs(new_log) do
-            log[k] = v
+          local traverse_map = nil
+          if new_log_type == "payment_intent" then
+            traverse_map = {}
+          elseif new_log_type == "payment_attempt" then
+            traverse_map = {"attempts", new_log.attempt_id}
+          elseif new_log_type == "refund" then
+            traverse_map = {"attempts", new_log.attempt_id, "refunds", new_log.refund_id}
+          elseif new_log_type == "dispute" then
+            traverse_map = {"attempts", new_log.attempt_id, "disputes", new_log.dispute_id}
           end
 
-          db_log = set_value(db_log, traverse_map, log)
+          db_log = merge_log(db_log, new_log, traverse_map);
         end
 
         event.log.log = db_log
@@ -202,6 +233,7 @@ transforms:
         local _new_event_insert = db_set_wait(sessionizer.table, json.encode(db_log), sessionizer.id)
         emit(event)
 
+        print(string.format("lua execution time: %.3f", os.clock() - start_time))
       end
 
       function shutdown(emit)
@@ -212,6 +244,8 @@ transforms:
     type: remap
     inputs:
       - cassandra_sessionize
+    drop_on_error: true
+    reroute_dropped: true
     source: >-
       events = [];
       if exists(.old_log) {
@@ -227,6 +261,8 @@ transforms:
     type: remap
     inputs:
       - generate_signed_events
+    drop_on_error: true
+    reroute_dropped: true
     source: >-
       attempts = object(.attempts) ?? {};
       attempt_total_count = 0;
@@ -311,6 +347,8 @@ transforms:
     type: remap
     inputs:
       - consolidate_events
+    drop_on_error: true
+    reroute_dropped: true
     source: >-
       if exists(.merchant_id) && exists(.payment_id) {
         del(.attempts);
@@ -324,6 +362,8 @@ transforms:
     type: remap
     inputs:
       - consolidate_events
+    drop_on_error: true
+    reroute_dropped: true
     source: >-
       . = flatten(map_values(values(object(.attempts) ?? {})) -> |a| {
         attempt = object(a) ?? {};
@@ -343,6 +383,8 @@ transforms:
     type: remap
     inputs:
       - consolidate_events
+    drop_on_error: true
+    reroute_dropped: true
     source: >-
       . = flatten(map_values(values(object(.attempts) ?? {})) -> |a| {
           attempt = object(a) ?? {};
@@ -363,6 +405,8 @@ transforms:
     type: remap
     inputs:
       - consolidate_events
+    drop_on_error: true
+    reroute_dropped: true
     source: >-
       . = flatten(map_values(values(object(.attempts) ?? {})) -> |a| {
           attempt = object(a) ?? {};
@@ -417,6 +461,21 @@ sinks:
   console_disputes:
     inputs:
       - consolidate_events_disputes
+    target: stdout
+    type: console
+    encoding:
+      codec: json
+
+  console_dropped:
+    inputs:
+      - consolidate_events.dropped
+      - consolidate_events_attempts.dropped
+      - consolidate_events_disputes.dropped
+      - consolidate_events_intents.dropped
+      - consolidate_events_refunds.dropped
+      - debug_log.dropped
+      - generate_signed_events.dropped
+      - init_sessionizer_vars.dropped
     target: stdout
     type: console
     encoding:
