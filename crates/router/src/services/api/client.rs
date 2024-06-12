@@ -126,10 +126,10 @@ pub fn proxy_bypass_urls(key_manager: &KeyManagerConfig, locker: &Locker) -> Vec
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),
-        format!("{key_manager_host}/encrypt"),
-        format!("{key_manager_host}/decrypt"),
-        format!("{key_manager_host}/create"),
-        format!("{key_manager_host}/rotate"),
+        format!("{key_manager_host}/data/encrypt"),
+        format!("{key_manager_host}/data/decrypt"),
+        format!("{key_manager_host}/key/create"),
+        format!("{key_manager_host}/key/rotate"),
     ]
 }
 
