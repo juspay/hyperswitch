@@ -11,7 +11,7 @@ impl utils::Connector for GocardlessTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Gocardless;
         types::api::ConnectorData {
-            connector: Box::new(&Gocardless),
+            connector: Box::new(Gocardless::new()),
             connector_name: types::Connector::Gocardless,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

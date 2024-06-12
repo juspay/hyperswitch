@@ -5,6 +5,7 @@ use api_models::{
 use common_utils::{
     id_type,
     pii::{self, IpAddress},
+    types::MinorUnit,
 };
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -22,19 +23,16 @@ use crate::{
 };
 
 pub struct GocardlessRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for GocardlessRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for GocardlessRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -719,7 +717,7 @@ pub struct GocardlessRefundRequest {
 
 #[derive(Default, Debug, Serialize)]
 pub struct GocardlessRefund {
-    amount: i64,
+    amount: MinorUnit,
     metadata: RefundMetaData,
     links: RefundLink,
 }

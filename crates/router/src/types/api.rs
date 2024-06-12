@@ -326,11 +326,11 @@ impl ConnectorData {
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Cashtocode => Ok(Box::new(connector::Cashtocode::new())),
-                enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
+                enums::Connector::Checkout => Ok(Box::new(connector::Checkout::new())),
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 enums::Connector::Cryptopay => Ok(Box::new(connector::Cryptopay::new())),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
-                enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
+                enums::Connector::Dlocal => Ok(Box::new(connector::Dlocal::new())),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(Box::new(&connector::DummyConnector::<1>)),
                 #[cfg(feature = "dummy_connector")]
@@ -350,7 +350,7 @@ impl ConnectorData {
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
-                enums::Connector::Gocardless => Ok(Box::new(&connector::Gocardless)),
+                enums::Connector::Gocardless => Ok(Box::new(connector::Gocardless::new())),
                 enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(connector::Iatapay::new())),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
