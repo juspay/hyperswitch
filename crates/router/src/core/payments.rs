@@ -1529,7 +1529,7 @@ where
             )),
         );
     };
-
+    router_data.validate_request_for_flow(state)?;
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
         &connector,
