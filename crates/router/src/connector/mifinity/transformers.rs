@@ -1,12 +1,12 @@
 use common_utils::pii::{self, Email};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::Date;
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
-    core::errors::{self, CustomResult},
+    core::errors,
     services,
     types::{self, api, domain, storage::enums},
 };
@@ -36,6 +36,7 @@ pub mod auth_headers {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MifinityConnectorMetadataObject {
     pub brand_id: Secret<String>,
+    pub destination_account_number: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject {
@@ -47,14 +48,6 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for MifinityConnectorMetadataObject
             })?;
         Ok(metadata)
     }
-}
-
-fn get_brand_id(
-    connector_metadata: &Option<pii::SecretSerdeValue>,
-) -> CustomResult<String, errors::ConnectorError> {
-    let mifinity_metadata = MifinityConnectorMetadataObject::try_from(connector_metadata)?;
-    let brand_id = mifinity_metadata.brand_id.clone().expose();
-    Ok(brand_id)
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -103,6 +96,11 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
     fn try_from(
         item: &MifinityRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let metadata: MifinityConnectorMetadataObject =
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 domain::WalletData::Mifinity(data) => {
@@ -135,10 +133,9 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                             field_name: "client_reference",
                         },
                     )?;
-                    let destination_account_number = data.destination_account_number;
+                    let destination_account_number = metadata.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
-                    let brand_id =
-                        Secret::new(get_brand_id(&item.router_data.connector_meta_data)?);
+                    let brand_id = metadata.brand_id;
                     Ok(Self {
                         money,
                         client,

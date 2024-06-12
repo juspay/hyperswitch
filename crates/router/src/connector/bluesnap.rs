@@ -1,12 +1,11 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
 use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
     request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -41,8 +40,18 @@ use crate::{
 
 pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merchant-transaction:";
 
-#[derive(Debug, Clone)]
-pub struct Bluesnap;
+#[derive(Clone)]
+pub struct Bluesnap {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Bluesnap {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bluesnap
 where
@@ -110,7 +119,7 @@ impl ConnectorCommon for Bluesnap {
             bluesnap::BluesnapErrors::Payment(error_response) => {
                 let error_list = error_response.message.clone();
                 let option_error_code_message = get_error_code_error_message_based_on_priority(
-                    Self.clone(),
+                    self.clone(),
                     error_list.into_iter().map(|errors| errors.into()).collect(),
                 );
                 let reason = error_response
@@ -464,12 +473,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_to_capture = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data =
+            bluesnap::BluesnapRouterData::try_from((amount_to_capture, req))?;
         let connector_req = bluesnap::BluesnapCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -651,12 +661,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((amount, req))?;
         match req.is_three_ds() && req.request.is_card() {
             true => {
                 let connector_req =
@@ -791,12 +801,12 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((amount, req))?;
         let connector_req =
             bluesnap::BluesnapCompletePaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -888,12 +898,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((refund_amount, req))?;
         let connector_req = bluesnap::BluesnapRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

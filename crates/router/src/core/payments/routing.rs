@@ -138,9 +138,10 @@ pub fn make_dsl_input_for_payouts(
         setup_future_usage: None,
     };
     let payment_method = dsl_inputs::PaymentMethodInput {
-        payment_method: Some(api_enums::PaymentMethod::foreign_from(
-            payout_data.payouts.payout_type,
-        )),
+        payment_method: payout_data
+            .payouts
+            .payout_type
+            .map(api_enums::PaymentMethod::foreign_from),
         payment_method_type: payout_data
             .payout_method_data
             .clone()
@@ -368,7 +369,7 @@ async fn ensure_algorithm_cached_v1(
     let cached_algorithm = ROUTING_CACHE
         .get_val::<Arc<CachedAlgorithm>>(CacheKey {
             key: key.clone(),
-            prefix: state.tenant.clone(),
+            prefix: state.tenant.redis_key_prefix.clone(),
         })
         .await;
 
@@ -490,7 +491,7 @@ pub async fn refresh_routing_cache_v1(
         .push(
             CacheKey {
                 key,
-                prefix: state.tenant.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
             },
             arc_cached_algorithm.clone(),
         )
@@ -567,7 +568,7 @@ pub async fn get_merchant_cgraph<'a>(
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>>>(
             CacheKey {
                 key: key.clone(),
-                prefix: state.tenant.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
             },
         )
         .await;
@@ -668,7 +669,7 @@ pub async fn refresh_cgraph_cache<'a>(
         .push(
             CacheKey {
                 key,
-                prefix: state.tenant.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
             },
             Arc::clone(&cgraph),
         )

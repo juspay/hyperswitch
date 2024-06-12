@@ -9,6 +9,8 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
+#[cfg(feature = "payouts")]
+use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
@@ -28,8 +30,6 @@ use crate::{
     },
     utils as crate_utils,
 };
-#[cfg(feature = "payouts")]
-use crate::{types::api::payouts, utils::OptionExt};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -4757,7 +4757,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
     type Error = Error;
     fn try_from(item: &AdyenRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let payout_type = item.router_data.request.payout_type.to_owned();
+        let payout_type = item.router_data.request.get_payout_type()?;
         let merchant_account = auth_type.merchant_account;
         match payout_type {
             storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
