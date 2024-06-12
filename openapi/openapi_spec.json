@@ -12123,7 +12123,8 @@
         "required": [
           "product_name",
           "quantity",
-          "amount"
+          "amount",
+          "minor_amount"
         ],
         "properties": {
           "product_name": {
@@ -12180,6 +12181,9 @@
               }
             ],
             "nullable": true
+          },
+          "minor_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },

@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::pii;
+use common_utils::{pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -12,25 +12,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct KlarnaRouterData<T> {
-    amount: i64,
+    amount: MinorUnit,
     router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for KlarnaRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for KlarnaRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data,
-        })
+        }
     }
 }
 
@@ -71,7 +62,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
 pub struct KlarnaPaymentsRequest {
     auto_capture: bool,
     order_lines: Vec<OrderLines>,
-    order_amount: i64,
+    order_amount: MinorUnit,
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
     merchant_reference1: Option<String>,
@@ -88,7 +79,7 @@ pub struct KlarnaSessionRequest {
     intent: KlarnaSessionIntent,
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
-    order_amount: i64,
+    order_amount: MinorUnit,
     order_lines: Vec<OrderLines>,
 }
 
@@ -119,8 +110,10 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
                         quantity: data.quantity,
-                        unit_price: data.amount,
-                        total_amount: i64::from(data.quantity) * (data.amount),
+                        unit_price: data.minor_amount,
+                        total_amount: MinorUnit::new(
+                            i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64()),
+                        ),
                     })
                     .collect(),
             }),
@@ -170,8 +163,10 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
                         quantity: data.quantity,
-                        unit_price: data.amount,
-                        total_amount: i64::from(data.quantity) * (data.amount),
+                        unit_price: data.minor_amount,
+                        total_amount: MinorUnit::new(
+                            i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64()),
+                        ),
                     })
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
@@ -217,8 +212,8 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
 pub struct OrderLines {
     name: String,
     quantity: u16,
-    unit_price: i64,
-    total_amount: i64,
+    unit_price: MinorUnit,
+    total_amount: MinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -335,7 +330,7 @@ impl<F, T>
 
 #[derive(Debug, Serialize)]
 pub struct KlarnaCaptureRequest {
-    captured_amount: i64,
+    captured_amount: MinorUnit,
     reference: Option<String>,
 }
 
@@ -413,7 +408,7 @@ impl<F>
 
 #[derive(Default, Debug, Serialize)]
 pub struct KlarnaRefundRequest {
-    refunded_amount: i64,
+    refunded_amount: MinorUnit,
     reference: Option<String>,
 }
 

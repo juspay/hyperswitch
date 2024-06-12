@@ -353,7 +353,7 @@ impl ConnectorData {
                 enums::Connector::Gocardless => Ok(Box::new(&connector::Gocardless)),
                 enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(connector::Iatapay::new())),
-                enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
+                enums::Connector::Klarna => Ok(Box::new(connector::Klarna::new())),
                 // enums::Connector::Mifinity => Ok(Box::new(&connector::Mifinity)), Added as template code for future usage
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
                 enums::Connector::Nmi => Ok(Box::new(connector::Nmi::new())),
