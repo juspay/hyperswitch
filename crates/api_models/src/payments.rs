@@ -1521,7 +1521,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
-            | Self::RealTimePayment(_) 
+            | Self::RealTimePayment(_)
             | Self::Upi(_)
             | Self::GiftCard(_)
             | Self::CardToken(_)
@@ -1702,10 +1702,10 @@ impl GetPaymentMethodType for CryptoData {
 impl GetPaymentMethodType for RealTimePaymentData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
-            Self::Fps {  } => api_enums::PaymentMethodType::Fps,
-            Self::DuitNow { } => api_enums::PaymentMethodType::DuitNow,
-            Self::PromptPay { } => api_enums::PaymentMethodType::PromptPay,
-            Self::VietQr { } => api_enums::PaymentMethodType::VietQr,
+            Self::Fps {} => api_enums::PaymentMethodType::Fps,
+            Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
+            Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
+            Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
         }
     }
 }
@@ -1966,8 +1966,7 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: common_enums::BankNames,
     },
-    LocalBankRedirect {
-    }
+    LocalBankRedirect {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -2077,7 +2076,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             } => get_billing_address_inner(Some(billing_details), None, None),
             Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
             Self::OnlineBankingFpx { .. }
-            |Self::LocalBankRedirect { }
+            | Self::LocalBankRedirect {}
             | Self::OnlineBankingThailand { .. }
             | Self::Bizum {}
             | Self::OnlineBankingPoland { .. }
@@ -2295,7 +2294,6 @@ pub enum RealTimePaymentData {
     PromptPay {},
     VietQr {},
 }
-
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
     fn get_billing_address(&self) -> Option<Address> {

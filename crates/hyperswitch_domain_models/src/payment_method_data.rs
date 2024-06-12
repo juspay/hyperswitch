@@ -898,10 +898,10 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
 impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
     fn from(value: api_models::payments::RealTimePaymentData) -> Self {
         match value {
-            api_models::payments::RealTimePaymentData::Fps { } => Self::Fps {},
-            api_models::payments::RealTimePaymentData::DuitNow { } => Self::DuitNow {},
-            api_models::payments::RealTimePaymentData::PromptPay { } => Self::PromptPay {},
-            api_models::payments::RealTimePaymentData::VietQr { } => Self::VietQr {},
+            api_models::payments::RealTimePaymentData::Fps {} => Self::Fps {},
+            api_models::payments::RealTimePaymentData::DuitNow {} => Self::DuitNow {},
+            api_models::payments::RealTimePaymentData::PromptPay {} => Self::PromptPay {},
+            api_models::payments::RealTimePaymentData::VietQr {} => Self::VietQr {},
         }
     }
 }

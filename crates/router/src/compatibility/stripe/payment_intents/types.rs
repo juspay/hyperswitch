@@ -908,33 +908,28 @@ fn get_pmd_based_on_payment_method_type(
     payment_method_type: Option<api_enums::PaymentMethodType>,
     billing_details: Option<payments::Address>,
 ) -> Option<payments::PaymentMethodData> {
-
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
             payments::UpiData::UpiIntent(payments::UpiIntentData {}),
         )),
         Some(api_enums::PaymentMethodType::Fps) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(
-                payments::RealTimePaymentData::Fps {
-                },
+                payments::RealTimePaymentData::Fps {},
             )))
         }
         Some(api_enums::PaymentMethodType::DuitNow) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(
-                payments::RealTimePaymentData::DuitNow {
-                },
+                payments::RealTimePaymentData::DuitNow {},
             )))
         }
         Some(api_enums::PaymentMethodType::PromptPay) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(
-                payments::RealTimePaymentData::PromptPay {
-                },
+                payments::RealTimePaymentData::PromptPay {},
             )))
         }
         Some(api_enums::PaymentMethodType::VietQr) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(
-                payments::RealTimePaymentData::VietQr {
-                },
+                payments::RealTimePaymentData::VietQr {},
             )))
         }
         Some(api_enums::PaymentMethodType::Ideal) => Some(
@@ -946,14 +941,16 @@ fn get_pmd_based_on_payment_method_type(
                     }
                 }),
                 bank_name: None,
-                country : billing_details.as_ref()
-                .and_then(|billing_data| billing_data.get_optional_country()),
+                country: billing_details
+                    .as_ref()
+                    .and_then(|billing_data| billing_data.get_optional_country()),
             }),
         ),
-        Some(api_enums::PaymentMethodType::LocalBankTransfer) => Some(
-            payments::PaymentMethodData::BankRedirect(payments::BankRedirectData::LocalBankRedirect { 
-            }),
-        ),
+        Some(api_enums::PaymentMethodType::LocalBankTransfer) => {
+            Some(payments::PaymentMethodData::BankRedirect(
+                payments::BankRedirectData::LocalBankRedirect {},
+            ))
+        }
         _ => None,
     }
 }
