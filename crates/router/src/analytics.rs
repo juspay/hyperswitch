@@ -212,7 +212,9 @@ pub mod routes {
         .await
     }
 
-    // TODO: To be implemented
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetFrmMetricRequest` element.
     pub async fn get_frm_metrics(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -220,7 +222,7 @@ pub mod routes {
     ) -> impl Responder {
         #[allow(clippy::expect_used)]
         // safety: This shouldn't panic owing to the data type
-        let payload = json_payload
+        let payload: GetFrmMetricRequest = json_payload
             .into_inner()
             .to_vec()
             .pop()
