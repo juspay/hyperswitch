@@ -12,6 +12,8 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(feature = "payouts")]
+use crate::connector::utils::PayoutsData;
 use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
@@ -3152,7 +3154,8 @@ impl TryFrom<&CybersourceRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
     fn try_from(
         item: &CybersourceRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payout_type {
+        let payout_type = item.router_data.request.get_payout_type()?;
+        match payout_type {
             enums::PayoutType::Card => {
                 let client_reference_information = ClientReferenceInformation {
                     code: Some(item.router_data.request.payout_id.clone()),

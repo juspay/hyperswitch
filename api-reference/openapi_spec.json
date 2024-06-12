@@ -16613,7 +16613,6 @@
           "merchant_id",
           "amount",
           "currency",
-          "payout_type",
           "customer_id",
           "auto_fulfill",
           "client_secret",
@@ -16656,7 +16655,12 @@
             "nullable": true
           },
           "payout_type": {
-            "$ref": "#/components/schemas/PayoutType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutType"
+              }
+            ],
+            "nullable": true
           },
           "billing": {
             "type": "object",

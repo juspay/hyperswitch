@@ -1169,6 +1169,8 @@ pub trait PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error>;
     fn get_customer_details(&self) -> Result<types::CustomerDetails, Error>;
     fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_payout_type(&self) -> Result<storage_enums::PayoutType, Error>;
 }
 
 #[cfg(feature = "payouts")]
@@ -1187,6 +1189,12 @@ impl PayoutsData for types::PayoutsData {
         self.vendor_details
             .clone()
             .ok_or_else(missing_field_err("vendor_details"))
+    }
+    #[cfg(feature = "payouts")]
+    fn get_payout_type(&self) -> Result<storage_enums::PayoutType, Error> {
+        self.payout_type
+            .to_owned()
+            .ok_or_else(missing_field_err("payout_type"))
     }
 }
 
