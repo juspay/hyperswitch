@@ -585,6 +585,7 @@ impl
                         | common_enums::PaymentMethodType::Momo
                         | common_enums::PaymentMethodType::MomoAtm
                         | common_enums::PaymentMethodType::Multibanco
+                        | common_enums::PaymentMethodType::LocalBankRedirect
                         | common_enums::PaymentMethodType::OnlineBankingThailand
                         | common_enums::PaymentMethodType::OnlineBankingCzechRepublic
                         | common_enums::PaymentMethodType::OnlineBankingFinland

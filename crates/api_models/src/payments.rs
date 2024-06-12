@@ -1656,6 +1656,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::OnlineBankingThailand { .. } => {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
+            Self::LocalBankRedirect{ .. } => api_enums::PaymentMethodType::LocalBankRedirect
         }
     }
 }
@@ -1965,6 +1966,11 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: common_enums::BankNames,
     },
+    LocalBankRedirect {
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
+    }
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -2066,7 +2072,8 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             Self::OnlineBankingFinland { email } => {
                 get_billing_address_inner(None, None, email.as_ref())
             }
-            Self::OpenBankingUk { country, .. } => {
+            Self::OpenBankingUk { country, .. }
+            |Self::LocalBankRedirect { country } => {
                 get_billing_address_inner(None, country.as_ref(), None)
             }
             Self::Przelewy24 {

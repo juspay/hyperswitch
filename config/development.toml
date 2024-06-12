@@ -446,6 +446,7 @@ ideal = { country = "NL", currency = "EUR" }
 duit_now = { country = "MY", currency = "MYR" }
 prompt_pay = { country = "TH", currency = "THB" }
 viet_qr = { country = "VN", currency = "VND" }
+local_bank_redirect = {country = "AT,BE,DE,EE,ES,FI,FR,IE,IT,LU,LV,LT,NL,PT", currency = "EUR" }
 
 [pm_filters.mollie]
 credit = { not_available_flows = { capture_method = "manual" } }

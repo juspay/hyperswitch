@@ -129,7 +129,8 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 | domain::BankRedirectData::Sofort { .. }
                 | domain::BankRedirectData::Trustly { .. }
                 | domain::BankRedirectData::OnlineBankingFpx { .. }
-                | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::LocalBankRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Volt"),
                     )

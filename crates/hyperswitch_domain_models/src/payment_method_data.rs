@@ -304,6 +304,7 @@ pub enum BankRedirectData {
     OnlineBankingThailand {
         issuer: common_enums::BankNames,
     },
+    LocalBankRedirect {}
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -721,6 +722,9 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             }
             api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => {
                 Self::OnlineBankingThailand { issuer }
+            }
+            api_models::payments::BankRedirectData::LocalBankRedirect { .. } => {
+                Self::LocalBankRedirect { }
             }
         }
     }

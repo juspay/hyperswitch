@@ -257,6 +257,16 @@ debit.currency = "USD"
 ali_pay.currency = "GBP,CNY"
 we_chat_pay.currency = "GBP,CNY"
 
+[pm_filters.iatapay]
+upi_intent = { country = "IN", currency = "INR" }
+upi_collect = { country = "IN", currency = "INR" }
+fps = { country = "HK", currency = "HKD" }
+ideal = { country = "NL", currency = "EUR" }
+duit_now = { country = "MY", currency = "MYR" }
+prompt_pay = { country = "TH", currency = "THB" }
+viet_qr = { country = "VN", currency = "VND" }
+local_bank_redirect = { country = "AT,BE,DE,EE,ES,FI,FR,IE,IT,LU,LV,LT,NL,PT", currency = "EUR" }
+
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 

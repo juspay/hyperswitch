@@ -154,6 +154,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::BancontactCard => Self::BancontactCard,
             enums::BankRedirectType::Blik => Self::Blik,
             enums::BankRedirectType::Interac => Self::Interac,
+            enums::BankRedirectType::LocalBankRedirect => Self::LocalBankRedirect,
             enums::BankRedirectType::OnlineBankingCzechRepublic => Self::OnlineBankingCzechRepublic,
             enums::BankRedirectType::OnlineBankingFinland => Self::OnlineBankingFinland,
             enums::BankRedirectType::OnlineBankingPoland => Self::OnlineBankingPoland,

@@ -247,6 +247,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::OnlineBankingFpx => {
                 Ok(dirval!(BankRedirectType = OnlineBankingFpx))
             }
+            api_enums::PaymentMethodType::LocalBankRedirect => {
+                Ok(dirval!(BankRedirectType = LocalBankRedirect))
+            }
             api_enums::PaymentMethodType::OnlineBankingThailand => {
                 Ok(dirval!(BankRedirectType = OnlineBankingThailand))
             }

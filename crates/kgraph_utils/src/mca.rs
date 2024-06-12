@@ -92,6 +92,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::OnlineBankingThailand => {
             Ok(dirval!(BankRedirectType = OnlineBankingThailand))
         }
+        api_enums::PaymentMethodType::LocalBankRedirect => {
+            Ok(dirval!(BankRedirectType = LocalBankRedirect))
+        }
         api_enums::PaymentMethodType::TouchNGo => Ok(dirval!(WalletType = TouchNGo)),
         api_enums::PaymentMethodType::Atome => Ok(dirval!(PayLaterType = Atome)),
         api_enums::PaymentMethodType::Boleto => Ok(dirval!(VoucherType = Boleto)),

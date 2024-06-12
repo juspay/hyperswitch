@@ -272,6 +272,7 @@ impl
             | domain::BankRedirectData::OnlineBankingPoland { .. }
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::LocalBankRedirect {}
             | domain::BankRedirectData::OpenBankingUk { .. } => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,

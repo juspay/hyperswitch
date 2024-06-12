@@ -694,6 +694,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Gcash
             | enums::PaymentMethodType::Interac
             | enums::PaymentMethodType::KakaoPay
+            | enums::PaymentMethodType::LocalBankRedirect
             | enums::PaymentMethodType::MbWay
             | enums::PaymentMethodType::MobilePay
             | enums::PaymentMethodType::Momo
@@ -1013,7 +1014,8 @@ impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodType {
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OnlineBankingThailand { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::Trustly { .. } => {
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))
@@ -1543,7 +1545,8 @@ impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OnlineBankingThailand { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::Trustly { .. } => {
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )

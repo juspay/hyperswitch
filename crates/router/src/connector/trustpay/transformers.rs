@@ -241,7 +241,8 @@ impl TryFrom<&domain::BankRedirectData> for TrustpayPaymentMethod {
             | domain::BankRedirectData::Przelewy24 { .. }
             | domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )

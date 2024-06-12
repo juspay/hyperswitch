@@ -2305,6 +2305,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Eps
                 | api_enums::PaymentMethodType::BancontactCard
                 | api_enums::PaymentMethodType::Blik
+                |api_enums::PaymentMethodType::LocalBankRedirect
                 | api_enums::PaymentMethodType::OnlineBankingThailand
                 | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
                 | api_enums::PaymentMethodType::OnlineBankingFinland

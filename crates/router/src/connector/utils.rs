@@ -2592,6 +2592,7 @@ pub enum PaymentMethodDataType {
     Giropay,
     Ideal,
     Interac,
+    LocalBankRedirect,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -2735,6 +2736,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                         Self::OnlineBankingFpx
                     }
                     domain::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                        Self::OnlineBankingThailand
+                    }
+                    domain::payments::BankRedirectData::LocalBankRedirect { } => {
                         Self::OnlineBankingThailand
                     }
                 }

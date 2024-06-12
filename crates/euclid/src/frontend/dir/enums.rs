@@ -149,6 +149,7 @@ pub enum BankRedirectType {
     BancontactCard,
     Blik,
     Interac,
+    LocalBankRedirect,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
