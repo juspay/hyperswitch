@@ -429,6 +429,7 @@ delay_between_retries_in_milliseconds = 500
 
 [events.kafka]
 brokers = ["localhost:9092"]
+fraud_check_analytics_topic= "hyperswitch-fraud-check-events"
 intent_analytics_topic = "hyperswitch-payment-intent-events"
 attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"

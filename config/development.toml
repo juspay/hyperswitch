@@ -578,7 +578,7 @@ soft_kill = false
 enabled = true
 
 [events]
-source = "logs"
+source = "kafka"
 
 [events.kafka]
 brokers = ["localhost:9092"]
@@ -595,7 +595,7 @@ payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
 
 [analytics]
-source = "sqlx"
+source = "clickhouse"
 
 [analytics.clickhouse]
 username = "default"
