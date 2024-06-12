@@ -130,7 +130,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let return_url = item.router_data.get_return_url()?;
-        // for Iatapay payment method is requested based on country  
+        // for Iatapay payment method is requested based on country
         let (country, payer_info, preferred_checkout_method) =
             match item.router_data.request.payment_method_data.clone() {
                 domain::PaymentMethodData::Upi(upi_type) => match upi_type {
