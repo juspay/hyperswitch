@@ -6,6 +6,7 @@ use api_models::{
 };
 use base64::Engine;
 use common_utils::{
+    crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, id_type, pii,
     types::MinorUnit,
@@ -34,7 +35,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerEnableConfig},
+    configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -46,7 +47,7 @@ use crate::{
         pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
-    routes::{metrics, payment_methods as payment_methods_handler, AppState},
+    routes::{metrics, payment_methods as payment_methods_handler, SessionState},
     services,
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
@@ -427,7 +428,7 @@ pub async fn get_address_by_id(
 }
 
 pub async fn get_token_pm_type_mandate_details(
-    state: &AppState,
+    state: &SessionState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
@@ -579,7 +580,7 @@ pub async fn get_token_pm_type_mandate_details(
 }
 
 pub async fn get_token_for_recurring_mandate(
-    state: &AppState,
+    state: &SessionState,
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1023,16 +1024,13 @@ pub fn validate_customer_id_mandatory_cases(
 }
 
 pub fn create_startpay_url(
-    server: &Server,
+    base_url: &str,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> String {
     format!(
         "{}/payments/redirect/{}/{}/{}",
-        server.base_url,
-        payment_intent.payment_id,
-        payment_intent.merchant_id,
-        payment_attempt.attempt_id
+        base_url, payment_intent.payment_id, payment_intent.merchant_id, payment_attempt.attempt_id
     )
 }
 
@@ -1050,7 +1048,7 @@ pub fn create_redirect_url(
 }
 
 pub fn create_authentication_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
 ) -> String {
     format!(
@@ -1060,7 +1058,7 @@ pub fn create_authentication_url(
 }
 
 pub fn create_authorize_url(
-    router_base_url: &String,
+    router_base_url: &str,
     payment_attempt: &PaymentAttempt,
     connector_name: &String,
 ) -> String {
@@ -1205,7 +1203,7 @@ pub fn payment_intent_status_fsm(
 }
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -1494,7 +1492,7 @@ pub fn get_customer_details_from_request(
 }
 
 pub async fn get_connector_default(
-    _state: &AppState,
+    _state: &SessionState,
     request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
@@ -1676,7 +1674,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 }
 
 pub async fn retrieve_payment_method_with_temporary_token(
-    state: &AppState,
+    state: &SessionState,
     token: &str,
     payment_intent: &PaymentIntent,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1773,7 +1771,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 }
 
 pub async fn retrieve_card_with_permanent_token(
-    state: &AppState,
+    state: &SessionState,
     locker_id: &str,
     payment_method_id: &str,
     payment_intent: &PaymentIntent,
@@ -1838,7 +1836,7 @@ pub async fn retrieve_card_with_permanent_token(
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
-    state: &AppState,
+    state: &SessionState,
     token_data: &storage::PaymentTokenData,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::PaymentMethod>> {
@@ -1873,7 +1871,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 }
 
 pub async fn retrieve_payment_token_data(
-    state: &AppState,
+    state: &SessionState,
     token: String,
     payment_method: Option<storage_enums::PaymentMethod>,
 ) -> RouterResult<storage::PaymentTokenData> {
@@ -1924,7 +1922,7 @@ pub async fn retrieve_payment_token_data(
 
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
@@ -2021,7 +2019,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 }
 
 pub async fn store_in_vault_and_generate_ppmt(
-    state: &AppState,
+    state: &SessionState,
     payment_method_data: &api_models::payments::PaymentMethodData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -2057,7 +2055,7 @@ pub async fn store_in_vault_and_generate_ppmt(
 }
 
 pub async fn store_payment_method_data_in_vault(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
@@ -2297,6 +2295,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Momo
                 | api_enums::PaymentMethodType::KakaoPay
                 | api_enums::PaymentMethodType::Cashapp
+                | api_enums::PaymentMethodType::Mifinity
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -2541,7 +2540,7 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: AppState,
+    state: SessionState,
     customer_id: id_type::CustomerId,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
@@ -2563,7 +2562,7 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    state: AppState,
+    state: SessionState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let db = state.store.as_ref();
@@ -3172,6 +3171,13 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    pub fn get_connector_wallets_details(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::DbVal(val) => val.connector_wallets_details.as_deref().cloned(),
+            Self::CacheVal(_) => None,
+        }
+    }
+
     pub fn is_disabled(&self) -> bool {
         match self {
             Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
@@ -3207,7 +3213,7 @@ impl MerchantConnectorAccountType {
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
@@ -3372,6 +3378,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
         connector_response: router_data.connector_response,
+        connector_wallets_details: router_data.connector_wallets_details,
     }
 }
 
@@ -3580,8 +3587,8 @@ impl AttemptType {
             payment_method_billing_address_id: None,
             fingerprint_id: None,
             charge_id: None,
-            client_source: None,
-            client_version: None,
+            client_source: old_payment_attempt.client_source,
+            client_version: old_payment_attempt.client_version,
         }
     }
 
@@ -3909,17 +3916,32 @@ pub fn validate_customer_access(
 
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
+    connector_wallets_details: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
-    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
-        .map_err(|error| {
-            logger::info!(
-                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
+    let connector_apple_pay_wallet_details =
+        get_applepay_metadata(connector_wallets_details)
+            .map_err(|error| {
+                logger::debug!(
+                    "Apple pay connector wallets details parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
+                    connector_name,
+                    error
+                )
+            })
+            .ok();
+
+    let option_apple_pay_metadata = match connector_apple_pay_wallet_details {
+        Some(apple_pay_wallet_details) => Some(apple_pay_wallet_details),
+        None => get_applepay_metadata(connector_metadata)
+            .map_err(|error| {
+                logger::debug!(
+                "Apple pay metadata parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
                 connector_name,
                 error
             )
-        })
-        .ok();
+            })
+            .ok(),
+    };
 
     // return true only if the apple flow type is simplified
     Ok(matches!(
@@ -3930,6 +3952,38 @@ pub fn is_apple_pay_simplified_flow(
             )
         )
     ))
+}
+
+pub async fn get_encrypted_apple_pay_connector_wallets_details(
+    key_store: &domain::MerchantKeyStore,
+    connector_metadata: &Option<masking::Secret<tera::Value>>,
+) -> RouterResult<Option<Encryptable<masking::Secret<serde_json::Value>>>> {
+    let apple_pay_metadata = get_applepay_metadata(connector_metadata.clone())
+        .map_err(|error| {
+            logger::error!(
+                "Apple pay metadata parsing failed in get_encrypted_apple_pay_connector_wallets_details {:?}",
+                error
+            )
+        })
+        .ok();
+
+    let connector_apple_pay_details = apple_pay_metadata
+        .map(|metadata| {
+            serde_json::to_value(metadata)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize apple pay metadata as JSON")
+        })
+        .transpose()?
+        .map(masking::Secret::new);
+
+    let encrypted_connector_apple_pay_details = connector_apple_pay_details
+        .async_lift(|wallets_details| {
+            types::encrypt_optional(wallets_details, key_store.key.get_inner().peek())
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting connector wallets details")?;
+    Ok(encrypted_connector_apple_pay_details)
 }
 
 pub fn get_applepay_metadata(
@@ -3962,8 +4016,9 @@ pub fn get_applepay_metadata(
         })
 }
 
+#[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
 pub async fn get_apple_pay_retryable_connectors<F>(
-    state: AppState,
+    state: SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
@@ -3987,7 +4042,7 @@ where
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
-        profile_id, // need to fix this
+        profile_id,
         &decided_connector_data.connector_name.to_string(),
         merchant_connector_id,
     )
@@ -3995,6 +4050,7 @@ where
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
+        merchant_connector_account_type.get_connector_wallets_details(),
         merchant_connector_account_type
             .get_connector_name()
             .as_ref(),
@@ -4009,11 +4065,20 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
+        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
+            merchant_connector_account_list,
+            Some(profile_id.to_string()),
+        );
+
         let mut connector_data_list = vec![decided_connector_data.clone()];
 
-        for merchant_connector_account in merchant_connector_account_list {
+        for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata,
+                merchant_connector_account
+                    .connector_wallets_details
+                    .as_deref()
+                    .cloned(),
                 Some(&merchant_connector_account.connector_name),
             )? {
                 let connector_data = api::ConnectorData::get_connector_by_name(
@@ -4032,7 +4097,33 @@ where
                 }
             }
         }
-        Some(connector_data_list)
+
+        let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
+            &*state.clone().store,
+            profile_id,
+            &api_enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get merchant default fallback connectors config")?;
+
+        // connector_data_list is the list of connectors for which Apple Pay simplified flow is configured.
+        // This list is arranged in the same order as the merchant's default fallback connectors configuration.
+        let mut ordered_connector_data_list = vec![decided_connector_data.clone()];
+        fallback_connetors_list
+            .iter()
+            .for_each(|fallback_connector| {
+                let connector_data = connector_data_list.iter().find(|connector_data| {
+                    fallback_connector.merchant_connector_id == connector_data.merchant_connector_id
+                        && fallback_connector.merchant_connector_id
+                            != decided_connector_data.merchant_connector_id
+                });
+                if let Some(connector_data_details) = connector_data {
+                    ordered_connector_data_list.push(connector_data_details.clone());
+                }
+            });
+
+        Some(ordered_connector_data_list)
     } else {
         None
     };
@@ -4068,10 +4159,11 @@ impl ApplePayData {
 
     pub async fn decrypt(
         &self,
-        state: &AppState,
+        payment_processing_certificate: &masking::Secret<String>,
+        payment_processing_certificate_key: &masking::Secret<String>,
     ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
-        let merchant_id = self.merchant_id(state).await?;
-        let shared_secret = self.shared_secret(state).await?;
+        let merchant_id = self.merchant_id(payment_processing_certificate)?;
+        let shared_secret = self.shared_secret(payment_processing_certificate_key)?;
         let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
         let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
         let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)
@@ -4079,17 +4171,11 @@ impl ApplePayData {
         Ok(parsed_decrypted)
     }
 
-    pub async fn merchant_id(
+    pub fn merchant_id(
         &self,
-        state: &AppState,
+        payment_processing_certificate: &masking::Secret<String>,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
-        let cert_data = state
-            .conf
-            .applepay_decrypt_keys
-            .get_inner()
-            .apple_pay_ppc
-            .clone()
-            .expose();
+        let cert_data = payment_processing_certificate.clone().expose();
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -4124,9 +4210,9 @@ impl ApplePayData {
         Ok(apple_pay_m_id)
     }
 
-    pub async fn shared_secret(
+    pub fn shared_secret(
         &self,
-        state: &AppState,
+        payment_processing_certificate_key: &masking::Secret<String>,
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
@@ -4136,13 +4222,7 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        let decrypted_apple_pay_ppc_key = state
-            .conf
-            .applepay_decrypt_keys
-            .get_inner()
-            .apple_pay_ppc_key
-            .clone()
-            .expose();
+        let decrypted_apple_pay_ppc_key = payment_processing_certificate_key.clone().expose();
 
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
@@ -4302,7 +4382,7 @@ pub fn validate_payment_link_request(
 }
 
 pub async fn get_gsm_record(
-    state: &AppState,
+    state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: String,
@@ -4439,7 +4519,7 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 }
 
 pub async fn get_payment_method_details_from_payment_token(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
@@ -4590,7 +4670,7 @@ pub enum PaymentExternalAuthenticationFlow {
 }
 
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: &storage::BusinessProfile,
     payment_data: &mut PaymentData<F>,

@@ -20,7 +20,7 @@ use serde::{
     ser::Serializer,
     Deserialize, Deserializer, Serialize,
 };
-use time::PrimitiveDateTime;
+use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
@@ -1605,6 +1605,7 @@ impl GetPaymentMethodType for WalletData {
             }
             Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
+            Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
         }
     }
 }
@@ -2416,6 +2417,8 @@ pub enum WalletData {
     CashappQr(Box<CashappQr>),
     // The wallet data for Swish
     SwishQr(SwishQrData),
+    // The wallet data for Mifinity Ewallet
+    Mifinity(MifinityData),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
@@ -2442,7 +2445,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
                     phone: None,
                 })
             }
-            Self::AliPayQr(_)
+            Self::Mifinity(_)
+            | Self::AliPayQr(_)
             | Self::AliPayRedirect(_)
             | Self::AliPayHkRedirect(_)
             | Self::MomoRedirect(_)
@@ -2573,6 +2577,14 @@ pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SwishQrData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MifinityData {
+    #[schema(value_type = String)]
+    pub destination_account_number: Secret<String>,
+    #[schema(value_type = Date)]
+    pub date_of_birth: Secret<Date>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
@@ -2905,7 +2917,11 @@ impl AddressDetails {
 
     pub fn unify_address_details(self, other: Option<&Self>) -> Self {
         if let Some(other) = other {
-            let (first_name, last_name) = if self.first_name.is_some() {
+            let (first_name, last_name) = if self
+                .first_name
+                .as_ref()
+                .is_some_and(|first_name| !first_name.is_empty_after_trim())
+            {
                 (self.first_name, self.last_name)
             } else {
                 (other.first_name.clone(), other.last_name.clone())
@@ -4206,6 +4222,23 @@ pub struct SessionTokenInfo {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    #[serde(flatten)]
+    pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(tag = "payment_processing_details_at")]
+pub enum PaymentProcessingDetailsAt {
+    Hyperswitch(PaymentProcessingDetails),
+    Connector,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct PaymentProcessingDetails {
+    #[schema(value_type = String)]
+    pub payment_processing_certificate: Secret<String>,
+    #[schema(value_type = String)]
+    pub payment_processing_certificate_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4593,6 +4626,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub three_dsserver_trans_id: Option<String>,
     /// Contains the JWS object created by the ACS for the ARes message
     pub acs_signed_content: Option<String>,
+    /// Three DS Requestor URL
+    pub three_ds_requestor_url: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

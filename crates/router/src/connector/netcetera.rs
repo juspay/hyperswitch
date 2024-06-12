@@ -107,7 +107,7 @@ impl ConnectorCommon for Netcetera {
             status_code: res.status_code,
             code: response.error_details.error_code,
             message: response.error_details.error_description,
-            reason: Some(response.error_details.error_detail),
+            reason: response.error_details.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
         })

@@ -316,6 +316,7 @@ impl ConnectorData {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(Box::new(&connector::Aci)),
                 enums::Connector::Adyen => Ok(Box::new(&connector::Adyen)),
+                enums::Connector::Adyenplatform => Ok(Box::new(&connector::Adyenplatform)),
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
@@ -328,7 +329,7 @@ impl ConnectorData {
                 enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
-                enums::Connector::Cryptopay => Ok(Box::new(&connector::Cryptopay)),
+                enums::Connector::Cryptopay => Ok(Box::new(connector::Cryptopay::new())),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
                 enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
                 #[cfg(feature = "dummy_connector")]
@@ -354,7 +355,7 @@ impl ConnectorData {
                 enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
-                // enums::Connector::Mifinity => Ok(Box::new(&connector::Mifinity)), Added as template code for future usage
+                enums::Connector::Mifinity => Ok(Box::new(&connector::Mifinity)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
                 enums::Connector::Nmi => Ok(Box::new(connector::Nmi::new())),
                 enums::Connector::Noon => Ok(Box::new(connector::Noon::new())),
