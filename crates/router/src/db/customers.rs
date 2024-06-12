@@ -158,9 +158,13 @@ mod storage {
 
             let maybe_result = maybe_customer
                 .async_map(|c| async {
-                    c.convert(state, key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
+                    c.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
                 .transpose()?;
@@ -246,7 +250,11 @@ mod storage {
             };
 
             updated_object?
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -298,7 +306,11 @@ mod storage {
             }?;
 
             let result: domain::Customer = customer
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             //.await
@@ -328,7 +340,11 @@ mod storage {
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
                     encrypted_customer
-                        .convert(state, key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 },
@@ -407,7 +423,11 @@ mod storage {
             }?;
 
             create_customer
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -638,9 +658,13 @@ impl CustomerInterface for MockDb {
             .cloned();
         customer
             .async_map(|c| async {
-                c.convert(state, key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
+                c.convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
             })
             .await
             .transpose()
@@ -661,7 +685,11 @@ impl CustomerInterface for MockDb {
                 .map(|customer| async {
                     customer
                         .to_owned()
-                        .convert(state, key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }),
@@ -715,7 +743,11 @@ impl CustomerInterface for MockDb {
         customers.push(customer.clone());
 
         customer
-            .convert(state, key_store.key.get_inner())
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

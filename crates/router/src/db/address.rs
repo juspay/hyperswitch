@@ -318,7 +318,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(state, key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -373,7 +377,11 @@ mod storage {
                 }
             }?;
             address
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -392,7 +400,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(state, key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -433,7 +445,11 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
                             address
-                                .convert(state, key_store.key.get_inner())
+                                .convert(
+                                    state,
+                                    key_store.key.get_inner(),
+                                    key_store.merchant_id.clone(),
+                                )
                                 .await
                                 .change_context(errors::StorageError::DecryptionError)
                         })
@@ -470,7 +486,11 @@ mod storage {
                     .change_context(errors::StorageError::KVError)?;
 
                     updated_address
-                        .convert(state, key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }
@@ -507,7 +527,11 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
                             address
-                                .convert(state, key_store.key.get_inner())
+                                .convert(
+                                    state,
+                                    key_store.key.get_inner(),
+                                    key_store.merchant_id.clone(),
+                                )
                                 .await
                                 .change_context(errors::StorageError::DecryptionError)
                         })
@@ -567,7 +591,11 @@ mod storage {
                         }
                         .into()),
                         Ok(HsetnxReply::KeySet) => Ok(created_address
-                            .convert(state, key_store.key.get_inner())
+                            .convert(
+                                state,
+                                key_store.key.get_inner(),
+                                key_store.merchant_id.clone(),
+                            )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
@@ -593,7 +621,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
-                        .convert(state, key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -623,7 +655,11 @@ mod storage {
                 for address in addresses.into_iter() {
                     output.push(
                         address
-                            .convert(state, key_store.key.get_inner())
+                            .convert(
+                                state,
+                                key_store.key.get_inner(),
+                                key_store.merchant_id.clone(),
+                            )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     )
@@ -652,7 +688,11 @@ impl AddressInterface for MockDb {
         {
             Some(address) => address
                 .clone()
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => {
@@ -681,7 +721,11 @@ impl AddressInterface for MockDb {
         {
             Some(address) => address
                 .clone()
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => {
@@ -713,7 +757,11 @@ impl AddressInterface for MockDb {
             });
         match updated_addr {
             Some(address_updated) => address_updated
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => Err(errors::StorageError::ValueNotFound(
@@ -746,7 +794,11 @@ impl AddressInterface for MockDb {
             });
         match updated_addr {
             Some(address_updated) => address_updated
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => Err(errors::StorageError::ValueNotFound(
@@ -773,7 +825,11 @@ impl AddressInterface for MockDb {
         addresses.push(address.clone());
 
         address
-            .convert(state, key_store.key.get_inner())
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -793,7 +849,11 @@ impl AddressInterface for MockDb {
         addresses.push(address.clone());
 
         address
-            .convert(state, key_store.key.get_inner())
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -824,7 +884,11 @@ impl AddressInterface for MockDb {
         match updated_addr {
             Some(address) => {
                 let address: domain::Address = address
-                    .convert(state, key_store.key.get_inner())
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?;
                 Ok(vec![address])

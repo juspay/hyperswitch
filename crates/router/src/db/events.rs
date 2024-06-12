@@ -120,7 +120,11 @@ impl EventInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -137,7 +141,11 @@ impl EventInterface for Store {
         storage::Event::find_by_merchant_id_event_id(&conn, merchant_id, event_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -163,7 +171,11 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(state, merchant_key_store.key.get_inner())
+                        .convert(
+                            state,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -200,7 +212,11 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(state, merchant_key_store.key.get_inner())
+                        .convert(
+                            state,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -231,7 +247,11 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(state, merchant_key_store.key.get_inner())
+                        .convert(
+                            state,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -262,7 +282,11 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(state, merchant_key_store.key.get_inner())
+                        .convert(
+                            state,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -299,7 +323,11 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(state, merchant_key_store.key.get_inner())
+                        .convert(
+                            state,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 );
@@ -326,7 +354,11 @@ impl EventInterface for Store {
                 for event in events.into_iter() {
                     domain_events.push(
                         event
-                            .convert(state, merchant_key_store.key.get_inner())
+                            .convert(
+                                state,
+                                merchant_key_store.key.get_inner(),
+                                merchant_key_store.merchant_id.clone(),
+                            )
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     );
@@ -349,7 +381,11 @@ impl EventInterface for Store {
         storage::Event::update_by_merchant_id_event_id(&conn, merchant_id, event_id, event.into())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -372,7 +408,11 @@ impl EventInterface for MockDb {
         locked_events.push(stored_event.clone());
 
         stored_event
-            .convert(state, merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -393,7 +433,11 @@ impl EventInterface for MockDb {
             .cloned()
             .async_map(|event| async {
                 event
-                    .convert(state, merchant_key_store.key.get_inner())
+                    .convert(
+                        state,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -429,7 +473,11 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(state, merchant_key_store.key.get_inner())
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -495,7 +543,11 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(state, merchant_key_store.key.get_inner())
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -524,7 +576,11 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(state, merchant_key_store.key.get_inner())
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -555,7 +611,11 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(state, merchant_key_store.key.get_inner())
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -621,7 +681,11 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(state, merchant_key_store.key.get_inner())
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -650,7 +714,11 @@ impl EventInterface for MockDb {
 
         for event in events {
             let domain_event = event
-                .convert(state, merchant_key_store.key.get_inner())
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
             domain_events.push(domain_event);
@@ -687,7 +755,11 @@ impl EventInterface for MockDb {
 
         event_to_update
             .clone()
-            .convert(state, merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

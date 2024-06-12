@@ -790,7 +790,14 @@ pub async fn payouts_filtered_list_core(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let data: Vec<api::PayoutCreateResponse> = join_all(list.into_iter().map(|(p, pa, c)| async {
-        match domain::Customer::convert_back(&state, c, &key_store.key).await {
+        match domain::Customer::convert_back(
+            &state,
+            c,
+            &key_store.key,
+            key_store.merchant_id.clone(),
+        )
+        .await
+        {
             Ok(domain_cust) => Some((p, pa, domain_cust)),
             Err(err) => {
                 logger::warn!(

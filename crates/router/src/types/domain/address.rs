@@ -78,6 +78,7 @@ impl behaviour::Conversion for CustomerAddress {
         state: &SessionState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         let customer_id =
             other
@@ -87,7 +88,7 @@ impl behaviour::Conversion for CustomerAddress {
                     field_name: "customer_id".to_string(),
                 })?;
 
-        let address = Address::convert_back(state, other, key).await?;
+        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
 
         Ok(Self {
             address,
@@ -123,6 +124,7 @@ impl behaviour::Conversion for PaymentAddress {
         state: &SessionState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         let payment_id = other
             .payment_id
@@ -133,7 +135,7 @@ impl behaviour::Conversion for PaymentAddress {
 
         let customer_id = other.customer_id.clone();
 
-        let address = Address::convert_back(state, other, key).await?;
+        let address = Address::convert_back(state, other, key, key_store_ref_id).await?;
 
         Ok(Self {
             address,
@@ -187,6 +189,7 @@ impl behaviour::Conversion for Address {
         state: &SessionState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError> {
         async {
             let identifier = Identifier::Merchant(other.merchant_id.clone());

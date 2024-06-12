@@ -13,6 +13,7 @@ pub trait Conversion {
         state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized;
@@ -26,6 +27,7 @@ pub trait ReverseConversion<SrcType: Conversion> {
         self,
         state: &SessionState,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<SrcType, ValidationError>;
 }
 
@@ -35,7 +37,8 @@ impl<T: Send, U: Conversion<DstType = T>> ReverseConversion<U> for T {
         self,
         state: &SessionState,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<U, ValidationError> {
-        U::convert_back(state, self, key).await
+        U::convert_back(state, self, key, key_store_ref_id).await
     }
 }

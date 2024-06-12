@@ -56,6 +56,7 @@ impl MerchantKeyStoreInterface for Store {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
+        let merchant_id = merchant_key_store.merchant_id.clone();
         merchant_key_store
             .construct_new()
             .await
@@ -63,7 +64,7 @@ impl MerchantKeyStoreInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, key)
+            .convert(state, key, merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -105,7 +106,7 @@ impl MerchantKeyStoreInterface for Store {
                 &ACCOUNTS_CACHE,
             )
             .await?
-            .convert(state, key)
+            .convert(state, key, merchant_id.to_string())
             .await
             .change_context(errors::StorageError::DecryptionError)
         }
@@ -163,8 +164,9 @@ impl MerchantKeyStoreInterface for Store {
         };
 
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+            let merchant_id = key_store.merchant_id.clone();
             key_store
-                .convert(state, key)
+                .convert(state, key, merchant_id)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -196,9 +198,9 @@ impl MerchantKeyStoreInterface for MockDb {
             .await
             .change_context(errors::StorageError::MockDbError)?;
         locked_merchant_key_store.push(merchant_key.clone());
-
+        let merchant_id = merchant_key.merchant_id.clone();
         merchant_key
-            .convert(state, key)
+            .convert(state, key, merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -218,7 +220,7 @@ impl MerchantKeyStoreInterface for MockDb {
             .ok_or(errors::StorageError::ValueNotFound(String::from(
                 "merchant_key_store",
             )))?
-            .convert(state, key)
+            .convert(state, key, merchant_id.to_string())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -254,7 +256,7 @@ impl MerchantKeyStoreInterface for MockDb {
                 .map(|merchant_key| async {
                     merchant_key
                         .to_owned()
-                        .convert(state, key)
+                        .convert(state, key, merchant_key.merchant_id.clone())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }),

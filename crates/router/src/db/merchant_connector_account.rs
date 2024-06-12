@@ -230,9 +230,13 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .async_and_then(|item| async {
-                item.convert(state, key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
+                item.convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
             })
             .await
         }
@@ -276,9 +280,13 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .async_and_then(|item| async {
-                item.convert(state, key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
+                item.convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
             })
             .await
         }
@@ -304,9 +312,13 @@ impl MerchantConnectorAccountInterface for Store {
             let mut output = Vec::with_capacity(items.len());
             for item in items.into_iter() {
                 output.push(
-                    item.convert(state, key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                    item.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?,
                 )
             }
             Ok(output)
@@ -351,7 +363,11 @@ impl MerchantConnectorAccountInterface for Store {
                 &cache::ACCOUNTS_CACHE,
             )
             .await?
-            .convert(state, key_store.key.get_inner())
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
         }
@@ -372,9 +388,13 @@ impl MerchantConnectorAccountInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|item| async {
-                item.convert(state, key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
+                item.convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -395,9 +415,13 @@ impl MerchantConnectorAccountInterface for Store {
                 let mut output = Vec::with_capacity(items.len());
                 for item in items.into_iter() {
                     output.push(
-                        item.convert(state, key_store.key.get_inner())
-                            .await
-                            .change_context(errors::StorageError::DecryptionError)?,
+                        item.convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)?,
                     )
                 }
                 Ok(output)
@@ -531,9 +555,13 @@ impl MerchantConnectorAccountInterface for Store {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|item| async {
-                    item.convert(state, key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
+                    item.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
         };
@@ -661,7 +689,11 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .async_map(|account| async {
                 account
-                    .convert(state, key_store.key.get_inner())
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -698,7 +730,11 @@ impl MerchantConnectorAccountInterface for MockDb {
         for account in accounts.into_iter() {
             output.push(
                 account
-                    .convert(state, key_store.key.get_inner())
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
             )
@@ -727,7 +763,11 @@ impl MerchantConnectorAccountInterface for MockDb {
         match maybe_mca {
             Some(mca) => mca
                 .to_owned()
-                .convert(state, key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError),
             None => Err(errors::StorageError::ValueNotFound(
@@ -756,7 +796,11 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .async_map(|account| async {
                 account
-                    .convert(state, key_store.key.get_inner())
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -807,7 +851,11 @@ impl MerchantConnectorAccountInterface for MockDb {
         };
         accounts.push(account.clone());
         account
-            .convert(state, key_store.key.get_inner())
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -838,7 +886,11 @@ impl MerchantConnectorAccountInterface for MockDb {
         for account in accounts.into_iter() {
             output.push(
                 account
-                    .convert(state, key_store.key.get_inner())
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
             )
@@ -867,7 +919,11 @@ impl MerchantConnectorAccountInterface for MockDb {
             })
             .async_map(|account| async {
                 account
-                    .convert(state, key_store.key.get_inner())
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone(),
+                    )
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })

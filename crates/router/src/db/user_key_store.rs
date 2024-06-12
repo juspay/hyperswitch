@@ -42,6 +42,7 @@ impl UserKeyStoreInterface for Store {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
+        let user_id = user_key_store.user_id.clone();
         user_key_store
             .construct_new()
             .await
@@ -49,7 +50,7 @@ impl UserKeyStoreInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, key)
+            .convert(state, key, user_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -66,7 +67,7 @@ impl UserKeyStoreInterface for Store {
         diesel_models::user_key_store::UserKeyStore::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, key)
+            .convert(state, key, user_id.to_string())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -98,8 +99,9 @@ impl UserKeyStoreInterface for MockDb {
             .change_context(errors::StorageError::MockDbError)?;
         locked_user_key_store.push(user_key_store.clone());
 
+        let user_id = user_key_store.user_id.clone();
         user_key_store
-            .convert(state, key)
+            .convert(state, key, user_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -121,7 +123,7 @@ impl UserKeyStoreInterface for MockDb {
                 "No user_key_store is found for user_id={}",
                 user_id
             )))?
-            .convert(state, key)
+            .convert(state, key, user_id.to_string())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

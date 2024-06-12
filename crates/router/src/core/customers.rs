@@ -286,7 +286,7 @@ pub async fn delete_customer(
         &state,
         REDACTED.to_string().into(),
         identifier.clone(),
-        &key,
+        key,
         GcmAes256,
     )
     .await
@@ -298,7 +298,7 @@ pub async fn delete_customer(
         &state,
         REDACTED.to_string().into(),
         identifier.clone(),
-        &key,
+        key,
         GcmAes256,
     )
     .await
@@ -349,7 +349,7 @@ pub async fn delete_customer(
                 &state,
                 REDACTED.to_string().into(),
                 identifier,
-                &key,
+                key,
                 GcmAes256,
             )
             .await

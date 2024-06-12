@@ -62,6 +62,7 @@ impl super::behaviour::Conversion for Customer {
         state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,

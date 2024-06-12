@@ -83,12 +83,13 @@ impl super::behaviour::Conversion for Event {
         state: &SessionState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        key_store_ref_id: String,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
-            let identifier = Identifier::Merchant(item.merchant_id.clone());
+            let identifier = Identifier::Merchant(key_store_ref_id.clone());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 event_id: item.event_id,
                 event_type: item.event_type,
