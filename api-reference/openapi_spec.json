@@ -8171,7 +8171,7 @@
       },
       "CustomerAcceptance": {
         "type": "object",
-        "description": "Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client",
+        "description": "We will be Passing this \"CustomerAcceptance\" object during Payments-Confirm. The customer_acceptance sub object is usually passed by the SDK or client",
         "required": [
           "acceptance_type"
         ],
@@ -8264,6 +8264,7 @@
       },
       "CustomerDetails": {
         "type": "object",
+        "description": "Passing this object creates a new customer or attaches an existing customer to the payment",
         "required": [
           "id"
         ],
@@ -9181,6 +9182,7 @@
       },
       "ExternalAuthenticationDetailsResponse": {
         "type": "object",
+        "description": "Details of external authentication",
         "required": [
           "status"
         ],
@@ -12856,6 +12858,7 @@
       },
       "PaymentChargeResponse": {
         "type": "object",
+        "description": "Fee information to be charged on the payment being collected",
         "required": [
           "charge_type",
           "application_fees",
@@ -13720,6 +13723,7 @@
       },
       "PaymentMethodStatus": {
         "type": "string",
+        "description": "Payment Method Status",
         "enum": [
           "active",
           "inactive",
@@ -14326,6 +14330,22 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -14371,6 +14391,22 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
             "nullable": true
           }
         }
@@ -14663,6 +14699,22 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -14721,6 +14773,22 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
             "nullable": true
           }
         }
@@ -15699,7 +15767,7 @@
           },
           "incremental_authorization_allowed": {
             "type": "boolean",
-            "description": "If true incremental authorization can be performed on this payment",
+            "description": "If true incremental authorization can be performed on this payment, in case the funds authorized initially fall short.",
             "nullable": true
           },
           "authorization_count": {
@@ -16188,6 +16256,22 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "payment_link": {
             "type": "boolean",
             "description": "Whether to get the payment link (if applicable)",
@@ -16241,6 +16325,22 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChargeRequest"
+              }
+            ],
             "nullable": true
           }
         }
@@ -17745,7 +17845,7 @@
       },
       "RequestSurchargeDetails": {
         "type": "object",
-        "description": "surcharge_details for this payment",
+        "description": "details of surcharge applied on this payment, if applicable",
         "required": [
           "surcharge_amount"
         ],
