@@ -4,7 +4,6 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 use actix_web::{dev::Server, web, Scope};
 use api_models::health_check::SchedulerHealthCheckResponse;
 use common_utils::ext_traits::{OptionExt, StringExt};
-use diesel_models::process_tracker as storage;
 use error_stack::ResultExt;
 use router::{
     configs::settings::{CmdLineConf, Settings},
@@ -22,7 +21,7 @@ use router_env::{
 };
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
-    workflows::ProcessTrackerWorkflows, SchedulerSessionState,
+    process_tracker as storage, workflows::ProcessTrackerWorkflows, SchedulerSessionState,
 };
 use storage_impl::errors::ApplicationError;
 use tokio::sync::{mpsc, oneshot};

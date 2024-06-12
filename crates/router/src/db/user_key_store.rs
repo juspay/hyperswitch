@@ -2,7 +2,7 @@ use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use scheduler::MockDb;
 
 use crate::{
     connection,

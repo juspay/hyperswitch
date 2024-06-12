@@ -39,9 +39,6 @@ pub mod user_role;
 
 use std::collections::HashMap;
 
-pub use diesel_models::{
-    ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
-};
 pub use hyperswitch_domain_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
@@ -52,7 +49,10 @@ pub use hyperswitch_domain_models::payouts::{
     payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
 };
-pub use scheduler::db::process_tracker;
+pub use scheduler::{
+    db::process_tracker, ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner,
+    ProcessTrackerUpdate,
+};
 
 pub use self::{
     address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,

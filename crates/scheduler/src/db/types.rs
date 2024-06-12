@@ -1,10 +1,11 @@
 use common_utils::ext_traits::Encode;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel_models::{
+    enums as storage_enums, errors, schema::process_tracker, DieselArray, StorageResult,
+};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-
-use crate::{enums as storage_enums, errors, schema::process_tracker, StorageResult};
 
 #[derive(
     Clone,
@@ -21,7 +22,7 @@ use crate::{enums as storage_enums, errors, schema::process_tracker, StorageResu
 pub struct ProcessTracker {
     pub id: String,
     pub name: Option<String>,
-    #[diesel(deserialize_as = super::DieselArray<String>)]
+    #[diesel(deserialize_as = DieselArray<String>)]
     pub tag: Vec<String>,
     pub runner: Option<String>,
     pub retry_count: i32,
@@ -31,7 +32,7 @@ pub struct ProcessTracker {
     pub tracking_data: serde_json::Value,
     pub business_status: String,
     pub status: storage_enums::ProcessTrackerStatus,
-    #[diesel(deserialize_as = super::DieselArray<String>)]
+    #[diesel(deserialize_as = DieselArray<String>)]
     pub event: Vec<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,

@@ -51,7 +51,8 @@ use hyperswitch_domain_models::payouts::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
-use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
+use scheduler::mock_db::MockDb;
+use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface};
 
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};

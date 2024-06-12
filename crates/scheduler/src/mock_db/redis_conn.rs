@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use redis_interface::errors::RedisError;
+use storage_impl::redis::kv_store::RedisConnInterface;
 
 use super::MockDb;
-use crate::redis::kv_store::RedisConnInterface;
 
 impl RedisConnInterface for MockDb {
     fn get_redis_conn(

@@ -14,7 +14,6 @@ pub mod errors;
 mod lookup;
 pub mod mandate;
 pub mod metrics;
-pub mod mock_db;
 pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
@@ -28,7 +27,6 @@ use common_utils::errors::CustomResult;
 use database::store::PgPool;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
 pub use crate::database::store::DatabaseStore;

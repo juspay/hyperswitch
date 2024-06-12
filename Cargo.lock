@@ -6057,8 +6057,10 @@ dependencies = [
 name = "scheduler"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-trait",
  "common_utils",
+ "diesel",
  "diesel_models",
  "error-stack",
  "external_services",
@@ -6069,6 +6071,7 @@ dependencies = [
  "once_cell",
  "rand",
  "redis_interface",
+ "router_derive",
  "router_env",
  "serde",
  "serde_json",

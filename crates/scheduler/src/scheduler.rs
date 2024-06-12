@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
-use storage_impl::mock_db::MockDb;
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
 #[cfg(not(feature = "kv_store"))]
@@ -9,6 +8,7 @@ use storage_impl::RouterStore;
 use tokio::sync::mpsc;
 
 use super::env::logger::error;
+use crate::mock_db::MockDb;
 pub use crate::{
     configs::settings::SchedulerSettings,
     consumer::{self, workflows},

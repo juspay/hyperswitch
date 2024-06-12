@@ -1,7 +1,7 @@
 use diesel_models::routing_algorithm as routing_storage;
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::mock_db::MockDb;
+use scheduler::mock_db::MockDb;
 
 use crate::{
     connection,

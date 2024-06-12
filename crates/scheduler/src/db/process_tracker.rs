@@ -1,11 +1,11 @@
 use common_utils::errors::CustomResult;
-pub use diesel_models as storage;
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
-use storage_impl::{connection, errors, mock_db::MockDb};
+use storage_impl::{connection, errors};
 use time::PrimitiveDateTime;
 
-use crate::{metrics, scheduler::Store};
+pub use crate::process_tracker as storage;
+use crate::{metrics, mock_db::MockDb, scheduler::Store};
 
 #[async_trait::async_trait]
 pub trait ProcessTrackerInterface: Send + Sync + 'static {

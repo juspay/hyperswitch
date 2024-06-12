@@ -1,6 +1,6 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use scheduler::MockDb;
 
 use super::Store;
 use crate::{

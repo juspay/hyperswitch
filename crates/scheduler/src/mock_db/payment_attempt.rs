@@ -7,9 +7,9 @@ use hyperswitch_domain_models::{
         PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
     },
 };
+use storage_impl::DataModelExt;
 
 use super::MockDb;
-use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {

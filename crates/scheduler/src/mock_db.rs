@@ -8,11 +8,13 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use redis_interface::RedisSettings;
+use storage_impl::redis::RedisStore;
 
-use crate::redis::RedisStore;
+use crate::ProcessTracker;
 
 pub mod payment_attempt;
 pub mod payment_intent;
+
 #[cfg(feature = "payouts")]
 pub mod payout_attempt;
 #[cfg(feature = "payouts")]
@@ -32,7 +34,7 @@ pub struct MockDb {
     pub payment_methods: Arc<Mutex<Vec<store::PaymentMethod>>>,
     pub customers: Arc<Mutex<Vec<store::Customer>>>,
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
-    pub processes: Arc<Mutex<Vec<store::ProcessTracker>>>,
+    pub processes: Arc<Mutex<Vec<ProcessTracker>>>,
     pub redis: Arc<RedisStore>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
     pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,

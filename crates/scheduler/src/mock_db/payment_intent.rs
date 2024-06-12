@@ -9,9 +9,9 @@ use hyperswitch_domain_models::{
         PaymentIntent,
     },
 };
+use storage_impl::DataModelExt;
 
 use super::MockDb;
-use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {

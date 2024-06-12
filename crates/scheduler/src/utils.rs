@@ -2,7 +2,6 @@ use std::sync;
 
 use common_utils::errors::CustomResult;
 use diesel_models::enums::{self, ProcessTrackerStatus};
-pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, opentelemetry, tracing};
@@ -12,6 +11,7 @@ use super::{
     consumer::{self, types::process_data, workflows},
     env::logger,
 };
+pub use crate::process_tracker as storage;
 use crate::{
     configs::settings::SchedulerSettings, consumer::types::ProcessTrackerBatch, errors,
     flow::SchedulerFlow, metrics, SchedulerInterface, SchedulerSessionState,

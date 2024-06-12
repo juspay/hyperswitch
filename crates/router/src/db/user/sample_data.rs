@@ -141,7 +141,7 @@ impl BatchSampleDataInterface for Store {
 }
 
 #[async_trait::async_trait]
-impl BatchSampleDataInterface for storage_impl::MockDb {
+impl BatchSampleDataInterface for scheduler::MockDb {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
         _batch: Vec<PaymentIntentNew>,

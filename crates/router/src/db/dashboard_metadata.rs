@@ -1,7 +1,7 @@
 use diesel_models::{enums, user::dashboard_metadata as storage};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use scheduler::MockDb;
 
 use crate::{
     connection,

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
-pub use diesel_models::process_tracker as storage;
 use router_env::logger;
 
+pub use crate::process_tracker as storage;
 use crate::{errors, SchedulerSessionState};
 
 pub type WorkflowSelectorFn =

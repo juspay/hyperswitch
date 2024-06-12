@@ -9,7 +9,6 @@ pub mod workflows;
 
 use common_utils::{errors::CustomResult, signals::get_allowed_signals};
 use diesel_models::enums;
-pub use diesel_models::{self, process_tracker as storage};
 use error_stack::ResultExt;
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
@@ -23,6 +22,7 @@ use uuid::Uuid;
 
 use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
+pub use crate::process_tracker as storage;
 use crate::{
     configs::settings::SchedulerSettings, db::process_tracker::ProcessTrackerInterface, errors,
     metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface, SchedulerSessionState,

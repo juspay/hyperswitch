@@ -20,8 +20,8 @@ const API_KEY_EXPIRY_TAG: &str = "API_KEY";
 #[cfg(feature = "email")]
 const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
 #[cfg(feature = "email")]
-const API_KEY_EXPIRY_RUNNER: diesel_models::ProcessTrackerRunner =
-    diesel_models::ProcessTrackerRunner::ApiKeyExpiryWorkflow;
+const API_KEY_EXPIRY_RUNNER: scheduler::ProcessTrackerRunner =
+    scheduler::ProcessTrackerRunner::ApiKeyExpiryWorkflow;
 
 static HASH_KEY: once_cell::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
     once_cell::sync::OnceCell::new();

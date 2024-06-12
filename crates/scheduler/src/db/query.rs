@@ -1,15 +1,12 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use diesel_models::{
+    enums, errors, query::generics, schema::process_tracker::dsl, PgPooledConn, StorageResult,
+};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
-use super::generics;
-use crate::{
-    enums, errors,
-    process_tracker::{
-        ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate, ProcessTrackerUpdateInternal,
-    },
-    schema::process_tracker::dsl,
-    PgPooledConn, StorageResult,
+use crate::process_tracker::{
+    ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate, ProcessTrackerUpdateInternal,
 };
 
 impl ProcessTrackerNew {
