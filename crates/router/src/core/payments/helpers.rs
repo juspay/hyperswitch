@@ -4358,9 +4358,9 @@ pub fn get_key_params_for_surcharge_details(
         )),
         api_models::payments::PaymentMethodData::MandatePayment => None,
         api_models::payments::PaymentMethodData::Reward => None,
-        api_models::payments::PaymentMethodData::RealTimePayment(voucher) => Some((
+        api_models::payments::PaymentMethodData::RealTimePayment(real_time_payment) => Some((
             common_enums::PaymentMethod::RealTimePayment,
-            voucher.get_payment_method_type(),
+            real_time_payment.get_payment_method_type(),
             None,
         )),
         api_models::payments::PaymentMethodData::Upi(upi_data) => Some((
