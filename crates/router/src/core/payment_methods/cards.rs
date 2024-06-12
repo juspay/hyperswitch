@@ -3182,8 +3182,6 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let key = key_store.key.get_inner().peek();
-
     let is_requires_cvv = db
         .find_config_by_key_unwrap_or(
             format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
