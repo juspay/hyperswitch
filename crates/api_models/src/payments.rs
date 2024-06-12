@@ -4247,6 +4247,10 @@ pub struct OrderDetailsWithAmount {
     pub brand: Option<String>,
     /// Type of the product that is being purchased
     pub product_type: Option<ProductType>,
+
+    //minor amount change for OrderDetailsWithAmount
+    pub minor_amount: MinorUnit,
+
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
