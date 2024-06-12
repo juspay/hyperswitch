@@ -12,12 +12,13 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(feature = "payouts")]
+use crate::connector::utils::PayoutsData;
 use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
-        RecurringMandateData, RouterData,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData, RouterData,
     },
     consts,
     core::errors,
@@ -31,11 +32,6 @@ use crate::{
         ApplePayPredecryptData,
     },
     unimplemented_payment_method,
-};
-
-#[cfg(feature = "payouts")]
-use crate::{
-    connector::utils::PayoutsData
 };
 
 #[derive(Debug, Serialize)]

@@ -13,6 +13,8 @@ use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
 use super::utils::is_mandate_supported;
+#[cfg(feature = "payouts")]
+use crate::connector::utils::PayoutsData;
 use crate::{
     capture_method_not_supported,
     configs::settings,
@@ -34,9 +36,6 @@ use crate::{
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
-
-#[cfg(feature = "payouts")]
-use crate::connector::utils::PayoutsData;
 
 const ADYEN_API_VERSION: &str = "v68";
 
