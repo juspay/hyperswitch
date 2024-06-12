@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use api_models::enums::PaymentMethod;
 use common_utils::{errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
 use masking::{Secret, SwitchStrategy};
@@ -164,7 +163,7 @@ impl
                         | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                             Err(errors::ConnectorError::NotImplemented(
                                 connector_util::get_unimplemented_payment_method_error_message(
-                                    "stripe",
+                                    "iatapay",
                                 ),
                             ))?
                         }
@@ -191,7 +190,7 @@ impl
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
-                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                        connector_util::get_unimplemented_payment_method_error_message("iatapay"),
                     ))?
                 }
             };
@@ -201,7 +200,7 @@ impl
             merchant_payment_id: Some(item.router_data.connector_request_reference_id.clone()),
             amount: item.amount,
             currency: item.router_data.request.currency,
-            country: country.clone(),
+            country,
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
