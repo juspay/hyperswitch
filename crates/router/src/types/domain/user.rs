@@ -920,7 +920,8 @@ impl UserFromStorage {
                 key: domain_types::encrypt(
                     state,
                     key.to_vec().into(),
-                    super::Identifier::User(String::from_utf8_lossy(master_key).to_string()),
+                    super::Identifier::User(self.get_user_id().to_string()),
+                    master_key,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)?,
@@ -978,7 +979,8 @@ impl UserFromStorage {
         Ok(domain_types::decrypt::<String, masking::WithType>(
             state,
             self.0.totp_secret.clone(),
-            super::Identifier::User(String::from_utf8_lossy(user_key_store.key.peek()).to_string()),
+            super::Identifier::User(user_key_store.user_id.clone()),
+            user_key_store.key.peek(),
         )
         .await
         .change_context(UserErrors::InternalServerError)?

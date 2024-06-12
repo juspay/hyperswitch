@@ -74,9 +74,8 @@ pub async fn apple_pay_certificates_migration(
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to serialize apple pay metadata as JSON")?,
                     ),
-                    Identifier::Merchant(
-                        String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string(),
-                    ),
+                    Identifier::Merchant(key_store.merchant_id.clone()),
+                    key_store.key.get_inner().peek(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

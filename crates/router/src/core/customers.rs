@@ -99,14 +99,14 @@ pub async fn create_customer(
         None
     };
 
-    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
     let new_customer = async {
         Ok(domain::Customer {
             customer_id: customer_id.to_owned(),
             merchant_id: merchant_id.to_string(),
             name: customer_data
                 .name
-                .async_lift(|inner| types::encrypt_optional(&state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(&state, inner, identifier.clone(), key))
                 .await?,
             email: customer_data
                 .email
@@ -115,12 +115,13 @@ pub async fn create_customer(
                         &state,
                         inner.map(|inner| inner.expose()),
                         identifier.clone(),
+                        key,
                     )
                 })
                 .await?,
             phone: customer_data
                 .phone
-                .async_lift(|inner| types::encrypt_optional(&state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(&state, inner, identifier.clone(), key))
                 .await?,
             description: customer_data.description,
             phone_country_code: customer_data.phone_country_code,
@@ -278,13 +279,14 @@ pub async fn delete_customer(
         }
     };
 
-    let key = String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string();
-    let identifier = Identifier::Merchant(key);
+    let key = key_store.key.get_inner().peek();
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
 
     let redacted_encrypted_value: Encryptable<masking::Secret<_>> = Encryptable::encrypt_via_api(
         &state,
         REDACTED.to_string().into(),
         identifier.clone(),
+        &key,
         GcmAes256,
     )
     .await
@@ -296,6 +298,7 @@ pub async fn delete_customer(
         &state,
         REDACTED.to_string().into(),
         identifier.clone(),
+        &key,
         GcmAes256,
     )
     .await
@@ -346,6 +349,7 @@ pub async fn delete_customer(
                 &state,
                 REDACTED.to_string().into(),
                 identifier,
+                &key,
                 GcmAes256,
             )
             .await
@@ -420,6 +424,7 @@ pub async fn update_customer(
                         customer_address,
                         key,
                         merchant_account.storage_scheme,
+                        merchant_account.merchant_id.clone(),
                     )
                     .await
                     .switch()
@@ -468,7 +473,7 @@ pub async fn update_customer(
         }
     };
 
-    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
     let response = db
         .update_customer_by_customer_id_merchant_id(
             &state,
@@ -480,7 +485,7 @@ pub async fn update_customer(
                     name: update_customer
                         .name
                         .async_lift(|inner| {
-                            types::encrypt_optional(&state, inner, identifier.clone())
+                            types::encrypt_optional(&state, inner, identifier.clone(), key)
                         })
                         .await?,
                     email: update_customer
@@ -490,6 +495,7 @@ pub async fn update_customer(
                                 &state,
                                 inner.map(|inner| inner.expose()),
                                 identifier.clone(),
+                                key,
                             )
                         })
                         .await?,
@@ -497,7 +503,7 @@ pub async fn update_customer(
                         update_customer
                             .phone
                             .async_lift(|inner| {
-                                types::encrypt_optional(&state, inner, identifier.clone())
+                                types::encrypt_optional(&state, inner, identifier.clone(), key)
                             })
                             .await?,
                     ),

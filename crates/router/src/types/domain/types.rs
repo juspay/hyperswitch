@@ -37,6 +37,7 @@ pub trait TypeEncryption<
         state: &SessionState,
         masked_data: Secret<T, S>,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
 
@@ -44,6 +45,7 @@ pub trait TypeEncryption<
         state: &SessionState,
         encrypted_data: Encryption,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
 
@@ -72,11 +74,12 @@ impl<
         state: &SessionState,
         masked_data: Secret<String, S>,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         #[cfg(not(feature = "encryption_service"))]
         {
-            Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+            Self::encrypt(masked_data, key, crypt_algo).await
         }
         #[cfg(feature = "encryption_service")]
         {
@@ -99,23 +102,12 @@ impl<
                                 masked_data,
                                 encrypted.data.data.peek().clone().into(),
                             )),
-                            Err(_) => {
-                                Self::encrypt(
-                                    masked_data,
-                                    identifier.inner().as_bytes(),
-                                    crypt_algo,
-                                )
-                                .await
-                            }
+                            Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
                         }
                     }
-                    Err(_) => {
-                        Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
-                    }
+                    Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
                 },
-                Err(_) => {
-                    Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
-                }
+                Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
             }
         }
     }
@@ -126,11 +118,12 @@ impl<
         state: &SessionState,
         encrypted_data: Encryption,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         #[cfg(not(feature = "encryption_service"))]
         {
-            Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+            Self::decrypt(encrypted_data, key, crypt_algo).await
         }
         #[cfg(feature = "encryption_service")]
         {
@@ -156,24 +149,12 @@ impl<
                                     .into(),
                                 encrypted_data.into_inner(),
                             )),
-                            Err(_) => {
-                                Self::decrypt(
-                                    encrypted_data,
-                                    identifier.inner().as_bytes(),
-                                    crypt_algo,
-                                )
-                                .await
-                            }
+                            Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
                         }
                     }
-                    Err(_) => {
-                        Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo)
-                            .await
-                    }
+                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
                 },
-                Err(_) => {
-                    Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
-                }
+                Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
             }
         }
     }
@@ -216,11 +197,12 @@ impl<
         state: &SessionState,
         masked_data: Secret<serde_json::Value, S>,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         #[cfg(not(feature = "encryption_service"))]
         {
-            Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+            Self::encrypt(masked_data, key, crypt_algo).await
         }
         #[cfg(feature = "encryption_service")]
         {
@@ -243,23 +225,12 @@ impl<
                                 masked_data,
                                 encrypted.data.data.peek().clone().into(),
                             )),
-                            Err(_) => {
-                                Self::encrypt(
-                                    masked_data,
-                                    identifier.inner().as_bytes(),
-                                    crypt_algo,
-                                )
-                                .await
-                            }
+                            Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
                         }
                     }
-                    Err(_) => {
-                        Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
-                    }
+                    Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
                 },
-                Err(_) => {
-                    Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
-                }
+                Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
             }
         }
     }
@@ -270,11 +241,12 @@ impl<
         state: &SessionState,
         encrypted_data: Encryption,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         #[cfg(not(feature = "encryption_service"))]
         {
-            Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+            Self::decrypt(encrypted_data, key, crypt_algo).await
         }
         #[cfg(feature = "encryption_service")]
         {
@@ -301,34 +273,15 @@ impl<
                                     Ok(val) => {
                                         Ok(Self::new(val.into(), encrypted_data.into_inner()))
                                     }
-                                    Err(_) => {
-                                        Self::decrypt(
-                                            encrypted_data,
-                                            identifier.inner().as_bytes(),
-                                            crypt_algo,
-                                        )
-                                        .await
-                                    }
+                                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
                                 }
                             }
-                            Err(_) => {
-                                Self::decrypt(
-                                    encrypted_data,
-                                    identifier.inner().as_bytes(),
-                                    crypt_algo,
-                                )
-                                .await
-                            }
+                            Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
                         }
                     }
-                    Err(_) => {
-                        Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo)
-                            .await
-                    }
+                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
                 },
-                Err(_) => {
-                    Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
-                }
+                Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
             }
         }
     }
@@ -374,11 +327,12 @@ impl<
         state: &SessionState,
         masked_data: Secret<Vec<u8>, S>,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         #[cfg(not(feature = "encryption_service"))]
         {
-            Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
+            Self::encrypt(masked_data, key, crypt_algo).await
         }
         #[cfg(feature = "encryption_service")]
         {
@@ -401,23 +355,12 @@ impl<
                                 masked_data.clone(),
                                 encrypted.data.data.peek().clone().into(),
                             )),
-                            Err(_) => {
-                                Self::encrypt(
-                                    masked_data,
-                                    identifier.inner().as_bytes(),
-                                    crypt_algo,
-                                )
-                                .await
-                            }
+                            Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
                         }
                     }
-                    Err(_) => {
-                        Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
-                    }
+                    Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
                 },
-                Err(_) => {
-                    Self::encrypt(masked_data, identifier.inner().as_bytes(), crypt_algo).await
-                }
+                Err(_) => Self::encrypt(masked_data, key, crypt_algo).await,
             }
         }
     }
@@ -428,11 +371,12 @@ impl<
         state: &SessionState,
         encrypted_data: Encryption,
         identifier: Identifier,
+        key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         #[cfg(not(feature = "encryption_service"))]
         {
-            Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
+            Self::decrypt(encrypted_data, key, crypt_algo).await
         }
         #[cfg(feature = "encryption_service")]
         {
@@ -456,24 +400,12 @@ impl<
                                 decrypted.data.inner().peek().clone().into(),
                                 encrypted_data.into_inner(),
                             )),
-                            Err(_) => {
-                                Self::decrypt(
-                                    encrypted_data,
-                                    identifier.inner().as_bytes(),
-                                    crypt_algo,
-                                )
-                                .await
-                            }
+                            Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
                         }
                     }
-                    Err(_) => {
-                        Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo)
-                            .await
-                    }
+                    Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
                 },
-                Err(_) => {
-                    Self::decrypt(encrypted_data, identifier.inner().as_bytes(), crypt_algo).await
-                }
+                Err(_) => Self::decrypt(encrypted_data, key, crypt_algo).await,
             }
         }
     }
@@ -553,13 +485,14 @@ pub async fn encrypt<E: Clone, S>(
     state: &SessionState,
     inner: Secret<E, S>,
     identifier: Identifier,
+    key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, errors::CryptoError>
 where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        crypto::Encryptable::encrypt_via_api(state, inner, identifier, crypto::GcmAes256),
+        crypto::Encryptable::encrypt_via_api(state, inner, identifier, key, crypto::GcmAes256),
         &ENCRYPTION_TIME,
         &[],
     )
@@ -571,6 +504,7 @@ pub async fn encrypt_optional<E: Clone, S>(
     state: &SessionState,
     inner: Option<Secret<E, S>>,
     identifier: Identifier,
+    key: &[u8],
 ) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
 where
     Secret<E, S>: Send,
@@ -578,7 +512,7 @@ where
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     inner
-        .async_map(|f| encrypt(state, f, identifier))
+        .async_map(|f| encrypt(state, f, identifier, key))
         .await
         .transpose()
 }
@@ -588,13 +522,14 @@ pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     state: &SessionState,
     inner: Option<Encryption>,
     identifier: Identifier,
+    key: &[u8],
 ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
         inner.async_map(|item| {
-            crypto::Encryptable::decrypt_via_api(state, item, identifier, crypto::GcmAes256)
+            crypto::Encryptable::decrypt_via_api(state, item, identifier, key, crypto::GcmAes256)
         }),
         &DECRYPTION_TIME,
         &[],

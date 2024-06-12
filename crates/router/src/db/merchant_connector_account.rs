@@ -984,7 +984,8 @@ mod merchant_connector_account_cache_tests {
                 key: domain::types::encrypt(
                     state,
                     services::generate_aes256_key().unwrap().to_vec().into(),
-                    domain::Identifier::Merchant(String::from_utf8_lossy(master_key).to_string()),
+                    domain::Identifier::Merchant(merchant_id.to_string()),
+                    master_key,
                 )
                 .await
                 .unwrap(),
@@ -1007,9 +1008,8 @@ mod merchant_connector_account_cache_tests {
             connector_account_details: domain::types::encrypt(
                 state,
                 serde_json::Value::default().into(),
-                domain::Identifier::Merchant(
-                    String::from_utf8_lossy(merchant_key.key.get_inner().peek()).to_string(),
-                ),
+                domain::Identifier::Merchant(merchant_key.merchant_id.clone()),
+                merchant_key.key.get_inner().peek(),
             )
             .await
             .unwrap(),
@@ -1035,9 +1035,8 @@ mod merchant_connector_account_cache_tests {
                 domain::types::encrypt(
                     state,
                     serde_json::Value::default().into(),
-                    domain::Identifier::Merchant(
-                        String::from_utf8_lossy(merchant_key.key.get_inner().peek()).to_string(),
-                    ),
+                    domain::Identifier::Merchant(merchant_key.merchant_id.clone()),
+                    merchant_key.key.get_inner().peek(),
                 )
                 .await
                 .unwrap(),

@@ -41,9 +41,9 @@ impl super::behaviour::Conversion for UserKeyStore {
     where
         Self: Sized,
     {
-        let identifier = Identifier::User(String::from_utf8_lossy(key.peek()).to_string());
+        let identifier = Identifier::User(item.user_id.clone());
         Ok(Self {
-            key: Encryptable::decrypt_via_api(state, item.key, identifier, GcmAes256)
+            key: Encryptable::decrypt_via_api(state, item.key, identifier, key.peek(), GcmAes256)
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

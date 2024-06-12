@@ -189,9 +189,11 @@ impl behaviour::Conversion for Address {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
         async {
-            let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
-            let inner_decrypt = |inner| types::decrypt(state, inner, identifier.clone());
-            let inner_decrypt_email = |inner| types::decrypt(state, inner, identifier.clone());
+            let identifier = Identifier::Merchant(other.merchant_id.clone());
+            let inner_decrypt =
+                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
+            let inner_decrypt_email =
+                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: other.id,
                 address_id: other.address_id,

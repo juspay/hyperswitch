@@ -816,9 +816,8 @@ impl PaymentCreate {
                     domain::types::decrypt::<serde_json::Value, masking::WithType>(
                         state,
                         pm_info.payment_method_data.clone(),
-                        domain::Identifier::Merchant(
-                            String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string(),
-                        ),
+                        domain::Identifier::Merchant(key_store.merchant_id.clone()),
+                        key_store.key.get_inner().peek(),
                     )
                     .await
                     .map_err(|err| logger::error!("Failed to decrypt card details: {:?}", err))

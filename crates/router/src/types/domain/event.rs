@@ -88,7 +88,7 @@ impl super::behaviour::Conversion for Event {
         Self: Sized,
     {
         async {
-            let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
+            let identifier = Identifier::Merchant(item.merchant_id.clone());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 event_id: item.event_id,
                 event_type: item.event_type,
@@ -104,11 +104,15 @@ impl super::behaviour::Conversion for Event {
                 initial_attempt_id: item.initial_attempt_id,
                 request: item
                     .request
-                    .async_lift(|inner| types::decrypt(state, inner, identifier.clone()))
+                    .async_lift(|inner| {
+                        types::decrypt(state, inner, identifier.clone(), key.peek())
+                    })
                     .await?,
                 response: item
                     .response
-                    .async_lift(|inner| types::decrypt(state, inner, identifier.clone()))
+                    .async_lift(|inner| {
+                        types::decrypt(state, inner, identifier.clone(), key.peek())
+                    })
                     .await?,
                 delivery_attempt: item.delivery_attempt,
             })

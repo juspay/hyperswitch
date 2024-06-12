@@ -107,9 +107,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                     .attach_printable("Failed to encode outgoing webhook request content")
                     .map(Secret::new)?,
-                domain::Identifier::Merchant(
-                    String::from_utf8_lossy(merchant_key_store.key.get_inner().peek()).to_string(),
-                ),
+                domain::Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                merchant_key_store.key.get_inner().peek(),
             )
             .await
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -619,9 +618,8 @@ async fn update_event_if_client_error(
                         errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
                     )
                     .map(Secret::new)?,
-                domain::Identifier::Merchant(
-                    String::from_utf8_lossy(merchant_key_store.key.get_inner().peek()).to_string(),
-                ),
+                domain::Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                merchant_key_store.key.get_inner().peek(),
             )
             .await
             .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
@@ -738,9 +736,8 @@ async fn update_event_in_storage(
                         errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
                     )
                     .map(Secret::new)?,
-                domain::Identifier::Merchant(
-                    String::from_utf8_lossy(merchant_key_store.key.get_inner().peek()).to_string(),
-                ),
+                domain::Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                merchant_key_store.key.get_inner().peek(),
             )
             .await
             .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)

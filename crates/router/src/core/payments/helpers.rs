@@ -137,7 +137,7 @@ pub async fn create_or_update_address_for_payment_by_request(
         Some(id) => match req_address {
             Some(address) => {
                 let address_update = async {
-                    let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+                    let identifier = Identifier::Merchant(merchant_key_store.merchant_id.clone());
                     Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                         storage::AddressUpdate::Update {
                             city: address
@@ -150,7 +150,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.line1.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             line2: address
@@ -158,7 +158,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.line2.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             line3: address
@@ -166,7 +166,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.line3.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             state: address
@@ -174,7 +174,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.state.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             zip: address
@@ -182,7 +182,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.zip.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             first_name: address
@@ -190,7 +190,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.first_name.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             last_name: address
@@ -198,7 +198,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.last_name.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             phone_number: address
@@ -206,7 +206,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 .as_ref()
                                 .and_then(|value| value.number.clone())
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(state, inner, identifier.clone())
+                                    types::encrypt_optional(state, inner, identifier.clone(), key)
                                 })
                                 .await?,
                             country_code: address
@@ -223,6 +223,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                         state,
                                         inner.map(|inner| inner.expose()),
                                         identifier.clone(),
+                                        key,
                                     )
                                 })
                                 .await?,
@@ -377,14 +378,14 @@ pub async fn get_domain_address(
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         let address_details = address.address.as_ref();
-        let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+        let identifier = Identifier::Merchant(merchant_id.to_string());
         Ok(domain::Address {
             id: None,
             phone_number: address
                 .phone
                 .as_ref()
                 .and_then(|a| a.number.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
             merchant_id: merchant_id.to_string(),
@@ -393,33 +394,33 @@ pub async fn get_domain_address(
             country: address_details.and_then(|address_details| address_details.country),
             line1: address_details
                 .and_then(|address_details| address_details.line1.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             line2: address_details
                 .and_then(|address_details| address_details.line2.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             line3: address_details
                 .and_then(|address_details| address_details.line3.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             state: address_details
                 .and_then(|address_details| address_details.state.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             created_at: common_utils::date_time::now(),
             first_name: address_details
                 .and_then(|address_details| address_details.first_name.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             last_name: address_details
                 .and_then(|address_details| address_details.last_name.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             modified_at: common_utils::date_time::now(),
             zip: address_details
                 .and_then(|address_details| address_details.zip.clone())
-                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone()))
+                .async_lift(|inner| types::encrypt_optional(state, inner, identifier.clone(), key))
                 .await?,
             updated_by: storage_scheme.to_string(),
             email: address
@@ -431,6 +432,7 @@ pub async fn get_domain_address(
                         state,
                         inner.map(|inner| inner.expose()),
                         identifier.clone(),
+                        key,
                     )
                 })
                 .await?,
@@ -1585,8 +1587,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                     {
                         let key = key_store.key.get_inner().peek();
                         let customer_update = async {
-                            let identifier =
-                                Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+                            let identifier = Identifier::Merchant(key_store.merchant_id.clone());
                             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                                 Update {
                                     name: request_customer_details
@@ -1596,6 +1597,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                                 state,
                                                 inner,
                                                 identifier.clone(),
+                                                key,
                                             )
                                         })
                                         .await?,
@@ -1607,6 +1609,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                                 state,
                                                 inner.map(|inner| inner.expose()),
                                                 identifier.clone(),
+                                                key,
                                             )
                                         })
                                         .await?,
@@ -1619,6 +1622,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                                     state,
                                                     inner,
                                                     identifier.clone(),
+                                                    key,
                                                 )
                                             })
                                             .await?,
@@ -1652,8 +1656,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 None => {
                     let new_customer = async {
                         let key = key_store.key.get_inner().peek();
-                        let identifier =
-                            Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+                        let identifier = Identifier::Merchant(merchant_id.to_string());
                         Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                             domain::Customer {
                                 customer_id,
@@ -1661,7 +1664,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                 name: request_customer_details
                                     .name
                                     .async_lift(|inner| {
-                                        types::encrypt_optional(state, inner, identifier.clone())
+                                        types::encrypt_optional(
+                                            state,
+                                            inner,
+                                            identifier.clone(),
+                                            key,
+                                        )
                                     })
                                     .await?,
                                 email: request_customer_details
@@ -1672,6 +1680,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                             state,
                                             inner.map(|inner| inner.expose()),
                                             identifier.clone(),
+                                            key,
                                         )
                                     })
                                     .await?,
@@ -1679,7 +1688,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                     .phone
                                     .clone()
                                     .async_lift(|inner| {
-                                        types::encrypt_optional(state, inner, identifier.clone())
+                                        types::encrypt_optional(
+                                            state,
+                                            inner,
+                                            identifier.clone(),
+                                            key,
+                                        )
                                     })
                                     .await?,
                                 phone_country_code: request_customer_details
@@ -4052,9 +4066,8 @@ pub async fn get_encrypted_apple_pay_connector_wallets_details(
             types::encrypt_optional(
                 state,
                 wallets_details,
-                Identifier::Merchant(
-                    String::from_utf8_lossy(key_store.key.get_inner().peek()).to_string(),
-                ),
+                Identifier::Merchant(key_store.merchant_id.clone()),
+                key_store.key.get_inner().peek(),
             )
         })
         .await

@@ -740,9 +740,8 @@ mod tests {
                     key: domain::types::encrypt(
                         state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
-                        domain::Identifier::Merchant(
-                            String::from_utf8_lossy(master_key).to_string(),
-                        ),
+                        domain::Identifier::Merchant(merchant_id.to_string()),
+                        master_key,
                     )
                     .await
                     .unwrap(),

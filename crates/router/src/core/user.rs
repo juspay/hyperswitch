@@ -1803,9 +1803,8 @@ pub async fn update_totp(
                     domain::types::encrypt::<String, masking::WithType>(
                         &state,
                         totp.get_secret_base32().into(),
-                        domain::Identifier::User(
-                            String::from_utf8_lossy(key_store.key.peek()).to_string(),
-                        ),
+                        domain::Identifier::User(key_store.user_id.clone()),
+                        key_store.key.peek(),
                     )
                     .await
                     .change_context(UserErrors::InternalServerError)?

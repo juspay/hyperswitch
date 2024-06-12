@@ -246,7 +246,8 @@ pub async fn save_payout_data_to_locker(
                             domain_types::encrypt_optional(
                                 state,
                                 inner,
-                                Identifier::Merchant(String::from_utf8_lossy(key).to_string()),
+                                Identifier::Merchant(key_store.merchant_id.clone()),
+                                key,
                             )
                         })
                         .await
@@ -609,7 +610,7 @@ pub async fn get_or_create_customer_details(
     {
         Some(customer) => Ok(Some(customer)),
         None => {
-            let identifier = Identifier::Merchant(String::from_utf8_lossy(key).to_string());
+            let identifier = Identifier::Merchant(key_store.merchant_id.clone());
             let customer = domain::Customer {
                 customer_id,
                 merchant_id: merchant_id.to_string(),
@@ -617,6 +618,7 @@ pub async fn get_or_create_customer_details(
                     state,
                     customer_details.name.to_owned(),
                     identifier.clone(),
+                    key,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
@@ -624,6 +626,7 @@ pub async fn get_or_create_customer_details(
                     state,
                     customer_details.email.to_owned().map(|e| e.expose()),
                     identifier.clone(),
+                    key,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
@@ -631,6 +634,7 @@ pub async fn get_or_create_customer_details(
                     state,
                     customer_details.phone.to_owned(),
                     identifier.clone(),
+                    key,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,

@@ -112,7 +112,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
-        let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
+        let identifier = Identifier::Merchant(other.merchant_id.clone());
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,
@@ -120,7 +120,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_account_details: Encryptable::decrypt_via_api(
                 state,
                 other.connector_account_details,
-                identifier,
+                identifier.clone(),
+                key.peek(),
                 GcmAes256,
             )
             .await
@@ -148,13 +149,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_lift(|inner| {
-                    types::decrypt(
-                        state,
-                        inner,
-                        Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string()),
-                    )
-                })
+                .async_lift(|inner| types::decrypt(state, inner, identifier.clone(), key.peek()))
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),

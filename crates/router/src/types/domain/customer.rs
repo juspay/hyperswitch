@@ -66,10 +66,12 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
-        let identifier = Identifier::Merchant(String::from_utf8_lossy(key.peek()).to_string());
+        let identifier = Identifier::Merchant(item.merchant_id.clone());
         async {
-            let inner_decrypt = |inner| types::decrypt(state, inner, identifier.clone());
-            let inner_decrypt_email = |inner| types::decrypt(state, inner, identifier.clone());
+            let inner_decrypt =
+                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
+            let inner_decrypt_email =
+                |inner| types::decrypt(state, inner, identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,
