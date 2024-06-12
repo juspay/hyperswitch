@@ -2761,3 +2761,25 @@ pub enum TokenPurpose {
     AcceptInvite,
     UserInfo,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum AuthMethod {
+    Okta,
+    MagicLink,
+    #[default]
+    Password,
+}

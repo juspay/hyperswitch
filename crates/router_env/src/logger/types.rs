@@ -420,6 +420,12 @@ pub enum Flow {
     TerminateTwoFactorAuth,
     // Check 2FA status
     TwoFactorAuthStatus,
+    // Create Org authentication method
+    CreateOrgAuthenticationMethod,
+    // Update Org authentication method
+    UpdateOrgAuthenticationMethod,
+    // List Org authentication methods
+    ListOrgAuthenticationMethods,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

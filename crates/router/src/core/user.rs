@@ -1966,3 +1966,41 @@ pub async fn check_two_factor_auth_status(
         },
     ))
 }
+
+pub async fn create_org_authentication_method(
+    state: SessionState,
+    req: user_api::CreateOrgAuthenticationMethodRequest,
+) -> UserResponse<()> {
+    todo!()
+}
+
+pub async fn update_org_authentication_method(
+    state: SessionState,
+    req: user_api::UpdateOrgAuthenticationMethodRequest,
+) -> UserResponse<()> {
+    todo!();
+}
+
+pub async fn list_org_authentication_methods(
+    state: SessionState,
+    req: user_api::GetOrgAuthenticationMethodsRequest,
+) -> UserResponse<user_api::ListOrgAuthenticationMethods> {
+    let org_authentication_methods: Vec<_> = state
+        .store
+        .get_org_authentication_methods_details(&req.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .map(|user| user_api::OrgAuthenticationMethodResponse {
+            org_id: user.org_id,
+            auth_method: user.auth_method,
+            auth_config: user.auth_config,
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(
+        user_api::ListOrgAuthenticationMethods {
+            org_authentication_methods,
+        },
+    ))
+}

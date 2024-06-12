@@ -11,14 +11,15 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
-    ConnectAccountRequest, CreateInternalUserRequest, DashboardEntryResponse,
-    ForgotPasswordRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse, ReInviteUserRequest,
+    ConnectAccountRequest, CreateInternalUserRequest, CreateOrgAuthenticationMethodRequest,
+    DashboardEntryResponse, ForgotPasswordRequest, GetOrgAuthenticationMethodsRequest,
+    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
+    InviteUserRequest, ListOrgAuthenticationMethods, ListUsersResponse, ReInviteUserRequest,
     RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
     SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
     TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
-    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
-    VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    UpdateOrgAuthenticationMethodRequest, UpdateUserAccountDetailsRequest, UserFromEmailRequest,
+    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -79,7 +80,11 @@ common_utils::impl_misc_api_event_type!(
     BeginTotpResponse,
     VerifyRecoveryCodeRequest,
     VerifyTotpRequest,
-    RecoveryCodes
+    RecoveryCodes,
+    GetOrgAuthenticationMethodsRequest,
+    CreateOrgAuthenticationMethodRequest,
+    UpdateOrgAuthenticationMethodRequest,
+    ListOrgAuthenticationMethods
 );
 
 #[cfg(feature = "dummy_connector")]

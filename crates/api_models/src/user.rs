@@ -280,3 +280,35 @@ pub struct VerifyRecoveryCodeRequest {
 pub struct RecoveryCodes {
     pub recovery_codes: Vec<Secret<String>>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateOrgAuthenticationMethodRequest {
+    pub org_id: String,
+    pub auth_method: common_enums::AuthMethod,
+    pub auth_config: Option<serde_json::Value>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateOrgAuthenticationMethodRequest {
+    pub org_id: String,
+    pub auth_method: common_enums::AuthMethod,
+    pub auth_config: Option<serde_json::Value>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetOrgAuthenticationMethodsRequest {
+    pub org_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListOrgAuthenticationMethods {
+    pub org_authentication_methods: Vec<OrgAuthenticationMethodResponse>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct OrgAuthenticationMethodResponse {
+    pub org_id: String,
+    pub auth_method: common_enums::AuthMethod,
+    pub auth_config: Option<serde_json::Value>,
+}
+

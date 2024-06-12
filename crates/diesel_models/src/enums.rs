@@ -375,26 +375,3 @@ pub enum TotpStatus {
     #[default]
     NotSet,
 }
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthMethod {
-    Okta,
-    MagicLink,
-    #[default]
-    Password,
-}
