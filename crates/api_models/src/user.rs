@@ -311,4 +311,3 @@ pub struct OrgAuthenticationMethodResponse {
     pub auth_method: common_enums::AuthMethod,
     pub auth_config: Option<serde_json::Value>,
 }
-

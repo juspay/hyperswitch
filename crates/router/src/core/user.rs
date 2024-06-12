@@ -5,6 +5,7 @@ use api_models::user::{self as user_api, InviteMultipleUserResponse};
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
+    org_authentication_method::{OrgAuthenticationMethodNew, OrgAuthenticationMethodUpdate},
     user as storage_user,
     user_role::UserRoleNew,
 };
@@ -1971,14 +1972,40 @@ pub async fn create_org_authentication_method(
     state: SessionState,
     req: user_api::CreateOrgAuthenticationMethodRequest,
 ) -> UserResponse<()> {
-    todo!()
+    let now = common_utils::date_time::now();
+    state
+        .store
+        .insert_org_authentication_method(OrgAuthenticationMethodNew {
+            org_id: req.org_id,
+            auth_method: req.auth_method,
+            auth_config: req.auth_config,
+            created_at: now,
+            last_modified_at: now,
+        })
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    // have to change error
+
+    Ok(ApplicationResponse::StatusOk)
 }
 
 pub async fn update_org_authentication_method(
     state: SessionState,
     req: user_api::UpdateOrgAuthenticationMethodRequest,
 ) -> UserResponse<()> {
-    todo!();
+    state
+        .store
+        .update_org_authentication_method(
+            &req.org_id,
+            req.auth_method,
+            OrgAuthenticationMethodUpdate::UpdateAuthConfig {
+                auth_config: req.auth_config,
+            },
+        )
+        .await
+        .change_context(UserErrors::RoleNameAlreadyExists)?;
+    // have to change error
+    Ok(ApplicationResponse::StatusOk)
 }
 
 pub async fn list_org_authentication_methods(
