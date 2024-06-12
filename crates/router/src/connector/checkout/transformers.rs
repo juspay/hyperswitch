@@ -24,9 +24,7 @@ pub struct CheckoutRouterData<T> {
 }
 
 impl<T> From<(MinorUnit, T)> for CheckoutRouterData<T> {
-    fn from(
-        ( amount, item): (MinorUnit, T),
-    ) -> Self {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,

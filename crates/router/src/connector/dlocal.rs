@@ -1,11 +1,10 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use common_utils::{
     crypto::{self, SignMessage},
     date_time,
     request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -32,8 +31,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Dlocal;
+#[derive(Clone)]
+pub struct Dlocal {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Dlocal {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
@@ -90,7 +99,7 @@ where
             (headers::X_DATE.to_string(), date.into()),
             (
                 headers::CONTENT_TYPE.to_string(),
-                Self.get_content_type().to_string().into(),
+                self.get_content_type().to_string().into(),
             ),
         ];
         Ok(headers)
@@ -226,12 +235,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = dlocal::DlocalRouterData::from((amount, req));
         let connector_req = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -545,12 +555,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_payment_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = dlocal::DlocalRouterData::from((amount, req));
         let connector_req = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

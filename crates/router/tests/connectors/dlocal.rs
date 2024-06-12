@@ -16,7 +16,7 @@ impl utils::Connector for DlocalTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Dlocal;
         api::ConnectorData {
-            connector: Box::new(&Dlocal),
+            connector: Box::new(Dlocal::new()),
             connector_name: types::Connector::Dlocal,
             get_token: api::GetToken::Connector,
             merchant_connector_id: None,
