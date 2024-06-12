@@ -178,6 +178,7 @@ mod client_secret_tests {
     }
 }
 
+/// Passing this object creates a new customer or attaches an existing customer to the payment
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq)]
 pub struct CustomerDetails {
     /// The identifier for the customer.
@@ -449,8 +450,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to get the payment link (if applicable)
@@ -489,8 +492,10 @@ pub struct PaymentsRequest {
     #[schema(example = true)]
     pub request_external_three_ds_authentication: Option<bool>,
 
+    /// Details required for recurring payment
     pub recurring_details: Option<RecurringDetails>,
 
+    /// Fee information to be charged on the payment being collected
     pub charges: Option<PaymentChargeRequest>,
 }
 
@@ -521,7 +526,7 @@ impl PaymentsRequest {
     }
 }
 
-/// surcharge_details for this payment
+/// details of surcharge applied on this payment, if applicable 
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
@@ -895,7 +900,7 @@ impl Default for MandateType {
     }
 }
 
-/// Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client
+/// We will be Passing this "CustomerAcceptance" object during Payments-Confirm. The customer_acceptance sub object is usually passed by the SDK or client
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CustomerAcceptance {
@@ -3468,6 +3473,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
 
+    /// Details for Payment link
     pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
@@ -3484,7 +3490,7 @@ pub struct PaymentsResponse {
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
     pub merchant_connector_id: Option<String>,
 
-    /// If true incremental authorization can be performed on this payment
+    /// If true incremental authorization can be performed on this payment, in case the funds authorized initially fall short.
     pub incremental_authorization_allowed: Option<bool>,
 
     /// Total number of authorizations happened in an incremental_authorization payment
@@ -3532,6 +3538,7 @@ pub struct PaymentsResponse {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 }
 
+/// Fee information to be charged on the payment being collected
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentChargeResponse {
     /// Identifier for charge created for the payment
@@ -3549,6 +3556,7 @@ pub struct PaymentChargeResponse {
     pub transfer_account_id: String,
 }
 
+/// Details of external authentication
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct ExternalAuthenticationDetailsResponse {
     /// Authentication Type - Challenge / Frictionless
