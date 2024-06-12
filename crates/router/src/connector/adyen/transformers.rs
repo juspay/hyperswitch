@@ -40,21 +40,22 @@ pub struct AdyenRouterData<T> {
 }
 
 impl<T>
-    From<(
+    TryFrom<(
        MinorUnit,
         T,
     )> for AdyenRouterData<T>
 {
-    fn from(
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
         (amount, item): (
             MinorUnit,
             T,
         ),
-    ) -> Self {
-        Self {
+    ) -> Result<Self,Self::Error> {
+        Ok(Self {
             amount,
             router_data: item,
-        }
+        })
     }
 }
 #[derive(Debug, Default, Serialize, Deserialize)]
