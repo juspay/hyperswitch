@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -11,25 +12,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct BitpayRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BitpayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for BitpayRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data,
-        })
+        }
     }
 }
 
@@ -45,7 +37,7 @@ pub enum TransactionSpeed {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BitpayPaymentsRequest {
-    price: i64,
+    price: MinorUnit,
     currency: String,
     #[serde(rename = "redirectURL")]
     redirect_url: String,
@@ -119,10 +111,10 @@ pub enum ExceptionStatus {
 pub struct BitpayPaymentResponseData {
     pub url: Option<Url>,
     pub status: BitpayPaymentStatus,
-    pub price: i64,
+    pub price: MinorUnit,
     pub currency: String,
-    pub amount_paid: i64,
-    pub invoice_time: Option<i64>,
+    pub amount_paid: MinorUnit,
+    pub invoice_time: Option<MinorUnit>,
     pub rate_refresh_time: Option<i64>,
     pub expiration_time: Option<i64>,
     pub current_time: Option<i64>,
@@ -183,7 +175,7 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct BitpayRefundRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
 }
 
 impl<F> TryFrom<&BitpayRouterData<&types::RefundsRouterData<F>>> for BitpayRefundRequest {
@@ -192,7 +184,7 @@ impl<F> TryFrom<&BitpayRouterData<&types::RefundsRouterData<F>>> for BitpayRefun
         item: &BitpayRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_amount,
+            amount: item.router_data.request.minor_refund_amount,
         })
     }
 }

@@ -367,7 +367,7 @@ impl ConnectorData {
                 enums::Connector::Billwerk => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Billwerk)))
                 }
-                enums::Connector::Bitpay => Ok(ConnectorEnum::Old(Box::new(&connector::Bitpay))),
+                enums::Connector::Bitpay => Ok(ConnectorEnum::Old(Box::new(connector::Bitpay::new()))),
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
