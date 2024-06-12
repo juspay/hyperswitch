@@ -6,6 +6,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, StringExt, ValueExt},
     pii::Email,
+    types::StringMajorUnit,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -32,16 +33,13 @@ const DISPLAY_METADATA: &str = "Y";
 
 #[derive(Debug, Serialize)]
 pub struct BluesnapRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BluesnapRouterData<T> {
+impl<T> TryFrom<(StringMajorUnit, T)> for BluesnapRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -52,7 +50,7 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BluesnapRoute
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
-    amount: String,
+    amount: StringMajorUnit,
     #[serde(flatten)]
     payment_method: PaymentMethodDetails,
     currency: enums::Currency,
@@ -561,7 +559,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapCompletePaymentsRequest {
-    amount: String,
+    amount: StringMajorUnit,
     currency: enums::Currency,
     card_transaction_type: BluesnapTxnType,
     pf_token: Secret<String>,
@@ -702,7 +700,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
 pub struct BluesnapCaptureRequest {
     card_transaction_type: BluesnapTxnType,
     transaction_id: String,
-    amount: Option<String>,
+    amount: Option<StringMajorUnit>,
 }
 
 impl TryFrom<&BluesnapRouterData<&types::PaymentsCaptureRouterData>> for BluesnapCaptureRequest {
@@ -829,7 +827,7 @@ pub struct BluesnapWalletTokenResponse {
 #[serde(rename_all = "camelCase")]
 pub struct Refund {
     refund_transaction_id: String,
-    amount: String,
+    amount: StringMajorUnit,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -877,7 +875,7 @@ impl<F, T>
 
 #[derive(Default, Debug, Serialize)]
 pub struct BluesnapRefundRequest {
-    amount: Option<String>,
+    amount: Option<StringMajorUnit>,
     reason: Option<String>,
 }
 

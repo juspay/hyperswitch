@@ -65,7 +65,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let bill_to = build_bill_to(item.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.get_optional_billing(), email)?;
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
@@ -478,15 +478,15 @@ impl From<PaymentSolution> for String {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
-    address1: Secret<String>,
-    locality: String,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    address1: Option<Secret<String>>,
+    locality: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     administrative_area: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
-    country: api_enums::CountryAlpha2,
+    country: Option<api_enums::CountryAlpha2>,
     email: pii::Email,
 }
 
@@ -862,47 +862,77 @@ impl
 }
 
 // for cybersource each item in Billing is mandatory
+// fn build_bill_to(
+//     address_details: &payments::Address,
+//     email: pii::Email,
+// ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
+//     let address = address_details
+//         .address
+//         .as_ref()
+//         .ok_or_else(utils::missing_field_err("billing.address"))?;
+
+//     let country = address.get_country()?.to_owned();
+//     let first_name = address.get_first_name()?;
+
+//     let (administrative_area, postal_code) =
+//         if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
+//             let mut state = address.to_state_code()?.peek().clone();
+//             state.truncate(20);
+//             (
+//                 Some(Secret::from(state)),
+//                 Some(address.get_zip()?.to_owned()),
+//             )
+//         } else {
+//             let zip = address.zip.clone();
+//             let mut_state = address.state.clone().map(|state| state.expose());
+//             match mut_state {
+//                 Some(mut state) => {
+//                     state.truncate(20);
+//                     (Some(Secret::from(state)), zip)
+//                 }
+//                 None => (None, zip),
+//             }
+//         };
+//     Ok(BillTo {
+//         first_name: first_name.clone(),
+//         last_name: address.get_last_name().unwrap_or(first_name).clone(),
+//         address1: address.get_line1()?.to_owned(),
+//         locality: address.get_city()?.to_owned(),
+//         administrative_area,
+//         postal_code,
+//         country,
+//         email,
+//     })
+// }
+
 fn build_bill_to(
-    address_details: &payments::Address,
+    address_details: Option<&payments::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
-    let address = address_details
-        .address
-        .as_ref()
-        .ok_or_else(utils::missing_field_err("billing.address"))?;
-
-    let country = address.get_country()?.to_owned();
-    let first_name = address.get_first_name()?;
-
-    let (administrative_area, postal_code) =
-        if country == api_enums::CountryAlpha2::US || country == api_enums::CountryAlpha2::CA {
-            let mut state = address.to_state_code()?.peek().clone();
-            state.truncate(20);
-            (
-                Some(Secret::from(state)),
-                Some(address.get_zip()?.to_owned()),
-            )
-        } else {
-            let zip = address.zip.clone();
-            let mut_state = address.state.clone().map(|state| state.expose());
-            match mut_state {
-                Some(mut state) => {
-                    state.truncate(20);
-                    (Some(Secret::from(state)), zip)
-                }
-                None => (None, zip),
-            }
-        };
-    Ok(BillTo {
-        first_name: first_name.clone(),
-        last_name: address.get_last_name().unwrap_or(first_name).clone(),
-        address1: address.get_line1()?.to_owned(),
-        locality: address.get_city()?.to_owned(),
-        administrative_area,
-        postal_code,
-        country,
-        email,
-    })
+    let default_address = BillTo {
+        first_name: None,
+        last_name: None,
+        address1: None,
+        locality: None,
+        administrative_area: None,
+        postal_code: None,
+        country: None,
+        email: email.clone(),
+    };
+    Ok(address_details
+        .and_then(|addr| {
+            addr.address.as_ref().map(|addr| BillTo {
+                first_name: addr.first_name.clone(),
+                last_name: addr.last_name.clone(),
+                address1: addr.line1.clone(),
+                locality: addr.city.clone(),
+                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
+                postal_code: addr.zip.clone(),
+                country: addr.country,
+                email,
+            })
+        })
+        .unwrap_or(default_address))
 }
 
 impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
@@ -937,7 +967,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
         let card_issuer = ccard.get_card_issuer();
@@ -1015,7 +1045,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
         let card_issuer = ccard.get_card_issuer();
@@ -1096,7 +1126,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let processing_information = ProcessingInformation::try_from((
             item,
@@ -1163,7 +1193,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
         let payment_information =
@@ -1223,8 +1253,10 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
-                                    let bill_to =
-                                        build_bill_to(item.router_data.get_billing()?, email)?;
+                                    let bill_to = build_bill_to(
+                                        item.router_data.get_optional_billing(),
+                                        email,
+                                    )?;
                                     let order_information =
                                         OrderInformationWithBill::from((item, Some(bill_to)));
                                     let processing_information =
@@ -2212,7 +2244,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     .1
                     .to_string();
                 let email = item.router_data.request.get_email()?;
-                let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+                let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
                 let order_information = OrderInformationWithBill {
                     amount_details,
                     bill_to: Some(bill_to),
