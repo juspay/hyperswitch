@@ -505,16 +505,25 @@ pub async fn reset_password_token_only_flow(
 
     let user = state
         .global_store
-        .update_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
             },
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
+
+    if !user_from_db.is_verified() {
+        let _ = state
+            .global_store
+            .update_user_by_user_id(
+                user_from_db.get_user_id(),
+                storage_user::UserUpdate::VerifyUser,
+            )
+            .await
+            .map_err(|e| logger::error!(?e));
+    }
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
@@ -1021,6 +1030,17 @@ pub async fn accept_invite_from_email_token_only_flow(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    if !user_from_db.is_verified() {
+        let _ = state
+            .global_store
+            .update_user_by_user_id(
+                user_from_db.get_user_id(),
+                storage_user::UserUpdate::VerifyUser,
+            )
+            .await
+            .map_err(|e| logger::error!(?e));
+    }
+
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
         .map_err(|e| logger::error!(?e));
@@ -1476,13 +1496,9 @@ pub async fn verify_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if matches!(user_token.origin, domain::Origin::VerifyEmail)
-        || matches!(user_token.origin, domain::Origin::MagicLink)
-    {
-        let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
-            .await
-            .map_err(|e| logger::error!(?e));
-    }
+    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+        .await
+        .map_err(|e| logger::error!(?e));
 
     let current_flow =
         domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
