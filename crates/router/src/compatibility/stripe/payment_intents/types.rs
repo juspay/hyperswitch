@@ -15,13 +15,14 @@ use time::PrimitiveDateTime;
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
+    connector::utils::AddressData,
     consts,
     core::errors,
     pii::{Email, PeekInterface},
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-    }, connector::utils::AddressData,
+    },
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
@@ -324,7 +325,9 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             let billing = pmd.billing_details.clone().map(payments::Address::from);
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
-                None => get_pmd_based_on_payment_method_type(item.payment_method_types, billing.clone()),
+                None => {
+                    get_pmd_based_on_payment_method_type(item.payment_method_types, billing.clone())
+                }
             };
 
             payments::PaymentMethodDataRequest {
@@ -909,18 +912,22 @@ fn get_pmd_based_on_payment_method_type(
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
             payments::UpiData::UpiIntent(payments::UpiIntentData {}),
         )),
-        Some(api_enums::PaymentMethodType::Fps) => Some(
-            payments::PaymentMethodData::RealTimePayment(Box::new(payments::RealTimePaymentData::Fps {
-                country: billing_details
-                    .and_then(|billing_data| billing_data.get_optional_country()),
-            })),
-        ),
-        Some(api_enums::PaymentMethodType::DuitNow) => Some(
-            payments::PaymentMethodData::RealTimePayment(Box::new(payments::RealTimePaymentData::DuitNow {
-                country: billing_details
-                    .and_then(|billing_data| billing_data.get_optional_country()),
-            })),
-        ),
+        Some(api_enums::PaymentMethodType::Fps) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::Fps {
+                    country: billing_details
+                        .and_then(|billing_data| billing_data.get_optional_country()),
+                },
+            )))
+        }
+        Some(api_enums::PaymentMethodType::DuitNow) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::DuitNow {
+                    country: billing_details
+                        .and_then(|billing_data| billing_data.get_optional_country()),
+                },
+            )))
+        }
         Some(api_enums::PaymentMethodType::PromptPay) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(
                 payments::RealTimePaymentData::PromptPay {
@@ -929,17 +936,21 @@ fn get_pmd_based_on_payment_method_type(
                 },
             )))
         }
-        Some(api_enums::PaymentMethodType::VietQr) => Some(
-            payments::PaymentMethodData::RealTimePayment(Box::new(payments::RealTimePaymentData::VietQr {
-                country: billing_details
-                    .and_then(|billing_data| billing_data.get_optional_country()),
-            })),
-        ),
+        Some(api_enums::PaymentMethodType::VietQr) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::VietQr {
+                    country: billing_details
+                        .and_then(|billing_data| billing_data.get_optional_country()),
+                },
+            )))
+        }
         Some(api_enums::PaymentMethodType::Ideal) => Some(
             payments::PaymentMethodData::BankRedirect(payments::BankRedirectData::Ideal {
-                billing_details: billing_details.as_ref().map(|billing_data| payments::BankRedirectBilling {
-                    billing_name: billing_data.get_optional_full_name(),
-                    email: billing_data.email.clone()
+                billing_details: billing_details.as_ref().map(|billing_data| {
+                    payments::BankRedirectBilling {
+                        billing_name: billing_data.get_optional_full_name(),
+                        email: billing_data.email.clone(),
+                    }
                 }),
                 bank_name: None,
                 country: billing_details

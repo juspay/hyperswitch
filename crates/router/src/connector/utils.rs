@@ -589,7 +589,7 @@ pub trait AddressData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
     fn get_optional_country(&self) -> Option<enums::CountryAlpha2>;
-    fn get_optional_full_name(&self) -> Option<Secret<String>>; 
+    fn get_optional_full_name(&self) -> Option<Secret<String>>;
 }
 
 impl AddressData for api::Address {
@@ -607,13 +607,13 @@ impl AddressData for api::Address {
 
     fn get_optional_country(&self) -> Option<enums::CountryAlpha2> {
         self.address
-        .as_ref()
+            .as_ref()
             .and_then(|billing_address_details| billing_address_details.country)
     }
 
     fn get_optional_full_name(&self) -> Option<Secret<String>> {
-        self
-        .address.as_ref()
+        self.address
+            .as_ref()
             .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 }
