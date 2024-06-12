@@ -82,6 +82,7 @@ pub struct PayoutFlowData {
     /// Contains a reference ID that should be sent in the connector request
     pub connector_request_reference_id: String,
     pub payout_method_data: Option<api_models::payouts::PayoutMethodData>,
+    pub quote_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -133,3 +134,5 @@ pub struct MandateRevokeFlowData {
 pub struct WebhookSourceVerifyData {
     pub merchant_id: String,
 }
+
+pub struct AccessTokenFlowData {}
