@@ -6,6 +6,10 @@ use hyperswitch_domain_models::router_data::{ErrorResponse, RouterData};
 use masking::Maskable;
 use serde_json::json;
 
+use crate::{
+    configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
+};
+
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
     Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
 
@@ -26,9 +30,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_headers(
         &self,
         _req: &RouterData<T, Req, Resp>,
-        _connectors: &Connectors, //interface
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        //interfaces
         Ok(vec![])
     }
 
@@ -72,10 +75,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         metrics::UNIMPLEMENTED_FLOW.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes(
-                "connector",
-                req.connector.clone(),
-            )],
+            &[metrics::add_attributes("connector", req.connector.clone())],
         );
         Ok(None)
     }
