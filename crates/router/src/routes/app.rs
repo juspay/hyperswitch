@@ -393,7 +393,7 @@ impl AppState {
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
             request_id: self.request_id,
-            base_url: tenant_conf.clone().base_url.clone(),
+            base_url: tenant_conf.base_url.clone(),
             tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
