@@ -32,7 +32,7 @@ pub async fn create_key_in_key_manager(
     state: &SessionState,
     request_body: EncryptionCreateRequest,
 ) -> errors::CustomResult<(), errors::ApiClientError> {
-    let _ = call_encryption_service(state, "/key/create", request_body).await?;
+    let _ = call_encryption_service(state, "key/create", request_body).await?;
 
     Ok(())
 }
