@@ -98,8 +98,8 @@ pub struct IatapayPaymentsRequest {
     merchant_id: Secret<String>,
     merchant_payment_id: Option<String>,
     amount: f64,
-    currency: String,
-    country: String,
+    currency: common_enums::Currency,
+    country: common_enums::CountryAlpha2,
     locale: String,
     redirect_urls: RedirectUrls,
     notification_url: String,
@@ -130,21 +130,7 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let payment_method = item.router_data.payment_method;
-        let country = match payment_method {
-            PaymentMethod::Upi => "IN".to_string(),
-            PaymentMethod::Card
-            | PaymentMethod::CardRedirect
-            | PaymentMethod::PayLater
-            | PaymentMethod::Wallet
-            | PaymentMethod::BankRedirect
-            | PaymentMethod::BankTransfer
-            | PaymentMethod::Crypto
-            | PaymentMethod::BankDebit
-            | PaymentMethod::Reward
-            | PaymentMethod::Voucher
-            | PaymentMethod::GiftCard => item.router_data.get_billing_country()?.to_string(),
-        };
+        let country = item.router_data.get_billing_country()?;
         let return_url = item.router_data.get_return_url()?;
         let (payer_info, preferred_checkout_method) =
             match item.router_data.request.payment_method_data.clone() {
@@ -157,11 +143,45 @@ impl
                     ),
                     domain::UpiData::UpiIntent(_) => (None, Some(PreferredCheckoutMethod::Qr)),
                 },
+                domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                    match bank_redirect_data {
+                        domain::BankRedirectData::Ideal { .. } => (None, None),
+                        domain::BankRedirectData::BancontactCard { .. }
+                        | domain::BankRedirectData::Bizum {}
+                        | domain::BankRedirectData::Blik { .. }
+                        | domain::BankRedirectData::Eps { .. }
+                        | domain::BankRedirectData::Giropay { .. }
+                        | domain::BankRedirectData::Interac { .. }
+                        | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                        | domain::BankRedirectData::OnlineBankingFinland {}
+                        | domain::BankRedirectData::OnlineBankingPoland { .. }
+                        | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                        | domain::BankRedirectData::OpenBankingUk { .. }
+                        | domain::BankRedirectData::Przelewy24 { .. }
+                        | domain::BankRedirectData::Sofort { .. }
+                        | domain::BankRedirectData::Trustly { .. }
+                        | domain::BankRedirectData::OnlineBankingFpx { .. }
+                        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                connector_util::get_unimplemented_payment_method_error_message(
+                                    "stripe",
+                                ),
+                            ))?
+                        }
+                    }
+                }
+                domain::PaymentMethodData::RealTimePayment(real_time_payment_data) => {
+                    match *real_time_payment_data {
+                        domain::RealTimePaymentData::DuitNow {}
+                        | domain::RealTimePaymentData::Fps {}
+                        | domain::RealTimePaymentData::PromptPay {}
+                        | domain::RealTimePaymentData::VietQr {} => (None, None),
+                    }
+                }
                 domain::PaymentMethodData::Card(_)
                 | domain::PaymentMethodData::CardRedirect(_)
                 | domain::PaymentMethodData::Wallet(_)
                 | domain::PaymentMethodData::PayLater(_)
-                | domain::PaymentMethodData::BankRedirect(_)
                 | domain::PaymentMethodData::BankDebit(_)
                 | domain::PaymentMethodData::BankTransfer(_)
                 | domain::PaymentMethodData::Crypto(_)
@@ -169,14 +189,18 @@ impl
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::CardToken(_) => (None, None),
+                | domain::PaymentMethodData::CardToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    ))?
+                }
             };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
                 .merchant_id,
             merchant_payment_id: Some(item.router_data.connector_request_reference_id.clone()),
             amount: item.amount,
-            currency: item.router_data.request.currency.to_string(),
+            currency: item.router_data.request.currency,
             country: country.clone(),
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),

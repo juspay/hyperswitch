@@ -1,6 +1,6 @@
 pub use hyperswitch_domain_models::payment_method_data::{
     AliPayQr, ApplePayFlow, ApplePayThirdPartySdkData, ApplePayWalletData, ApplepayPaymentMethod,
-    BankDebitData, BankRedirectData, BankTransferData, BoletoVoucherData, Card, CardRedirectData,
+    BankDebitData, BankRedirectData, BankTransferData, BoletoVoucherData, Card, CardRedirectData, RealTimePaymentData,
     CardToken, CashappQr, CryptoData, GcashRedirection, GiftCardData, GiftCardDetails,
     GoPayRedirection, GooglePayPaymentMethodInfo, GooglePayRedirectData,
     GooglePayThirdPartySdkData, GooglePayWalletData, GpayTokenizationData, IndomaretVoucherData,

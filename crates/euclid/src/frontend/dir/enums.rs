@@ -267,6 +267,28 @@ pub enum CryptoType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+pub enum RealTimePaymentType {
+    Fps,
+    DuitNow,
+    PromptPay,
+    VietQr,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum UpiType {
     UpiCollect,
     UpiIntent,
@@ -321,6 +343,7 @@ collect_variants!(BankRedirectType);
 collect_variants!(BankDebitType);
 collect_variants!(CryptoType);
 collect_variants!(RewardType);
+collect_variants!(RealTimePaymentType);
 collect_variants!(UpiType);
 collect_variants!(VoucherType);
 collect_variants!(GiftCardType);

@@ -21,7 +21,7 @@ use crate::{
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    }, connector::utils::AddressData,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
@@ -85,6 +85,8 @@ pub enum StripePaymentMethodType {
     Card,
     Wallet,
     Upi,
+    BankRedirect,
+    RealTimePayment,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
@@ -93,6 +95,8 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
             StripePaymentMethodType::Card => Self::Card,
             StripePaymentMethodType::Wallet => Self::Wallet,
             StripePaymentMethodType::Upi => Self::Upi,
+            StripePaymentMethodType::BankRedirect => Self::BankRedirect,
+            StripePaymentMethodType::RealTimePayment => Self::RealTimePayment,
         }
     }
 }
@@ -317,14 +321,15 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
         let amount = item.amount.map(|amount| MinorUnit::new(amount).into());
 
         let payment_method_data = item.payment_method_data.as_ref().map(|pmd| {
+            let billing = pmd.billing_details.clone().map(payments::Address::from);
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
-                None => get_pmd_based_on_payment_method_type(item.payment_method_types),
+                None => get_pmd_based_on_payment_method_type(item.payment_method_types, billing.clone()),
             };
 
             payments::PaymentMethodDataRequest {
                 payment_method_data,
-                billing: pmd.billing_details.clone().map(payments::Address::from),
+                billing,
             }
         });
 
@@ -898,11 +903,49 @@ pub struct StripePaymentRetrieveBody {
 //To handle payment types that have empty payment method data
 fn get_pmd_based_on_payment_method_type(
     payment_method_type: Option<api_enums::PaymentMethodType>,
+    billing_details: Option<api_models::payments::Address>,
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
             payments::UpiData::UpiIntent(payments::UpiIntentData {}),
         )),
+        Some(api_enums::PaymentMethodType::Fps) => Some(
+            payments::PaymentMethodData::RealTimePayment(Box::new(payments::RealTimePaymentData::Fps {
+                country: billing_details
+                    .and_then(|billing_data| billing_data.get_optional_country()),
+            })),
+        ),
+        Some(api_enums::PaymentMethodType::DuitNow) => Some(
+            payments::PaymentMethodData::RealTimePayment(Box::new(payments::RealTimePaymentData::DuitNow {
+                country: billing_details
+                    .and_then(|billing_data| billing_data.get_optional_country()),
+            })),
+        ),
+        Some(api_enums::PaymentMethodType::PromptPay) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::PromptPay {
+                    country: billing_details
+                        .and_then(|billing_data| billing_data.get_optional_country()),
+                },
+            )))
+        }
+        Some(api_enums::PaymentMethodType::VietQr) => Some(
+            payments::PaymentMethodData::RealTimePayment(Box::new(payments::RealTimePaymentData::VietQr {
+                country: billing_details
+                    .and_then(|billing_data| billing_data.get_optional_country()),
+            })),
+        ),
+        Some(api_enums::PaymentMethodType::Ideal) => Some(
+            payments::PaymentMethodData::BankRedirect(payments::BankRedirectData::Ideal {
+                billing_details: billing_details.as_ref().map(|billing_data| payments::BankRedirectBilling {
+                    billing_name: billing_data.get_optional_full_name(),
+                    email: billing_data.email.clone()
+                }),
+                bank_name: None,
+                country: billing_details
+                    .and_then(|billing_data| billing_data.get_optional_country()),
+            }),
+        ),
         _ => None,
     }
 }

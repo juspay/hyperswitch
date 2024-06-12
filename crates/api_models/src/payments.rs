@@ -1437,6 +1437,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::BankDebit(_)
                     | PaymentMethodData::BankRedirect(_)
                     | PaymentMethodData::BankTransfer(_)
+                    | PaymentMethodData::RealTimePayment(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::Crypto(_)
                     | PaymentMethodData::GiftCard(_)
@@ -1485,6 +1486,8 @@ pub enum PaymentMethodData {
     BankDebit(BankDebitData),
     #[schema(title = "BankTransfer")]
     BankTransfer(Box<BankTransferData>),
+    #[schema(title = "RealTimePayment")]
+    RealTimePayment(Box<RealTimePaymentData>),
     #[schema(title = "Crypto")]
     Crypto(CryptoData),
     #[schema(title = "MandatePayment")]
@@ -1515,6 +1518,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
             Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
             Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
+            Self::RealTimePayment(real_time_payment) => real_time_payment.get_billing_address(),
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
@@ -1552,6 +1556,7 @@ impl PaymentMethodData {
             Self::BankRedirect(_) => Some(api_enums::PaymentMethod::BankRedirect),
             Self::BankDebit(_) => Some(api_enums::PaymentMethod::BankDebit),
             Self::BankTransfer(_) => Some(api_enums::PaymentMethod::BankTransfer),
+            Self::RealTimePayment(_) => Some(api_enums::PaymentMethod::RealTimePayment),
             Self::Crypto(_) => Some(api_enums::PaymentMethod::Crypto),
             Self::Reward => Some(api_enums::PaymentMethod::Reward),
             Self::Upi(_) => Some(api_enums::PaymentMethod::Upi),
@@ -1693,6 +1698,17 @@ impl GetPaymentMethodType for CryptoData {
     }
 }
 
+impl GetPaymentMethodType for RealTimePaymentData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Fps { .. } => api_enums::PaymentMethodType::Fps,
+            Self::DuitNow { .. } => api_enums::PaymentMethodType::DuitNow,
+            Self::PromptPay { .. } => api_enums::PaymentMethodType::PromptPay,
+            Self::VietQr { .. } => api_enums::PaymentMethodType::VietQr,
+        }
+    }
+}
+
 impl GetPaymentMethodType for UpiData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
@@ -1803,6 +1819,7 @@ pub enum AdditionalPaymentData {
     BankDebit {},
     MandatePayment {},
     Reward {},
+    RealTimePayment {},
     Upi {},
     GiftCard {},
     Voucher {},
@@ -2264,6 +2281,70 @@ pub enum BankTransferData {
     LocalBankTransfer {
         bank_code: Option<String>,
     },
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RealTimePaymentData {
+    Fps {
+        /// The two-letter ISO country code for SEPA and BACS
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
+    },
+    DuitNow {
+        /// The two-letter ISO country code for SEPA and BACS
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
+    },
+    PromptPay {
+        /// The two-letter ISO country code for SEPA and BACS
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
+    },
+    VietQr {
+        /// The two-letter ISO country code for SEPA and BACS
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
+    },
+}
+
+impl GetAddressFromPaymentMethodData for RealTimePaymentData {
+    fn get_billing_address(&self) -> Option<Address> {
+        match self {
+            Self::Fps { country } => Some(Address {
+                address: Some(AddressDetails {
+                    country: *country,
+                    ..AddressDetails::default()
+                }),
+                phone: None,
+                email: None,
+            }),
+            Self::DuitNow { country } => Some(Address {
+                address: Some(AddressDetails {
+                    country: *country,
+                    ..AddressDetails::default()
+                }),
+                phone: None,
+                email: None,
+            }),
+            Self::PromptPay { country } => Some(Address {
+                address: Some(AddressDetails {
+                    country: *country,
+                    ..AddressDetails::default()
+                }),
+                phone: None,
+                email: None,
+            }),
+            Self::VietQr { country } => Some(Address {
+                address: Some(AddressDetails {
+                    country: *country,
+                    ..AddressDetails::default()
+                }),
+                phone: None,
+                email: None,
+            }),
+        }
+    }
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -2736,6 +2817,7 @@ where
                 | PaymentMethodDataResponse::GiftCard {}
                 | PaymentMethodDataResponse::PayLater {}
                 | PaymentMethodDataResponse::Paypal {}
+                | PaymentMethodDataResponse::RealTimePayment {}
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
                 | PaymentMethodDataResponse::BankTransfer {}
@@ -2766,6 +2848,7 @@ pub enum PaymentMethodDataResponse {
     BankDebit {},
     MandatePayment {},
     Reward {},
+    RealTimePayment {},
     Upi {},
     Voucher {},
     GiftCard {},
@@ -3882,6 +3965,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
             AdditionalPaymentData::Reward {} => Self::Reward {},
+            AdditionalPaymentData::RealTimePayment {} => Self::RealTimePayment {},
             AdditionalPaymentData::Upi {} => Self::Upi {},
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
             AdditionalPaymentData::Voucher {} => Self::Voucher {},

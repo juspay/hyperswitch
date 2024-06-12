@@ -2349,6 +2349,13 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::Evoucher | api_enums::PaymentMethodType::ClassicReward
         ),
+        api_enums::PaymentMethod::RealTimePayment => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Fps
+                | api_enums::PaymentMethodType::DuitNow
+                | api_enums::PaymentMethodType::PromptPay
+                | api_enums::PaymentMethodType::VietQr
+        ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent
@@ -3880,6 +3887,9 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::Reward => {
             api_models::payments::AdditionalPaymentData::Reward {}
         }
+        api_models::payments::PaymentMethodData::RealTimePayment(_) => {
+            api_models::payments::AdditionalPaymentData::RealTimePayment {}
+        }
         api_models::payments::PaymentMethodData::Upi(_) => {
             api_models::payments::AdditionalPaymentData::Upi {}
         }
@@ -4347,6 +4357,11 @@ pub fn get_key_params_for_surcharge_details(
         )),
         api_models::payments::PaymentMethodData::MandatePayment => None,
         api_models::payments::PaymentMethodData::Reward => None,
+        api_models::payments::PaymentMethodData::RealTimePayment(voucher) => Some((
+            common_enums::PaymentMethod::RealTimePayment,
+            voucher.get_payment_method_type(),
+            None,
+        )),
         api_models::payments::PaymentMethodData::Upi(upi_data) => Some((
             common_enums::PaymentMethod::Upi,
             upi_data.get_payment_method_type(),

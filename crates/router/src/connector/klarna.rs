@@ -623,7 +623,11 @@ impl
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
                         | common_enums::PaymentMethodType::PayEasy
-                        | common_enums::PaymentMethodType::Mifinity,
+                        | common_enums::PaymentMethodType::Mifinity
+                        | common_enums::PaymentMethodType::Fps
+                        | common_enums::PaymentMethodType::DuitNow
+                        | common_enums::PaymentMethodType::PromptPay
+                        | common_enums::PaymentMethodType::VietQr,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -641,6 +645,7 @@ impl
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)

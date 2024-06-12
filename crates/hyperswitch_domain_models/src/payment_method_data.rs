@@ -17,6 +17,7 @@ pub enum PaymentMethodData {
     Crypto(CryptoData),
     MandatePayment,
     Reward,
+    RealTimePayment(Box<RealTimePaymentData>),
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
@@ -41,6 +42,7 @@ impl PaymentMethodData {
             Self::BankTransfer(_) => Some(common_enums::PaymentMethod::BankTransfer),
             Self::Crypto(_) => Some(common_enums::PaymentMethod::Crypto),
             Self::Reward => Some(common_enums::PaymentMethod::Reward),
+            Self::RealTimePayment(_) => Some(common_enums::PaymentMethod::RealTimePayment),
             Self::Upi(_) => Some(common_enums::PaymentMethod::Upi),
             Self::Voucher(_) => Some(common_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(common_enums::PaymentMethod::GiftCard),
@@ -242,6 +244,15 @@ pub struct ApplepayPaymentMethod {
     pub display_name: String,
     pub network: String,
     pub pm_type: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub enum RealTimePaymentData {
+    DuitNow {},
+    Fps {},
+    PromptPay {},
+    VietQr {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -457,6 +468,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             }
             api_models::payments::PaymentMethodData::MandatePayment => Self::MandatePayment,
             api_models::payments::PaymentMethodData::Reward => Self::Reward,
+            api_models::payments::PaymentMethodData::RealTimePayment(real_time_payment_data) => {
+                Self::RealTimePayment(Box::new(From::from(*real_time_payment_data)))
+            }
             api_models::payments::PaymentMethodData::Upi(upi_data) => {
                 Self::Upi(From::from(upi_data))
             }
@@ -873,6 +887,17 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
             }
+        }
+    }
+}
+
+impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
+    fn from(value: api_models::payments::RealTimePaymentData) -> Self {
+        match value {
+            api_models::payments::RealTimePaymentData::Fps { .. } => Self::Fps {},
+            api_models::payments::RealTimePaymentData::DuitNow { .. } => Self::DuitNow {},
+            api_models::payments::RealTimePaymentData::PromptPay { .. } => Self::PromptPay {},
+            api_models::payments::RealTimePaymentData::VietQr { .. } => Self::VietQr {},
         }
     }
 }

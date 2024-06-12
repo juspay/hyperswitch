@@ -320,6 +320,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -394,6 +395,7 @@ impl<F, T>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,
@@ -1185,6 +1187,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::BankTransfer(_)
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::RealTimePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -1235,6 +1238,7 @@ impl TryFrom<(&domain::PaymentMethodData, String)> for BankOfAmericaAuthSetupReq
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1859,6 +1863,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1968,6 +1973,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCompleteAuthorizeRouterDat
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -2196,6 +2202,7 @@ impl<F>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,
@@ -2269,6 +2276,7 @@ impl<F>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,
@@ -2484,6 +2492,7 @@ impl<F>
                     | common_enums::PaymentMethod::Crypto
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::RealTimePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::GiftCard => None,

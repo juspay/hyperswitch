@@ -245,6 +245,7 @@ where
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -466,6 +467,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
             | Some(domain::PaymentMethodData::MandatePayment)
             | Some(domain::PaymentMethodData::Voucher(_))
             | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::RealTimePayment(_))
             | Some(domain::PaymentMethodData::Upi(_))
             | Some(domain::PaymentMethodData::CardToken(_))
             | None => Err(errors::ConnectorError::NotImplemented(

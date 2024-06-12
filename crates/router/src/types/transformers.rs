@@ -508,6 +508,10 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
             | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
+            api_enums::PaymentMethodType::Fps
+            | api_enums::PaymentMethodType::DuitNow
+            | api_enums::PaymentMethodType::PromptPay
+            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
         }
     }
 }
@@ -528,6 +532,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
             payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
             payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
             payments::PaymentMethodData::Reward => Ok(Self::Reward),
+            payments::PaymentMethodData::RealTimePayment(..) => Ok(Self::RealTimePayment),
             payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),

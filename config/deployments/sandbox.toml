@@ -279,6 +279,15 @@ debit.currency = "USD"
 ali_pay.currency = "GBP,CNY"
 we_chat_pay.currency = "GBP,CNY"
 
+[pm_filters.iatapay]
+upi_intent = { country = "IN", currency = "INR" }
+upi_collect = { country = "IN", currency = "INR" }
+fps = { country = "HK", currency = "HKD" }
+ideal = { country = "NL", currency = "EUR" }
+duit_now = { country = "MY", currency = "MYR" }
+prompt_pay = { country = "TH", currency = "THB" }
+viet_qr = { country = "VN", currency = "VND" }
+
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
@@ -287,6 +296,7 @@ mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR
 
 [pm_filters.prophetpay]
 card_redirect.currency = "USD"
+
 
 [pm_filters.stax]
 ach = { country = "US", currency = "USD" }

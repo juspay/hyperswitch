@@ -620,6 +620,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
+        | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)

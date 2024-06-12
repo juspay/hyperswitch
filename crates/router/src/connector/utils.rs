@@ -588,6 +588,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 pub trait AddressData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_country(&self) -> Option<enums::CountryAlpha2>;
+    fn get_optional_full_name(&self) -> Option<Secret<String>>; 
 }
 
 impl AddressData for api::Address {
@@ -601,6 +603,18 @@ impl AddressData for api::Address {
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("phone"))
+    }
+
+    fn get_optional_country(&self) -> Option<enums::CountryAlpha2> {
+        self.address
+        .as_ref()
+            .and_then(|billing_address_details| billing_address_details.country)
+    }
+
+    fn get_optional_full_name(&self) -> Option<Secret<String>> {
+        self
+        .address.as_ref()
+            .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 }
 
@@ -2547,6 +2561,7 @@ pub enum PaymentMethodDataType {
     ApplePayRedirect,
     ApplePayThirdPartySdk,
     DanaRedirect,
+    DuitNow,
     GooglePay,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
@@ -2627,6 +2642,9 @@ pub enum PaymentMethodDataType {
     CardToken,
     LocalBankTransfer,
     Mifinity,
+    Fps,
+    PromptPay,
+    VietQr,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2790,6 +2808,12 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::VoucherData::FamilyMart(_) => Self::FamilyMart,
                 domain::payments::VoucherData::Seicomart(_) => Self::Seicomart,
                 domain::payments::VoucherData::PayEasy(_) => Self::PayEasy,
+            },
+            domain::PaymentMethodData::RealTimePayment(real_time_payment_data) => match *real_time_payment_data{
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::DuitNow {  } =>  Self::DuitNow,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Fps {  } => Self::Fps,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::PromptPay {  } => Self::PromptPay,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::VietQr {  } => Self::VietQr,
             },
             domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
                 match *gift_card_data {
