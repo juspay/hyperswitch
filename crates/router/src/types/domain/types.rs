@@ -77,11 +77,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "application_encryption"))]
+        #[cfg(not(feature = "encryption_service"))]
         {
             Self::encrypt(masked_data, key, crypt_algo).await
         }
-        #[cfg(feature = "application_encryption")]
+        #[cfg(feature = "encryption_service")]
         {
             let request_body = EncryptDataRequest {
                 data: DecryptedData::from_data(StrongSecret::new(
@@ -121,11 +121,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "application_encryption"))]
+        #[cfg(not(feature = "encryption_service"))]
         {
             Self::decrypt(encrypted_data, key, crypt_algo).await
         }
-        #[cfg(feature = "application_encryption")]
+        #[cfg(feature = "encryption_service")]
         {
             let request_body = DecryptDataRequest {
                 data: EncryptedData {
@@ -200,11 +200,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "application_encryption"))]
+        #[cfg(not(feature = "encryption_service"))]
         {
             Self::encrypt(masked_data, key, crypt_algo).await
         }
-        #[cfg(feature = "application_encryption")]
+        #[cfg(feature = "encryption_service")]
         {
             let request_body = EncryptDataRequest {
                 data: DecryptedData::from_data(StrongSecret::new(
@@ -244,11 +244,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "application_encryption"))]
+        #[cfg(not(feature = "encryption_service"))]
         {
             Self::decrypt(encrypted_data, key, crypt_algo).await
         }
-        #[cfg(feature = "application_encryption")]
+        #[cfg(feature = "encryption_service")]
         {
             let request_body = DecryptDataRequest {
                 data: EncryptedData {
@@ -328,11 +328,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "application_encryption"))]
+        #[cfg(not(feature = "encryption_service"))]
         {
             Self::encrypt(masked_data, key, crypt_algo).await
         }
-        #[cfg(feature = "application_encryption")]
+        #[cfg(feature = "encryption_service")]
         {
             let request_body = EncryptDataRequest {
                 data: DecryptedData::from_data(StrongSecret::new(
@@ -372,11 +372,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "application_encryption"))]
+        #[cfg(not(feature = "encryption_service"))]
         {
             Self::decrypt(encrypted_data, key, crypt_algo).await
         }
-        #[cfg(feature = "application_encryption")]
+        #[cfg(feature = "encryption_service")]
         {
             let request_body = DecryptDataRequest {
                 data: EncryptedData {
