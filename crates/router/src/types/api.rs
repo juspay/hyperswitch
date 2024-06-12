@@ -326,11 +326,11 @@ impl ConnectorData {
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Cashtocode => Ok(Box::new(connector::Cashtocode::new())),
-                enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
+                enums::Connector::Checkout => Ok(Box::new(connector::Checkout::new())),
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 enums::Connector::Cryptopay => Ok(Box::new(connector::Cryptopay::new())),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
-                enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
+                enums::Connector::Dlocal => Ok(Box::new(connector::Dlocal::new())),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(Box::new(&connector::DummyConnector::<1>)),
                 #[cfg(feature = "dummy_connector")]

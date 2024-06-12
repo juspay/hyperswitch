@@ -1,5 +1,5 @@
 use api_models::payments::AddressDetails;
-use common_utils::pii::Email;
+use common_utils::{pii::Email, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -53,31 +53,22 @@ pub enum PaymentMethodFlow {
 
 #[derive(Debug, Serialize)]
 pub struct DlocalRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for DlocalRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for DlocalRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data,
-        })
+        }
     }
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: enums::Currency,
     pub country: String,
     pub payment_method_id: PaymentMethodId,
