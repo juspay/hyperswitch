@@ -526,7 +526,7 @@ impl PaymentsRequest {
     }
 }
 
-/// details of surcharge applied on this payment, if applicable 
+/// details of surcharge applied on this payment, if applicable
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
