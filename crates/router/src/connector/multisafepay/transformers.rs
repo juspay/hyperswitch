@@ -1,6 +1,9 @@
 use api_models::enums::BankNames;
 use common_enums::AttemptStatus;
-use common_utils::pii::{Email, IpAddress};
+use common_utils::{
+    pii::{Email, IpAddress},
+    types::MinorUnit,
+};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -17,20 +20,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRouterData<T> {
-    amount: i64,
+    amount: MinorUnit,
     router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MultisafepayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for MultisafepayRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -426,7 +425,7 @@ pub struct MultisafepayPaymentsRequest {
     pub gateway: Option<Gateway>,
     pub order_id: String,
     pub currency: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub description: String,
     pub payment_options: Option<PaymentOptions>,
     pub customer: Option<Customer>,
@@ -888,7 +887,7 @@ pub struct Data {
     pub payment_type: Option<String>,
     pub order_id: String,
     pub currency: Option<String>,
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub description: Option<String>,
     pub capture: Option<String>,
     pub payment_url: Option<Url>,
@@ -1016,7 +1015,7 @@ impl<F, T>
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
     pub currency: diesel_models::enums::Currency,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub description: Option<String>,
     pub refund_order_id: Option<String>,
     pub checkout_data: Option<ShoppingCart>,
