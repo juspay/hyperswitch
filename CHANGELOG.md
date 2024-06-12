@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.07.0-hotfix3
+
+### Bug Fixes
+
+- **core:** Fix the multitenancy prefix in routing cache ([#4969](https://github.com/juspay/hyperswitch/pull/4969)) ([`1a58ac4`](https://github.com/juspay/hyperswitch/commit/1a58ac4137c0934e470e1d44fc4e397d1b96cbb5))
+
+- - -
+
 ## 2024.06.07.0-hotfix2
 
 ### Features
