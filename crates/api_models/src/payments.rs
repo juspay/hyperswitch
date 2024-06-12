@@ -1518,10 +1518,10 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
             Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
             Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
-            Self::RealTimePayment(real_time_payment) => real_time_payment.get_billing_address(),
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
+            | Self::RealTimePayment(_) 
             | Self::Upi(_)
             | Self::GiftCard(_)
             | Self::CardToken(_)
@@ -1702,10 +1702,10 @@ impl GetPaymentMethodType for CryptoData {
 impl GetPaymentMethodType for RealTimePaymentData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
-            Self::Fps { .. } => api_enums::PaymentMethodType::Fps,
-            Self::DuitNow { .. } => api_enums::PaymentMethodType::DuitNow,
-            Self::PromptPay { .. } => api_enums::PaymentMethodType::PromptPay,
-            Self::VietQr { .. } => api_enums::PaymentMethodType::VietQr,
+            Self::Fps {  } => api_enums::PaymentMethodType::Fps,
+            Self::DuitNow { } => api_enums::PaymentMethodType::DuitNow,
+            Self::PromptPay { } => api_enums::PaymentMethodType::PromptPay,
+            Self::VietQr { } => api_enums::PaymentMethodType::VietQr,
         }
     }
 }
@@ -1967,10 +1967,7 @@ pub enum BankRedirectData {
         issuer: common_enums::BankNames,
     },
     LocalBankRedirect {
-        /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: Option<api_enums::CountryAlpha2>,
-    },
+    }
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -2072,7 +2069,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             Self::OnlineBankingFinland { email } => {
                 get_billing_address_inner(None, None, email.as_ref())
             }
-            Self::OpenBankingUk { country, .. } | Self::LocalBankRedirect { country } => {
+            Self::OpenBankingUk { country, .. } => {
                 get_billing_address_inner(None, country.as_ref(), None)
             }
             Self::Przelewy24 {
@@ -2080,6 +2077,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             } => get_billing_address_inner(Some(billing_details), None, None),
             Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
             Self::OnlineBankingFpx { .. }
+            |Self::LocalBankRedirect { }
             | Self::OnlineBankingThailand { .. }
             | Self::Bizum {}
             | Self::OnlineBankingPoland { .. }
@@ -2292,66 +2290,12 @@ pub enum BankTransferData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RealTimePaymentData {
-    Fps {
-        /// The two-letter ISO country code for SEPA and BACS
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: Option<api_enums::CountryAlpha2>,
-    },
-    DuitNow {
-        /// The two-letter ISO country code for SEPA and BACS
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: Option<api_enums::CountryAlpha2>,
-    },
-    PromptPay {
-        /// The two-letter ISO country code for SEPA and BACS
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: Option<api_enums::CountryAlpha2>,
-    },
-    VietQr {
-        /// The two-letter ISO country code for SEPA and BACS
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        country: Option<api_enums::CountryAlpha2>,
-    },
+    Fps {},
+    DuitNow {},
+    PromptPay {},
+    VietQr {},
 }
 
-impl GetAddressFromPaymentMethodData for RealTimePaymentData {
-    fn get_billing_address(&self) -> Option<Address> {
-        match self {
-            Self::Fps { country } => Some(Address {
-                address: Some(AddressDetails {
-                    country: *country,
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: None,
-            }),
-            Self::DuitNow { country } => Some(Address {
-                address: Some(AddressDetails {
-                    country: *country,
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: None,
-            }),
-            Self::PromptPay { country } => Some(Address {
-                address: Some(AddressDetails {
-                    country: *country,
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: None,
-            }),
-            Self::VietQr { country } => Some(Address {
-                address: Some(AddressDetails {
-                    country: *country,
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: None,
-            }),
-        }
-    }
-}
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
     fn get_billing_address(&self) -> Option<Address> {
