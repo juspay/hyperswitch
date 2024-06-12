@@ -2739,7 +2739,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                         Self::OnlineBankingThailand
                     }
                     domain::payments::BankRedirectData::LocalBankRedirect { } => {
-                        Self::OnlineBankingThailand
+                        Self::LocalBankRedirect
                     }
                 }
             }
