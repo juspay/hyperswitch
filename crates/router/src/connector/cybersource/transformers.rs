@@ -909,43 +909,30 @@ fn build_bill_to(
     address_details: Option<&payments::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
-    match address_details {
-        Some(address) => match &address.address {
-            Some(address) => Ok(BillTo {
-                first_name: address.first_name.clone(),
-                last_name: address.last_name.clone(),
-                address1: address.line1.clone(),
-                locality: address.city.clone(),
-                administrative_area: match address.to_state_code_as_optional() {
-                    Ok(state) => state,
-                    Err(_) => None,
-                },
-                postal_code: address.zip.clone(),
-                country: address.country,
+    let default_address = BillTo {
+        first_name: None,
+        last_name: None,
+        address1: None,
+        locality: None,
+        administrative_area: None,
+        postal_code: None,
+        country: None,
+        email: email.clone(),
+    };
+    Ok(address_details
+        .and_then(|addr| {
+            addr.address.as_ref().map(|addr| BillTo {
+                first_name: addr.first_name.clone(),
+                last_name: addr.last_name.clone(),
+                address1: addr.line1.clone(),
+                locality: addr.city.clone(),
+                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
+                postal_code: addr.zip.clone(),
+                country: addr.country,
                 email,
-            }),
-            None => Ok(BillTo {
-                first_name: None,
-                last_name: None,
-                address1: None,
-                locality: None,
-                administrative_area: None,
-                postal_code: None,
-                country: None,
-                email,
-            }),
-        },
-        None => Ok(BillTo {
-            first_name: None,
-            last_name: None,
-            address1: None,
-            locality: None,
-            administrative_area: None,
-            postal_code: None,
-            country: None,
-            email,
-        }),
-    }
+            })
+        })
+        .unwrap_or(default_address))
 }
 
 impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
