@@ -3993,16 +3993,6 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let payment_methods_count = db
-        .get_payment_method_count_by_customer_id_merchant_id_status(
-            &key.customer_id,
-            &merchant_account.merchant_id,
-            api_enums::PaymentMethodStatus::Active,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get a count of payment methods for a customer")?;
-
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             &key.customer_id,
@@ -4013,12 +4003,6 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
-
-    utils::when(
-        customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id)
-            && payment_methods_count > 1,
-        || Err(errors::ApiErrorResponse::PaymentMethodDeleteFailed),
-    )?;
 
     if key.payment_method == Some(enums::PaymentMethod::Card) {
         let response = delete_card_from_locker(
