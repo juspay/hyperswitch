@@ -117,7 +117,6 @@ pub enum WalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MifinityData {
-    pub destination_account_number: Secret<String>,
     pub date_of_birth: Secret<Date>,
 }
 
@@ -594,7 +593,6 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::SwishQr(_) => Self::SwishQr(SwishQrData {}),
             api_models::payments::WalletData::Mifinity(mifinity_data) => {
                 Self::Mifinity(MifinityData {
-                    destination_account_number: mifinity_data.destination_account_number,
                     date_of_birth: mifinity_data.date_of_birth,
                 })
             }
