@@ -476,7 +476,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
                 }
                 enums::Connector::Worldpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Worldpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
                 enums::Connector::Mifinity => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Mifinity)))

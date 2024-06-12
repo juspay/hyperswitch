@@ -1,5 +1,5 @@
 use base64::Engine;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::MinorUnit};
 use diesel_models::enums;
 use masking::{PeekInterface, Secret};
 use serde::Serialize;
@@ -16,30 +16,15 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct WorldpayRouterData<T> {
-    amount: i64,
+    amount: MinorUnit,
     router_data: T,
 }
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for WorldpayRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for WorldpayRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 fn fetch_payment_instrument(
@@ -270,7 +255,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldpayRefundRequest {
         Ok(Self {
             reference: item.request.connector_transaction_id.clone(),
             value: PaymentValue {
-                amount: item.request.refund_amount,
+                amount: item.request.minor_refund_amount,
                 currency: item.request.currency.to_string(),
             },
         })
