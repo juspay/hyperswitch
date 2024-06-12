@@ -16,7 +16,7 @@ use super::utils::is_mandate_supported;
 use crate::{
     capture_method_not_supported,
     configs::settings,
-    connector::utils::{PaymentMethodDataType,PayoutsData},
+    connector::utils::{PaymentMethodDataType, PayoutsData},
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -1473,9 +1473,14 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         )];
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let payout_type = req.request.payout_type.to_owned().get_required_value("payout_type").change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "payout_type",
-        })?;
+        let payout_type = req
+            .request
+            .payout_type
+            .to_owned()
+            .get_required_value("payout_type")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "payout_type",
+            })?;
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match payout_type {

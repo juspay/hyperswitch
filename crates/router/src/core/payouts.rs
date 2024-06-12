@@ -2004,9 +2004,7 @@ pub async fn payout_create_db_entries(
 
     // Make payouts entry
     let currency = req.currency.to_owned().get_required_value("currency")?;
-    let payout_type = req
-        .payout_type
-        .to_owned();
+    let payout_type = req.payout_type.to_owned();
 
     let payout_method_id = if stored_payout_method_data.is_some() {
         req.payout_token.to_owned()

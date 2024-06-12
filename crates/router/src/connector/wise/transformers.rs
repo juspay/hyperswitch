@@ -9,7 +9,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{self, RouterData,PayoutsData},
+    connector::utils::{self, PayoutsData, RouterData},
     types::{
         api::payouts,
         storage::enums::{self as storage_enums, PayoutEntityType},
@@ -366,7 +366,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             }),
         }?;
         let payout_type = request.get_payout_type()?;
-        match payout_type{
+        match payout_type {
             storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Wise"),
@@ -533,7 +533,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let payout_type = item.request.get_payout_type()?;
-         match payout_type {
+        match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
                 fund_type: FundType::default(),
             }),

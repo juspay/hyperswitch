@@ -7,7 +7,7 @@ use super::Error;
 use crate::{
     connector::{
         adyen::transformers as adyen,
-        utils::{self, RouterData,PayoutsData},
+        utils::{self, PayoutsData, RouterData},
     },
     core::errors,
     types::{self, api::payouts, storage::enums},

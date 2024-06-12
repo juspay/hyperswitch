@@ -11,7 +11,8 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, PayoutsData, PhoneDetailsData, RouterData
+        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
+        PaymentsAuthorizeRequestData, PayoutsData, PhoneDetailsData, RouterData,
     },
     consts,
     core::errors,
