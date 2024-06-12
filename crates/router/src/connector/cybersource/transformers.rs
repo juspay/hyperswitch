@@ -16,7 +16,7 @@ use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, PayoutsData,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
         RecurringMandateData, RouterData,
     },
     consts,
@@ -31,6 +31,11 @@ use crate::{
         ApplePayPredecryptData,
     },
     unimplemented_payment_method,
+};
+
+#[cfg(feature = "payouts")]
+use crate::{
+    connector::utils::PayoutsData
 };
 
 #[derive(Debug, Serialize)]

@@ -12,7 +12,7 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
-        PaymentsAuthorizeRequestData, PayoutsData, PhoneDetailsData, RouterData,
+        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
     },
     consts,
     core::errors,
@@ -29,7 +29,7 @@ use crate::{
     utils as crate_utils,
 };
 #[cfg(feature = "payouts")]
-use crate::{types::api::payouts, utils::OptionExt};
+use crate::{types::api::payouts, utils::OptionExt,connector::utils::PayoutsData};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
