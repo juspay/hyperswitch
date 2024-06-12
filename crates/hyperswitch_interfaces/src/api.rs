@@ -83,8 +83,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn handle_response(
         &self,
         data: &RouterData<T, Req, Resp>,
-        event_builder: Option<&mut ConnectorEvent>, //interfaces
-        _res: types::Response,                      //interfaces
+        event_builder: Option<&mut ConnectorEvent>,
+        _res: types::Response,
     ) -> CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
     where
         T: Clone,
