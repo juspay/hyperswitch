@@ -97,7 +97,6 @@ impl<
                             .response
                             .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
                             .change_context(errors::CryptoError::EncodingFailed);
-                        println!("==================");
                         match encrypt_object {
                             Ok(encrypted) => Ok(Self::new(
                                 masked_data,
@@ -143,7 +142,6 @@ impl<
                             .response
                             .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
                             .change_context(errors::CryptoError::DecodingFailed);
-                        println!("==================");
                         match decrypt_object {
                             Ok(decrypted) => Ok(Self::new(
                                 String::from_utf8_lossy(decrypted.data.inner().peek())
@@ -222,7 +220,6 @@ impl<
                             .response
                             .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
                             .change_context(errors::CryptoError::EncodingFailed);
-                        println!("==================");
                         match encrypt_object {
                             Ok(encrypted) => Ok(Self::new(
                                 masked_data,
@@ -268,7 +265,6 @@ impl<
                             .response
                             .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
                             .change_context(errors::CryptoError::DecodingFailed);
-                        println!("==================");
                         match decrypt_object {
                             Ok(decrypted) => {
                                 let value: Result<serde_json::Value, serde_json::Error> =
@@ -352,7 +348,6 @@ impl<
                             .response
                             .parse_struct::<EncryptDataResponse>("EncryptDataResponse")
                             .change_context(errors::CryptoError::EncodingFailed);
-                        println!("==================");
                         match encrypt_object {
                             Ok(encrypted) => Ok(Self::new(
                                 masked_data.clone(),
@@ -398,7 +393,6 @@ impl<
                             .response
                             .parse_struct::<DecryptDataResponse>("DecryptDataResponse")
                             .change_context(errors::CryptoError::DecodingFailed);
-                        println!("==================");
                         match decrypt_object {
                             Ok(decrypted) => Ok(Self::new(
                                 decrypted.data.inner().peek().clone().into(),
