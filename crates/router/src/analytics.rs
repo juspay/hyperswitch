@@ -222,7 +222,7 @@ pub mod routes {
     ) -> impl Responder {
         #[allow(clippy::expect_used)]
         // safety: This shouldn't panic owing to the data type
-        let payload: GetFrmMetricRequest = json_payload
+        let payload = json_payload
             .into_inner()
             .to_vec()
             .pop()
