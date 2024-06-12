@@ -25,9 +25,11 @@ pub type DeleteFromBlocklistRequest = BlocklistRequest;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistResponse {
+    /// Identifier for Payment Fingerprint 
     pub fingerprint_id: String,
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
+    /// Date of creation (YYYY-MM-DD)
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
 }
@@ -39,6 +41,7 @@ pub struct GenerateFingerprintResponsePayload {
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleBlocklistResponse {
+    /// Status of the Blocklist Toggle
     pub blocklist_guard_status: String,
 }
 

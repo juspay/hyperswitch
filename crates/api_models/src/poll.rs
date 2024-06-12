@@ -4,12 +4,13 @@ use utoipa::ToSchema;
 
 #[derive(Debug, ToSchema, Clone, Serialize)]
 pub struct PollResponse {
-    /// The poll id
+    /// The identifier for poll 
     pub poll_id: String,
     /// Status of the poll
     pub status: PollStatus,
 }
 
+/// Status of the poll
 #[derive(Debug, strum::Display, strum::EnumString, Clone, serde::Serialize, ToSchema)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
