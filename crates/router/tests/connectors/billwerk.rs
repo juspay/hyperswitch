@@ -11,7 +11,7 @@ impl utils::Connector for BillwerkTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Billwerk;
         utils::construct_connector_data_old(
-            Box::new(&Billwerk),
+            Box::new(Billwerk::new()),
             // Added as Dummy connector as template code is added for future usage
             types::Connector::DummyConnector1,
             types::api::GetToken::Connector,

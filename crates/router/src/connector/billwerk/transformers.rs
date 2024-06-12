@@ -11,16 +11,17 @@ use crate::{
     core::errors,
     types::{self, api, domain, storage::enums},
 };
+use common_utils::types::MinorUnit;
 
 pub struct BillwerkRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BillwerkRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for BillwerkRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (amount, item): (MinorUnit, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -163,7 +164,7 @@ pub struct BillwerkCustomerObject {
 #[derive(Debug, Serialize)]
 pub struct BillwerkPaymentsRequest {
     handle: String,
-    amount: i64,
+    amount: MinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
@@ -293,7 +294,7 @@ impl<F, T>
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCaptureRequest {
-    amount: i64,
+    amount: MinorUnit,
 }
 
 impl TryFrom<&BillwerkRouterData<&types::PaymentsCaptureRouterData>> for BillwerkCaptureRequest {
@@ -311,7 +312,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsCaptureRouterData>> for Billwer
 #[derive(Debug, Serialize)]
 pub struct BillwerkRefundRequest {
     pub invoice: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub text: Option<String>,
 }
 
