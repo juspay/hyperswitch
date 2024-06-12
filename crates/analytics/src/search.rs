@@ -4,12 +4,11 @@ use api_models::analytics::search::{
 };
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
-use serde_json::Value;
-use strum::IntoEnumIterator;
-
+use log::error;
 use crate::opensearch::{
     OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
 };
+use strum::IntoEnumIterator;
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
@@ -26,7 +25,7 @@ pub async fn msearch_results(
         .execute(query_builder)
         .await
         .change_context(OpenSearchError::ConnectionError)?
-        .json::<OpenMsearchOutput<Value>>()
+        .json::<OpenMsearchOutput>()
         .await
         .change_context(OpenSearchError::ResponseError)?;
 
@@ -34,15 +33,36 @@ pub async fn msearch_results(
         .responses
         .into_iter()
         .zip(SearchIndex::iter())
-        .map(|(index_hit, index)| GetSearchResponse {
-            count: index_hit.hits.total.value,
-            index,
-            hits: index_hit
-                .hits
-                .hits
-                .into_iter()
-                .map(|hit| hit._source)
-                .collect(),
+        .map(|(index_hit, index)| {
+            match index_hit {
+                OpensearchOutput::Success(success) => {
+                    if success.status == 200 {
+                        GetSearchResponse {
+                            count: success.hits.total.value,
+                            index,
+                            hits: success.hits.hits.into_iter().map(|hit| hit._source).collect(),
+                        }
+                    } else {
+                        error!("Unexpected status code: {}", success.status);
+                        GetSearchResponse {
+                            count: 0,
+                            index,
+                            hits: Vec::new(),
+                        }
+                    }
+                },
+                OpensearchOutput::Error(error) => {
+                    error!(
+                        "Search error for index {:?}: type = {}, reason = {}, status = {}",
+                        index, error.error.error_type, error.error.reason, error.status
+                    );
+                    GetSearchResponse {
+                        count: 0,
+                        index,
+                        hits: Vec::new(),
+                    }
+                }
+            }
         })
         .collect())
 }
@@ -69,18 +89,37 @@ pub async fn search_results(
         .execute(query_builder)
         .await
         .change_context(OpenSearchError::ConnectionError)?
-        .json::<OpensearchOutput<Value>>()
+        .json::<OpensearchOutput>()
         .await
         .change_context(OpenSearchError::ResponseError)?;
 
-    Ok(GetSearchResponse {
-        count: response_body.hits.total.value,
-        index: req.index,
-        hits: response_body
-            .hits
-            .hits
-            .into_iter()
-            .map(|hit| hit._source)
-            .collect(),
-    })
+    match response_body {
+        OpensearchOutput::Success(success) => {
+            if success.status == 200 {
+                Ok(GetSearchResponse {
+                    count: success.hits.total.value,
+                    index: req.index,
+                    hits: success.hits.hits.into_iter().map(|hit| hit._source).collect(),
+                })
+            } else {
+                error!("Unexpected status code: {}", success.status);
+                Ok(GetSearchResponse {
+                    count: 0,
+                    index: req.index,
+                    hits: Vec::new(),
+                })
+            }
+        },
+        OpensearchOutput::Error(error) => {
+            error!(
+                "Search error for index {:?}: type = {}, reason = {}, status = {}",
+                req.index, error.error.error_type, error.error.reason, error.status
+            );
+            Ok(GetSearchResponse {
+                count: 0,
+                index: req.index,
+                hits: Vec::new(),
+            })
+        }
+    }
 }

@@ -48,19 +48,50 @@ pub struct GetSearchResponse {
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct OpenMsearchOutput<T> {
-    pub responses: Vec<OpensearchOutput<T>>,
+pub struct OpenMsearchOutput {
+    pub responses: Vec<OpensearchOutput>,
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct OpensearchOutput<T> {
-    pub hits: OpensearchResults<T>,
+#[serde(untagged)]
+pub enum OpensearchOutput {
+    Success(OpensearchSuccess),
+    Error(OpensearchError),
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct OpensearchResults<T> {
+pub struct OpensearchError {
+    pub error: OpensearchErrorDetails,
+    pub status: u16,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct OpensearchErrorDetails {
+    #[serde(rename = "type")]
+    pub error_type: String,
+    pub reason: String,
+}
+
+impl OpensearchError {
+    pub fn error_type(&self) -> &str {
+        &self.error.error_type
+    }
+
+    pub fn reason(&self) -> &str {
+        &self.error.reason
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct OpensearchSuccess {
+    pub status: u16,
+    pub hits: OpensearchHits,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct OpensearchHits {
     pub total: OpensearchResultsTotal,
-    pub hits: Vec<OpensearchHits<T>>,
+    pub hits: Vec<OpensearchHit>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -69,6 +100,6 @@ pub struct OpensearchResultsTotal {
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct OpensearchHits<T> {
-    pub _source: T,
+pub struct OpensearchHit {
+    pub _source: Value,
 }
