@@ -206,7 +206,7 @@ pub async fn create_payout_link(
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "pm_collect_link_config in merchant_account",
+            field_name: "payout_link_config in merchant_account",
         })?;
     let ui_config = &req.ui_config;
     // Create client secret
@@ -218,7 +218,7 @@ pub async fn create_payout_link(
                 .clone()
                 .parse_value::<admin::MerchantCollectLinkConfig>("MerchantCollectLinkConfig")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "pm_collect_link_config in merchant_account",
+                    field_name: "payout_link_config in merchant_account",
                 })?
                 .ui_config
         }

@@ -33,9 +33,9 @@ pub struct Payouts {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
-    pub priority: Option<storage_enums::PayoutSendPriority>,
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(
@@ -74,9 +74,9 @@ pub struct PayoutsNew {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
-    pub priority: Option<storage_enums::PayoutSendPriority>,
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

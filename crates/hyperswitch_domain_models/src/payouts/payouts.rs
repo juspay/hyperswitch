@@ -90,9 +90,9 @@ pub struct Payouts {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
-    pub priority: Option<storage_enums::PayoutSendPriority>,
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -118,9 +118,9 @@ pub struct PayoutsNew {
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
-    pub priority: Option<storage_enums::PayoutSendPriority>,
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 impl Default for PayoutsNew {
@@ -149,9 +149,9 @@ impl Default for PayoutsNew {
             profile_id: String::default(),
             status: storage_enums::PayoutStatus::default(),
             confirm: None,
-            priority: None,
             payout_link_id: Option::default(),
             client_secret: Option::default(),
+            priority: None,
         }
     }
 }
