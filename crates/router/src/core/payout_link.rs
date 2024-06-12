@@ -43,7 +43,7 @@ pub async fn initiate_payout_link(
         })?;
     // Fetch payout link
     let payout_link = db
-        .find_pm_collect_link_by_link_id(&payout_link_id)
+        .find_payout_link_by_link_id(&payout_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "payout link not found".to_string(),
@@ -54,7 +54,7 @@ pub async fn initiate_payout_link(
     let status = payout_link.link_status;
     let link_data = payout_link.link_data;
     match status {
-        enums::PaymentMethodCollectStatus::Initiated => {
+        enums::PayoutLinkStatus::Initiated => {
             // if expired, send back expired status page
             if has_expired {
                 let expired_link_data = services::GenericExpiredLinkData {
@@ -68,10 +68,7 @@ pub async fn initiate_payout_link(
 
             // else, send back form link
             } else {
-                let customer_id = CustomerId::from(payout_link.primary_reference.clone().into())
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "customer_id",
-                    })?;
+                let customer_id = link_data.customer_id;
                 // Fetch customer
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
@@ -101,6 +98,7 @@ pub async fn initiate_payout_link(
                         .into(),
                     client_secret: link_data.client_secret.clone(),
                     payout_link_id: payout_link.link_id,
+                    payout_id: payout_link.primary_reference,
                     customer_id: customer.customer_id,
                     session_expiry: payout_link.expiry,
                     return_url: payout_link.return_url,
@@ -114,7 +112,7 @@ pub async fn initiate_payout_link(
                 let serialized_css_content = "".to_string();
 
                 let serialized_js_content =
-                    format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);
+                    format!("window.__PAYOUT_DETAILS = {}", serialize(&js_data)?);
 
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
@@ -123,26 +121,27 @@ pub async fn initiate_payout_link(
                     html_meta_tags: "".to_string(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::PaymentMethodCollect(generic_form_data),
+                    GenericLinks::PayoutLink(generic_form_data),
                 )))
             }
         }
 
         // Send back status page
         status => {
-            let js_data = api_models::payment_methods::PaymentMethodCollectLinkStatusDetails {
-                pm_collect_link_id: payout_link.link_id,
+            let js_data = payouts::PayoutLinkStatusDetails {
+                payout_link_id: payout_link.link_id,
+                payout_id: payout_link.primary_reference,
                 customer_id: link_data.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link.return_url,
-                ui_config: link_data.ui_config,
                 status,
+                ui_config: link_data.ui_config,
             };
 
             let serialized_css_content = "".to_string();
 
             let serialized_js_content =
-                format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);
+                format!("window.__PAYOUT_DETAILS = {}", serialize(&js_data)?);
 
             let generic_status_data = services::GenericLinkStatusData {
                 js_data: serialized_js_content,

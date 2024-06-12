@@ -96,12 +96,20 @@ impl Default for GenericLinkNew {
 #[serde(untagged)]
 pub enum GenericLinkData {
     PaymentMethodCollect(PaymentMethodCollectLinkData),
+    PayoutLink(PayoutLinkData),
 }
 
 impl GenericLinkData {
     pub fn get_payment_method_collect_data(&self) -> Result<&PaymentMethodCollectLinkData, String> {
         match self {
             Self::PaymentMethodCollect(pm) => Ok(pm),
+            _ => Err("Invalid link type for fetching payment method collect data".to_string()),
+        }
+    }
+    pub fn get_payout_link_data(&self) -> Result<&PayoutLinkData, String> {
+        match self {
+            Self::PayoutLink(pl) => Ok(pl),
+            _ => Err("Invalid link type for fetching payout link data".to_string()),
         }
     }
 }
@@ -135,4 +143,38 @@ pub struct PaymentMethodCollectLinkData {
     #[serde(flatten)]
     pub ui_config: storage_enums::CollectLinkConfig,
     pub enabled_payment_methods: Vec<storage_enums::EnabledPaymentMethod>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PayoutLink {
+    pub link_id: String,
+    pub primary_reference: String,
+    pub merchant_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: PrimitiveDateTime,
+    pub link_data: PayoutLinkData,
+    pub link_status: storage_enums::PayoutLinkStatus,
+    pub link_type: storage_enums::GenericLinkType,
+    pub url: Secret<String>,
+    pub return_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayoutLinkData {
+    pub payout_link_id: String,
+    pub customer_id: id_type::CustomerId,
+    pub payout_id: String,
+    pub sdk_host: String,
+    pub link: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub session_expiry: u32,
+    #[serde(flatten)]
+    pub ui_config: storage_enums::CollectLinkConfig,
+    pub enabled_payment_methods: Vec<storage_enums::EnabledPaymentMethod>,
+    pub amount: i64,
+    pub currency: storage_enums::Currency,
 }

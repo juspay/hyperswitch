@@ -697,8 +697,8 @@ pub struct PayoutListFilters {
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutLinkResponse {
-    pub link: Secret<String>,
     pub payout_link_id: String,
+    pub link: Secret<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -712,6 +712,7 @@ pub struct PayoutLinkDetails {
     pub pub_key: Secret<String>,
     pub client_secret: Secret<String>,
     pub payout_link_id: String,
+    pub payout_id: String,
     pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,
@@ -722,6 +723,19 @@ pub struct PayoutLinkDetails {
     pub amount: i64,
     pub currency: common_enums::Currency,
     pub flow: PayoutLinkFlow,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutLinkStatusDetails {
+    pub payout_link_id: String,
+    pub payout_id: String,
+    pub customer_id: id_type::CustomerId,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: PrimitiveDateTime,
+    pub return_url: Option<String>,
+    pub status: api_enums::PayoutLinkStatus,
+    #[serde(flatten)]
+    pub ui_config: api_enums::CollectLinkConfig,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

@@ -1052,7 +1052,7 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
-        #[max_length = 255]
+        #[max_length = 64]
         payout_link_id -> Nullable<Varchar>,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,

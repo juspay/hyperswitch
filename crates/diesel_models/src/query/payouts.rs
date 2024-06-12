@@ -1,5 +1,6 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
+use router_env::logger;
 
 use super::generics;
 use crate::{
@@ -11,7 +12,16 @@ use crate::{
 
 impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
-        generics::generic_insert(conn, self).await
+        match generics::generic_insert(conn, self).await {
+            Ok(v) => {
+                logger::debug!("[DEBUG], {:?}", v);
+                Ok(v)
+            }
+            Err(e) => {
+                logger::debug!("[DEBUG] [ERR], {:?}", e);
+                Err(e)
+            }
+        }
     }
 }
 impl Payouts {

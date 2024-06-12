@@ -7,7 +7,7 @@ use std::vec::IntoIter;
 
 use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii, types::MinorUnit};
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, generic_link::PayoutLink};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
@@ -58,7 +58,7 @@ pub struct PayoutData {
     pub payout_method_data: Option<payouts::PayoutMethodData>,
     pub profile_id: String,
     pub should_terminate: bool,
-    pub payout_link_data: Option<PayoutLinkResponse>,
+    pub payout_link: Option<PayoutLink>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -1927,6 +1927,7 @@ pub async fn response_handler(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let payouts = payout_data.payouts.to_owned();
+    let payout_link = payout_data.payout_link.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
@@ -1989,7 +1990,10 @@ pub async fn response_handler(
         connector_transaction_id: payout_attempt.connector_payout_id,
         priority: payouts.priority,
         attempts: None,
-        payout_link: payout_data.payout_link_data.to_owned(),
+        payout_link: payout_link.map(|payout_link| PayoutLinkResponse {
+            payout_link_id: payout_link.link_id.clone(),
+            link: payout_link.url.into(),
+        }),
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -2038,15 +2042,29 @@ pub async fn payout_create_db_entries(
                     field_name: "payout_link_config",
                 })
             })?;
-            validator::create_payout_link(
-                state,
-                merchant_account,
-                payout_link_config,
-                &customer_id,
-                req.return_url.to_owned(),
-                payout_id,
+            Some(
+                validator::create_payout_link(
+                    state,
+                    merchant_account,
+                    payout_link_config,
+                    &customer_id,
+                    req.return_url.to_owned(),
+                    payout_id,
+                    req.amount
+                        .as_ref()
+                        .get_required_value("amount")
+                        .attach_printable(
+                            "amount is a required value when creating payout links",
+                        )?,
+                    req.currency
+                        .as_ref()
+                        .get_required_value("currency")
+                        .attach_printable(
+                            "currency is a required value when creating payout links",
+                        )?,
+                )
+                .await?,
             )
-            .await?
         } else {
             None
         }
@@ -2054,14 +2072,6 @@ pub async fn payout_create_db_entries(
         None
     };
 
-    let payout_link_data = payout_link.as_ref().map(|link_data| PayoutLinkResponse {
-        link: link_data.link.clone(),
-        payout_link_id: link_data.pm_collect_link_id.clone(),
-    });
-
-    let payout_link_id = payout_link_data
-        .clone()
-        .map(|link_data| link_data.payout_link_id);
     // Get or create address
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         db,
@@ -2119,9 +2129,11 @@ pub async fn payout_create_db_entries(
         attempt_count: 1,
         metadata: req.metadata.clone(),
         confirm: req.confirm,
-        priority: req.priority,
-        payout_link_id: payout_link_id.clone(),
+        payout_link_id: payout_link
+            .clone()
+            .map(|link_data| link_data.link_id.clone()),
         client_secret: Some(client_secret),
+        priority: req.priority,
         ..Default::default()
     };
     let payouts = db
@@ -2131,7 +2143,6 @@ pub async fn payout_create_db_entries(
             payout_id: payout_id.to_owned(),
         })
         .attach_printable("Error inserting payouts in db")?;
-    logger::debug!("{:?}", payout_link_id.clone());
     // Make payout_attempt entry
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
@@ -2190,7 +2201,7 @@ pub async fn payout_create_db_entries(
             .or(stored_payout_method_data.cloned()),
         should_terminate: false,
         profile_id: profile_id.to_owned(),
-        payout_link_data,
+        payout_link,
     })
 }
 
@@ -2296,7 +2307,7 @@ pub async fn make_payout_data(
         merchant_connector_account: None,
         should_terminate: false,
         profile_id,
-        payout_link_data: None, // Should be changed
+        payout_link: None, // Should be changed
     })
 }
 

@@ -1,19 +1,22 @@
-use api_models::admin;
+use api_models::{admin, payments::Amount};
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::{ext_traits::ValueExt, id_type::CustomerId};
-use diesel_models::{enums::CollectLinkConfig, generic_link::PaymentMethodCollectLinkData};
+use common_utils::{ext_traits::ValueExt, id_type::CustomerId, types::MinorUnit};
+use diesel_models::{
+    enums::{self, CollectLinkConfig, PayoutLinkStatus},
+    generic_link::{GenericLinkNew, PayoutLink, PayoutLinkData},
+};
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use time::Duration;
 
 use super::helpers;
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult},
-        payment_methods::create_pm_collect_db_entry,
+        errors::{self, RouterResult, StorageErrorExt},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -191,7 +194,9 @@ pub async fn create_payout_link(
     customer_id: &CustomerId,
     return_url: Option<String>,
     payout_id: &String,
-) -> RouterResult<Option<PaymentMethodCollectLinkData>> {
+    amount: &Amount,
+    currency: &enums::Currency,
+) -> RouterResult<PayoutLink> {
     // Create payment method collect link ID
     let payout_link_id =
         core_utils::get_or_generate_id("payout_link_id", &req.payout_link_id, "payout_link")?;
@@ -265,19 +270,53 @@ pub async fn create_payout_link(
         _ => default_config.enabled_payment_methods.clone(),
     };
 
-    let data = PaymentMethodCollectLinkData {
-        pm_collect_link_id: payout_link_id.clone(),
+    let data = PayoutLinkData {
+        payout_link_id: payout_link_id.clone(),
         customer_id: customer_id.clone(),
-        link,
+        payout_id: payout_id.to_string(),
         sdk_host,
+        link,
         client_secret: Secret::new(client_secret),
         session_expiry,
         ui_config: payout_link_config,
         enabled_payment_methods,
+        amount: MinorUnit::from(amount.clone()).get_amount_as_i64(),
+        currency: currency.clone(),
     };
 
-    let _db_link_data =
-        create_pm_collect_db_entry(state, merchant_account, &data, return_url).await?;
+    create_payout_link_db_entry(state, merchant_account, &data, return_url).await
+}
 
-    Ok(Some(data))
+pub async fn create_payout_link_db_entry(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payout_link_data: &PayoutLinkData,
+    return_url: Option<String>,
+) -> RouterResult<PayoutLink> {
+    let db: &dyn StorageInterface = &*state.store;
+
+    let link_data = serde_json::to_value(payout_link_data)
+        .map_err(|_| report!(errors::ApiErrorResponse::InternalServerError))
+        .attach_printable("Failed to convert PayoutLinkData to Value")?;
+
+    let payout_link = GenericLinkNew {
+        link_id: payout_link_data.payout_link_id.to_string(),
+        primary_reference: payout_link_data.payout_id.to_string(),
+        merchant_id: merchant_account.merchant_id.to_string(),
+        link_type: common_enums::GenericLinkType::PayoutLink,
+        link_status: common_enums::GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated)
+            .to_string(),
+        link_data,
+        url: payout_link_data.link.clone(),
+        return_url,
+        expiry: common_utils::date_time::now()
+            + Duration::seconds(payout_link_data.session_expiry.into()),
+        ..Default::default()
+    };
+
+    db.insert_payout_link(payout_link)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: "payout link already exists".to_string(),
+        })
 }

@@ -1,4 +1,7 @@
-CREATE TYPE "GenericLinkType" as ENUM('payment_method_collect');
+CREATE TYPE "GenericLinkType" as ENUM(
+    'payment_method_collect',
+    'payout_link'
+);
 
 CREATE TABLE generic_link (
   link_id VARCHAR (64) NOT NULL PRIMARY KEY,

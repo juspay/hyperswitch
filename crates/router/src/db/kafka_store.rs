@@ -2854,6 +2854,13 @@ impl GenericLinkInterface for KafkaStore {
             .await
     }
 
+    async fn find_payout_link_by_link_id(
+        &self,
+        link_id: &str,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
+        self.diesel_store.find_payout_link_by_link_id(link_id).await
+    }
+
     async fn insert_generic_link(
         &self,
         generic_link: storage::GenericLinkNew,
@@ -2868,6 +2875,13 @@ impl GenericLinkInterface for KafkaStore {
         self.diesel_store
             .insert_pm_collect_link(pm_collect_link)
             .await
+    }
+
+    async fn insert_payout_link(
+        &self,
+        pm_collect_link: storage::GenericLinkNew,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
+        self.diesel_store.insert_payout_link(pm_collect_link).await
     }
 }
 

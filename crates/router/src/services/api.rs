@@ -849,6 +849,7 @@ pub enum ApplicationResponse<R> {
 pub enum GenericLinks {
     ExpiredLink(GenericExpiredLinkData),
     PaymentMethodCollect(GenericLinkFormData),
+    PayoutLink(GenericLinkFormData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
 }
 

@@ -9,6 +9,7 @@ pub fn build_generic_link_html(
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     match boxed_generic_link_data {
         GenericLinks::ExpiredLink(link_data) => build_generic_expired_link_html(&link_data),
+        GenericLinks::PayoutLink(payout_link_data) => build_payout_link_html(&payout_link_data),
         GenericLinks::PaymentMethodCollect(pm_collect_data) => {
             build_pm_collect_link_html(&pm_collect_data)
         }
@@ -32,6 +33,67 @@ pub fn build_generic_expired_link_html(
     context.insert("theme", &link_data.theme);
 
     match tera.render("generic_expired_link", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            logger::error!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+pub fn build_payout_link_html(
+    link_data: &GenericLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let mut tera = Tera::default();
+    let mut context = Context::new();
+
+    // Insert dynamic context in CSS
+    let css_dynamic_context = "{{ color_scheme }}";
+    let css_template =
+        include_str!("../../core/generic_link/payout_link/initiate/styles.css").to_string();
+    let final_css = format!("{}\n{}", css_dynamic_context, css_template);
+    let _ = tera.add_raw_template("payout_link_styles", &final_css);
+    context.insert("color_scheme", &link_data.css_data);
+
+    let css_style_tag = match tera.render("payout_link_styles", &context) {
+        Ok(css) => format!("<style>{}</style>", css),
+        Err(tera_error) => {
+            logger::error!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Insert dynamic context in JS
+    let js_dynamic_context = "{{ payout_link_context }}";
+    let js_template =
+        include_str!("../../core/generic_link/payout_link/initiate/script.js").to_string();
+    let final_js = format!("{}\n{}", js_dynamic_context, js_template);
+    let _ = tera.add_raw_template("payout_link_script", &final_js);
+    context.insert("payout_link_context", &link_data.js_data);
+
+    let js_script_tag = match tera.render("payout_link_script", &context) {
+        Ok(js) => format!("<script>{}</script>", js),
+        Err(tera_error) => {
+            logger::error!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Build HTML
+    let html_template =
+        include_str!("../../core/generic_link/payout_link/initiate/index.html").to_string();
+    let _ = tera.add_raw_template("payout_link", &html_template);
+    context.insert("css_style_tag", &css_style_tag);
+    context.insert("js_script_tag", &js_script_tag);
+    context.insert(
+        "hyper_sdk_loader_script_tag",
+        &format!(
+            r#"<script src="{}" onload="initializePayoutSDK()"></script>"#,
+            link_data.sdk_url
+        ),
+    );
+
+    match tera.render("payout_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
         Err(tera_error) => {
             logger::error!("{tera_error}");

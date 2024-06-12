@@ -88,12 +88,16 @@ where
         .await
     {
         Ok(value) => Ok(value),
-        Err(err) => match err {
-            DieselError::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-                Err(report!(err)).change_context(errors::DatabaseError::UniqueViolation)
+        Err(err) => {
+            logger::debug!("[DEBUG] [ERR], {:?}", err);
+            match err {
+                DieselError::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                ) => Err(report!(err)).change_context(errors::DatabaseError::UniqueViolation),
+                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
             }
-            _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
-        },
+        }
     }
     .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
 }

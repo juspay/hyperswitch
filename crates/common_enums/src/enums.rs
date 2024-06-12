@@ -2204,17 +2204,17 @@ pub enum PayoutEntityType {
     Copy,
     Debug,
     Eq,
-    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
+    Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "camelCase")]
-#[strum(serialize_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutSendPriority {
     Instant,
     Fast,
@@ -2770,18 +2770,21 @@ pub enum BankHolderType {
 pub enum GenericLinkType {
     #[default]
     PaymentMethodCollect,
+    PayoutLink,
 }
 
 #[derive(Clone, Copy, Debug, Hash, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GenericLinkStatus {
     PaymentMethodCollect(PaymentMethodCollectStatus),
+    PayoutLink(PayoutLinkStatus),
 }
 
 impl std::fmt::Display for GenericLinkStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::PaymentMethodCollect(s) => write!(f, "{}", s),
+            Self::PayoutLink(s) => write!(f, "{}", s),
         }
     }
 }
@@ -2790,6 +2793,30 @@ impl Default for GenericLinkStatus {
     fn default() -> Self {
         Self::PaymentMethodCollect(PaymentMethodCollectStatus::default())
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutLinkStatus {
+    #[default]
+    Initiated,
+    Invalidated,
+    Submitted,
 }
 
 #[derive(
