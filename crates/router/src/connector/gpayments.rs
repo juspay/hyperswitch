@@ -1,9 +1,10 @@
 pub mod gpayments_types;
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
 use transformers as gpayments;
 
@@ -21,8 +22,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Gpayments;
+#[derive(Clone)]
+pub struct Gpayments {
+    _amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Gpayments {
+    pub fn new() -> &'static Self {
+        &Self {
+            _amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Gpayments {}
 impl api::PaymentSession for Gpayments {}
@@ -258,7 +269,7 @@ impl
         req: &types::authentication::PreAuthNRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gpayments::GpaymentsRouterData::try_from((0, req))?;
+        let connector_router_data = gpayments::GpaymentsRouterData::from((MinorUnit::zero(), req));
         let req_obj =
             gpayments_types::GpaymentsPreAuthenticationRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
@@ -355,7 +366,7 @@ impl
         req: &types::authentication::PreAuthNVersionCallRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gpayments::GpaymentsRouterData::try_from((0, req))?;
+        let connector_router_data = gpayments::GpaymentsRouterData::from((MinorUnit::zero(), req));
         let req_obj =
             gpayments_types::GpaymentsPreAuthVersionCallRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))

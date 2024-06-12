@@ -11,7 +11,7 @@ impl utils::Connector for GpaymentsTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Gpayments;
         types::api::ConnectorData {
-            connector: Box::new(&Gpayments),
+            connector: Box::new(Gpayments::new()),
             connector_name: types::Connector::Threedsecureio,
             // Added as Dummy connector as template code is added for future usage
             get_token: types::api::GetToken::Connector,
