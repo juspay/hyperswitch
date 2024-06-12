@@ -11802,13 +11802,9 @@
       "MifinityData": {
         "type": "object",
         "required": [
-          "destination_account_number",
           "date_of_birth"
         ],
         "properties": {
-          "destination_account_number": {
-            "type": "string"
-          },
           "date_of_birth": {
             "type": "string",
             "format": "date"
