@@ -337,6 +337,7 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             klarna_region: api_model.klarna_region,
             source_balance_account: api_model.source_balance_account,
             brand_id: api_model.brand_id,
+            destination_account_number: api_model.destination_account_number,
         }
     }
 }
