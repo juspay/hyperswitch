@@ -4,6 +4,36 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.12.0
+
+### Features
+
+- **connector:**
+  - [Multisafepay] Add support for Ideal and Giropay ([#4398](https://github.com/juspay/hyperswitch/pull/4398)) ([`b01bbba`](https://github.com/juspay/hyperswitch/commit/b01bbba6ff9ea9acec6a83ad0dde327a377d9f6e))
+  - Implement auth and post auth flows for gpayments ([#4746](https://github.com/juspay/hyperswitch/pull/4746)) ([`d93f65f`](https://github.com/juspay/hyperswitch/commit/d93f65fd95a73b75d93290ac23ea4f73f22e6a7e))
+- **metrics:** Add support for gauge metrics and include IMC metrics ([#4939](https://github.com/juspay/hyperswitch/pull/4939)) ([`42cd769`](https://github.com/juspay/hyperswitch/commit/42cd769407f4a30e50d5b9826677a4dd310d97f4))
+
+### Bug Fixes
+
+- Add validation for connector authentication type during mca create and update operation ([#4932](https://github.com/juspay/hyperswitch/pull/4932)) ([`9f2476b`](https://github.com/juspay/hyperswitch/commit/9f2476b99a06e18f1a9a3f5d6d17f2659361616d))
+
+### Refactors
+
+- **conditional_configs:** Refactor conditional_configs to use Moka Cache instead of Static Cache ([#4814](https://github.com/juspay/hyperswitch/pull/4814)) ([`4d0c893`](https://github.com/juspay/hyperswitch/commit/4d0c89362a598dff87ec98b3e68d425cdfeef566))
+- **connector:**
+  - Changed amount to minor Unit for stripe ([#4786](https://github.com/juspay/hyperswitch/pull/4786)) ([`b705757`](https://github.com/juspay/hyperswitch/commit/b705757be37a9803b964ef94d04c664c0f1e102d))
+  - [Mifinity] Add dynamic fields for Mifinity Wallet ([#4943](https://github.com/juspay/hyperswitch/pull/4943)) ([`a949676`](https://github.com/juspay/hyperswitch/commit/a949676f8b9cdaac1975004e9984052cf5c3985e))
+- **cypress:** Fix payouts not running ([#4904](https://github.com/juspay/hyperswitch/pull/4904)) ([`bbcf034`](https://github.com/juspay/hyperswitch/commit/bbcf0340cac7b6ef854d6a99a370f948394cd09c))
+- Wrap the encryption and file storage interface client in appstate with `Arc` as opposed to `Box` ([#4949](https://github.com/juspay/hyperswitch/pull/4949)) ([`88cf904`](https://github.com/juspay/hyperswitch/commit/88cf904f5b01d890c25ff7fe22d25c634ec5a785))
+
+### Miscellaneous Tasks
+
+- **euclid_wasm:** Update apple pay metadata ([#4930](https://github.com/juspay/hyperswitch/pull/4930)) ([`7b293ff`](https://github.com/juspay/hyperswitch/commit/7b293ff785e2cdc323eae13c1342d9e65067402f))
+
+**Full Changelog:** [`2024.06.11.0...2024.06.12.0`](https://github.com/juspay/hyperswitch/compare/2024.06.11.0...2024.06.12.0)
+
+- - -
+
 ## 2024.06.11.0
 
 ### Features

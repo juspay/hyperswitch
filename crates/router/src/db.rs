@@ -325,7 +325,7 @@ impl FraudCheckInterface for KafkaStore {
                 .log_fraud_check(&fraud_check, None, self.tenant_id.clone())
                 .await
             {
-                logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er);
+                logger::error!(message="Failed to log analytics event for frm {attempt:?}", error_message=?er);
             }
         }
         Ok(frm)

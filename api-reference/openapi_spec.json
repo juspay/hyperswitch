@@ -9481,6 +9481,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_date_of_birth"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
