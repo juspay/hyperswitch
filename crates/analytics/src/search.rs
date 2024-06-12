@@ -5,10 +5,11 @@ use api_models::analytics::search::{
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
 use log::error;
+use strum::IntoEnumIterator;
+
 use crate::opensearch::{
     OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
 };
-use strum::IntoEnumIterator;
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
@@ -33,34 +34,37 @@ pub async fn msearch_results(
         .responses
         .into_iter()
         .zip(SearchIndex::iter())
-        .map(|(index_hit, index)| {
-            match index_hit {
-                OpensearchOutput::Success(success) => {
-                    if success.status == 200 {
-                        GetSearchResponse {
-                            count: success.hits.total.value,
-                            index,
-                            hits: success.hits.hits.into_iter().map(|hit| hit._source).collect(),
-                        }
-                    } else {
-                        error!("Unexpected status code: {}", success.status);
-                        GetSearchResponse {
-                            count: 0,
-                            index,
-                            hits: Vec::new(),
-                        }
+        .map(|(index_hit, index)| match index_hit {
+            OpensearchOutput::Success(success) => {
+                if success.status == 200 {
+                    GetSearchResponse {
+                        count: success.hits.total.value,
+                        index,
+                        hits: success
+                            .hits
+                            .hits
+                            .into_iter()
+                            .map(|hit| hit._source)
+                            .collect(),
                     }
-                },
-                OpensearchOutput::Error(error) => {
-                    error!(
-                        "Search error for index {:?}: type = {}, reason = {}, status = {}",
-                        index, error.error.error_type, error.error.reason, error.status
-                    );
+                } else {
+                    error!("Unexpected status code: {}", success.status);
                     GetSearchResponse {
                         count: 0,
                         index,
                         hits: Vec::new(),
                     }
+                }
+            }
+            OpensearchOutput::Error(error) => {
+                error!(
+                    "Search error for index {:?}: type = {}, reason = {}, status = {}",
+                    index, error.error.error_type, error.error.reason, error.status
+                );
+                GetSearchResponse {
+                    count: 0,
+                    index,
+                    hits: Vec::new(),
                 }
             }
         })
@@ -99,7 +103,12 @@ pub async fn search_results(
                 Ok(GetSearchResponse {
                     count: success.hits.total.value,
                     index: req.index,
-                    hits: success.hits.hits.into_iter().map(|hit| hit._source).collect(),
+                    hits: success
+                        .hits
+                        .hits
+                        .into_iter()
+                        .map(|hit| hit._source)
+                        .collect(),
                 })
             } else {
                 error!("Unexpected status code: {}", success.status);
@@ -109,7 +118,7 @@ pub async fn search_results(
                     hits: Vec::new(),
                 })
             }
-        },
+        }
         OpensearchOutput::Error(error) => {
             error!(
                 "Search error for index {:?}: type = {}, reason = {}, status = {}",
