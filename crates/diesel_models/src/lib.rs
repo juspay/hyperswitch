@@ -28,6 +28,7 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod org_authentication_method;
 pub mod organization;
 pub mod payment_attempt;
 pub mod payment_intent;

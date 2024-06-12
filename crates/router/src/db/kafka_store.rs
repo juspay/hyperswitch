@@ -31,6 +31,7 @@ use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
+    org_authentication_method::OrgAuthenticationMethodInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_key_store::UserKeyStoreInterface,
@@ -2852,6 +2853,38 @@ impl UserKeyStoreInterface for KafkaStore {
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         self.diesel_store
             .get_user_key_store_by_user_id(user_id, key)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl OrgAuthenticationMethodInterface for KafkaStore {
+    async fn insert_org_authentication_method(
+        &self,
+        org_authentication_method: storage::OrgAuthenticationMethodNew,
+    ) -> CustomResult<storage::OrgAuthenticationMethod, errors::StorageError> {
+        self.diesel_store
+            .insert_org_authentication_method(org_authentication_method)
+            .await
+    }
+
+    async fn get_org_authentication_methods_details(
+        &self,
+        org_id: &str,
+    ) -> CustomResult<Vec<storage::OrgAuthenticationMethod>, errors::StorageError> {
+        self.diesel_store
+            .get_org_authentication_methods_details(org_id)
+            .await
+    }
+
+    async fn update_org_authentication_method(
+        &self,
+        org_id: &str,
+        auth_method: enums::AuthMethod,
+        org_authentication_method_update: storage::OrgAuthenticationMethodUpdate,
+    ) -> CustomResult<storage::OrgAuthenticationMethod, errors::StorageError> {
+        self.diesel_store
+            .update_org_authentication_method(org_id, auth_method, org_authentication_method_update)
             .await
     }
 }

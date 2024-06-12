@@ -25,6 +25,7 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod org_authentication_method;
 pub mod payment_attempt;
 pub mod payment_link;
 pub mod payment_method;
@@ -59,9 +60,9 @@ pub use self::{
     blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, capture::*, cards_info::*,
     configs::*, customers::*, dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*,
     file::*, fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
-    merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
-    process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*, user::*,
-    user_role::*,
+    merchant_connector_account::*, merchant_key_store::*, org_authentication_method::*,
+    payment_link::*, payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
+    routing_algorithm::*, user::*, user_role::*,
 };
 use crate::types::api::routing;
 

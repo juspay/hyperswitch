@@ -701,6 +701,21 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    org_authentication_methods (id) {
+        id -> Int4,
+        #[max_length = 64]
+        org_id -> Varchar,
+        auth_method -> AuthMethod,
+        auth_config -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     organization (org_id) {
         #[max_length = 32]
         org_id -> Varchar,
@@ -1260,6 +1275,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
+    org_authentication_methods,
     organization,
     payment_attempt,
     payment_intent,
