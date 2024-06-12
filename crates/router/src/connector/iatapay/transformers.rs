@@ -129,23 +129,56 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let country = item.router_data.get_billing_country()?;
         let return_url = item.router_data.get_return_url()?;
-        let (payer_info, preferred_checkout_method) =
+        let (country, payer_info, preferred_checkout_method) =
             match item.router_data.request.payment_method_data.clone() {
                 domain::PaymentMethodData::Upi(upi_type) => match upi_type {
                     domain::UpiData::UpiCollect(upi_data) => (
+                        common_enums::CountryAlpha2::IN,
                         upi_data.vpa_id.map(|id| PayerInfo {
                             token_id: id.switch_strategy(),
                         }),
                         Some(PreferredCheckoutMethod::Vpa),
                     ),
-                    domain::UpiData::UpiIntent(_) => (None, Some(PreferredCheckoutMethod::Qr)),
+                    domain::UpiData::UpiIntent(_) => (
+                        common_enums::CountryAlpha2::IN,
+                        None,
+                        Some(PreferredCheckoutMethod::Qr),
+                    ),
                 },
                 domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                     match bank_redirect_data {
-                        domain::BankRedirectData::Ideal { .. }
-                        | domain::BankRedirectData::LocalBankRedirect {} => (None, None),
+                        domain::BankRedirectData::Ideal { .. } => {
+                            (common_enums::CountryAlpha2::NL, None, None)
+                        }
+                        domain::BankRedirectData::LocalBankRedirect {} => {
+                            let billing_country = item.router_data.get_billing_country()?;
+                            (
+                                if matches!(
+                                    billing_country,
+                                    common_enums::CountryAlpha2::AT
+                                        | common_enums::CountryAlpha2::BE
+                                        | common_enums::CountryAlpha2::DE
+                                        | common_enums::CountryAlpha2::EE
+                                        | common_enums::CountryAlpha2::ES
+                                        | common_enums::CountryAlpha2::FI
+                                        | common_enums::CountryAlpha2::FR
+                                        | common_enums::CountryAlpha2::IE
+                                        | common_enums::CountryAlpha2::IT
+                                        | common_enums::CountryAlpha2::LU
+                                        | common_enums::CountryAlpha2::LV
+                                        | common_enums::CountryAlpha2::LT
+                                        | common_enums::CountryAlpha2::NL
+                                        | common_enums::CountryAlpha2::PT
+                                ) {
+                                    billing_country
+                                } else {
+                                    common_enums::CountryAlpha2::AT
+                                },
+                                None,
+                                None,
+                            )
+                        }
                         domain::BankRedirectData::BancontactCard { .. }
                         | domain::BankRedirectData::Bizum {}
                         | domain::BankRedirectData::Blik { .. }
@@ -172,10 +205,18 @@ impl
                 }
                 domain::PaymentMethodData::RealTimePayment(real_time_payment_data) => {
                     match *real_time_payment_data {
-                        domain::RealTimePaymentData::DuitNow {}
-                        | domain::RealTimePaymentData::Fps {}
-                        | domain::RealTimePaymentData::PromptPay {}
-                        | domain::RealTimePaymentData::VietQr {} => (None, None),
+                        domain::RealTimePaymentData::DuitNow {} => {
+                            (common_enums::CountryAlpha2::MY, None, None)
+                        }
+                        domain::RealTimePaymentData::Fps {} => {
+                            (common_enums::CountryAlpha2::HK, None, None)
+                        }
+                        domain::RealTimePaymentData::PromptPay {} => {
+                            (common_enums::CountryAlpha2::TH, None, None)
+                        }
+                        domain::RealTimePaymentData::VietQr {} => {
+                            (common_enums::CountryAlpha2::VN, None, None)
+                        }
                     }
                 }
                 domain::PaymentMethodData::Card(_)
