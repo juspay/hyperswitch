@@ -25,7 +25,7 @@ pub type DeleteFromBlocklistRequest = BlocklistRequest;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistResponse {
-    /// Identifier for Payment Fingerprint 
+    /// Identifier for Payment Fingerprint
     pub fingerprint_id: String,
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,

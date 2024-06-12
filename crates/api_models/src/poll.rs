@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 
 #[derive(Debug, ToSchema, Clone, Serialize)]
 pub struct PollResponse {
-    /// The identifier for poll 
+    /// The identifier for poll
     pub poll_id: String,
     /// Status of the poll
     pub status: PollStatus,
