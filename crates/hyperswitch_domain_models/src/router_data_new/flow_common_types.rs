@@ -131,8 +131,20 @@ pub struct MandateRevokeFlowData {
     pub payment_id: Option<String>,
 }
 
+#[derive(Debug, Clone)]
 pub struct WebhookSourceVerifyData {
     pub merchant_id: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct AccessTokenFlowData {}
+
+#[derive(Debug, Clone)]
+pub struct FilesFlowData {
+    pub merchant_id: String,
+    pub payment_id: String,
+    pub attempt_id: String,
+    pub return_url: Option<String>,
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+    pub connector_request_reference_id: String,
+}
