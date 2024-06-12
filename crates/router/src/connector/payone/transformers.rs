@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use cards::CardNumber;
+use common_utils::types::MinorUnit;
 #[cfg(feature = "payouts")]
 use error_stack::ResultExt;
 use masking::Secret;
@@ -30,24 +31,21 @@ use crate::{
 };
 
 pub struct PayoneRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, storage_enums::Currency, i64, T)> for PayoneRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &api::CurrencyUnit,
-            storage_enums::Currency,
-            i64,
+impl<T> From<(MinorUnit, T)> for PayoneRouterData<T> {
+    fn from(
+        ( amount, item): (
+            MinorUnit,
             T,
         ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -109,7 +107,7 @@ pub struct PayonePayoutFulfillRequest {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AmountOfMoney {
-    amount: i64,
+    amount: MinorUnit,
     currency_code: String,
 }
 
