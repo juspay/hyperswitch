@@ -77,11 +77,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
+        #[cfg(not(feature = "application_encryption"))]
         {
             Self::encrypt(masked_data, key, crypt_algo).await
         }
-        #[cfg(feature = "encryption_service")]
+        #[cfg(feature = "application_encryption")]
         {
             let request_body = EncryptDataRequest {
                 data: DecryptedData::from_data(StrongSecret::new(
@@ -89,7 +89,7 @@ impl<
                 )),
                 identifier: identifier.clone(),
             };
-            let result = call_encryption_service(state, "encrypt", request_body).await;
+            let result = call_encryption_service(state, "data/encrypt", request_body).await;
             match result {
                 Ok(response) => match response {
                     Ok(encrypt_response) => {
@@ -121,11 +121,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
+        #[cfg(not(feature = "application_encryption"))]
         {
             Self::decrypt(encrypted_data, key, crypt_algo).await
         }
-        #[cfg(feature = "encryption_service")]
+        #[cfg(feature = "application_encryption")]
         {
             let request_body = DecryptDataRequest {
                 data: EncryptedData {
@@ -134,7 +134,7 @@ impl<
                 },
                 identifier: identifier.clone(),
             };
-            let result = call_encryption_service(state, "decrypt", request_body).await;
+            let result = call_encryption_service(state, "data/decrypt", request_body).await;
             match result {
                 Ok(response) => match response {
                     Ok(decrypt_response) => {
@@ -200,11 +200,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
+        #[cfg(not(feature = "application_encryption"))]
         {
             Self::encrypt(masked_data, key, crypt_algo).await
         }
-        #[cfg(feature = "encryption_service")]
+        #[cfg(feature = "application_encryption")]
         {
             let request_body = EncryptDataRequest {
                 data: DecryptedData::from_data(StrongSecret::new(
@@ -212,7 +212,7 @@ impl<
                 )),
                 identifier: identifier.clone(),
             };
-            let result = call_encryption_service(state, "encrypt", request_body).await;
+            let result = call_encryption_service(state, "data/encrypt", request_body).await;
             match result {
                 Ok(response) => match response {
                     Ok(encrypt_response) => {
@@ -244,11 +244,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
+        #[cfg(not(feature = "application_encryption"))]
         {
             Self::decrypt(encrypted_data, key, crypt_algo).await
         }
-        #[cfg(feature = "encryption_service")]
+        #[cfg(feature = "application_encryption")]
         {
             let request_body = DecryptDataRequest {
                 data: EncryptedData {
@@ -257,7 +257,7 @@ impl<
                 },
                 identifier: identifier.clone(),
             };
-            let result = call_encryption_service(state, "decrypt", request_body).await;
+            let result = call_encryption_service(state, "data/decrypt", request_body).await;
             match result {
                 Ok(response) => match response {
                     Ok(decrypt_response) => {
@@ -295,7 +295,6 @@ impl<
         let data = serde_json::to_vec(&masked_data.peek())
             .change_context(errors::CryptoError::DecodingFailed)?;
         let encrypted_data = crypt_algo.encode_message(key, &data)?;
-
         Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
@@ -310,7 +309,6 @@ impl<
 
         let value: serde_json::Value =
             serde_json::from_slice(&data).change_context(errors::CryptoError::DecodingFailed)?;
-
         Ok(Self::new(value.into(), encrypted))
     }
 }
@@ -330,11 +328,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
+        #[cfg(not(feature = "application_encryption"))]
         {
             Self::encrypt(masked_data, key, crypt_algo).await
         }
-        #[cfg(feature = "encryption_service")]
+        #[cfg(feature = "application_encryption")]
         {
             let request_body = EncryptDataRequest {
                 data: DecryptedData::from_data(StrongSecret::new(
@@ -342,7 +340,7 @@ impl<
                 )),
                 identifier: identifier.clone(),
             };
-            let result = call_encryption_service(state, "encrypt", request_body).await;
+            let result = call_encryption_service(state, "data/encrypt", request_body).await;
             match result {
                 Ok(response) => match response {
                     Ok(encrypt_response) => {
@@ -374,11 +372,11 @@ impl<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
-        #[cfg(not(feature = "encryption_service"))]
+        #[cfg(not(feature = "application_encryption"))]
         {
             Self::decrypt(encrypted_data, key, crypt_algo).await
         }
-        #[cfg(feature = "encryption_service")]
+        #[cfg(feature = "application_encryption")]
         {
             let request_body = DecryptDataRequest {
                 data: EncryptedData {
@@ -387,7 +385,7 @@ impl<
                 },
                 identifier: identifier.clone(),
             };
-            let result = call_encryption_service(state, "decrypt", request_body).await;
+            let result = call_encryption_service(state, "data/decrypt", request_body).await;
             match result {
                 Ok(response) => match response {
                     Ok(decrypt_response) => {
@@ -417,7 +415,6 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
-
         Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
@@ -429,7 +426,6 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
         let data = crypt_algo.decode_message(key, encrypted.clone())?;
-
         Ok(Self::new(data.into(), encrypted))
     }
 }
