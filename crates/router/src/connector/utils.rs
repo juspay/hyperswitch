@@ -1972,6 +1972,9 @@ pub trait MultipleCaptureSyncResponse {
         None
     }
     fn get_amount_captured(&self) -> Option<i64>;
+    fn get_minor_amount_captured(&self)-> Option<MinorUnit> {
+        None
+    }
 }
 
 pub fn construct_captures_response_hashmap<T>(
