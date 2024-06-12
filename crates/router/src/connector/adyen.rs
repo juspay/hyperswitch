@@ -220,9 +220,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::UpiCollect
                 | PaymentMethodType::UpiIntent
                 | PaymentMethodType::VietQr
-                | PaymentMethodType::Mifinity 
-                | PaymentMethodType::LocalBankRedirect
-                => {
+                | PaymentMethodType::Mifinity
+                | PaymentMethodType::LocalBankRedirect => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

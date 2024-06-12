@@ -144,8 +144,8 @@ impl
                 },
                 domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                     match bank_redirect_data {
-                        domain::BankRedirectData::Ideal { .. } 
-                        |domain::BankRedirectData::LocalBankRedirect {} => (None, None),
+                        domain::BankRedirectData::Ideal { .. }
+                        | domain::BankRedirectData::LocalBankRedirect {} => (None, None),
                         domain::BankRedirectData::BancontactCard { .. }
                         | domain::BankRedirectData::Bizum {}
                         | domain::BankRedirectData::Blik { .. }
@@ -161,7 +161,7 @@ impl
                         | domain::BankRedirectData::Sofort { .. }
                         | domain::BankRedirectData::Trustly { .. }
                         | domain::BankRedirectData::OnlineBankingFpx { .. }
-                        | domain::BankRedirectData::OnlineBankingThailand { .. }  => {
+                        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                             Err(errors::ConnectorError::NotImplemented(
                                 connector_util::get_unimplemented_payment_method_error_message(
                                     "iatapay",
