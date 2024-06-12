@@ -19,8 +19,7 @@ use super::{
 use crate::{
     errors::{AnalyticsError, AnalyticsResult},
     frm::FrmMetricAccumulator,
-    metrics,
-    AnalyticsProvider,
+    metrics, AnalyticsProvider,
 };
 
 pub async fn get_metrics(

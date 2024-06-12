@@ -333,7 +333,6 @@ impl FraudCheckInterface for KafkaStore {
     }
 }
 
-
 #[async_trait::async_trait]
 impl OrganizationInterface for KafkaStore {
     async fn insert_organization(
