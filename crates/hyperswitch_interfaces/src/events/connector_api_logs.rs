@@ -16,7 +16,7 @@ pub struct ConnectorEvent {
     payment_id: String,
     merchant_id: String,
     created_at: i128,
-    request_id: String,
+    pub request_id: String,
     latency: u128,
     refund_id: Option<String>,
     dispute_id: Option<String>,

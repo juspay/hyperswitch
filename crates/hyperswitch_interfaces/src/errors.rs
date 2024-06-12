@@ -1,3 +1,6 @@
+use common_utils::errors::ErrorSwitch;
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ConnectorError {
     #[error("Error while obtaining URL for the integration")]
@@ -108,4 +111,34 @@ pub enum ConnectorError {
     InvalidConnectorConfig { config: &'static str },
     #[error("Failed to convert amount to required type")]
     AmountConversionFailed,
+}
+
+impl ConnectorError {
+    pub fn is_connector_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+}
+
+impl ErrorSwitch<ConnectorError> for common_utils::errors::ParsingError {
+    fn switch(&self) -> ConnectorError {
+        ConnectorError::ParsingFailed
+    }
+}
+
+impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
+    fn switch(&self) -> ApiErrorResponse {
+        match self {
+            Self::WebhookSourceVerificationFailed => ApiErrorResponse::WebhookAuthenticationFailed,
+            Self::WebhookSignatureNotFound
+            | Self::WebhookReferenceIdNotFound
+            | Self::WebhookResourceObjectNotFound
+            | Self::WebhookBodyDecodingFailed
+            | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
+            Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
+            Self::WebhookVerificationSecretInvalid => {
+                ApiErrorResponse::WebhookInvalidMerchantSecret
+            }
+            _ => ApiErrorResponse::InternalServerError,
+        }
+    }
 }

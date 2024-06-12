@@ -6,6 +6,11 @@ rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
 
+[features]
+default = ["dummy_connector", "payouts"]
+dummy_connector = []
+payouts = []
+
 [dependencies]
 async-trait = "0.1.79"
 bytes = "1.6.0"
