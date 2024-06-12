@@ -3778,7 +3778,7 @@
           {
             "name": "data_kind",
             "in": "query",
-            "description": "Kind of the fingerprint list requested",
+            "description": "Type of the payment fingerprint whose list is requested",
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/BlocklistDataKind"
@@ -6610,14 +6610,16 @@
         ],
         "properties": {
           "fingerprint_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier for Payment Fingerprint"
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
           },
           "created_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Date of creation (YYYY-MM-DD)"
           }
         }
       },
@@ -17266,7 +17268,7 @@
         "properties": {
           "poll_id": {
             "type": "string",
-            "description": "The poll id"
+            "description": "The identifier for poll"
           },
           "status": {
             "$ref": "#/components/schemas/PollStatus"
@@ -17275,6 +17277,7 @@
       },
       "PollStatus": {
         "type": "string",
+        "description": "Status of the poll",
         "enum": [
           "pending",
           "completed",
@@ -18981,7 +18984,8 @@
         ],
         "properties": {
           "blocklist_guard_status": {
-            "type": "string"
+            "type": "string",
+            "description": "Status of the Blocklist Toggle"
           }
         }
       },
