@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -19,19 +19,18 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CheckoutRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CheckoutRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for CheckoutRouterData<T> {
+    fn from(
+        ( amount, item): (MinorUnit, T),
+    ) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -222,7 +221,7 @@ pub struct ReturnUrl {
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub processing_channel_id: Secret<String>,
     #[serde(rename = "3ds")]
@@ -835,7 +834,7 @@ pub enum CaptureType {
 
 #[derive(Debug, Serialize)]
 pub struct PaymentCaptureRequest {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub capture_type: Option<CaptureType>,
     pub processing_channel_id: Secret<String>,
     pub reference: Option<String>,
@@ -922,7 +921,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundRequest {
-    amount: Option<i64>,
+    amount: Option<MinorUnit>,
     reference: String,
 }
 
@@ -1020,7 +1019,7 @@ pub enum ActionType {
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(rename = "type")]
     pub action_type: ActionType,
     pub approved: Option<bool>,
@@ -1059,7 +1058,7 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
     }
 
     fn get_amount_captured(&self) -> Option<i64> {
-        Some(self.amount)
+        Some(self.amount.get_amount_as_i64())
     }
 }
 
