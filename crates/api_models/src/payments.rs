@@ -387,7 +387,7 @@ pub struct PaymentsRequest {
     /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
     pub mandate_data: Option<MandateData>,
 
-    /// Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client
+    /// We will be Passing this "CustomerAcceptance" object during Payments-Confirm. The customer_acceptance sub object is usually passed by the SDK or client
     #[schema(value_type = Option<CustomerAcceptance>)]
     pub customer_acceptance: Option<CustomerAcceptance>,
 
