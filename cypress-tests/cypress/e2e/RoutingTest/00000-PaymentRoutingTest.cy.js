@@ -1,6 +1,7 @@
-import routingConfigBody from "../../fixtures/routing-config-body.json";
+import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
 import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
 import customerCreateBody from "../../fixtures/create-customer-body.json";
+import routingConfigBody from "../../fixtures/routing-config-body.json";
 import State from "../../utils/State";
 import * as utils from "../RoutingUtils/utils";
 
@@ -44,6 +45,14 @@ describe("Routing Test", () => {
       cy.createJWTToken(req_data, res_data, globalState);
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("retrieve-mca", () => {
+      cy.ListMCAbyMID(globalState);
+    });
+
+    it("api-key-create-call-test", () => {
+    cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
     });
 
     it("customer-create-call-test", () => {

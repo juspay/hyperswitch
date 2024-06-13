@@ -1185,6 +1185,7 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
+
 Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
   const jwt_body = {
     email: `${globalState.get("email")}`,
@@ -1217,6 +1218,7 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
 
       // set api key
       globalState.set("apiKey", globalState.get("routingApiKey"));
+      globalState.set("merchantId", response.body.merchant_id);
 
       for (const key in res_data.body) {
         expect(res_data.body[key]).to.equal(response.body[key]);
@@ -1227,6 +1229,30 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
         expect(res_data.body.error[key]).to.equal(response.body.error[key]);
       }
     }
+  });
+});
+
+Cypress.Commands.add("ListMCAbyMID", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  console.log("merchantId", merchantId);
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.headers["content-type"]).to.include("application/json");
+    globalState.set("profileId", response.body[0].profile_id);
+    globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
+    globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
+    console.log("stripeMcaId", response.body[0].merchant_connector_id);
+    console.log("adyenMcaId", response.body[1].merchant_connector_id);
+
   });
 });
 
