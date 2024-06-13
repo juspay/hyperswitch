@@ -224,7 +224,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
                 let balance_account_id = adyen_connector_metadata_object
                     .source_balance_account
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "soucre_balance_account",
+                        field_name: "source_balance_account",
                     })?;
                 let priority =
                     request
