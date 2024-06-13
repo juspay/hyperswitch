@@ -248,7 +248,7 @@ pub async fn create_payout_link(
             fallback_ui_config.theme.clone(),
         ),
     };
-    let session_expiry = match req.as_ref().and_then(|req| req.session_expiry.clone()) {
+    let session_expiry = match req.as_ref().and_then(|req| req.session_expiry) {
         Some(expiry) => expiry,
         None => default_config.expiry,
     };

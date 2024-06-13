@@ -16706,7 +16706,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.CollectLinkConfig"
+                "$ref": "#/components/schemas/CollectLinkConfig"
               }
             ],
             "nullable": true

@@ -193,6 +193,7 @@ where
         ))
 }
 
+#[cfg(feature = "payouts")]
 fn filter_payout_methods(
     filtered_mca: Vec<domain::MerchantConnectorAccount>,
 ) -> Vec<enums::EnabledPaymentMethod> {
