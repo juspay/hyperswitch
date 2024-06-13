@@ -2126,7 +2126,6 @@ pub async fn payout_create_db_entries(
             payout_id: payout_id.to_owned(),
         })
         .attach_printable("Error inserting payouts in db")?;
-    logger::debug!("{:?}", payout_link_id.clone());
     // Make payout_attempt entry
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
@@ -2252,7 +2251,6 @@ pub async fn make_payout_data(
         validate_and_get_business_profile(state, &profile_id, merchant_id).await?;
     let payout_method_data = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => {
-            logger::debug!("request.payout_method_data");
             r.payout_method_data.to_owned()
         }
         payouts::PayoutRequest::PayoutRetrieveRequest(_)
