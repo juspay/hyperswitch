@@ -51,7 +51,7 @@ impl<T>
             MinorUnit,
             T,
         ),
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<Self,Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -3227,8 +3227,9 @@ impl<F>
                 charge_id: None,
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
-                amount: item.response.balance.value,
+                minor_amount: item.response.balance.value,
                 currency: item.response.balance.currency,
+                amount:item.response.balance.value,
             }),
             ..item.data
         })
@@ -4317,7 +4318,7 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
     }
 
     fn get_amount_captured(&self) -> Option<i64> {
-        self.amount
+          self.amount
             .as_ref()
             .map(|amount_struct| amount_struct.value.get_amount_as_i64())
     }
