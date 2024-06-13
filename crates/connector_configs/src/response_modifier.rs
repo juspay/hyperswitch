@@ -15,6 +15,7 @@ impl ConnectorApiIntegrationPayload {
         let mut crypto_details: Vec<Provider> = Vec::new();
         let mut bank_debit_details: Vec<Provider> = Vec::new();
         let mut reward_details: Vec<Provider> = Vec::new();
+        let mut real_time_payment_details: Vec<Provider> = Vec::new();
         let mut upi_details: Vec<Provider> = Vec::new();
         let mut voucher_details: Vec<Provider> = Vec::new();
         let mut gift_card_details: Vec<Provider> = Vec::new();
@@ -148,6 +149,18 @@ impl ConnectorApiIntegrationPayload {
                             }
                         }
                     }
+                    api_models::enums::PaymentMethod::RealTimePayment => {
+                        if let Some(payment_method_types) = methods.payment_method_types {
+                            for method_type in payment_method_types {
+                                real_time_payment_details.push(Provider {
+                                    payment_method_type: method_type.payment_method_type,
+                                    accepted_currencies: method_type.accepted_currencies.clone(),
+                                    accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
+                                })
+                            }
+                        }
+                    }
                     api_models::enums::PaymentMethod::Upi => {
                         if let Some(payment_method_types) = methods.payment_method_types {
                             for method_type in payment_method_types {
@@ -228,6 +241,13 @@ impl ConnectorApiIntegrationPayload {
             card_provider: None,
         };
 
+        let real_time_payment = DashboardPaymentMethodPayload {
+            payment_method: api_models::enums::PaymentMethod::RealTimePayment,
+            payment_method_type: api_models::enums::PaymentMethod::RealTimePayment.to_string(),
+            provider: Some(real_time_payment_details),
+            card_provider: None,
+        };
+
         let wallet = DashboardPaymentMethodPayload {
             payment_method: api_models::enums::PaymentMethod::Wallet,
             payment_method_type: api_models::enums::PaymentMethod::Wallet.to_string(),
@@ -295,6 +315,7 @@ impl ConnectorApiIntegrationPayload {
                 upi,
                 voucher,
                 reward,
+                real_time_payment,
                 wallet,
                 bank_redirect,
                 bank_debit,

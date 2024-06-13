@@ -18,7 +18,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{CardData, RouterData},
+    connector::utils::{CardData, PayoutsData, RouterData},
     core::errors,
     types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
     utils::OptionExt,
@@ -139,7 +139,8 @@ impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
         item: PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Card => {
                 let amount_of_money: AmountOfMoney = AmountOfMoney {
                     amount: item.amount,

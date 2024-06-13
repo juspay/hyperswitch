@@ -12,7 +12,7 @@ pub struct KafkaPayout<'a> {
     pub address_id: &'a String,
     pub profile_id: &'a String,
     pub payout_method_id: Option<&'a String>,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub amount: i64,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
