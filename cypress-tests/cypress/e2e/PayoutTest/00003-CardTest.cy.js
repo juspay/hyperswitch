@@ -4,7 +4,7 @@ import * as utils from "../PayoutUtils/utils";
 
 let globalState;
 
-describe("Card - Auto Fulfill", () => {
+describe("[Payout] Cards", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {

@@ -6,7 +6,7 @@ import * as utils from "../PayoutUtils/utils";
 let globalState;
 let createPayoutBody;
 
-describe("[Card] Saved Payouts tests", () => {
+describe("[Payout] Saved Card", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
@@ -136,7 +136,7 @@ describe("[Card] Saved Payouts tests", () => {
   );
 });
 
-describe("[Bank transfer] Saved Payouts tests", () => {
+describe("[Payout] Saved Bank transfer", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
