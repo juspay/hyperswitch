@@ -3182,32 +3182,51 @@ where
         .as_ref()
         .zip(payment_data.payment_attempt.payment_method_type.as_ref())
     {
-        if let (Some(choice), None) = (
+        if let (Some(routable_connector_choice), None) = (
             pre_routing_results.get(storage_pm_type),
             &payment_data.token_data,
         ) {
-            let connector_data = api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                &choice.connector.to_string(),
-                api::GetToken::Connector,
-                #[cfg(feature = "connector_choice_mca_id")]
-                choice.merchant_connector_id.clone(),
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                None,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
+            let routable_connector_list = match routable_connector_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    vec![routable_connector.clone()]
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.clone()
+                }
+            };
 
-            routing_data.routed_through = Some(choice.connector.to_string());
+            let mut pre_routing_connector_data_list = vec![];
+
+            let first_routable_connector = routable_connector_list
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            routing_data.routed_through = Some(first_routable_connector.connector.to_string());
             #[cfg(feature = "connector_choice_mca_id")]
             {
                 routing_data
                     .merchant_connector_id
-                    .clone_from(&choice.merchant_connector_id);
+                    .clone_from(&first_routable_connector.merchant_connector_id);
             }
             #[cfg(not(feature = "connector_choice_mca_id"))]
             {
-                routing_data.business_sub_label = choice.sub_label.clone();
+                routing_data.business_sub_label = first_routable_connector.sub_label.clone();
+            }
+
+            for connector_choice in routable_connector_list.clone() {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector_choice.connector.to_string(),
+                    api::GetToken::Connector,
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    connector_choice.merchant_connector_id.clone(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name received")?;
+
+                pre_routing_connector_data_list.push(connector_data);
             }
 
             #[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
@@ -3224,8 +3243,11 @@ where
                     merchant_account,
                     payment_data,
                     key_store,
-                    connector_data.clone(),
-                    choice.merchant_connector_id.clone().as_ref(),
+                    &pre_routing_connector_data_list,
+                    first_routable_connector
+                        .merchant_connector_id
+                        .clone()
+                        .as_ref(),
                 )
                 .await?;
 
@@ -3237,7 +3259,13 @@ where
                 }
             }
 
-            return Ok(ConnectorCallType::PreDetermined(connector_data));
+            let first_pre_routing_connector_data_list = pre_routing_connector_data_list
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            return Ok(ConnectorCallType::PreDetermined(
+                first_pre_routing_connector_data_list.clone(),
+            ));
         }
     }
 
@@ -3614,11 +3642,22 @@ where
         }));
 
         let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
-        for (routed_pm_type, choice) in pre_routing_results.into_iter() {
-            if let Some(session_connector_data) =
-                payment_methods.remove(&(choice.to_string(), routed_pm_type))
-            {
-                final_list.push(session_connector_data);
+        for (routed_pm_type, pre_routing_choice) in pre_routing_results.into_iter() {
+            let routable_connector_list = match pre_routing_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    vec![routable_connector.clone()]
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.clone()
+                }
+            };
+            for routable_connector in routable_connector_list {
+                if let Some(session_connector_data) =
+                    payment_methods.remove(&(routable_connector.to_string(), routed_pm_type))
+                {
+                    final_list.push(session_connector_data);
+                    break;
+                }
             }
         }
 
@@ -3666,8 +3705,11 @@ where
         if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
         } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
-            if connector_data.connector.connector_name == choice.connector.connector_name {
-                connector_data.business_sub_label = choice.sub_label.clone();
+            let routing_choice = choice
+                .first()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name {
+                connector_data.business_sub_label = routing_choice.sub_label.clone();
                 final_list.push(connector_data);
             }
         }
@@ -3678,7 +3720,10 @@ where
         if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
         } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
-            if connector_data.connector.connector_name == choice.connector.connector_name {
+            let routing_choice = choice
+                .first()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name {
                 final_list.push(connector_data);
             }
         }
