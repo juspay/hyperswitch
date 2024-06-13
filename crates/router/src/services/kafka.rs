@@ -339,7 +339,7 @@ impl KafkaProducer {
             &KafkaFraudCheckEvent::from_storage(attempt),
             tenant_id.clone(),
         ))
-        .attach_printable_lazy(|| format!("Failed to add consolidated attempt event {attempt:?}"))
+        .attach_printable_lazy(|| format!("Failed to add consolidated fraud check  event {attempt:?}"))
     }
 
     pub async fn log_payment_attempt(
