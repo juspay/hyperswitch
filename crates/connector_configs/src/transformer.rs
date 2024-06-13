@@ -134,6 +134,7 @@ impl DashboardRequestPayload {
                     | PaymentMethod::Crypto
                     | PaymentMethod::BankDebit
                     | PaymentMethod::Reward
+                    | PaymentMethod::RealTimePayment
                     | PaymentMethod::Upi
                     | PaymentMethod::Voucher
                     | PaymentMethod::GiftCard

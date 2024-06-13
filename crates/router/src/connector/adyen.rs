@@ -201,6 +201,8 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::CardRedirect
+                | PaymentMethodType::Fps
+                | PaymentMethodType::DuitNow
                 | PaymentMethodType::Interac
                 | PaymentMethodType::Multibanco
                 | PaymentMethodType::Przelewy24
@@ -210,6 +212,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
                 | PaymentMethodType::PagoEfectivo
+                | PaymentMethodType::PromptPay
                 | PaymentMethodType::RedCompra
                 | PaymentMethodType::RedPagos
                 | PaymentMethodType::CryptoCurrency
@@ -218,7 +221,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect
                 | PaymentMethodType::UpiIntent
-                | PaymentMethodType::Mifinity => {
+                | PaymentMethodType::VietQr
+                | PaymentMethodType::Mifinity
+                | PaymentMethodType::LocalBankRedirect => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

@@ -6170,6 +6170,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_redirect"
+            ],
+            "properties": {
+              "local_bank_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -13181,6 +13192,7 @@
           "crypto",
           "bank_debit",
           "reward",
+          "real_time_payment",
           "upi",
           "voucher",
           "gift_card"
@@ -13374,6 +13386,18 @@
             "properties": {
               "bank_transfer": {
                 "$ref": "#/components/schemas/BankTransferData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "RealTimePayment",
+            "required": [
+              "real_time_payment"
+            ],
+            "properties": {
+              "real_time_payment": {
+                "$ref": "#/components/schemas/RealTimePaymentData"
               }
             }
           },
@@ -13738,8 +13762,10 @@
           "dana",
           "danamon_va",
           "debit",
+          "duit_now",
           "efecty",
           "eps",
+          "fps",
           "evoucher",
           "giropay",
           "givex",
@@ -13751,6 +13777,7 @@
           "indomaret",
           "klarna",
           "kakao_pay",
+          "local_bank_redirect",
           "mandiri_va",
           "knet",
           "mb_way",
@@ -13773,6 +13800,7 @@
           "pix",
           "pay_safe_card",
           "przelewy24",
+          "prompt_pay",
           "pse",
           "red_compra",
           "red_pagos",
@@ -13786,6 +13814,7 @@
           "upi_collect",
           "upi_intent",
           "vipps",
+          "viet_qr",
           "venmo",
           "walley",
           "we_chat_pay",
@@ -17347,6 +17376,54 @@
             "additionalProperties": {}
           }
         }
+      },
+      "RealTimePaymentData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "fps"
+            ],
+            "properties": {
+              "fps": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "duit_now"
+            ],
+            "properties": {
+              "duit_now": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "prompt_pay"
+            ],
+            "properties": {
+              "prompt_pay": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "viet_qr"
+            ],
+            "properties": {
+              "viet_qr": {
+                "type": "object"
+              }
+            }
+          }
+        ]
       },
       "ReceiverDetails": {
         "type": "object",

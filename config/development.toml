@@ -438,6 +438,8 @@ local_bank_transfer = { country = "CN", currency = "CNY" }
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
 
+
+
 [pm_filters.mollie]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
