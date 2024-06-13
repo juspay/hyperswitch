@@ -101,4 +101,5 @@ Here's an example of how to do this:
 [default.features]
 audit_trail=true
 system_metrics=true
+global_search=true
 ```

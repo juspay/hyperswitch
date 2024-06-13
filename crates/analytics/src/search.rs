@@ -4,9 +4,8 @@ use api_models::analytics::search::{
 };
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
-use log::error;
 use strum::IntoEnumIterator;
-
+use router_env::tracing;
 use crate::opensearch::{
     OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
 };
@@ -22,13 +21,25 @@ pub async fn msearch_results(
         .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
         .switch()?;
 
-    let response_body = client
+    let response_text = client
         .execute(query_builder)
         .await
         .change_context(OpenSearchError::ConnectionError)?
-        .json::<OpenMsearchOutput>()
+        .text()
         .await
         .change_context(OpenSearchError::ResponseError)?;
+
+    let response_body = match serde_json::from_str::<OpenMsearchOutput>(&response_text) {
+        Ok(parsed_response) => parsed_response,
+        Err(parse_error) => {
+            tracing::error!(
+                "Failed to parse response: {:?}, raw response: {}",
+                parse_error,
+                response_text
+            );
+            return Err(error_stack::Report::from(OpenSearchError::ResponseError));
+        }
+    };
 
     Ok(response_body
         .responses
@@ -44,11 +55,11 @@ pub async fn msearch_results(
                             .hits
                             .hits
                             .into_iter()
-                            .map(|hit| hit._source)
+                            .map(|hit| hit.source)
                             .collect(),
                     }
                 } else {
-                    error!("Unexpected status code: {}", success.status);
+                    tracing::error!("Unexpected status code: {}, error response: {}", success.status, response_text);
                     GetSearchResponse {
                         count: 0,
                         index,
@@ -56,11 +67,13 @@ pub async fn msearch_results(
                     }
                 }
             }
-            OpensearchOutput::Error(error) => {
-                error!(
-                    "Search error for index {:?}: type = {}, reason = {}, status = {}",
-                    index, error.error.error_type, error.error.reason, error.status
+            OpensearchOutput::Error(_) => {
+                tracing::error!(
+                    index = ?index,
+                    error_response = %response_text,
+                    "Search error"
                 );
+
                 GetSearchResponse {
                     count: 0,
                     index,
@@ -89,13 +102,25 @@ pub async fn search_results(
         .set_offset_n_count(search_req.offset, search_req.count)
         .switch()?;
 
-    let response_body = client
+    let response_text = client
         .execute(query_builder)
         .await
         .change_context(OpenSearchError::ConnectionError)?
-        .json::<OpensearchOutput>()
+        .text()
         .await
         .change_context(OpenSearchError::ResponseError)?;
+
+    let response_body = match serde_json::from_str::<OpensearchOutput>(&response_text) {
+        Ok(parsed_response) => parsed_response,
+        Err(parse_error) => {
+            tracing::error!(
+                "Failed to parse response: {:?}, raw response: {}",
+                parse_error,
+                response_text
+            );
+            return Err(error_stack::Report::from(OpenSearchError::ResponseError));
+        }
+    };
 
     match response_body {
         OpensearchOutput::Success(success) => {
@@ -107,11 +132,11 @@ pub async fn search_results(
                         .hits
                         .hits
                         .into_iter()
-                        .map(|hit| hit._source)
+                        .map(|hit| hit.source)
                         .collect(),
                 })
             } else {
-                error!("Unexpected status code: {}", success.status);
+                tracing::error!("Unexpected status code: {}, error response: {}", success.status, response_text);
                 Ok(GetSearchResponse {
                     count: 0,
                     index: req.index,
@@ -119,10 +144,11 @@ pub async fn search_results(
                 })
             }
         }
-        OpensearchOutput::Error(error) => {
-            error!(
-                "Search error for index {:?}: type = {}, reason = {}, status = {}",
-                req.index, error.error.error_type, error.error.reason, error.status
+        OpensearchOutput::Error(_) => {
+            tracing::error!(
+                index = ?req.index,
+                error_response = %response_text,
+                "Search error"
             );
             Ok(GetSearchResponse {
                 count: 0,

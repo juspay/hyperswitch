@@ -101,5 +101,5 @@ pub struct OpensearchResultsTotal {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct OpensearchHit {
-    pub _source: Value,
+    pub source: Value,
 }
