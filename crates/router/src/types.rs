@@ -33,6 +33,11 @@ pub use hyperswitch_domain_models::{
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
+    router_data_new::{
+        AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+        FrmFlowData, MandateRevokeFlowData, PaymentFlowData, PayoutFlowData, RefundFlowData,
+        RouterDataNew, WebhookSourceVerifyData,
+    },
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,

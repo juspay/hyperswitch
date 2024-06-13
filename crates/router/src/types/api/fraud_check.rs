@@ -7,6 +7,7 @@ pub use hyperswitch_domain_models::router_flow_types::fraud_check::{
     Checkout, Fulfillment, RecordReturn, Sale, Transaction,
 };
 
+pub use super::fraud_check_new::*;
 use super::{BoxedConnector, ConnectorData, SessionConnectorData};
 use crate::{
     connector,

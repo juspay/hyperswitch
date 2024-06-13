@@ -8,6 +8,7 @@ pub use hyperswitch_domain_models::router_flow_types::payouts::{
     PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
 };
 
+pub use super::payouts_new::*;
 use crate::{services::api, types};
 
 pub trait PayoutCancel:

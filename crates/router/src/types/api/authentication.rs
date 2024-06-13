@@ -5,6 +5,7 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
+pub use super::authentication_new::*;
 use super::BoxedConnector;
 use crate::core::errors;
 

@@ -33,6 +33,7 @@ use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use super::authentication::AuthenticateAndFetch;
+pub use super::connector_integration_new::*;
 use crate::{
     configs::{settings::Connectors, Settings},
     consts,

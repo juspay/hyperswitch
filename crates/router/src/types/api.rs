@@ -26,9 +26,18 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
+pub mod authentication_new;
+pub mod disputes_new;
+pub mod files_new;
+pub mod fraud_check_new;
+pub mod payments_new;
+pub mod payouts_new;
+pub mod refunds_new;
+
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_data_new::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
 };
@@ -50,11 +59,24 @@ use crate::{
         payments::types as payments_types,
     },
     events::connector_api_logs::ConnectorEvent,
-    services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
+    services::{
+        request, ConnectorIntegration, ConnectorIntegrationNew, ConnectorRedirectResponse,
+        ConnectorValidation,
+    },
     types::{self, api::enums as api_enums},
 };
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+{
+}
+
+pub trait ConnectorAccessTokenNew:
+    ConnectorIntegrationNew<
+    AccessTokenAuth,
+    AccessTokenFlowData,
+    types::AccessTokenRequestData,
+    types::AccessToken,
+>
 {
 }
 
@@ -73,6 +95,15 @@ pub trait ConnectorVerifyWebhookSource:
 >
 {
 }
+pub trait ConnectorVerifyWebhookSourceNew:
+    ConnectorIntegrationNew<
+    VerifyWebhookSource,
+    types::WebhookSourceVerifyData,
+    types::VerifyWebhookSourceRequestData,
+    types::VerifyWebhookSourceResponseData,
+>
+{
+}
 
 #[derive(Clone, Debug)]
 pub struct MandateRevoke;
@@ -80,6 +111,16 @@ pub struct MandateRevoke;
 pub trait ConnectorMandateRevoke:
     ConnectorIntegration<
     MandateRevoke,
+    types::MandateRevokeRequestData,
+    types::MandateRevokeResponseData,
+>
+{
+}
+
+pub trait ConnectorMandateRevokeNew:
+    ConnectorIntegrationNew<
+    MandateRevoke,
+    types::MandateRevokeFlowData,
     types::MandateRevokeRequestData,
     types::MandateRevokeResponseData,
 >
@@ -165,18 +206,28 @@ pub trait Router {}
 pub trait Connector:
     Send
     + Refund
+    + RefundNew
     + Payment
+    + PaymentNew
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
+    + ConnectorAccessTokenNew
     + Dispute
+    + DisputeNew
     + FileUpload
+    + FileUploadNew
     + ConnectorTransactionId
     + Payouts
+    + PayoutsNew
     + ConnectorVerifyWebhookSource
+    + ConnectorVerifyWebhookSourceNew
     + FraudCheck
+    + FraudCheckNew
     + ConnectorMandateRevoke
+    + ConnectorMandateRevokeNew
     + ExternalAuthentication
+    + ExternalAuthenticationNew
 {
 }
 
@@ -186,19 +237,29 @@ pub struct Pe;
 
 impl<
         T: Refund
+            + RefundNew
             + Payment
+            + PaymentNew
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
+            + ConnectorAccessTokenNew
             + Dispute
+            + DisputeNew
             + FileUpload
+            + FileUploadNew
             + ConnectorTransactionId
             + Payouts
+            + PayoutsNew
             + ConnectorVerifyWebhookSource
+            + ConnectorVerifyWebhookSourceNew
             + FraudCheck
+            + FraudCheckNew
             + ConnectorMandateRevoke
-            + ExternalAuthentication,
+            + ConnectorMandateRevokeNew
+            + ExternalAuthentication
+            + ExternalAuthenticationNew,
     > Connector for T
 {
 }
