@@ -4,8 +4,9 @@ use api_models::analytics::search::{
 };
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
-use strum::IntoEnumIterator;
 use router_env::tracing;
+use strum::IntoEnumIterator;
+
 use crate::opensearch::{
     OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
 };
@@ -59,7 +60,11 @@ pub async fn msearch_results(
                             .collect(),
                     }
                 } else {
-                    tracing::error!("Unexpected status code: {}, error response: {}", success.status, response_text);
+                    tracing::error!(
+                        "Unexpected status code: {}, error response: {}",
+                        success.status,
+                        response_text
+                    );
                     GetSearchResponse {
                         count: 0,
                         index,
@@ -136,7 +141,11 @@ pub async fn search_results(
                         .collect(),
                 })
             } else {
-                tracing::error!("Unexpected status code: {}, error response: {}", success.status, response_text);
+                tracing::error!(
+                    "Unexpected status code: {}, error response: {}",
+                    success.status,
+                    response_text
+                );
                 Ok(GetSearchResponse {
                     count: 0,
                     index: req.index,
