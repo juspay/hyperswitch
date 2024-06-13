@@ -1233,7 +1233,6 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
 
 Cypress.Commands.add("ListMCAbyMID", (globalState) => {
   const merchantId = globalState.get("merchantId");
-  console.log("merchantId", merchantId);
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,

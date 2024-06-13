@@ -19,19 +19,12 @@ describe("Routing Test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      cy.task(
-        "cli_log",
-        "SEEDING GLOBAL STATE -> " + JSON.stringify(globalState),
-      );
+     
     });
   });
 
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
-    cy.task(
-      "cli_log",
-      " FLUSHING GLOBAL STATE -> " + JSON.stringify(globalState),
-    );
   });
 
   context("Routing with Stripe as top priority", () => {
