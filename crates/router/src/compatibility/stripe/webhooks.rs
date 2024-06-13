@@ -116,7 +116,7 @@ pub struct StripePayoutResponse {
     pub id: String,
     pub amount: i64,
     pub currency: String,
-    pub payout_type: common_enums::PayoutType,
+    pub payout_type: Option<common_enums::PayoutType>,
     pub status: StripePayoutStatus,
     pub name: Option<masking::Secret<String>>,
     pub email: Option<Email>,

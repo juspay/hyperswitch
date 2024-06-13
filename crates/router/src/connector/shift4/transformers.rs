@@ -245,6 +245,7 @@ where
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -466,6 +467,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
             | Some(domain::PaymentMethodData::MandatePayment)
             | Some(domain::PaymentMethodData::Voucher(_))
             | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::RealTimePayment(_))
             | Some(domain::PaymentMethodData::Upi(_))
             | Some(domain::PaymentMethodData::CardToken(_))
             | None => Err(errors::ConnectorError::NotImplemented(
@@ -496,7 +498,8 @@ impl TryFrom<&domain::BankRedirectData> for PaymentMethodType {
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
             | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )

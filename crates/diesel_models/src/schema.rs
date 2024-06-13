@@ -1004,7 +1004,7 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         address_id -> Varchar,
-        payout_type -> PayoutType,
+        payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
         amount -> Int8,
