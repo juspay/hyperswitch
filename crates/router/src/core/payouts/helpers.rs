@@ -46,17 +46,17 @@ pub async fn make_payout_method_data<'a>(
     payout_token: Option<&str>,
     customer_id: &id_type::CustomerId,
     merchant_id: &str,
-    payout_type: Option<&api_enums::PayoutType>,
+    payout_type: Option<api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
     payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
-    let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
     let hyperswitch_token = if let Some(payout_token) = payout_token {
         if payout_token.starts_with("temporary_token_") {
             Some(payout_token.to_string())
         } else {
+            let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
             let key = format!(
                 "pm_token_{}_{}_hyperswitch",
                 payout_token,
@@ -110,7 +110,7 @@ pub async fn make_payout_method_data<'a>(
         // Get operation
         (None, Some(payout_token), _) => {
             if payout_token.starts_with("temporary_token_")
-                || certain_payout_type == api_enums::PayoutType::Bank
+                || payout_type == Some(api_enums::PayoutType::Bank)
             {
                 let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
                     state,

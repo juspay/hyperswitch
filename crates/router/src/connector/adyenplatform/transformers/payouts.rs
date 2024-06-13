@@ -7,7 +7,7 @@ use super::Error;
 use crate::{
     connector::{
         adyen::transformers as adyen,
-        utils::{self, RouterData},
+        utils::{self, PayoutsData, RouterData},
     },
     core::errors,
     types::{self, api::payouts, storage::enums},
@@ -232,14 +232,14 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "priority",
                         })?;
-
+                let payout_type = request.get_payout_type()?;
                 Ok(Self {
                     amount: adyen::Amount {
                         value: request.amount,
                         currency: request.destination_currency,
                     },
                     balance_account_id,
-                    category: AdyenPayoutMethod::try_from(request.payout_type)?,
+                    category: AdyenPayoutMethod::try_from(payout_type)?,
                     counterparty,
                     priority: AdyenPayoutPriority::from(priority),
                     reference: request.payout_id.clone(),

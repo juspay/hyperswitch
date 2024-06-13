@@ -194,11 +194,12 @@ impl PayoutAttempt {
         let filter_payout_method = Payouts::table()
             .select(payout_dsl::payout_type)
             .distinct()
-            .get_results_async::<enums::PayoutType>(conn)
+            .get_results_async::<Option<enums::PayoutType>>(conn)
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payout type")?
             .into_iter()
+            .flatten()
             .collect::<Vec<enums::PayoutType>>();
 
         Ok((
