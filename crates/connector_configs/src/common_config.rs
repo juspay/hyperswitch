@@ -101,6 +101,7 @@ pub struct ApiModelMetaData {
     pub klarna_region: Option<KlarnaEndpoint>,
     pub source_balance_account: Option<String>,
     pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -217,4 +218,5 @@ pub struct DashboardMetaData {
     pub klarna_region: Option<KlarnaEndpoint>,
     pub source_balance_account: Option<String>,
     pub brand_id: Option<String>,
+    pub destination_account_number: Option<String>,
 }

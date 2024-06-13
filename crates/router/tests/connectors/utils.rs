@@ -441,7 +441,7 @@ pub trait ConnectorActions: Connector {
                     pi.currency.map_or(enums::Currency::EUR, |c| c)
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
-                payout_type,
+                payout_type: Some(payout_type),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: Some(common_utils::generate_customer_id_of_default_length()),
                     name: Some(Secret::new("John Doe".to_string())),

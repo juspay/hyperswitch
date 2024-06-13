@@ -973,6 +973,7 @@ klarna_region=["Europe","NorthAmerica","Oceania"]
 api_key="key"
 [mifinity.metadata]
 brand_id="Brand ID"
+destination_account_number="Destination Account Number"
 
 
 [mollie]

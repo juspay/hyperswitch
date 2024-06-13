@@ -958,6 +958,9 @@ where
                 }
             })??
     };
+    request_state
+        .event_context
+        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
     // let tenant_id = "public".to_string();
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
