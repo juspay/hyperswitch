@@ -1,6 +1,6 @@
 //! Types that can be used in other crates
 use std::{
-    fmt::Display,
+    fmt::{Display, Formatter},
     ops::{Add, Sub},
     primitive::i64,
     str::FromStr,
@@ -17,6 +17,7 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+use masking::Secret;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -28,6 +29,8 @@ use utoipa::ToSchema;
 use crate::{
     consts,
     errors::{CustomResult, ParsingError, PercentageError},
+    ext_traits::Encode,
+    id_type,
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
@@ -679,6 +682,160 @@ where
 }
 
 impl ToSql<Jsonb, diesel::pg::Pg> for ChargeRefunds
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::VariantNames,
+    FromSqlRow,
+    AsExpression,
+)]
+#[serde(rename_all = "snake_case", untagged)]
+#[diesel(sql_type = sql_types::Text)]
+pub enum GenericLinkStatus {
+    PaymentMethodCollect(PaymentMethodCollectStatus),
+    PayoutLink(PayoutLinkStatus),
+}
+
+impl Default for GenericLinkStatus {
+    fn default() -> Self {
+        Self::PaymentMethodCollect(PaymentMethodCollectStatus::PMCollectInitiated)
+    }
+}
+
+impl<DB: Backend> FromSql<sql_types::Text, DB> for GenericLinkStatus
+where
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let value = <String as FromSql<sql_types::Text, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_str(&value)?)
+    }
+}
+
+impl ToSql<sql_types::Text, diesel::pg::Pg> for GenericLinkStatus
+where
+    String: ToSql<sql_types::Text, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = self.encode_to_string_of_json()?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodCollectStatus {
+    PMCollectInitiated,
+    PMCollectInvalidated,
+    PMCollectSubmitted,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::VariantNames,
+    FromSqlRow,
+    AsExpression,
+)]
+#[serde(rename_all = "snake_case")]
+#[diesel(sql_type = sql_types::Text)]
+pub enum PayoutLinkStatus {
+    PayoutLinkInitiated,
+    PayoutLinkInvalidated,
+    PayoutLinkSubmitted,
+}
+
+impl<DB: Backend> FromSql<sql_types::Text, DB> for PayoutLinkStatus
+where
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let value = <String as FromSql<sql_types::Text, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_str(&value)?)
+    }
+}
+
+impl ToSql<sql_types::Text, diesel::pg::Pg> for PayoutLinkStatus
+where
+    String: ToSql<sql_types::Text, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = self.encode_to_string_of_json()?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+#[derive(Serialize, serde::Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
+#[diesel(sql_type = Jsonb)]
+pub struct PayoutLinkData {
+    pub payout_link_id: String,
+    pub customer_id: id_type::CustomerId,
+    pub payout_id: String,
+    pub sdk_host: String,
+    pub link: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub session_expiry: u32,
+    #[serde(flatten)]
+    pub ui_config: enums::CollectLinkConfig,
+    pub enabled_payment_methods: Vec<enums::EnabledPaymentMethod>,
+    pub amount: i64,
+    pub currency: enums::Currency,
+}
+
+impl<DB: Backend> FromSql<Jsonb, DB> for PayoutLinkData
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for PayoutLinkData
 where
     serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
 {

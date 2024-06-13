@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use common_utils::{errors, ext_traits::ValueExt};
-use diesel::{associations::HasTable, ExpressionMethods};
+use common_utils::{errors, ext_traits::ValueExt, types::GenericLinkStatus};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::{report, Report, ResultExt};
 
 use super::generics;
@@ -9,7 +9,7 @@ use crate::{
     errors as db_errors,
     generic_link::{
         GenericLink, GenericLinkData, GenericLinkNew, GenericLinkS, PaymentMethodCollectLink,
-        PayoutLink,
+        PayoutLink, PayoutLinkUpdate, PayoutLinkUpdateInternal,
     },
     schema::generic_link::dsl,
     PgPooledConn, StorageResult,
@@ -121,46 +121,45 @@ impl GenericLink {
     }
 }
 
+impl PayoutLink {
+    pub async fn update_payout_link_by_merchant_id_link_id(
+        self,
+        conn: &PgPooledConn,
+        payout_link_update: PayoutLinkUpdate,
+    ) -> StorageResult<PayoutLink> {
+        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::link_id
+                .eq(self.link_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            PayoutLinkUpdateInternal::from(payout_link_update),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                db_errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            Ok(mut payout_links) => payout_links
+                .pop()
+                .ok_or(error_stack::report!(db_errors::DatabaseError::NotFound)),
+        }
+    }
+}
+
 impl TryFrom<GenericLink> for GenericLinkS {
     type Error = Report<errors::ParsingError>;
     fn try_from(db_val: GenericLink) -> Result<Self, Self::Error> {
-        let (link_data, link_status) = match db_val.link_type {
+        let link_data = match db_val.link_type {
             common_enums::GenericLinkType::PaymentMethodCollect => {
                 let link_data = db_val
                     .link_data
                     .parse_value("PaymentMethodCollectLinkData")?;
-                let link_status =
-                    common_enums::PaymentMethodCollectStatus::from_str(&db_val.link_status)
-                        .map_err(|_| {
-                            report!(errors::ParsingError::EnumParseFailure(
-                                "PaymentMethodCollectStatus"
-                            ))
-                        })
-                        .attach_printable(format!(
-                            "Failed to parse link_status - {} for id - {}",
-                            db_val.link_status, db_val.link_id
-                        ))?;
-                (
-                    GenericLinkData::PaymentMethodCollect(link_data),
-                    common_enums::GenericLinkStatus::PaymentMethodCollect(link_status),
-                )
+                GenericLinkData::PaymentMethodCollect(link_data)
             }
             common_enums::GenericLinkType::PayoutLink => {
-                let link_data = db_val
-                    .link_data
-                    .parse_value("PaymentMethodCollectLinkData")?;
-                let link_status = common_enums::PayoutLinkStatus::from_str(&db_val.link_status)
-                    .map_err(|_| {
-                        report!(errors::ParsingError::EnumParseFailure("PayoutLinkStatus"))
-                    })
-                    .attach_printable(format!(
-                        "Failed to parse link_status - {} for id - {}",
-                        db_val.link_status, db_val.link_id
-                    ))?;
-                (
-                    GenericLinkData::PayoutLink(link_data),
-                    common_enums::GenericLinkStatus::PayoutLink(link_status),
-                )
+                let link_data = db_val.link_data.parse_value("PayoutLinkData")?;
+                GenericLinkData::PayoutLink(link_data)
             }
         };
 
@@ -172,7 +171,7 @@ impl TryFrom<GenericLink> for GenericLinkS {
             last_modified_at: db_val.last_modified_at,
             expiry: db_val.expiry,
             link_data,
-            link_status,
+            link_status: db_val.link_status,
             link_type: db_val.link_type,
             url: db_val.url,
             return_url: db_val.return_url,
@@ -188,17 +187,16 @@ impl TryFrom<GenericLink> for PaymentMethodCollectLink {
                 let link_data = db_val
                     .link_data
                     .parse_value("PaymentMethodCollectLinkData")?;
-                let link_status =
-                    common_enums::PaymentMethodCollectStatus::from_str(&db_val.link_status)
-                        .map_err(|_| {
-                            report!(errors::ParsingError::EnumParseFailure(
-                                "PaymentMethodCollectStatus"
-                            ))
-                        })
-                        .attach_printable(format!(
-                            "Failed to parse link_status - {} for id - {}",
-                            db_val.link_status, db_val.link_id
-                        ))?;
+                let link_status = match db_val.link_status {
+                    GenericLinkStatus::PaymentMethodCollect(status) => Ok(status),
+                    _ => Err(report!(errors::ParsingError::EnumParseFailure(
+                        "GenericLinkStatus"
+                    )))
+                    .attach_printable(format!(
+                        "Invalid status for PaymentMethodCollectLink - {:?}",
+                        db_val.link_status
+                    )),
+                }?;
                 (link_data, link_status)
             }
             _ => Err(report!(errors::ParsingError::UnknownError)).attach_printable(format!(
@@ -229,14 +227,16 @@ impl TryFrom<GenericLink> for PayoutLink {
         let (link_data, link_status) = match db_val.link_type {
             common_enums::GenericLinkType::PayoutLink => {
                 let link_data = db_val.link_data.parse_value("PayoutLinkData")?;
-                let link_status = common_enums::PayoutLinkStatus::from_str(&db_val.link_status)
-                    .map_err(|_| {
-                        report!(errors::ParsingError::EnumParseFailure("PayoutLinkStatus"))
-                    })
+                let link_status = match db_val.link_status {
+                    GenericLinkStatus::PayoutLink(status) => Ok(status),
+                    _ => Err(report!(errors::ParsingError::EnumParseFailure(
+                        "GenericLinkStatus"
+                    )))
                     .attach_printable(format!(
-                        "Failed to parse link_status - {} for id - {}",
-                        db_val.link_status, db_val.link_id
-                    ))?;
+                        "Invalid status for PayoutLink - {:?}",
+                        db_val.link_status
+                    )),
+                }?;
                 (link_data, link_status)
             }
             _ => Err(report!(errors::ParsingError::UnknownError)).attach_printable(format!(

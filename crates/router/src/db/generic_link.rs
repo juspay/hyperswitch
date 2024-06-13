@@ -40,6 +40,12 @@ pub trait GenericLinkInterface {
         &self,
         _payout_link: storage::GenericLinkNew,
     ) -> CustomResult<storage::PayoutLink, errors::StorageError>;
+
+    async fn update_payout_link_by_merchant_id_link_id(
+        &self,
+        payout_link: storage::PayoutLink,
+        payout_link_update: storage::PayoutLinkUpdate,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -112,6 +118,19 @@ impl GenericLinkInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
+
+    #[instrument(skip_all)]
+    async fn update_payout_link_by_merchant_id_link_id(
+        &self,
+        payout_link: storage::PayoutLink,
+        payout_link_update: storage::PayoutLinkUpdate,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        payout_link
+            .update_payout_link_by_merchant_id_link_id(&conn, payout_link_update)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 #[async_trait::async_trait]
@@ -159,6 +178,15 @@ impl GenericLinkInterface for MockDb {
     async fn insert_payout_link(
         &self,
         _pm_collect_link: storage::GenericLinkNew,
+    ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn update_payout_link_by_merchant_id_link_id(
+        &self,
+        _payout_link: storage::PayoutLink,
+        _payout_link_update: storage::PayoutLinkUpdate,
     ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

@@ -3,6 +3,7 @@ use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type,
     pii::{self, Email},
+    types,
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -733,7 +734,7 @@ pub struct PayoutLinkStatusDetails {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,
     pub return_url: Option<String>,
-    pub status: api_enums::PayoutLinkStatus,
+    pub status: types::PayoutLinkStatus,
     #[serde(flatten)]
     pub ui_config: api_enums::CollectLinkConfig,
 }

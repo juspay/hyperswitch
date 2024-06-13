@@ -1,5 +1,8 @@
-use common_utils::{consts, id_type};
-use diesel::{Identifiable, Insertable, Queryable};
+use common_utils::{
+    consts, id_type,
+    types::{GenericLinkStatus, PaymentMethodCollectStatus, PayoutLinkData, PayoutLinkStatus},
+};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{Duration, PrimitiveDateTime};
@@ -20,7 +23,7 @@ pub struct GenericLink {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expiry: PrimitiveDateTime,
     pub link_data: serde_json::Value,
-    pub link_status: String,
+    pub link_status: GenericLinkStatus,
     pub link_type: storage_enums::GenericLinkType,
     pub url: Secret<String>,
     pub return_url: Option<String>,
@@ -38,7 +41,7 @@ pub struct GenericLinkS {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expiry: PrimitiveDateTime,
     pub link_data: GenericLinkData,
-    pub link_status: storage_enums::GenericLinkStatus,
+    pub link_status: GenericLinkStatus,
     pub link_type: storage_enums::GenericLinkType,
     pub url: Secret<String>,
     pub return_url: Option<String>,
@@ -66,7 +69,7 @@ pub struct GenericLinkNew {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expiry: PrimitiveDateTime,
     pub link_data: serde_json::Value,
-    pub link_status: String,
+    pub link_status: GenericLinkStatus,
     pub link_type: storage_enums::GenericLinkType,
     pub url: Secret<String>,
     pub return_url: Option<String>,
@@ -84,7 +87,7 @@ impl Default for GenericLinkNew {
             last_modified_at: Some(now),
             expiry: now + Duration::seconds(consts::DEFAULT_SESSION_EXPIRY),
             link_data: serde_json::Value::default(),
-            link_status: common_enums::GenericLinkStatus::default().to_string(),
+            link_status: GenericLinkStatus::default(),
             link_type: common_enums::GenericLinkType::default(),
             url: Secret::default(),
             return_url: Option::default(),
@@ -126,7 +129,7 @@ pub struct PaymentMethodCollectLink {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expiry: PrimitiveDateTime,
     pub link_data: PaymentMethodCollectLinkData,
-    pub link_status: storage_enums::PaymentMethodCollectStatus,
+    pub link_status: PaymentMethodCollectStatus,
     pub link_type: storage_enums::GenericLinkType,
     pub url: Secret<String>,
     pub return_url: Option<String>,
@@ -145,7 +148,9 @@ pub struct PaymentMethodCollectLinkData {
     pub enabled_payment_methods: Vec<storage_enums::EnabledPaymentMethod>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Identifiable, Queryable, Serialize, Deserialize)]
+#[diesel(table_name = generic_link)]
+#[diesel(primary_key(link_id))]
 pub struct PayoutLink {
     pub link_id: String,
     pub primary_reference: String,
@@ -157,24 +162,39 @@ pub struct PayoutLink {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expiry: PrimitiveDateTime,
     pub link_data: PayoutLinkData,
-    pub link_status: storage_enums::PayoutLinkStatus,
+    pub link_status: PayoutLinkStatus,
     pub link_type: storage_enums::GenericLinkType,
     pub url: Secret<String>,
     pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PayoutLinkData {
-    pub payout_link_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub payout_id: String,
-    pub sdk_host: String,
-    pub link: Secret<String>,
-    pub client_secret: Secret<String>,
-    pub session_expiry: u32,
-    #[serde(flatten)]
-    pub ui_config: storage_enums::CollectLinkConfig,
-    pub enabled_payment_methods: Vec<storage_enums::EnabledPaymentMethod>,
-    pub amount: i64,
-    pub currency: storage_enums::Currency,
+pub enum PayoutLinkUpdate {
+    StatusUpdate { link_status: PayoutLinkStatus },
+}
+
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
+#[diesel(table_name = generic_link)]
+pub struct PayoutLinkUpdateInternal {
+    pub link_status: Option<PayoutLinkStatus>,
+}
+
+impl From<PayoutLinkUpdate> for PayoutLinkUpdateInternal {
+    fn from(generic_link_update: PayoutLinkUpdate) -> Self {
+        match generic_link_update {
+            PayoutLinkUpdate::StatusUpdate { link_status } => Self {
+                link_status: Some(link_status),
+            },
+        }
+    }
+}
+
+impl PayoutLinkUpdate {
+    pub fn apply_changeset(self, source: PayoutLink) -> PayoutLink {
+        let PayoutLinkUpdateInternal { link_status } = self.into();
+        PayoutLink {
+            link_status: link_status.unwrap_or(source.link_status),
+            ..source
+        }
+    }
 }

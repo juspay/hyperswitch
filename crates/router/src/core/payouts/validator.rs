@@ -1,10 +1,14 @@
 use api_models::{admin, payments::Amount};
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::{ext_traits::ValueExt, id_type::CustomerId, types::MinorUnit};
+use common_utils::{
+    ext_traits::ValueExt,
+    id_type::CustomerId,
+    types::{GenericLinkStatus, MinorUnit, PayoutLinkData, PayoutLinkStatus},
+};
 use diesel_models::{
-    enums::{self, CollectLinkConfig, PayoutLinkStatus},
-    generic_link::{GenericLinkNew, PayoutLink, PayoutLinkData},
+    enums::{self, CollectLinkConfig},
+    generic_link::{GenericLinkNew, PayoutLink},
 };
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
@@ -304,8 +308,7 @@ pub async fn create_payout_link_db_entry(
         primary_reference: payout_link_data.payout_id.to_string(),
         merchant_id: merchant_account.merchant_id.to_string(),
         link_type: common_enums::GenericLinkType::PayoutLink,
-        link_status: common_enums::GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated)
-            .to_string(),
+        link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::PayoutLinkInitiated),
         link_data,
         url: payout_link_data.link.clone(),
         return_url,

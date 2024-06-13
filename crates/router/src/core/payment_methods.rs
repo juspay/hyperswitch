@@ -7,7 +7,7 @@ pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, payments::CardToken};
-use common_utils::id_type::CustomerId;
+use common_utils::{id_type::CustomerId, types};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -205,7 +205,7 @@ pub async fn render_pm_collect_link(
     let status = pm_collect_link.link_status;
     let link_data = pm_collect_link.link_data;
     match status {
-        enums::PaymentMethodCollectStatus::Initiated => {
+        types::PaymentMethodCollectStatus::PMCollectInitiated => {
             // if expired, send back expired status page
             if has_expired {
                 let expired_link_data = services::GenericExpiredLinkData {

@@ -1,9 +1,7 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 #[cfg(feature = "payouts")]
-use common_utils::{ext_traits::OptionExt, id_type::CustomerId};
-#[cfg(feature = "payouts")]
-use diesel_models::enums;
+use common_utils::{ext_traits::OptionExt, id_type::CustomerId, types};
 #[cfg(feature = "payouts")]
 use error_stack::ResultExt;
 
@@ -54,7 +52,7 @@ pub async fn initiate_payout_link(
     let status = payout_link.link_status;
     let link_data = payout_link.link_data;
     match status {
-        enums::PayoutLinkStatus::Initiated => {
+        types::PayoutLinkStatus::PayoutLinkInitiated => {
             // if expired, send back expired status page
             if has_expired {
                 let expired_link_data = services::GenericExpiredLinkData {

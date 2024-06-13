@@ -6,7 +6,13 @@ pub mod validator;
 use std::vec::IntoIter;
 
 use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
-use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii, types::MinorUnit};
+use common_utils::{
+    consts,
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, ValueExt},
+    pii,
+    types::{MinorUnit, PayoutLinkStatus},
+};
 use diesel_models::{enums as storage_enums, generic_link::PayoutLink};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
@@ -374,6 +380,26 @@ pub async fn payouts_confirm_core(
         ],
         "confirm",
     )?;
+
+    // Update payout link's status
+    let db = &*state.store;
+
+    // payout_data.payout_link
+    payout_data.payout_link = payout_data
+        .payout_link
+        .clone()
+        .async_map(|pl| async move {
+            let payout_link_update = storage::PayoutLinkUpdate::StatusUpdate {
+                link_status: PayoutLinkStatus::PayoutLinkSubmitted,
+            };
+            db.update_payout_link_by_merchant_id_link_id(pl, payout_link_update)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error updating payout links in db")
+        })
+        .await
+        .transpose()?;
+
     payouts_core(
         &state,
         &merchant_account,
@@ -2297,6 +2323,18 @@ pub async fn make_payout_data(
         }
     };
 
+    let payout_link = payouts
+        .payout_link_id
+        .clone()
+        .async_map(|link_id| async move {
+            db.find_payout_link_by_link_id(&link_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error fetching payout links from db")
+        })
+        .await
+        .transpose()?;
+
     Ok(PayoutData {
         billing_address,
         business_profile,
@@ -2307,7 +2345,7 @@ pub async fn make_payout_data(
         merchant_connector_account: None,
         should_terminate: false,
         profile_id,
-        payout_link: None, // Should be changed
+        payout_link,
     })
 }
 

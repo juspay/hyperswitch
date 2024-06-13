@@ -5,7 +5,7 @@ use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
     id_type, pii,
-    types::{MinorUnit, Percentage, Surcharge},
+    types::{MinorUnit, PaymentMethodCollectStatus, Percentage, Surcharge},
 };
 use serde::de;
 use utoipa::{schema, ToSchema};
@@ -1037,7 +1037,7 @@ pub struct PaymentMethodCollectLinkStatusDetails {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: time::PrimitiveDateTime,
     pub return_url: Option<String>,
-    pub status: api_enums::PaymentMethodCollectStatus,
+    pub status: PaymentMethodCollectStatus,
     #[serde(flatten)]
     pub ui_config: api_enums::CollectLinkConfig,
 }
