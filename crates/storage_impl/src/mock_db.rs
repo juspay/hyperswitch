@@ -58,7 +58,8 @@ pub struct MockDb {
     pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
     pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
-    pub org_authentication_methods: Arc<Mutex<Vec<store::org_authentication_method::OrgAuthenticationMethod>>>,
+    pub org_authentication_methods:
+        Arc<Mutex<Vec<store::org_authentication_method::OrgAuthenticationMethod>>>,
 }
 
 impl MockDb {
