@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use common_utils::{errors, ext_traits::ValueExt, types::GenericLinkStatus};
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::{report, Report, ResultExt};
@@ -8,8 +6,8 @@ use super::generics;
 use crate::{
     errors as db_errors,
     generic_link::{
-        GenericLink, GenericLinkData, GenericLinkNew, GenericLinkS, PaymentMethodCollectLink,
-        PayoutLink, PayoutLinkUpdate, PayoutLinkUpdateInternal,
+        GenericLink, GenericLinkData, GenericLinkNew, GenericLinkS, GenericLinkUpdateInternal,
+        PaymentMethodCollectLink, PayoutLink, PayoutLinkUpdate,
     },
     schema::generic_link::dsl,
     PgPooledConn, StorageResult,
@@ -126,13 +124,13 @@ impl PayoutLink {
         self,
         conn: &PgPooledConn,
         payout_link_update: PayoutLinkUpdate,
-    ) -> StorageResult<PayoutLink> {
+    ) -> StorageResult<Self> {
         match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::link_id
                 .eq(self.link_id.to_owned())
                 .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
-            PayoutLinkUpdateInternal::from(payout_link_update),
+            GenericLinkUpdateInternal::from(payout_link_update),
         )
         .await
         {

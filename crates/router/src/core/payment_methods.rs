@@ -205,7 +205,7 @@ pub async fn render_pm_collect_link(
     let status = pm_collect_link.link_status;
     let link_data = pm_collect_link.link_data;
     match status {
-        types::PaymentMethodCollectStatus::PMCollectInitiated => {
+        types::PaymentMethodCollectStatus::Initiated => {
             // if expired, send back expired status page
             if has_expired {
                 let expired_link_data = services::GenericExpiredLinkData {

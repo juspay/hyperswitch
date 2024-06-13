@@ -390,7 +390,7 @@ pub async fn payouts_confirm_core(
         .clone()
         .async_map(|pl| async move {
             let payout_link_update = storage::PayoutLinkUpdate::StatusUpdate {
-                link_status: PayoutLinkStatus::PayoutLinkSubmitted,
+                link_status: PayoutLinkStatus::Submitted,
             };
             db.update_payout_link_by_merchant_id_link_id(pl, payout_link_update)
                 .await
@@ -2018,7 +2018,7 @@ pub async fn response_handler(
         attempts: None,
         payout_link: payout_link.map(|payout_link| PayoutLinkResponse {
             payout_link_id: payout_link.link_id.clone(),
-            link: payout_link.url.into(),
+            link: payout_link.url,
         }),
     };
     Ok(services::ApplicationResponse::Json(response))

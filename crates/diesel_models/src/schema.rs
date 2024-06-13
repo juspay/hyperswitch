@@ -510,7 +510,7 @@ diesel::table! {
         last_modified_at -> Timestamp,
         expiry -> Timestamp,
         link_data -> Jsonb,
-        #[max_length = 32]
+        #[max_length = 256]
         link_status -> Varchar,
         link_type -> GenericLinkType,
         #[max_length = 256]
@@ -1052,7 +1052,7 @@ diesel::table! {
         profile_id -> Varchar,
         status -> PayoutStatus,
         confirm -> Nullable<Bool>,
-        #[max_length = 64]
+        #[max_length = 255]
         payout_link_id -> Nullable<Varchar>,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,

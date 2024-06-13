@@ -850,6 +850,7 @@ pub enum GenericLinks {
     ExpiredLink(GenericExpiredLinkData),
     PaymentMethodCollect(GenericLinkFormData),
     PayoutLink(GenericLinkFormData),
+    PayoutLinkStatus(GenericLinkStatusData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
 }
 

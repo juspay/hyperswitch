@@ -175,26 +175,16 @@ pub enum PayoutLinkUpdate {
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = generic_link)]
-pub struct PayoutLinkUpdateInternal {
-    pub link_status: Option<PayoutLinkStatus>,
+pub struct GenericLinkUpdateInternal {
+    pub link_status: Option<GenericLinkStatus>,
 }
 
-impl From<PayoutLinkUpdate> for PayoutLinkUpdateInternal {
+impl From<PayoutLinkUpdate> for GenericLinkUpdateInternal {
     fn from(generic_link_update: PayoutLinkUpdate) -> Self {
         match generic_link_update {
             PayoutLinkUpdate::StatusUpdate { link_status } => Self {
-                link_status: Some(link_status),
+                link_status: Some(GenericLinkStatus::PayoutLink(link_status)),
             },
-        }
-    }
-}
-
-impl PayoutLinkUpdate {
-    pub fn apply_changeset(self, source: PayoutLink) -> PayoutLink {
-        let PayoutLinkUpdateInternal { link_status } = self.into();
-        PayoutLink {
-            link_status: link_status.unwrap_or(source.link_status),
-            ..source
         }
     }
 }

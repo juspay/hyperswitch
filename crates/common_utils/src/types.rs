@@ -1,6 +1,6 @@
 //! Types that can be used in other crates
 use std::{
-    fmt::{Display, Formatter},
+    fmt::Display,
     ops::{Add, Sub},
     primitive::i64,
     str::FromStr,
@@ -707,16 +707,19 @@ where
     FromSqlRow,
     AsExpression,
 )]
-#[serde(rename_all = "snake_case", untagged)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
 #[diesel(sql_type = sql_types::Text)]
+/// Link status enum
 pub enum GenericLinkStatus {
+    /// Status variants for payment method collect link
     PaymentMethodCollect(PaymentMethodCollectStatus),
+    /// Status variants for payout link
     PayoutLink(PayoutLinkStatus),
 }
 
 impl Default for GenericLinkStatus {
     fn default() -> Self {
-        Self::PaymentMethodCollect(PaymentMethodCollectStatus::PMCollectInitiated)
+        Self::PaymentMethodCollect(PaymentMethodCollectStatus::Initiated)
     }
 }
 
@@ -726,6 +729,7 @@ where
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let value = <String as FromSql<sql_types::Text, DB>>::from_sql(bytes)?;
+        // let a = serde_json::from_str(&value)?;
         Ok(serde_json::from_str(&value)?)
     }
 }
@@ -757,10 +761,14 @@ where
     ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
+/// Status variants for payment method collect links
 pub enum PaymentMethodCollectStatus {
-    PMCollectInitiated,
-    PMCollectInvalidated,
-    PMCollectSubmitted,
+    /// Link was initialized
+    Initiated,
+    /// Link was expired or invalidated
+    Invalidated,
+    /// Payment method details were submitted
+    Submitted,
 }
 
 #[derive(
@@ -778,10 +786,14 @@ pub enum PaymentMethodCollectStatus {
 )]
 #[serde(rename_all = "snake_case")]
 #[diesel(sql_type = sql_types::Text)]
+/// Status variants for payout links
 pub enum PayoutLinkStatus {
-    PayoutLinkInitiated,
-    PayoutLinkInvalidated,
-    PayoutLinkSubmitted,
+    /// Link was initialized
+    Initiated,
+    /// Link was expired or invalidated
+    Invalidated,
+    /// Payout details were submitted
+    Submitted,
 }
 
 impl<DB: Backend> FromSql<sql_types::Text, DB> for PayoutLinkStatus
@@ -790,7 +802,14 @@ where
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let value = <String as FromSql<sql_types::Text, DB>>::from_sql(bytes)?;
-        Ok(serde_json::from_str(&value)?)
+        let generic_status: GenericLinkStatus = serde_json::from_str(&value)?;
+        match generic_status {
+            GenericLinkStatus::PayoutLink(status) => Ok(status),
+            GenericLinkStatus::PaymentMethodCollect(_) => {
+                Err(report!(ParsingError::EnumParseFailure("PayoutLinkStatus")))
+                    .attach_printable("Invalid status for PayoutLink")?
+            }
+        }
     }
 }
 
@@ -799,7 +818,7 @@ where
     String: ToSql<sql_types::Text, diesel::pg::Pg>,
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = self.encode_to_string_of_json()?;
+        let value = GenericLinkStatus::PayoutLink(*self).encode_to_string_of_json()?;
 
         // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
         // please refer to the diesel migration blog:
@@ -810,18 +829,30 @@ where
 
 #[derive(Serialize, serde::Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
+/// Payout link object
 pub struct PayoutLinkData {
+    /// Identifier for the payout link
     pub payout_link_id: String,
+    /// Identifier for the customer
     pub customer_id: id_type::CustomerId,
+    /// Identifier for the payouts resource
     pub payout_id: String,
+    /// HyperSwitch's SDK hostname
     pub sdk_host: String,
+    /// Link to render the payout link
     pub link: Secret<String>,
+    /// Client secret generated for authenticating frontend APIs
     pub client_secret: Secret<String>,
+    /// Expiry in seconds from the time it was created
     pub session_expiry: u32,
     #[serde(flatten)]
+    /// Payout link's UI configurations
     pub ui_config: enums::CollectLinkConfig,
+    /// List of enabled payment methods
     pub enabled_payment_methods: Vec<enums::EnabledPaymentMethod>,
+    /// Payout amount
     pub amount: i64,
+    /// Payout currency
     pub currency: enums::Currency,
 }
 

@@ -191,6 +191,7 @@ pub(super) fn validate_payout_list_request_for_joins(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_payout_link(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -284,8 +285,8 @@ pub async fn create_payout_link(
         session_expiry,
         ui_config: payout_link_config,
         enabled_payment_methods,
-        amount: MinorUnit::from(amount.clone()).get_amount_as_i64(),
-        currency: currency.clone(),
+        amount: MinorUnit::from(*amount).get_amount_as_i64(),
+        currency: *currency,
     };
 
     create_payout_link_db_entry(state, merchant_account, &data, return_url).await
@@ -308,7 +309,7 @@ pub async fn create_payout_link_db_entry(
         primary_reference: payout_link_data.payout_id.to_string(),
         merchant_id: merchant_account.merchant_id.to_string(),
         link_type: common_enums::GenericLinkType::PayoutLink,
-        link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::PayoutLinkInitiated),
+        link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated),
         link_data,
         url: payout_link_data.link.clone(),
         return_url,
