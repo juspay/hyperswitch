@@ -223,8 +223,8 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenTransferRequest {
                     AdyenPlatformConnectorMetadataObject::try_from(&item.connector_meta_data)?;
                 let balance_account_id = adyen_connector_metadata_object
                     .source_balance_account
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "source_balance_account",
+                    .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                        config: "metadata.source_balance_account",
                     })?;
                 let priority =
                     request
