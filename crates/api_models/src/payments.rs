@@ -3919,11 +3919,11 @@ impl From<AdditionalCardInfo> for CardResponse {
     }
 }
 
-impl From<Option<KlarnaSdkPaymentMethod>> for PaylaterResponse {
-    fn from(klarna_sdk: Option<KlarnaSdkPaymentMethod>) -> Self {
+impl From<KlarnaSdkPaymentMethod> for PaylaterResponse {
+    fn from(klarna_sdk: KlarnaSdkPaymentMethod) -> Self {
         Self {
-            klarna_sdk: klarna_sdk.map(|sdk| KlarnaSdkPaymentMethodResponse {
-                payment_type: sdk.payment_type,
+            klarna_sdk: Some(KlarnaSdkPaymentMethodResponse {
+                payment_type: klarna_sdk.payment_type,
             }),
         }
     }
@@ -3933,9 +3933,10 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater { klarna_sdk } => {
-                Self::PayLater(PaylaterResponse::from(klarna_sdk))
-            }
+            AdditionalPaymentData::PayLater { klarna_sdk } => match klarna_sdk {
+                Some(sdk) => Self::PayLater(PaylaterResponse::from(sdk)),
+                None => Self::PayLater(PaylaterResponse { klarna_sdk: None }),
+            },
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
             AdditionalPaymentData::Crypto {} => Self::Crypto {},

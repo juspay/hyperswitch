@@ -91,32 +91,14 @@ pub struct KlarnaPaymentsResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthorizedPaymentMethod {
     #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-#[derive(strum::Display)]
-pub enum PaymentType {
-    Invoice,
-    FixedAmount,
-    BaseAccount,
-    DirectDebit,
-    DirectBankTransfer,
-    B2BInvoice,
-    Card,
-    SliceItByCard,
-    PayLaterByCard,
-    PayByCard,
-    FixedSumCredit,
-    AlternativePaymentMethod,
+    payment_type: String,
 }
 
 impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
     fn from(item: AuthorizedPaymentMethod) -> Self {
         Self::PayLater {
             klarna_sdk: Some(KlarnaSdkResponse {
-                payment_type: Some(item.payment_type.to_string()),
+                payment_type: Some(item.payment_type),
             }),
         }
     }
