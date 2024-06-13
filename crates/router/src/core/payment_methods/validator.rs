@@ -142,6 +142,6 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         client_secret: Secret::new(client_secret),
         session_expiry,
         ui_config: pm_collect_link_config,
-        enabled_payment_methods,
+        enabled_payment_methods: Some(enabled_payment_methods),
     })
 }

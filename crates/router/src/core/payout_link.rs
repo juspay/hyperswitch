@@ -1,7 +1,6 @@
 #[cfg(feature = "payouts")]
-use std::{
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
+
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 #[cfg(feature = "payouts")]
@@ -15,12 +14,12 @@ use error_stack::ResultExt;
 use super::errors::{RouterResponse, StorageErrorExt};
 #[cfg(feature = "payouts")]
 use crate::{
+    core::payments::helpers,
     errors,
     routes::{app::StorageInterface, SessionState},
+    services::logger,
     services::{self, GenericLinks},
     types::domain,
-    core::payments::helpers,
-    services::logger,
 };
 
 #[cfg(feature = "payouts")]
@@ -67,12 +66,16 @@ pub async fn initiate_payout_link(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    let filtered_mcas_on_profile = helpers::filter_mca_based_on_business_profile(all_mcas.clone(), Some(payout.profile_id.clone()));
-    logger::debug!("filtered_mcas_on_profile : {:?}",filtered_mcas_on_profile);
-    let filtered_mca = helpers::filter_mca_based_on_connector_type(filtered_mcas_on_profile.clone(), common_enums::ConnectorType::PayoutProcessor);
-    logger::debug!("filtered_mca : {:?}",filtered_mca);
+    let filtered_mcas_on_profile = helpers::filter_mca_based_on_business_profile(
+        all_mcas.clone(),
+        Some(payout.profile_id.clone()),
+    );
+    let filtered_mca = helpers::filter_mca_based_on_connector_type(
+        filtered_mcas_on_profile.clone(),
+        common_enums::ConnectorType::PayoutProcessor,
+    );
     let enabled_payout_methods = filter_payout_methods(filtered_mca);
-    logger::debug!("enabled_payout_methods: {:?}",enabled_payout_methods);
+    logger::debug!("enabled_payout_methods: {:?}", enabled_payout_methods);
     match status {
         enums::PaymentMethodCollectStatus::Initiated => {
             // if expired, send back expired status page
@@ -111,6 +114,9 @@ pub async fn initiate_payout_link(
                         "customer [{}] not found",
                         payout_link.primary_reference
                     ))?;
+                let enabled_payment_methods = link_data
+                    .enabled_payment_methods
+                    .unwrap_or(enabled_payout_methods);
 
                 let js_data = payouts::PayoutLinkDetails {
                     pub_key: merchant_account
@@ -125,7 +131,7 @@ pub async fn initiate_payout_link(
                     session_expiry: payout_link.expiry,
                     return_url: payout_link.return_url,
                     ui_config: link_data.ui_config,
-                    enabled_payment_methods: enabled_payout_methods,
+                    enabled_payment_methods,
                     amount: payout.amount,
                     currency: payout.destination_currency,
                     flow: payouts::PayoutLinkFlow::PayoutLinkInitiate,
@@ -188,47 +194,50 @@ where
 }
 
 fn filter_payout_methods(
-    filtered_mca: Vec<domain::MerchantConnectorAccount>
-)-> Vec<enums::EnabledPaymentMethod>{
+    filtered_mca: Vec<domain::MerchantConnectorAccount>,
+) -> Vec<enums::EnabledPaymentMethod> {
     let mut response: Vec<enums::EnabledPaymentMethod> = vec![];
-    let mut payment_method_list_hm : HashMap<
-            common_enums::PaymentMethod,
-            HashSet<common_enums::PaymentMethodType>,
-        > = HashMap::new();
+    let mut payment_method_list_hm: HashMap<
+        common_enums::PaymentMethod,
+        HashSet<common_enums::PaymentMethodType>,
+    > = HashMap::new();
     let mut bank_transfer_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
-    let mut card_hs: HashSet<common_enums::PaymentMethodType> =HashSet::new();
-    let mut wallet_hs : HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut card_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut wallet_hs: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     for mca in &filtered_mca {
         let payment_methods = match &mca.payment_methods_enabled {
             Some(pm) => pm,
             None => continue,
         };
         for payment_method in payment_methods.iter() {
-            let parse_result = serde_json::from_value::<api_models::admin::PaymentMethodsEnabled>(payment_method.clone());
-            if let Ok(payment_methods_enabled) = parse_result{
-                let payment_method= payment_methods_enabled.payment_method;
-                let payment_method_types = match payment_methods_enabled.payment_method_types{
+            let parse_result = serde_json::from_value::<api_models::admin::PaymentMethodsEnabled>(
+                payment_method.clone(),
+            );
+            if let Ok(payment_methods_enabled) = parse_result {
+                let payment_method = payment_methods_enabled.payment_method;
+                let payment_method_types = match payment_methods_enabled.payment_method_types {
                     Some(pmt) => pmt,
                     None => continue,
                 };
-                for pmts in &payment_method_types{
+                for pmts in &payment_method_types {
                     if payment_method == common_enums::PaymentMethod::Card {
                         card_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method,card_hs.clone());
-                    }else if payment_method == common_enums::PaymentMethod::Wallet {
+                        payment_method_list_hm.insert(payment_method, card_hs.clone());
+                    } else if payment_method == common_enums::PaymentMethod::Wallet {
                         wallet_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method,wallet_hs.clone());
-                    }else if payment_method == common_enums::PaymentMethod::BankTransfer {
+                        payment_method_list_hm.insert(payment_method, wallet_hs.clone());
+                    } else if payment_method == common_enums::PaymentMethod::BankTransfer {
                         bank_transfer_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method,bank_transfer_hs.clone());
+                        payment_method_list_hm.insert(payment_method, bank_transfer_hs.clone());
                     }
-                } 
+                }
             }
         }
     }
     for (pm, method_types) in payment_method_list_hm {
         if !method_types.is_empty() {
-            let payment_method_types: Vec<enums::PaymentMethodType> = method_types.into_iter().collect();
+            let payment_method_types: Vec<enums::PaymentMethodType> =
+                method_types.into_iter().collect();
             let enabled_payment_method = enums::EnabledPaymentMethod {
                 payment_method: pm,
                 payment_method_types,

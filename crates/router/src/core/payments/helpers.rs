@@ -124,9 +124,9 @@ pub fn filter_mca_based_on_connector_type(
     connector_type: ConnectorType,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
-            .into_iter()
-            .filter(|mca| mca.connector_type == connector_type)
-            .collect::<Vec<_>>()
+        .into_iter()
+        .filter(|mca| mca.connector_type == connector_type)
+        .collect::<Vec<_>>()
 }
 
 #[instrument(skip_all)]

@@ -2033,15 +2033,10 @@ pub async fn payout_create_db_entries(
         .customer_id;
     let payout_link = if let Some(payout_link_create) = req.payout_link {
         if payout_link_create {
-            let payout_link_config = req.payout_link_config.as_ref().ok_or_else(|| {
-                report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payout_link_config",
-                })
-            })?;
             validator::create_payout_link(
                 state,
                 merchant_account,
-                payout_link_config,
+                &req.payout_link_config,
                 &customer_id,
                 req.return_url.to_owned(),
                 payout_id,
