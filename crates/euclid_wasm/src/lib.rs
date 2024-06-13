@@ -202,7 +202,7 @@ pub fn get_all_connectors() -> JsResult {
 
 #[wasm_bindgen(js_name = getAllKeys)]
 pub fn get_all_keys() -> JsResult {
-    let keys: Vec<&'static str> = dir::DirKeyKind::VARIANTS
+    let keys: Vec<&'static str> = dir::DirKey::VARIANTS
         .iter()
         .copied()
         .filter(|s| s != &"Connector")
@@ -212,7 +212,7 @@ pub fn get_all_keys() -> JsResult {
 
 #[wasm_bindgen(js_name = getKeyType)]
 pub fn get_key_type(key: &str) -> Result<String, String> {
-    let key = dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+    let key = dir::DirKey::from_str(key).map_err(|_| "Invalid key received".to_string())?;
     let key_str = key.get_type().to_string();
     Ok(key_str)
 }
@@ -236,38 +236,38 @@ pub fn parser(val: String) -> String {
 
 #[wasm_bindgen(js_name = getVariantValues)]
 pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
-    let key = dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+    let key = dir::DirKey::from_str(key).map_err(|_| "Invalid key received".to_string())?;
 
     let variants: &[&str] = match key {
-        dir::DirKeyKind::PaymentMethod => dir_enums::PaymentMethod::VARIANTS,
-        dir::DirKeyKind::CardType => dir_enums::CardType::VARIANTS,
-        dir::DirKeyKind::CardNetwork => dir_enums::CardNetwork::VARIANTS,
-        dir::DirKeyKind::PayLaterType => dir_enums::PayLaterType::VARIANTS,
-        dir::DirKeyKind::WalletType => dir_enums::WalletType::VARIANTS,
-        dir::DirKeyKind::BankRedirectType => dir_enums::BankRedirectType::VARIANTS,
-        dir::DirKeyKind::CryptoType => dir_enums::CryptoType::VARIANTS,
-        dir::DirKeyKind::RewardType => dir_enums::RewardType::VARIANTS,
-        dir::DirKeyKind::AuthenticationType => dir_enums::AuthenticationType::VARIANTS,
-        dir::DirKeyKind::CaptureMethod => dir_enums::CaptureMethod::VARIANTS,
-        dir::DirKeyKind::PaymentCurrency => dir_enums::PaymentCurrency::VARIANTS,
-        dir::DirKeyKind::BusinessCountry => dir_enums::Country::VARIANTS,
-        dir::DirKeyKind::BillingCountry => dir_enums::Country::VARIANTS,
-        dir::DirKeyKind::BankTransferType => dir_enums::BankTransferType::VARIANTS,
-        dir::DirKeyKind::UpiType => dir_enums::UpiType::VARIANTS,
-        dir::DirKeyKind::SetupFutureUsage => dir_enums::SetupFutureUsage::VARIANTS,
-        dir::DirKeyKind::PaymentType => dir_enums::PaymentType::VARIANTS,
-        dir::DirKeyKind::MandateType => dir_enums::MandateType::VARIANTS,
-        dir::DirKeyKind::MandateAcceptanceType => dir_enums::MandateAcceptanceType::VARIANTS,
-        dir::DirKeyKind::CardRedirectType => dir_enums::CardRedirectType::VARIANTS,
-        dir::DirKeyKind::GiftCardType => dir_enums::GiftCardType::VARIANTS,
-        dir::DirKeyKind::VoucherType => dir_enums::VoucherType::VARIANTS,
-        dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
+        dir::DirKey::PaymentMethod => dir_enums::PaymentMethod::VARIANTS,
+        dir::DirKey::CardType => dir_enums::CardType::VARIANTS,
+        dir::DirKey::CardNetwork => dir_enums::CardNetwork::VARIANTS,
+        dir::DirKey::PayLaterType => dir_enums::PayLaterType::VARIANTS,
+        dir::DirKey::WalletType => dir_enums::WalletType::VARIANTS,
+        dir::DirKey::BankRedirectType => dir_enums::BankRedirectType::VARIANTS,
+        dir::DirKey::CryptoType => dir_enums::CryptoType::VARIANTS,
+        dir::DirKey::RewardType => dir_enums::RewardType::VARIANTS,
+        dir::DirKey::AuthenticationType => dir_enums::AuthenticationType::VARIANTS,
+        dir::DirKey::CaptureMethod => dir_enums::CaptureMethod::VARIANTS,
+        dir::DirKey::PaymentCurrency => dir_enums::PaymentCurrency::VARIANTS,
+        dir::DirKey::BusinessCountry => dir_enums::Country::VARIANTS,
+        dir::DirKey::BillingCountry => dir_enums::Country::VARIANTS,
+        dir::DirKey::BankTransferType => dir_enums::BankTransferType::VARIANTS,
+        dir::DirKey::UpiType => dir_enums::UpiType::VARIANTS,
+        dir::DirKey::SetupFutureUsage => dir_enums::SetupFutureUsage::VARIANTS,
+        dir::DirKey::PaymentType => dir_enums::PaymentType::VARIANTS,
+        dir::DirKey::MandateType => dir_enums::MandateType::VARIANTS,
+        dir::DirKey::MandateAcceptanceType => dir_enums::MandateAcceptanceType::VARIANTS,
+        dir::DirKey::CardRedirectType => dir_enums::CardRedirectType::VARIANTS,
+        dir::DirKey::GiftCardType => dir_enums::GiftCardType::VARIANTS,
+        dir::DirKey::VoucherType => dir_enums::VoucherType::VARIANTS,
+        dir::DirKey::BankDebitType => dir_enums::BankDebitType::VARIANTS,
 
-        dir::DirKeyKind::PaymentAmount
-        | dir::DirKeyKind::Connector
-        | dir::DirKeyKind::CardBin
-        | dir::DirKeyKind::BusinessLabel
-        | dir::DirKeyKind::MetaData => Err("Key does not have variants".to_string())?,
+        dir::DirKey::PaymentAmount
+        | dir::DirKey::Connector
+        | dir::DirKey::CardBin
+        | dir::DirKey::BusinessLabel
+        | dir::DirKey::MetaData => Err("Key does not have variants".to_string())?,
     };
 
     Ok(serde_wasm_bindgen::to_value(variants)?)
@@ -280,15 +280,14 @@ pub fn add_two(n1: i64, n2: i64) -> i64 {
 
 #[wasm_bindgen(js_name = getDescriptionCategory)]
 pub fn get_description_category() -> JsResult {
-    let keys = dir::DirKeyKind::VARIANTS
+    let keys = dir::DirKey::VARIANTS
         .iter()
         .copied()
         .filter(|s| s != &"Connector")
         .collect::<Vec<&'static str>>();
     let mut category: HashMap<Option<&str>, Vec<types::Details<'_>>> = HashMap::new();
     for key in keys {
-        let dir_key =
-            dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+        let dir_key = dir::DirKey::from_str(key).map_err(|_| "Invalid key received".to_string())?;
         let details = types::Details {
             description: dir_key.get_detailed_message(),
             kind: dir_key.clone(),

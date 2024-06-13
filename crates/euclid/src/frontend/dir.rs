@@ -92,50 +92,6 @@ macro_rules! dirval {
     }};
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
-pub struct DirKey {
-    pub kind: DirKeyKind,
-    pub value: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum DirKeyAlt {
-    PaymentMethod,
-    CardBin,
-    CardType,
-    CardNetwork,
-    PayLaterType,
-    GiftCardType,
-    MandateAcceptanceType,
-    MandateType,
-    PaymentType,
-    WalletType,
-    UpiType,
-    VoucherType,
-    BankTransferType,
-    BankRedirectType,
-    BankDebitType,
-    CryptoType,
-    MetaData { key: String },
-    RewardType,
-    PaymentAmount,
-    PaymentCurrency,
-    AuthenticationType,
-    CaptureMethod,
-    BusinessCountry,
-    BillingCountry,
-    Connector,
-    BusinessLabel,
-    SetupFutureUsage,
-    CardRedirectType,
-}
-
-impl DirKey {
-    pub fn new(kind: DirKeyKind, value: Option<String>) -> Self {
-        Self { kind, value }
-    }
-}
-
 #[derive(
     Debug,
     Clone,
@@ -150,7 +106,7 @@ impl DirKey {
     strum::EnumMessage,
     strum::EnumProperty,
 )]
-pub enum DirKeyKind {
+pub enum DirKey {
     #[strum(
         serialize = "payment_method",
         detailed_message = "Different modes of payment - eg. cards, wallets, banks",
@@ -349,17 +305,17 @@ pub trait EuclidDirFilter: Sized
 where
     Self: 'static,
 {
-    const ALLOWED: &'static [DirKeyKind];
-    fn get_allowed_keys() -> &'static [DirKeyKind] {
+    const ALLOWED: &'static [DirKey];
+    fn get_allowed_keys() -> &'static [DirKey] {
         Self::ALLOWED
     }
 
-    fn is_key_allowed(key: &DirKeyKind) -> bool {
+    fn is_key_allowed(key: &DirKey) -> bool {
         Self::ALLOWED.contains(key)
     }
 }
 
-impl DirKeyKind {
+impl DirKey {
     pub fn get_type(&self) -> types::DataType {
         match self {
             Self::PaymentMethod => types::DataType::EnumVariant,
@@ -585,39 +541,38 @@ pub enum DirValue {
 
 impl DirValue {
     pub fn get_key(&self) -> DirKey {
-        let (kind, data) = match self {
-            Self::PaymentMethod(_) => (DirKeyKind::PaymentMethod, None),
-            Self::CardBin(_) => (DirKeyKind::CardBin, None),
-            Self::RewardType(_) => (DirKeyKind::RewardType, None),
-            Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
-            Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
-            Self::BankTransferType(_) => (DirKeyKind::BankTransferType, None),
-            Self::UpiType(_) => (DirKeyKind::UpiType, None),
-            Self::CardType(_) => (DirKeyKind::CardType, None),
-            Self::CardNetwork(_) => (DirKeyKind::CardNetwork, None),
-            Self::MetaData(met) => (DirKeyKind::MetaData, Some(met.key.clone())),
-            Self::PayLaterType(_) => (DirKeyKind::PayLaterType, None),
-            Self::WalletType(_) => (DirKeyKind::WalletType, None),
-            Self::BankRedirectType(_) => (DirKeyKind::BankRedirectType, None),
-            Self::CryptoType(_) => (DirKeyKind::CryptoType, None),
-            Self::AuthenticationType(_) => (DirKeyKind::AuthenticationType, None),
-            Self::CaptureMethod(_) => (DirKeyKind::CaptureMethod, None),
-            Self::PaymentAmount(_) => (DirKeyKind::PaymentAmount, None),
-            Self::PaymentCurrency(_) => (DirKeyKind::PaymentCurrency, None),
-            Self::Connector(_) => (DirKeyKind::Connector, None),
-            Self::BankDebitType(_) => (DirKeyKind::BankDebitType, None),
-            Self::MandateAcceptanceType(_) => (DirKeyKind::MandateAcceptanceType, None),
-            Self::MandateType(_) => (DirKeyKind::MandateType, None),
-            Self::PaymentType(_) => (DirKeyKind::PaymentType, None),
-            Self::BusinessLabel(_) => (DirKeyKind::BusinessLabel, None),
-            Self::SetupFutureUsage(_) => (DirKeyKind::SetupFutureUsage, None),
-            Self::CardRedirectType(_) => (DirKeyKind::CardRedirectType, None),
-            Self::VoucherType(_) => (DirKeyKind::VoucherType, None),
-            Self::GiftCardType(_) => (DirKeyKind::GiftCardType, None),
-        };
-
-        DirKey::new(kind, data)
+        match self {
+            Self::PaymentMethod(_) => DirKey::PaymentMethod,
+            Self::CardBin(_) => DirKey::CardBin,
+            Self::RewardType(_) => DirKey::RewardType,
+            Self::BusinessCountry(_) => DirKey::BusinessCountry,
+            Self::BillingCountry(_) => DirKey::BillingCountry,
+            Self::BankTransferType(_) => DirKey::BankTransferType,
+            Self::UpiType(_) => DirKey::UpiType,
+            Self::CardType(_) => DirKey::CardType,
+            Self::CardNetwork(_) => DirKey::CardNetwork,
+            Self::MetaData(_) => DirKey::MetaData,
+            Self::PayLaterType(_) => DirKey::PayLaterType,
+            Self::WalletType(_) => DirKey::WalletType,
+            Self::BankRedirectType(_) => DirKey::BankRedirectType,
+            Self::CryptoType(_) => DirKey::CryptoType,
+            Self::AuthenticationType(_) => DirKey::AuthenticationType,
+            Self::CaptureMethod(_) => DirKey::CaptureMethod,
+            Self::PaymentAmount(_) => DirKey::PaymentAmount,
+            Self::PaymentCurrency(_) => DirKey::PaymentCurrency,
+            Self::Connector(_) => DirKey::Connector,
+            Self::BankDebitType(_) => DirKey::BankDebitType,
+            Self::MandateAcceptanceType(_) => DirKey::MandateAcceptanceType,
+            Self::MandateType(_) => DirKey::MandateType,
+            Self::PaymentType(_) => DirKey::PaymentType,
+            Self::BusinessLabel(_) => DirKey::BusinessLabel,
+            Self::SetupFutureUsage(_) => DirKey::SetupFutureUsage,
+            Self::CardRedirectType(_) => DirKey::CardRedirectType,
+            Self::VoucherType(_) => DirKey::VoucherType,
+            Self::GiftCardType(_) => DirKey::GiftCardType,
+        }
     }
+
     pub fn get_metadata_val(&self) -> Option<types::MetadataValue> {
         match self {
             Self::MetaData(val) => Some(val.clone()),
@@ -838,14 +793,14 @@ mod test {
 
     #[test]
     fn test_consistent_dir_key_naming() {
-        let mut key_names: FxHashMap<DirKeyKind, String> = FxHashMap::default();
+        let mut key_names: FxHashMap<DirKey, String> = FxHashMap::default();
 
-        for key in DirKeyKind::iter() {
-            if matches!(key, DirKeyKind::Connector) {
+        for key in DirKey::iter() {
+            if matches!(key, DirKey::Connector) {
                 continue;
             }
 
-            let json_str = if let DirKeyKind::MetaData = key {
+            let json_str = if let DirKey::MetaData = key {
                 r#""metadata""#.to_string()
             } else {
                 serde_json::to_string(&key).expect("JSON Serialization")
@@ -891,7 +846,7 @@ mod test {
             let value_str = json_key.as_str().expect("Value string");
             let dir_key = val.get_key();
 
-            let key_name = key_names.get(&dir_key.kind).expect("Key name");
+            let key_name = key_names.get(&dir_key).expect("Key name");
 
             assert_eq!(key_name, value_str);
         }

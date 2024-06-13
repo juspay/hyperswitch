@@ -1,4 +1,4 @@
-use euclid::frontend::dir::DirKeyKind;
+use euclid::frontend::dir::DirKey;
 #[cfg(feature = "payouts")]
 use euclid::frontend::dir::PayoutDirKeyKind;
 use serde::Serialize;
@@ -6,7 +6,7 @@ use serde::Serialize;
 #[derive(Serialize, Clone)]
 pub struct Details<'a> {
     pub description: Option<&'a str>,
-    pub kind: DirKeyKind,
+    pub kind: DirKey,
 }
 
 #[cfg(feature = "payouts")]

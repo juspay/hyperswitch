@@ -217,7 +217,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::MandateType(mt) => EuclidValue::MandateType(mt),
         dir::DirValue::PaymentType(pt) => EuclidValue::PaymentType(pt),
         dir::DirValue::Connector(_) => Err(AnalysisErrorType::UnsupportedProgramKey(
-            dir::DirKeyKind::Connector,
+            dir::DirKey::Connector,
         ))?,
         dir::DirValue::BankDebitType(bdt) => EuclidValue::PaymentMethodType(bdt.into()),
         dir::DirValue::RewardType(rt) => EuclidValue::PaymentMethodType(rt.into()),

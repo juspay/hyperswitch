@@ -13,3 +13,7 @@ pub use types::{
     CheckingContext, CycleCheck, DomainId, DomainIdentifier, Edge, EdgeId, KeyNode, Memoization,
     Node, NodeId, NodeValue, Relation, Strength, ValueNode,
 };
+
+pub mod cgraph_prelude {
+    pub use super::*;
+}

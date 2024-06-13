@@ -5,7 +5,7 @@ use common_utils::{
 };
 use euclid::frontend::{
     ast::Program,
-    dir::{DirKeyKind, EuclidDirFilter},
+    dir::{DirKey, EuclidDirFilter},
 };
 use serde::{Deserialize, Serialize};
 
@@ -28,19 +28,19 @@ pub struct SurchargeDecisionConfigs {
     pub surcharge_details: Option<SurchargeDetailsOutput>,
 }
 impl EuclidDirFilter for SurchargeDecisionConfigs {
-    const ALLOWED: &'static [DirKeyKind] = &[
-        DirKeyKind::PaymentMethod,
-        DirKeyKind::MetaData,
-        DirKeyKind::PaymentAmount,
-        DirKeyKind::PaymentCurrency,
-        DirKeyKind::BillingCountry,
-        DirKeyKind::CardNetwork,
-        DirKeyKind::PayLaterType,
-        DirKeyKind::WalletType,
-        DirKeyKind::BankTransferType,
-        DirKeyKind::BankRedirectType,
-        DirKeyKind::BankDebitType,
-        DirKeyKind::CryptoType,
+    const ALLOWED: &'static [DirKey] = &[
+        DirKey::PaymentMethod,
+        DirKey::MetaData,
+        DirKey::PaymentAmount,
+        DirKey::PaymentCurrency,
+        DirKey::BillingCountry,
+        DirKey::CardNetwork,
+        DirKey::PayLaterType,
+        DirKey::WalletType,
+        DirKey::BankTransferType,
+        DirKey::BankRedirectType,
+        DirKey::BankDebitType,
+        DirKey::CryptoType,
     ];
 }
 

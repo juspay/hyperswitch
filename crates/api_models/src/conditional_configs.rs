@@ -4,7 +4,7 @@ use euclid::{
     enums,
     frontend::{
         ast::Program,
-        dir::{DirKeyKind, DirValue, EuclidDirFilter},
+        dir::{DirKey, DirValue, EuclidDirFilter},
     },
     types::Metadata,
 };
@@ -60,16 +60,16 @@ pub struct ConditionalConfigs {
     pub override_3ds: Option<AuthenticationType>,
 }
 impl EuclidDirFilter for ConditionalConfigs {
-    const ALLOWED: &'static [DirKeyKind] = &[
-        DirKeyKind::PaymentMethod,
-        DirKeyKind::CardType,
-        DirKeyKind::CardNetwork,
-        DirKeyKind::MetaData,
-        DirKeyKind::PaymentAmount,
-        DirKeyKind::PaymentCurrency,
-        DirKeyKind::CaptureMethod,
-        DirKeyKind::BillingCountry,
-        DirKeyKind::BusinessCountry,
+    const ALLOWED: &'static [DirKey] = &[
+        DirKey::PaymentMethod,
+        DirKey::CardType,
+        DirKey::CardNetwork,
+        DirKey::MetaData,
+        DirKey::PaymentAmount,
+        DirKey::PaymentCurrency,
+        DirKey::CaptureMethod,
+        DirKey::BillingCountry,
+        DirKey::BusinessCountry,
     ];
 }
 

@@ -2778,6 +2778,7 @@ dependencies = [
  "frunk",
  "frunk_core",
  "hyperswitch_constraint_graph",
+ "hyperswitch_macros",
  "nom",
  "once_cell",
  "rustc-hash",
@@ -3708,6 +3709,15 @@ dependencies = [
  "masking",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "hyperswitch_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.57",
 ]
 
 [[package]]

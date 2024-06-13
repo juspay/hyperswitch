@@ -71,7 +71,7 @@ pub fn analyze_exhaustive_negations(
     keywise_negation_metadata: &FxHashMap<dir::DirKey, Vec<&Metadata>>,
 ) -> Result<(), types::AnalysisError> {
     for (key, negation_set) in keywise_negations {
-        let mut value_set = if let Some(set) = key.kind.get_value_set() {
+        let mut value_set = if let Some(set) = key.get_value_set() {
             set
         } else {
             continue;
@@ -159,11 +159,11 @@ fn perform_condition_analyses(
             continue;
         };
 
-        if let dir::DirKeyKind::Connector = key.kind {
+        if matches!(key, dir::DirKey::Connector) {
             continue;
         }
 
-        if !matches!(key.kind.get_type(), DataType::EnumVariant) {
+        if !matches!(key.get_type(), DataType::EnumVariant) {
             continue;
         }
 
@@ -277,7 +277,7 @@ mod tests {
         }) = analysis_result
         {
             assert!(
-                matches!(key.kind, dir::DirKeyKind::PaymentMethod),
+                matches!(key, dir::DirKey::PaymentMethod),
                 "Key should be payment_method"
             );
             let values: Vec<dir::DirValue> = values.into_iter().map(|v| v.value).collect();
@@ -330,7 +330,7 @@ mod tests {
         }) = analysis_result
         {
             assert!(
-                matches!(key.kind, dir::DirKeyKind::PaymentMethod),
+                matches!(key, dir::DirKey::PaymentMethod),
                 "Expected key to be payment_method"
             );
         } else {

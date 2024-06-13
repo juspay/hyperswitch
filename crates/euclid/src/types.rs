@@ -9,7 +9,7 @@ use crate::{
     enums,
     frontend::{
         ast,
-        dir::{DirKeyKind, DirValue, EuclidDirFilter},
+        dir::{DirKey, DirValue, EuclidDirFilter},
     },
 };
 
@@ -61,21 +61,21 @@ pub enum EuclidKey {
     SetupFutureUsage,
 }
 impl EuclidDirFilter for DummyOutput {
-    const ALLOWED: &'static [DirKeyKind] = &[
-        DirKeyKind::AuthenticationType,
-        DirKeyKind::PaymentMethod,
-        DirKeyKind::CardType,
-        DirKeyKind::PaymentCurrency,
-        DirKeyKind::CaptureMethod,
-        DirKeyKind::AuthenticationType,
-        DirKeyKind::CardBin,
-        DirKeyKind::PayLaterType,
-        DirKeyKind::PaymentAmount,
-        DirKeyKind::MetaData,
-        DirKeyKind::MandateAcceptanceType,
-        DirKeyKind::MandateType,
-        DirKeyKind::PaymentType,
-        DirKeyKind::SetupFutureUsage,
+    const ALLOWED: &'static [DirKey] = &[
+        DirKey::AuthenticationType,
+        DirKey::PaymentMethod,
+        DirKey::CardType,
+        DirKey::PaymentCurrency,
+        DirKey::CaptureMethod,
+        DirKey::AuthenticationType,
+        DirKey::CardBin,
+        DirKey::PayLaterType,
+        DirKey::PaymentAmount,
+        DirKey::MetaData,
+        DirKey::MandateAcceptanceType,
+        DirKey::MandateType,
+        DirKey::PaymentType,
+        DirKey::SetupFutureUsage,
     ];
 }
 impl EuclidAnalysable for DummyOutput {

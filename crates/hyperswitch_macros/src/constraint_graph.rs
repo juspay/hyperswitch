@@ -1,3 +1,4 @@
+//! Implementation of the `constraint_graph` macro.
 use std::collections::{HashMap, HashSet};
 
 use proc_macro2::{Span, TokenStream};
@@ -21,8 +22,6 @@ mod kw {
 }
 
 mod punct {
-    syn::custom_punctuation!(StrengthStrong, =>>);
-
     syn::custom_punctuation!(WeakEqual, =?);
     syn::custom_punctuation!(WeakNotEqual, !=?);
     syn::custom_punctuation!(StrongNotEqual, !==);

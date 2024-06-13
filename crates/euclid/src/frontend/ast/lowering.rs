@@ -31,7 +31,7 @@ macro_rules! lower_enum {
         match $value {
             ast::ValueType::EnumVariant(ev) => Ok(vec![dir::DirValue::$key(
                 dir_enums::$key::from_str(&ev).map_err(|_| AnalysisErrorType::InvalidVariant {
-                    key: dir::DirKeyKind::$key.to_string(),
+                    key: dir::DirKey::$key.to_string(),
                     got: ev,
                     expected: dir_enums::$key::variants(),
                 })?,
@@ -43,7 +43,7 @@ macro_rules! lower_enum {
                     Ok(dir::DirValue::$key(
                         dir_enums::$key::from_str(&ev).map_err(|_| {
                             AnalysisErrorType::InvalidVariant {
-                                key: dir::DirKeyKind::$key.to_string(),
+                                key: dir::DirKey::$key.to_string(),
                                 got: ev,
                                 expected: dir_enums::$key::variants(),
                             }
@@ -53,7 +53,7 @@ macro_rules! lower_enum {
                 .collect(),
 
             _ => Err(AnalysisErrorType::InvalidType {
-                key: dir::DirKeyKind::$key.to_string(),
+                key: dir::DirKey::$key.to_string(),
                 expected: DataType::EnumVariant,
                 got: $value.get_type(),
             }),
@@ -100,7 +100,7 @@ macro_rules! lower_number {
                 .collect(),
 
             _ => Err(AnalysisErrorType::InvalidType {
-                key: dir::DirKeyKind::$key.to_string(),
+                key: dir::DirKey::$key.to_string(),
                 expected: DataType::Number,
                 got: $value.get_type(),
             }),
@@ -126,7 +126,7 @@ macro_rules! lower_str {
                 Ok(vec![dir::DirValue::$key(types::StrValue { value: st })])
             }
             _ => Err(AnalysisErrorType::InvalidType {
-                key: dir::DirKeyKind::$key.to_string(),
+                key: dir::DirKey::$key.to_string(),
                 expected: DataType::StrValue,
                 got: $value.get_type(),
             }),
@@ -144,7 +144,7 @@ macro_rules! lower_metadata {
                 })])
             }
             _ => Err(AnalysisErrorType::InvalidType {
-                key: dir::DirKeyKind::$key.to_string(),
+                key: dir::DirKey::$key.to_string(),
                 expected: DataType::MetadataValue,
                 got: $value.get_type(),
             }),
@@ -159,7 +159,7 @@ macro_rules! lower_metadata {
 fn lower_comparison_inner<O: EuclidDirFilter>(
     comp: ast::Comparison,
 ) -> Result<Vec<dir::DirValue>, AnalysisErrorType> {
-    let key_enum = dir::DirKeyKind::from_str(comp.lhs.as_str())
+    let key_enum = dir::DirKey::from_str(comp.lhs.as_str())
         .map_err(|_| AnalysisErrorType::InvalidKey(comp.lhs.clone()))?;
 
     if !O::is_key_allowed(&key_enum) {
@@ -226,59 +226,59 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
     let comparison = comp.comparison;
 
     match key_enum {
-        dir::DirKeyKind::PaymentMethod => lower_enum!(PaymentMethod, value),
+        dir::DirKey::PaymentMethod => lower_enum!(PaymentMethod, value),
 
-        dir::DirKeyKind::CardType => lower_enum!(CardType, value),
+        dir::DirKey::CardType => lower_enum!(CardType, value),
 
-        dir::DirKeyKind::CardNetwork => lower_enum!(CardNetwork, value),
+        dir::DirKey::CardNetwork => lower_enum!(CardNetwork, value),
 
-        dir::DirKeyKind::PayLaterType => lower_enum!(PayLaterType, value),
+        dir::DirKey::PayLaterType => lower_enum!(PayLaterType, value),
 
-        dir::DirKeyKind::WalletType => lower_enum!(WalletType, value),
+        dir::DirKey::WalletType => lower_enum!(WalletType, value),
 
-        dir::DirKeyKind::BankDebitType => lower_enum!(BankDebitType, value),
+        dir::DirKey::BankDebitType => lower_enum!(BankDebitType, value),
 
-        dir::DirKeyKind::BankRedirectType => lower_enum!(BankRedirectType, value),
+        dir::DirKey::BankRedirectType => lower_enum!(BankRedirectType, value),
 
-        dir::DirKeyKind::CryptoType => lower_enum!(CryptoType, value),
+        dir::DirKey::CryptoType => lower_enum!(CryptoType, value),
 
-        dir::DirKeyKind::PaymentType => lower_enum!(PaymentType, value),
+        dir::DirKey::PaymentType => lower_enum!(PaymentType, value),
 
-        dir::DirKeyKind::MandateType => lower_enum!(MandateType, value),
+        dir::DirKey::MandateType => lower_enum!(MandateType, value),
 
-        dir::DirKeyKind::MandateAcceptanceType => lower_enum!(MandateAcceptanceType, value),
+        dir::DirKey::MandateAcceptanceType => lower_enum!(MandateAcceptanceType, value),
 
-        dir::DirKeyKind::RewardType => lower_enum!(RewardType, value),
+        dir::DirKey::RewardType => lower_enum!(RewardType, value),
 
-        dir::DirKeyKind::PaymentCurrency => lower_enum!(PaymentCurrency, value),
+        dir::DirKey::PaymentCurrency => lower_enum!(PaymentCurrency, value),
 
-        dir::DirKeyKind::AuthenticationType => lower_enum!(AuthenticationType, value),
+        dir::DirKey::AuthenticationType => lower_enum!(AuthenticationType, value),
 
-        dir::DirKeyKind::CaptureMethod => lower_enum!(CaptureMethod, value),
+        dir::DirKey::CaptureMethod => lower_enum!(CaptureMethod, value),
 
-        dir::DirKeyKind::BusinessCountry => lower_enum!(BusinessCountry, value),
+        dir::DirKey::BusinessCountry => lower_enum!(BusinessCountry, value),
 
-        dir::DirKeyKind::BillingCountry => lower_enum!(BillingCountry, value),
+        dir::DirKey::BillingCountry => lower_enum!(BillingCountry, value),
 
-        dir::DirKeyKind::SetupFutureUsage => lower_enum!(SetupFutureUsage, value),
+        dir::DirKey::SetupFutureUsage => lower_enum!(SetupFutureUsage, value),
 
-        dir::DirKeyKind::UpiType => lower_enum!(UpiType, value),
+        dir::DirKey::UpiType => lower_enum!(UpiType, value),
 
-        dir::DirKeyKind::VoucherType => lower_enum!(VoucherType, value),
+        dir::DirKey::VoucherType => lower_enum!(VoucherType, value),
 
-        dir::DirKeyKind::GiftCardType => lower_enum!(GiftCardType, value),
+        dir::DirKey::GiftCardType => lower_enum!(GiftCardType, value),
 
-        dir::DirKeyKind::BankTransferType => lower_enum!(BankTransferType, value),
+        dir::DirKey::BankTransferType => lower_enum!(BankTransferType, value),
 
-        dir::DirKeyKind::CardRedirectType => lower_enum!(CardRedirectType, value),
+        dir::DirKey::CardRedirectType => lower_enum!(CardRedirectType, value),
 
-        dir::DirKeyKind::CardBin => {
+        dir::DirKey::CardBin => {
             let validation_closure = |st: &String| -> Result<(), AnalysisErrorType> {
                 if st.len() == 6 && st.chars().all(|x| x.is_ascii_digit()) {
                     Ok(())
                 } else {
                     Err(AnalysisErrorType::InvalidValue {
-                        key: dir::DirKeyKind::CardBin,
+                        key: dir::DirKey::CardBin,
                         value: st.clone(),
                         message: Some("Expected 6 digits".to_string()),
                     })
@@ -287,14 +287,14 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
             lower_str!(CardBin, value, validation_closure)
         }
 
-        dir::DirKeyKind::BusinessLabel => lower_str!(BusinessLabel, value),
+        dir::DirKey::BusinessLabel => lower_str!(BusinessLabel, value),
 
-        dir::DirKeyKind::MetaData => lower_metadata!(MetaData, value),
+        dir::DirKey::MetaData => lower_metadata!(MetaData, value),
 
-        dir::DirKeyKind::PaymentAmount => lower_number!(PaymentAmount, value, comparison),
+        dir::DirKey::PaymentAmount => lower_number!(PaymentAmount, value, comparison),
 
-        dir::DirKeyKind::Connector => Err(AnalysisErrorType::InvalidKey(
-            dir::DirKeyKind::Connector.to_string(),
+        dir::DirKey::Connector => Err(AnalysisErrorType::InvalidKey(
+            dir::DirKey::Connector.to_string(),
         )),
     }
 }

@@ -118,17 +118,17 @@ pub enum AnalysisErrorType {
     },
     #[error("Invalid value received for length as '{value}: {:?}'", message)]
     InvalidValue {
-        key: dir::DirKeyKind,
+        key: dir::DirKey,
         value: String,
         message: Option<String>,
     },
-    #[error("Conflicting assertions received for key '{}'", .key.kind)]
+    #[error("Conflicting assertions received for key '{}'", .key)]
     ConflictingAssertions {
         key: dir::DirKey,
         values: Vec<ValueData>,
     },
 
-    #[error("Key '{}' exhaustively negated", .key.kind)]
+    #[error("Key '{}' exhaustively negated", .key)]
     ExhaustiveNegation {
         key: dir::DirKey,
         metadata: Vec<Metadata>,
@@ -147,7 +147,7 @@ pub enum AnalysisErrorType {
     #[error("State machine error")]
     StateMachine(dssa::state_machine::StateMachineError),
     #[error("Unsupported program key '{0}'")]
-    UnsupportedProgramKey(dir::DirKeyKind),
+    UnsupportedProgramKey(dir::DirKey),
     #[error("Ran into an unimplemented feature")]
     NotImplemented,
     #[error("The payment method type is not supported under the payment method")]

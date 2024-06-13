@@ -16,7 +16,7 @@ pub mod euclid_graph_prelude {
 
     pub use crate::{
         dssa::graph::*,
-        frontend::dir::{enums::*, DirKey, DirKeyKind, DirValue},
+        frontend::dir::{enums::*, DirKey, DirValue},
         types::*,
     };
 }
@@ -25,7 +25,7 @@ impl cgraph::KeyNode for dir::DirKey {}
 
 impl cgraph::NodeViz for dir::DirKey {
     fn viz(&self) -> String {
-        self.kind.to_string()
+        self.to_string()
     }
 }
 
@@ -187,7 +187,7 @@ impl cgraph::CheckingContext for AnalysisContext {
                     return matches!(strength, cgraph::Strength::Weak);
                 };
 
-                match key.kind.get_type() {
+                match key.get_type() {
                     DataType::EnumVariant | DataType::StrValue | DataType::MetadataValue => {
                         value_set.contains(val)
                     }
@@ -423,7 +423,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
             self.key_analysis(key.clone(), analysis_ctx, memo, cycle_map, domains)
                 .map_err(|e| AnalysisError::assertion_from_graph_error(&first_metadata, e))?;
 
-            let mut value_set = if let Some(set) = key.kind.get_value_set() {
+            let mut value_set = if let Some(set) = key.get_value_set() {
                 set
             } else {
                 continue;
