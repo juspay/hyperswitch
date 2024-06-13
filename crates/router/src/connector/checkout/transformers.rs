@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -1061,6 +1061,11 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
     fn get_amount_captured(&self) -> Option<i64> {
         Some(self.amount)
     }
+
+    fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
+        Some(MinorUnit::new(self.amount))
+    }
+
 }
 
 impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
@@ -1081,6 +1086,11 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     }
     fn get_amount_captured(&self) -> Option<i64> {
         self.amount.map(Into::into)
+    }
+
+    fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
+        let amount = self.amount.map(Into::into);
+        amount.map(|amt| MinorUnit::new(amt))
     }
 }
 

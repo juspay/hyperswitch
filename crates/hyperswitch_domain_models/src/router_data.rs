@@ -145,7 +145,7 @@ pub struct RecurringMandatePaymentData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodBalance {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: common_enums::enums::Currency,
 }
 
