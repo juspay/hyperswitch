@@ -45,7 +45,7 @@ pub async fn get_merchant_pm_filter_graph<'a>(
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>>>(
             CacheKey {
                 key: key.to_string(),
-                prefix: state.tenant.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
             },
         )
         .await
@@ -61,7 +61,7 @@ pub async fn refresh_pm_filters_cache(
         .push(
             CacheKey {
                 key: key.to_string(),
-                prefix: state.tenant.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
             },
             pm_filter_graph.clone(),
         )

@@ -11,7 +11,9 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
             global_enums::PaymentMethodType::Ideal => Ok(dirval!(BankRedirectType = Ideal)),
             global_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
+            global_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
             global_enums::PaymentMethodType::Eps => Ok(dirval!(BankRedirectType = Eps)),
+            global_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
             global_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
             global_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
             global_enums::PaymentMethodType::AfterpayClearpay => {
@@ -33,6 +35,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::BankRedirect
                 | global_enums::PaymentMethod::Crypto
                 | global_enums::PaymentMethod::Reward
+                | global_enums::PaymentMethod::RealTimePayment
                 | global_enums::PaymentMethod::Upi
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
@@ -47,6 +50,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::BankRedirect
                 | global_enums::PaymentMethod::Crypto
                 | global_enums::PaymentMethod::Reward
+                | global_enums::PaymentMethod::RealTimePayment
                 | global_enums::PaymentMethod::Upi
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
@@ -62,6 +66,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::BankRedirect
                 | global_enums::PaymentMethod::Crypto
                 | global_enums::PaymentMethod::Reward
+                | global_enums::PaymentMethod::RealTimePayment
                 | global_enums::PaymentMethod::Upi
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
@@ -102,6 +107,9 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Przelewy24 => {
                 Ok(dirval!(BankRedirectType = Przelewy24))
             }
+            global_enums::PaymentMethodType::PromptPay => {
+                Ok(dirval!(RealTimePaymentType = PromptPay))
+            }
             global_enums::PaymentMethodType::WeChatPay => Ok(dirval!(WalletType = WeChatPay)),
 
             global_enums::PaymentMethodType::ClassicReward => {
@@ -116,11 +124,15 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Twint => Ok(dirval!(WalletType = Twint)),
             global_enums::PaymentMethodType::Gcash => Ok(dirval!(WalletType = Gcash)),
             global_enums::PaymentMethodType::Vipps => Ok(dirval!(WalletType = Vipps)),
+            global_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
             global_enums::PaymentMethodType::Momo => Ok(dirval!(WalletType = Momo)),
             global_enums::PaymentMethodType::Alma => Ok(dirval!(PayLaterType = Alma)),
             global_enums::PaymentMethodType::Dana => Ok(dirval!(WalletType = Dana)),
             global_enums::PaymentMethodType::OnlineBankingFpx => {
                 Ok(dirval!(BankRedirectType = OnlineBankingFpx))
+            }
+            global_enums::PaymentMethodType::LocalBankRedirect => {
+                Ok(dirval!(BankRedirectType = LocalBankRedirect))
             }
             global_enums::PaymentMethodType::OnlineBankingThailand => {
                 Ok(dirval!(BankRedirectType = OnlineBankingThailand))

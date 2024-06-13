@@ -2085,7 +2085,15 @@ pub async fn list_payment_methods(
             }
 
             if let Some(choice) = result.get(&intermediate.payment_method_type) {
-                intermediate.connector == choice.connector.connector_name.to_string()
+                if let Some(first_routable_connector) = choice.first() {
+                    intermediate.connector
+                        == first_routable_connector
+                            .connector
+                            .connector_name
+                            .to_string()
+                } else {
+                    false
+                }
             } else {
                 false
             }
@@ -2105,26 +2113,32 @@ pub async fn list_payment_methods(
 
         let mut pre_routing_results: HashMap<
             api_enums::PaymentMethodType,
-            routing_types::RoutableConnectorChoice,
+            storage::PreRoutingConnectorChoice,
         > = HashMap::new();
 
-        for (pm_type, choice) in result {
-            let routable_choice = routing_types::RoutableConnectorChoice {
-                #[cfg(feature = "backwards_compatibility")]
-                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
-                connector: choice
-                    .connector
-                    .connector_name
-                    .to_string()
-                    .parse::<api_enums::RoutableConnectors>()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                #[cfg(feature = "connector_choice_mca_id")]
-                merchant_connector_id: choice.connector.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: choice.sub_label,
-            };
-
-            pre_routing_results.insert(pm_type, routable_choice);
+        for (pm_type, routing_choice) in result {
+            let mut routable_choice_list = vec![];
+            for choice in routing_choice {
+                let routable_choice = routing_types::RoutableConnectorChoice {
+                    #[cfg(feature = "backwards_compatibility")]
+                    choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                    connector: choice
+                        .connector
+                        .connector_name
+                        .to_string()
+                        .parse::<api_enums::RoutableConnectors>()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    merchant_connector_id: choice.connector.merchant_connector_id.clone(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    sub_label: choice.sub_label,
+                };
+                routable_choice_list.push(routable_choice);
+            }
+            pre_routing_results.insert(
+                pm_type,
+                storage::PreRoutingConnectorChoice::Multiple(routable_choice_list),
+            );
         }
 
         let redis_conn = db
@@ -2135,15 +2149,28 @@ pub async fn list_payment_methods(
         let mut val = Vec::new();
 
         for (payment_method_type, routable_connector_choice) in &pre_routing_results {
+            let routable_connector_list = match routable_connector_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    vec![routable_connector.clone()]
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.clone()
+                }
+            };
+
+            let first_routable_connector = routable_connector_list
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
             #[cfg(not(feature = "connector_choice_mca_id"))]
             let connector_label = get_connector_label(
                 payment_intent.business_country,
                 payment_intent.business_label.as_ref(),
                 #[cfg(not(feature = "connector_choice_mca_id"))]
-                routable_connector_choice.sub_label.as_ref(),
+                first_routable_connector.sub_label.as_ref(),
                 #[cfg(feature = "connector_choice_mca_id")]
                 None,
-                routable_connector_choice.connector.to_string().as_str(),
+                first_routable_connector.connector.to_string().as_str(),
             );
             #[cfg(not(feature = "connector_choice_mca_id"))]
             let matched_mca = filtered_mcas
@@ -2152,7 +2179,7 @@ pub async fn list_payment_methods(
 
             #[cfg(feature = "connector_choice_mca_id")]
             let matched_mca = filtered_mcas.iter().find(|m| {
-                routable_connector_choice.merchant_connector_id.as_ref()
+                first_routable_connector.merchant_connector_id.as_ref()
                     == Some(&m.merchant_connector_id)
             });
 
@@ -3993,16 +4020,6 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let payment_methods_count = db
-        .get_payment_method_count_by_customer_id_merchant_id_status(
-            &key.customer_id,
-            &merchant_account.merchant_id,
-            api_enums::PaymentMethodStatus::Active,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get a count of payment methods for a customer")?;
-
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             &key.customer_id,
@@ -4013,12 +4030,6 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
-
-    utils::when(
-        customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id)
-            && payment_methods_count > 1,
-        || Err(errors::ApiErrorResponse::PaymentMethodDeleteFailed),
-    )?;
 
     if key.payment_method == Some(enums::PaymentMethod::Card) {
         let response = delete_card_from_locker(
