@@ -2157,64 +2157,64 @@ pub async fn list_payment_methods(
                     routable_connector_list.clone()
                 }
             };
-            for routable_connector in routable_connector_list {
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                let connector_label = get_connector_label(
-                    payment_intent.business_country,
-                    payment_intent.business_label.as_ref(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    routable_connector.sub_label.as_ref(),
-                    #[cfg(feature = "connector_choice_mca_id")]
-                    None,
-                    routable_connector.connector.to_string().as_str(),
-                );
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                let matched_mca = filtered_mcas
-                    .iter()
-                    .find(|m| connector_label == m.connector_label);
 
+            let first_routable_connector = routable_connector_list
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            let connector_label = get_connector_label(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                first_routable_connector.sub_label.as_ref(),
                 #[cfg(feature = "connector_choice_mca_id")]
-                let matched_mca = filtered_mcas.iter().find(|m| {
-                    routable_connector.merchant_connector_id.as_ref()
-                        == Some(&m.merchant_connector_id)
-                });
+                None,
+                first_routable_connector.connector.to_string().as_str(),
+            );
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            let matched_mca = filtered_mcas
+                .iter()
+                .find(|m| connector_label == m.connector_label);
 
-                if let Some(m) = matched_mca {
-                    let pm_auth_config = m
-                        .pm_auth_config
-                        .as_ref()
-                        .map(|config| {
-                            serde_json::from_value::<PaymentMethodAuthConfig>(config.clone())
-                                .change_context(errors::StorageError::DeserializationFailed)
-                                .attach_printable(
-                                    "Failed to deserialize Payment Method Auth config",
-                                )
-                        })
-                        .transpose()
-                        .unwrap_or_else(|err| {
-                            logger::error!(error=?err);
-                            None
-                        });
+            #[cfg(feature = "connector_choice_mca_id")]
+            let matched_mca = filtered_mcas.iter().find(|m| {
+                first_routable_connector.merchant_connector_id.as_ref()
+                    == Some(&m.merchant_connector_id)
+            });
 
-                    let matched_config = match pm_auth_config {
-                        Some(config) => {
-                            let internal_config = config
-                                .enabled_payment_methods
-                                .iter()
-                                .find(|config| config.payment_method_type == *payment_method_type)
-                                .cloned();
+            if let Some(m) = matched_mca {
+                let pm_auth_config = m
+                    .pm_auth_config
+                    .as_ref()
+                    .map(|config| {
+                        serde_json::from_value::<PaymentMethodAuthConfig>(config.clone())
+                            .change_context(errors::StorageError::DeserializationFailed)
+                            .attach_printable("Failed to deserialize Payment Method Auth config")
+                    })
+                    .transpose()
+                    .unwrap_or_else(|err| {
+                        logger::error!(error=?err);
+                        None
+                    });
 
-                            internal_config
-                        }
-                        None => None,
-                    };
+                let matched_config = match pm_auth_config {
+                    Some(config) => {
+                        let internal_config = config
+                            .enabled_payment_methods
+                            .iter()
+                            .find(|config| config.payment_method_type == *payment_method_type)
+                            .cloned();
 
-                    if let Some(config) = matched_config {
-                        pmt_to_auth_connector
-                            .insert(*payment_method_type, config.connector_name.clone());
-                        val.push(config);
-                        break;
+                        internal_config
                     }
+                    None => None,
+                };
+
+                if let Some(config) = matched_config {
+                    pmt_to_auth_connector
+                        .insert(*payment_method_type, config.connector_name.clone());
+                    val.push(config);
                 }
             }
         }
