@@ -8,11 +8,12 @@ mod tests {
 
     #[test]
     fn test_input_file() {
-        let toml_str = "username = \"db_user\"\n\
-            password = \"db_pass\"\n\
-            dbname = \"db_name\"\n\
-            host = \"localhost\"\n\
-            port = 5432";
+        let toml_str =
+         r#"username = "db_user"
+            password = "db_pass"
+            dbname = "db_name"
+            host = "localhost"
+            port = 5432"#;
 
         let toml_value = Value::from_str(toml_str).unwrap();
 
