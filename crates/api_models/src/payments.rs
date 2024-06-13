@@ -2971,7 +2971,7 @@ pub struct PaymentsCaptureRequest {
     /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -4542,7 +4542,7 @@ pub struct PaymentsCancelRequest {
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -4574,6 +4574,7 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
 }
 
+/// Indicates if 3DS method data was successfully completed or not
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub enum ThreeDsCompletionIndicator {
     /// 3DS method successfully completed
@@ -4587,6 +4588,7 @@ pub enum ThreeDsCompletionIndicator {
     NotAvailable,
 }
 
+/// Device Channel indicating whether request is coming from App or Browser
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
 pub enum DeviceChannel {
     #[serde(rename = "APP")]
@@ -4595,6 +4597,7 @@ pub enum DeviceChannel {
     Browser,
 }
 
+/// SDK Information if request is from SDK
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct SdkInformation {
     /// Unique ID created on installations of the 3DS Requestor App on a Consumer Device
@@ -4613,7 +4616,7 @@ pub struct SdkInformation {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsExternalAuthenticationResponse {
-    /// Indicates the trans status
+    /// Indicates the transaction status
     #[serde(rename = "trans_status")]
     #[schema(value_type = TransactionStatus)]
     pub transaction_status: common_enums::TransactionStatus,
@@ -4621,13 +4624,13 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
-    /// Unique identifier assigned by the EMVCo
+    /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
     pub acs_reference_number: Option<String>,
     /// Unique identifier assigned by the ACS to identify a single transaction
     pub acs_trans_id: Option<String>,
     /// Unique identifier assigned by the 3DS Server to identify a single transaction
     pub three_dsserver_trans_id: Option<String>,
-    /// Contains the JWS object created by the ACS for the ARes message
+    /// Contains the JWS object created by the ACS for the ARes(Authentication Response) message
     pub acs_signed_content: Option<String>,
     /// Three DS Requestor URL
     pub three_ds_requestor_url: String,
@@ -4850,6 +4853,7 @@ mod tests {
 
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
+    /// It's a token used for client side verification.
     pub client_secret: Option<String>,
 }
 
@@ -4861,16 +4865,24 @@ pub struct PaymentLinkResponse {
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
+    /// Identifier for Payment Link
     pub payment_link_id: String,
+    /// Identifier for Merchant
     pub merchant_id: String,
+    /// Payment Link
     pub link_to_pay: String,
+    /// The payment amount. Amount for the payment in the lowest denomination of the currency
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
+    /// Date and time of Payment Link creation
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    /// Date and time of Expiration for Payment Link
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub expiry: Option<PrimitiveDateTime>,
+    /// Description for Payment Link
     pub description: Option<String>,
+    /// Status Of the Payment Link
     pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
@@ -5003,6 +5015,7 @@ pub struct OrderDetailsWithStringAmount {
     pub product_img_link: Option<String>,
 }
 
+/// Status Of the Payment Link
 #[derive(PartialEq, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentLinkStatus {

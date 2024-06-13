@@ -2482,6 +2482,7 @@ pub enum RoleScope {
     Organization,
 }
 
+/// Indicates the trans status
 #[derive(
     Clone,
     Default,
