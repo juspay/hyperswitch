@@ -12,7 +12,7 @@ pub struct KafkaFraudCheckEvent<'a> {
     pub payment_id: &'a String,
     pub merchant_id: &'a String,
     pub attempt_id: &'a String,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(default, with = "time::serde::timestamp::milliseconds")]
     pub created_at: OffsetDateTime,
     pub frm_name: &'a String,
     pub frm_transaction_id: Option<&'a String>,
@@ -23,7 +23,7 @@ pub struct KafkaFraudCheckEvent<'a> {
     pub frm_error: Option<&'a String>,
     pub payment_details: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(default, with = "time::serde::timestamp::milliseconds")]
     pub modified_at: OffsetDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in payment_capture_method. It will be useful while approving the FRM decision.
@@ -56,8 +56,8 @@ impl<'a> KafkaFraudCheckEvent<'a> {
 impl<'a> super::KafkaMessage for KafkaFraudCheckEvent<'a> {
     fn key(&self) -> String {
         format!(
-            "{}_{}_{}",
-            self.merchant_id, self.payment_id, self.attempt_id
+            "{}_{}_{}_{}",
+            self.merchant_id, self.payment_id, self.attempt_id, self.frm_id
         )
     }
 

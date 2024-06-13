@@ -325,7 +325,7 @@ impl KafkaProducer {
                 tenant_id.clone(),
             ))
             .attach_printable_lazy(|| {
-                format!("Failed to add negative attempt event {negative_event:?}")
+                format!("Failed to add negative fraud check event {negative_event:?}")
             })?;
         };
 
