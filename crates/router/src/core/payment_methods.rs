@@ -1,6 +1,7 @@
 pub mod cards;
 pub mod surcharge_decision_configs;
 pub mod transformers;
+pub mod utils;
 pub mod vault;
 
 pub use api_models::enums::Connector;
@@ -48,6 +49,7 @@ pub async fn retrieve_payment_method(
         pm @ Some(api::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),
+        pm @ Some(api::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)) => {

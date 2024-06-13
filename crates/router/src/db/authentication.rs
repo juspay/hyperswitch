@@ -149,6 +149,7 @@ impl AuthenticationInterface for MockDb {
             merchant_connector_id: authentication.merchant_connector_id,
             ds_trans_id: authentication.ds_trans_id,
             directory_server_id: authentication.directory_server_id,
+            acquirer_country_code: authentication.acquirer_country_code,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

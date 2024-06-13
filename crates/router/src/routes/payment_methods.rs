@@ -139,7 +139,7 @@ pub async fn list_customer_payment_method_api(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), &customer_id) {
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
@@ -155,6 +155,7 @@ pub async fn list_customer_payment_method_api(
                 auth.key_store,
                 Some(req),
                 Some(&customer_id),
+                None,
             )
         },
         &*ephemeral_auth,
@@ -194,10 +195,12 @@ pub async fn list_customer_payment_method_api_client(
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
+    let api_key = auth::get_api_key(req.headers()).ok();
+    let (auth, _, is_ephemeral_auth) =
+        match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload)).await {
+            Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
 
     Box::pin(api::server_wrap(
         flow,
@@ -211,6 +214,7 @@ pub async fn list_customer_payment_method_api_client(
                 auth.key_store,
                 Some(req),
                 None,
+                is_ephemeral_auth.then_some(api_key).flatten(),
             )
         },
         &*auth,
@@ -291,6 +295,11 @@ pub async fn payment_method_delete_api(
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -299,7 +308,7 @@ pub async fn payment_method_delete_api(
         |state, auth, req, _| {
             cards::delete_payment_method(state, auth.merchant_account, req, auth.key_store)
         },
-        &auth::ApiKeyAuth,
+        &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -345,7 +354,7 @@ pub async fn default_payment_method_set_api(
     let pc = payload.clone();
     let customer_id = &pc.customer_id;
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), customer_id) {
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
