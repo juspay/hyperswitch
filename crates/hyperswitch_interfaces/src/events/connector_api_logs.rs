@@ -1,9 +1,12 @@
+//! Connector API logs interface
+
 use common_utils::request::Method;
 use router_env::tracing_actix_web::RequestId;
 use serde::Serialize;
 use serde_json::json;
 use time::OffsetDateTime;
 
+/// struct ConnectorEvent
 #[derive(Debug, Serialize)]
 pub struct ConnectorEvent {
     connector_name: String,
@@ -16,6 +19,7 @@ pub struct ConnectorEvent {
     payment_id: String,
     merchant_id: String,
     created_at: i128,
+    /// Connector Event Request ID
     pub request_id: String,
     latency: u128,
     refund_id: Option<String>,
@@ -24,6 +28,7 @@ pub struct ConnectorEvent {
 }
 
 impl ConnectorEvent {
+    /// fn new ConnectorEvent
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         connector_name: String,
@@ -64,6 +69,7 @@ impl ConnectorEvent {
         }
     }
 
+    /// fn set_response_body
     pub fn set_response_body<T: Serialize>(&mut self, response: &T) {
         match masking::masked_serialize(response) {
             Ok(masked) => {
@@ -73,6 +79,7 @@ impl ConnectorEvent {
         }
     }
 
+    /// fn set_error_response_body
     pub fn set_error_response_body<T: Serialize>(&mut self, response: &T) {
         match masking::masked_serialize(response) {
             Ok(masked) => {
@@ -82,6 +89,7 @@ impl ConnectorEvent {
         }
     }
 
+    /// fn set_error
     pub fn set_error(&mut self, error: serde_json::Value) {
         self.error = Some(error.to_string());
     }

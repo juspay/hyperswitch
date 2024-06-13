@@ -1,6 +1,10 @@
+//! Errors interface
+
 use common_utils::errors::ErrorSwitch;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 
+/// Connector Errors
+#[allow(missing_docs, missing_debug_implementations)]
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ConnectorError {
     #[error("Error while obtaining URL for the integration")]
@@ -114,6 +118,7 @@ pub enum ConnectorError {
 }
 
 impl ConnectorError {
+    /// fn is_connector_timeout
     pub fn is_connector_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
     }

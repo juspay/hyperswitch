@@ -1,3 +1,5 @@
+//! API interface
+
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
@@ -10,10 +12,13 @@ use crate::{
     configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
+/// type BoxedConnectorIntegration
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
     Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
 
+/// trait ConnectorIntegrationAny
 pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
+    /// fn get_connector_integration
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
 }
 
@@ -26,7 +31,9 @@ where
     }
 }
 
+/// trait ConnectorIntegration
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
+    /// fn get_headers
     fn get_headers(
         &self,
         _req: &RouterData<T, Req, Resp>,
@@ -35,6 +42,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(vec![])
     }
 
+    /// fn get_content_type
     fn get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
@@ -44,6 +52,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Method::Post
     }
 
+    /// fn get_url
     fn get_url(
         &self,
         _req: &RouterData<T, Req, Resp>,
@@ -52,6 +61,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(String::new())
     }
 
+    /// fn get_request_body
     fn get_request_body(
         &self,
         _req: &RouterData<T, Req, Resp>,
@@ -60,6 +70,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
     }
 
+    /// fn get_request_form_data
     fn get_request_form_data(
         &self,
         _req: &RouterData<T, Req, Resp>,
@@ -67,6 +78,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
+    /// fn build_request
     fn build_request(
         &self,
         req: &RouterData<T, Req, Resp>,
@@ -80,6 +92,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
+    /// fn handle_response
     fn handle_response(
         &self,
         data: &RouterData<T, Req, Resp>,
@@ -95,6 +108,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(data.clone())
     }
 
+    /// fn get_error_response
     fn get_error_response(
         &self,
         res: types::Response,
@@ -104,6 +118,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(ErrorResponse::get_not_implemented())
     }
 
+    /// fn get_5xx_error_response
     fn get_5xx_error_response(
         &self,
         res: types::Response,
@@ -134,13 +149,14 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         })
     }
 
-    // whenever capture sync is implemented at the connector side, this method should be overridden
+    /// whenever capture sync is implemented at the connector side, this method should be overridden
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
     }
 
+    /// fn get_certificate
     fn get_certificate(
         &self,
         _req: &RouterData<T, Req, Resp>,
@@ -148,6 +164,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
+    /// fn get_certificate_key
     fn get_certificate_key(
         &self,
         _req: &RouterData<T, Req, Resp>,
@@ -156,7 +173,11 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     }
 }
 
+/// Sync Methods for multiple captures
+#[derive(Debug)]
 pub enum CaptureSyncMethod {
+    /// For syncing multiple captures individually
     Individual,
+    /// For syncing multiple captures together
     Bulk,
 }

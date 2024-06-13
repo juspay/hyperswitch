@@ -1,7 +1,10 @@
+//! Configs interface
 use router_derive;
 use serde::Deserialize;
 use storage_impl::errors::ApplicationError;
 
+// struct Connectors
+#[allow(missing_docs, missing_debug_implementations)]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct Connectors {
@@ -75,39 +78,54 @@ pub struct Connectors {
     pub zsl: ConnectorParams,
 }
 
+/// struct ConnectorParams
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParams {
+    /// base url
     pub base_url: String,
+    /// secondary base url
     pub secondary_base_url: Option<String>,
 }
 
+/// struct ConnectorParamsWithModeType
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithModeType {
+    /// base url
     pub base_url: String,
+    /// secondary base url
     pub secondary_base_url: Option<String>,
     /// Can take values like Test or Live for Noon
     pub key_mode: String,
 }
 
+/// struct ConnectorParamsWithMoreUrls
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithMoreUrls {
+    /// base url
     pub base_url: String,
+    /// base url for bank redirects
     pub base_url_bank_redirects: String,
 }
 
+/// struct ConnectorParamsWithFileUploadUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithFileUploadUrl {
+    /// base url
     pub base_url: String,
+    /// base url for file upload
     pub base_url_file_upload: String,
 }
 
+/// struct ConnectorParamsWithSecondaryBaseUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
+    /// base url
     pub base_url: String,
+    /// secondary base url
     pub secondary_base_url: String,
 }
