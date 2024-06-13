@@ -7,7 +7,11 @@ use api_models::payments::{
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
+use common_utils::{
+    consts::X_HS_LATENCY,
+    fp_utils,
+    types::{AuthoriseIntegrityObject, MinorUnit},
+};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
@@ -1293,6 +1297,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             charges,
+            integrity_object: AuthoriseIntegrityObject {
+                amount,
+                currency: payment_data.currency.to_string(),
+            },
         })
     }
 }

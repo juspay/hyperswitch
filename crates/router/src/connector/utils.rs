@@ -2645,3 +2645,27 @@ pub fn convert_back<T>(
         .convert_back(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
+
+pub fn check_integrity<T>(
+    integrity_check: &dyn common_utils::types::ConnectorIntegrity<IntegrityObject = T>,
+    req_integrity_object: T,
+    res_integrity_object: T,
+    status_code: u16,
+    connector_transaction_id: Option<String>
+) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+    integrity_check
+        .check_integrity(req_integrity_object, res_integrity_object)
+        .map_err(|report_err| {
+            let err = report_err.current_context();
+            match err {
+                common_utils::errors::IntegrityCheckError::IntegrityCheckFailed { field_names } => {
+                    error_stack::Report::new(errors::ConnectorError::IntegrityCheckFailed {
+                        status_code,
+                        reason: "Integrity check failed!".to_string(),
+                        field_names: field_names.clone(),
+                        connector_transaction_id, 
+                    })
+                }
+            }
+        })
+}

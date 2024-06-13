@@ -2,7 +2,10 @@ pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
 use common_utils::{
-    consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
+    consts, errors,
+    ext_traits::OptionExt,
+    id_type, pii, types as common_types,
+    types::{AuthoriseIntegrityObject, MinorUnit},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -62,6 +65,7 @@ pub struct PaymentsAuthorizeData {
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub integrity_object: AuthoriseIntegrityObject,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

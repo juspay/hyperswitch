@@ -27,7 +27,7 @@ use utoipa::ToSchema;
 
 use crate::{
     consts,
-    errors::{CustomResult, ParsingError, PercentageError},
+    errors::{CustomResult, IntegrityCheckError, ParsingError, PercentageError, ValidationError},
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
@@ -723,5 +723,60 @@ where
         // please refer to the diesel migration blog:
         // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
         <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+// Connector integrity
+
+/// Authorise flow integrity object
+#[derive(Debug, Clone, PartialEq)]
+pub struct AuthoriseIntegrityObject {
+    pub amount: MinorUnit,
+    pub currency: String,
+}
+
+/// ConnectorIntegrity trait for connector
+pub trait ConnectorIntegrity: Send {
+    /// Output type for the connector
+    type IntegrityObject;
+    /// helps in connector integrity check
+    fn check_integrity(
+        &self,
+        req_integrity_object: Self::IntegrityObject,
+        res_integrity_object: Self::IntegrityObject,
+    ) -> Result<(), error_stack::Report<IntegrityCheckError>>;
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct AuthoriseIntegrity;
+
+impl ConnectorIntegrity for AuthoriseIntegrity {
+    type IntegrityObject = AuthoriseIntegrityObject;
+    fn check_integrity(
+        &self,
+        req_integrity_object: AuthoriseIntegrityObject,
+        res_integrity_object: AuthoriseIntegrityObject,
+    ) -> Result<(), error_stack::Report<IntegrityCheckError>> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push("amount".to_string());
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push("currency".to_string());
+        }
+
+        if mismatched_fields.is_empty() {
+            println!("integrity check passed");
+            Ok(())
+        } else {
+            let field_names = mismatched_fields.join(", ");
+
+            Err(error_stack::Report::new(
+                IntegrityCheckError::IntegrityCheckFailed { field_names },
+            ))
+        }
     }
 }

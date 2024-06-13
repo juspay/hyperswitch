@@ -4,7 +4,10 @@ use std::{collections::HashMap, ops::Deref};
 
 use common_utils::{
     request::RequestContent,
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{
+        AmountConvertor, AuthoriseIntegrity, AuthoriseIntegrityObject, ConnectorIntegrity,
+        MinorUnit, MinorUnitForConnector,
+    },
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
@@ -42,12 +45,15 @@ use crate::{
 #[derive(Clone)]
 pub struct Stripe {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    authorise_integrity_check:
+        &'static (dyn ConnectorIntegrity<IntegrityObject = AuthoriseIntegrityObject> + Sync),
 }
 
 impl Stripe {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
+            authorise_integrity_check: &AuthoriseIntegrity,
         }
     }
 }
@@ -1026,6 +1032,21 @@ impl
                         .parse_struct("PaymentIntentResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+                    let response_integrity_object = AuthoriseIntegrityObject {
+                        amount: response.amount.clone(),
+                        currency: response.currency.clone(),
+                    };
+
+                    println!("sahkal sahkal");
+
+                    connector_utils::check_integrity(
+                        self.authorise_integrity_check,
+                        data.request.integrity_object.clone(),
+                        response_integrity_object,
+                        res.status_code.clone(),
+                        Some(response.id.clone())
+                    )?;
+
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
 
@@ -1041,6 +1062,19 @@ impl
                     .response
                     .parse_struct("PaymentIntentResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                let response_integrity_object = AuthoriseIntegrityObject {
+                    amount: response.amount.clone(),
+                    currency: response.currency.clone(),
+                };
+
+                connector_utils::check_integrity(
+                    self.authorise_integrity_check,
+                    data.request.integrity_object.clone(),
+                    response_integrity_object,
+                    res.status_code.clone(),
+                    Some(response.id.clone())
+                )?;
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);

@@ -1,5 +1,6 @@
 pub mod paypal;
 pub mod stripe;
+use common_utils::types::AuthoriseIntegrityObject;
 use error_stack::ResultExt;
 
 use crate::{
@@ -53,6 +54,10 @@ impl VerifyConnectorData {
             authentication_data: None,
             customer_acceptance: None,
             charges: None,
+            integrity_object: AuthoriseIntegrityObject {
+                amount: common_utils::types::MinorUnit::new(1000),
+                currency: (storage_enums::Currency::USD).to_string(),
+            },
         }
     }
 

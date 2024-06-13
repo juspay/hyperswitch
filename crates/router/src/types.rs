@@ -15,13 +15,17 @@ pub mod pm_auth;
 
 pub mod storage;
 pub mod transformers;
-
 use std::marker::PhantomData;
 
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
+pub use common_utils::{
+    pii,
+    pii::Email,
+    request::RequestContent,
+    types::{AuthoriseIntegrityObject, MinorUnit},
+};
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::router_request_types::PayoutsData;
 #[cfg(feature = "payouts")]
@@ -781,6 +785,10 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             charges: None, // TODO: allow charges on mandates?
+            integrity_object: AuthoriseIntegrityObject {
+                amount: MinorUnit::new(0),
+                currency: data.request.currency.to_string(),
+            },
         }
     }
 }

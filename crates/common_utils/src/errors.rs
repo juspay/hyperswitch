@@ -69,6 +69,15 @@ pub enum ValidationError {
     InvalidValue { message: String },
 }
 
+/// Integrity check errors.
+#[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
+#[derive(Debug, thiserror::Error, Clone, PartialEq)]
+pub enum IntegrityCheckError {
+    /// Integrity check failed
+    #[error("connector integrity check failed for field: {field_names}")]
+    IntegrityCheckFailed { field_names: String },
+}
+
 /// Cryptographic algorithm errors
 #[derive(Debug, thiserror::Error)]
 pub enum CryptoError {
