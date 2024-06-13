@@ -1001,8 +1001,8 @@ pub struct PaymentMethodCollectLinkResponse {
     pub ui_config: api_enums::CollectLinkConfig,
 
     /// List of payment methods shown on collect UI
-    #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
-    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
+    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    pub enabled_payment_methods: Option<Vec<api_enums::EnabledPaymentMethod>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1027,7 +1027,7 @@ pub struct PaymentMethodCollectLinkDetails {
     pub return_url: Option<String>,
     #[serde(flatten)]
     pub ui_config: api_enums::CollectLinkConfig,
-    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
+    pub enabled_payment_methods: Option<Vec<api_enums::EnabledPaymentMethod>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
