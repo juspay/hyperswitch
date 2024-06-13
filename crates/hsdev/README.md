@@ -1,27 +1,24 @@
-# Refuel
-<p align="center">
-  <img src="refuel.png" />
-</p>
+# HSDEV
 
-`refuel` is a simple diesel Postgres migration tool. It is designed to simply running a Postgres database migration with diesel.
+`hsdev` is a simple diesel Postgres migration tool. It is designed to simply running a Postgres database migration with diesel.
 
-## Installing refuel
-`refuel` can be installed using `cargo`
+## Installing hsdev
+`hsdev` can be installed using `cargo`
 ```shell
-cargo install refuel
+cargo install --force --path crates/hsdev
 ```
 
-## Using refuel
-Using `refuel` is simple. All you need to do is run the following command.
+## Using hsdev
+Using `hsdev` is simple. All you need to do is run the following command.
 ```shell
-refuel --toml-file [path/to/TOML/file]
+hsdev --toml-file [path/to/TOML/file]
 ```
 
-provide `refuel` with a TOML file containing the following keys:
+provide `hsdev` with a TOML file containing the following keys:
 ```toml
 username = "your_username"
 password = "your_password"
 dbname = "your_db_name"
 ```
 
-Simply run the command and let `refuel` handle the rest.
+Simply run the command and let `hsdev` handle the rest.
