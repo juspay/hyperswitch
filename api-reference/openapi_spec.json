@@ -17152,6 +17152,21 @@
           }
         }
       },
+      "PayoutLinkResponse": {
+        "type": "object",
+        "required": [
+          "link",
+          "payout_link_id"
+        ],
+        "properties": {
+          "link": {
+            "type": "string"
+          },
+          "payout_link_id": {
+            "type": "string"
+          }
+        }
+      },
       "PayoutListConstraints": {
         "allOf": [
           {

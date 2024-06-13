@@ -487,6 +487,7 @@ pub struct PayoutCreateResponse {
     pub attempts: Option<Vec<PayoutAttemptResponse>>,
 
     // If payout link is request, this represents response on
+    #[schema(value_type = Option<PayoutLinkResponse>)]
     pub payout_link: Option<PayoutLinkResponse>,
 }
 
@@ -698,6 +699,7 @@ pub struct PayoutListFilters {
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutLinkResponse {
+    #[schema(value_type = String)]
     pub link: Secret<String>,
     pub payout_link_id: String,
 }
