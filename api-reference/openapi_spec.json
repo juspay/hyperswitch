@@ -8683,6 +8683,7 @@
       },
       "DeviceChannel": {
         "type": "string",
+        "description": "Device Channel indicating whether request is coming from App or Browser",
         "enum": [
           "APP",
           "BRW"
@@ -11371,7 +11372,7 @@
         "properties": {
           "creds_identifier": {
             "type": "string",
-            "description": "Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string \"null\"."
+            "description": "Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info, like encoded_data in this field. And do not send the string \"null\"."
           },
           "encoded_data": {
             "allOf": [
@@ -13097,6 +13098,7 @@
       },
       "PaymentLinkStatus": {
         "type": "string",
+        "description": "Status Of the Payment Link",
         "enum": [
           "active",
           "expired"
@@ -14843,7 +14845,7 @@
           },
           "acs_reference_number": {
             "type": "string",
-            "description": "Unique identifier assigned by the EMVCo",
+            "description": "Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)",
             "nullable": true
           },
           "acs_trans_id": {
@@ -14858,7 +14860,7 @@
           },
           "acs_signed_content": {
             "type": "string",
-            "description": "Contains the JWS object created by the ACS for the ARes message",
+            "description": "Contains the JWS object created by the ACS for the ARes(Authentication Response) message",
             "nullable": true
           },
           "three_ds_requestor_url": {
@@ -17949,6 +17951,7 @@
         "properties": {
           "client_secret": {
             "type": "string",
+            "description": "It's a token used for client side verification.",
             "nullable": true
           }
         }
@@ -17965,30 +17968,37 @@
         ],
         "properties": {
           "payment_link_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier for Payment Link"
           },
           "merchant_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier for Merchant"
           },
           "link_to_pay": {
-            "type": "string"
+            "type": "string",
+            "description": "Payment Link"
           },
           "amount": {
             "type": "integer",
             "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency",
             "example": 6540
           },
           "created_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Date and time of Payment Link creation"
           },
           "expiry": {
             "type": "string",
             "format": "date-time",
+            "description": "Date and time of Expiration for Payment Link",
             "nullable": true
           },
           "description": {
             "type": "string",
+            "description": "Description for Payment Link",
             "nullable": true
           },
           "status": {
@@ -18396,6 +18406,7 @@
       },
       "SdkInformation": {
         "type": "object",
+        "description": "SDK Information if request is from SDK",
         "required": [
           "sdk_app_id",
           "sdk_enc_data",
@@ -18902,6 +18913,7 @@
       },
       "ThreeDsCompletionIndicator": {
         "type": "string",
+        "description": "Indicates if 3DS method data was successfully completed or not",
         "enum": [
           "Y",
           "N",
@@ -19047,6 +19059,7 @@
       },
       "TransactionStatus": {
         "type": "string",
+        "description": "Indicates the trans status",
         "enum": [
           "Y",
           "N",
