@@ -4,9 +4,9 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_intent};
+use crate::{encryption::Encryption, enums as storage_enums, schema::payment_intent};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id))]
 pub struct PaymentIntent {
     pub payment_id: String,
@@ -59,10 +59,11 @@ pub struct PaymentIntent {
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_details: Option<Encryption>,
 }
 
 #[derive(
-    Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+    Clone, Debug, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
@@ -114,6 +115,7 @@ pub struct PaymentIntentNew {
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_details: Option<Encryption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -242,6 +244,7 @@ pub struct PaymentIntentUpdateInternal {
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_details: Option<Encryption>,
 }
 
 impl PaymentIntentUpdate {
@@ -277,6 +280,7 @@ impl PaymentIntentUpdate {
             fingerprint_id,
             request_external_three_ds_authentication,
             frm_metadata,
+            guest_customer_details,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -314,6 +318,7 @@ impl PaymentIntentUpdate {
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
             frm_metadata: frm_metadata.or(source.frm_metadata),
+            guest_customer_details: guest_customer_details.or(source.guest_customer_details),
             ..source
         }
     }

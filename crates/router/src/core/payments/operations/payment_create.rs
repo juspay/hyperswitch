@@ -5,14 +5,16 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::{
+    crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
+    pii,
     types::MinorUnit,
 };
 use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
-    payments::payment_attempt::PaymentAttempt,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::GuestCustomerDetails},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -34,7 +36,10 @@ use crate::{
     services,
     types::{
         api::{self, PaymentIdTypeExt},
-        domain,
+        domain::{
+            self,
+            types::{self as domain_types, AsyncLift},
+        },
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -245,8 +250,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         };
 
         let payment_intent_new = Self::make_payment_intent(
+            state,
             &payment_id,
             merchant_account,
+            merchant_key_store,
             money,
             request,
             shipping_address
@@ -956,8 +963,10 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
+        state: &SessionState,
         payment_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -1023,6 +1032,61 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
+        let guest_customer_details = if request.customer_id.is_some() {
+            let customer = state
+                .store
+                .find_customer_by_customer_id_merchant_id(
+                    &request.customer_id.clone().unwrap().clone(),
+                    &merchant_account.merchant_id,
+                    key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+            if customer.name.is_some()
+                || customer.email.is_some()
+                || customer.phone.is_some()
+                || customer.phone_country_code.is_some()
+            {
+                Some(GuestCustomerDetails {
+                    name: customer.name.map(Encryptable::into_inner),
+                    email: customer.email.map(pii::Email::from),
+                    phone: customer.phone.map(Encryptable::into_inner),
+                    phone_country_code: customer.phone_country_code.clone(),
+                })
+            } else {
+                None
+            }
+        } else if request.name.is_some()
+            || request.email.is_some()
+            || request.phone.is_some()
+            || request.phone_country_code.is_some()
+        {
+            Some(GuestCustomerDetails {
+                name: request.name.clone(),
+                email: request.email.clone(),
+                phone: request.phone.clone(),
+                phone_country_code: request.phone_country_code.clone(),
+            })
+        } else {
+            None
+        };
+
+        let key = key_store.key.get_inner().peek();
+        let guest_customer_details_json = guest_customer_details
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "primary_business_details",
+            })
+            .attach_printable("Unable to convert guest customer details to a value")?
+            .map(Secret::new)
+            .async_lift(|inner| domain_types::encrypt_optional(inner, key))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt guest customer details")?;
+
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -1070,6 +1134,7 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
+            guest_customer_details: guest_customer_details_json,
         })
     }
 

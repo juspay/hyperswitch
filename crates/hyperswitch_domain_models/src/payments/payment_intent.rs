@@ -1,9 +1,12 @@
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    id_type, pii,
+    crypto::Encryptable,
+    id_type,
+    pii::{self, Email},
     types::MinorUnit,
 };
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -76,7 +79,15 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize)]
+pub struct GuestCustomerDetails {
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
@@ -122,6 +133,7 @@ pub struct PaymentIntentNew {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
+    pub guest_customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -251,6 +263,7 @@ pub struct PaymentIntentUpdateInternal {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub guest_customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -446,7 +459,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-use diesel_models::PaymentIntentUpdate as DieselPaymentIntentUpdate;
+use diesel_models::{encryption::Encryption, PaymentIntentUpdate as DieselPaymentIntentUpdate};
 
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
@@ -650,6 +663,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             fingerprint_id,
             request_external_three_ds_authentication,
             frm_metadata,
+            guest_customer_details,
         } = value;
 
         Self {
@@ -683,6 +697,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             fingerprint_id,
             request_external_three_ds_authentication,
             frm_metadata,
+            guest_customer_details: guest_customer_details.map(Encryption::from),
         }
     }
 }

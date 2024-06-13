@@ -863,6 +863,7 @@ diesel::table! {
         request_external_three_ds_authentication -> Nullable<Bool>,
         charges -> Nullable<Jsonb>,
         frm_metadata -> Nullable<Jsonb>,
+        guest_customer_details -> Nullable<Bytea>,
     }
 }
 
