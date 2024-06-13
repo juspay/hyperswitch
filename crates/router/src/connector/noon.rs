@@ -280,13 +280,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
 
-        let mandate_amount = {
-            let mandate_data = req.request.get_setup_mandate_details().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "setup_future_usage.mandate_data",
-                }
-            })?;
-
+        let mandate_amount = if let Some(mandate_data) = req.request.get_setup_mandate_details() {
             let mandate = match &mandate_data.mandate_type {
                 Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(mandate))
                 | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
@@ -302,11 +296,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 }),
             }?;
 
-            connector_utils::convert_amount(
+            let amount = connector_utils::convert_amount(
                 self.amount_converter,
                 mandate.amount,
                 mandate.currency,
-            )?
+            )?;
+            Some(amount)
+        } else {
+            None
         };
 
         let connector_req = noon::NoonPaymentsRequest::try_from((req, amount, mandate_amount))?;

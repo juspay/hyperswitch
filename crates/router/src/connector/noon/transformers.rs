@@ -230,7 +230,7 @@ impl
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
         StringMajorUnit,
-        StringMajorUnit,
+        Option<StringMajorUnit>,
     )> for NoonPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -238,7 +238,7 @@ impl
         data: (
             &types::PaymentsAuthorizeRouterData,
             StringMajorUnit,
-            StringMajorUnit,
+            Option<StringMajorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
@@ -385,10 +385,10 @@ impl
             .take(50)
             .collect();
 
-        let subscription = Some(NoonSubscriptionData {
+        let subscription = mandate_amount.map(|amount| NoonSubscriptionData {
             subscription_type: NoonSubscriptionType::Unscheduled,
             name: name.clone(),
-            max_amount: mandate_amount,
+            max_amount: amount,
         });
 
         let tokenize_c_c = subscription.is_some().then_some(true);
