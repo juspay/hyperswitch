@@ -1463,8 +1463,7 @@ pub async fn verify_email_token_only_flow(
             .map_err(|e| logger::error!(?e));
     }
 
-    let current_flow =
-        domain::CurrentFlow::new(user_token, domain::SPTFlow::VerifyEmail.into())?;
+    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::VerifyEmail.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 

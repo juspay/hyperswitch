@@ -219,11 +219,7 @@ impl CurrentFlow {
         })
     }
 
-    pub async fn next(
-        self,
-        user: UserFromStorage,
-        state: &SessionState,
-    ) -> UserResult<NextFlow> {
+    pub async fn next(self, user: UserFromStorage, state: &SessionState) -> UserResult<NextFlow> {
         let flows = self.origin.get_flows();
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
 
