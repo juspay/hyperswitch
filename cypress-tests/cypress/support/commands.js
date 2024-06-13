@@ -63,7 +63,6 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       // Handle the response as needed
-      globalState.set("profileID", response.body.default_profile);
       globalState.set("publishableKey", response.body.publishable_key);
     });
   },
@@ -153,7 +152,7 @@ Cypress.Commands.add(
           return false;
         } else {
           globalState.set("payoutsExecution", true);
-        } 
+        }
 
         createConnectorBody.connector_account_details = authDetails;
         cy.request({
@@ -172,51 +171,6 @@ Cypress.Commands.add(
           if (response.status === 200) {
             expect(globalState.get("connectorId")).to.equal(
               response.body.connector_name,
-            );
-          } else {
-            cy.task(
-              "cli_log",
-              "response status -> " + JSON.stringify(response.status),
-            );
-          }
-        });
-      },
-    );
-  },
-);
-
-Cypress.Commands.add(
-  "createConnectorWithNameCallTest",
-  (createConnectorBody, connector_name, connector_type, globalState) => {
-    const merchantId = globalState.get("merchantId");
-    createConnectorBody.connector_name = connector_name;
-    createConnectorBody.connector_type = connector_type;
-    // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
-    // it is best to use then() to handle the response within the same block of code
-    cy.readFile(globalState.get("connectorAuthFilePath")).then(
-      (jsonContent) => {
-        const authDetails = getValueByKey(
-          JSON.stringify(jsonContent),
-          connector_name,
-        );
-        createConnectorBody.connector_account_details = authDetails;
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "api-key": globalState.get("adminApiKey"),
-          },
-          body: createConnectorBody,
-          failOnStatusCode: false,
-        }).then((response) => {
-          logRequestId(response.headers["x-request-id"]);
-
-          if (response.status === 200) {
-            globalState.set(
-              `${connector_name}_mc_id`,
-              response.body.merchant_connector_id,
             );
           } else {
             cy.task(
@@ -1231,13 +1185,81 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
+Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
+  const jwt_body = {
+    email: `${globalState.get("email")}`,
+    password: `${globalState.get("password")}`,
+  };
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/user/v2/signin`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+    body: jwt_body,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(res_data.status).to.equal(response.status);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if (response.status === 200) {
+      expect(response.body).to.have.property("token");
+      //set jwt_token
+      globalState.set("jwtToken", response.body.token);
+
+      // set session cookie
+      const sessionCookie = response.headers["set-cookie"][0];
+      const sessionValue = sessionCookie.split(";")[0];
+      globalState.set("cookie", sessionValue);
+
+      // set api key
+      globalState.set("apiKey", globalState.get("routingApiKey"));
+      globalState.set("merchantId", response.body.merchant_id);
+
+      for (const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
+      }
+    } else {
+      expect(response.body).to.have.property("error");
+      for (const key in res_data.body.error) {
+        expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+      }
+    }
+  });
+});
+
+Cypress.Commands.add("ListMCAbyMID", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.headers["content-type"]).to.include("application/json");
+    globalState.set("profileId", response.body[0].profile_id);
+    globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
+    globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
+
+  });
+});
+
 Cypress.Commands.add(
   "addRoutingConfig",
   (routingBody, req_data, res_data, type, data, globalState) => {
     for (const key in req_data) {
       routingBody[key] = req_data[key];
     }
-    routingBody.profile_id = globalState.get("profileID");
+    // set profile id from env
+    routingBody.profile_id = globalState.get("profileId");
     routingBody.algorithm.type = type;
     routingBody.algorithm.data = data;
 
@@ -1246,7 +1268,8 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/routing`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
+        Cookie: `${globalState.get("cookie")}`,
+        "api-key": `Bearer ${globalState.get("jwtToken")}`,
       },
       failOnStatusCode: false,
       body: routingBody,
@@ -1281,6 +1304,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
       headers: {
         "Content-Type": "application/json",
+        Cookie: `${globalState.get("cookie")}`,
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
@@ -1314,6 +1338,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
       headers: {
         "Content-Type": "application/json",
+        Cookie: `${globalState.get("cookie")}`,
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
