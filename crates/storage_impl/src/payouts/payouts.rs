@@ -5,10 +5,14 @@ use common_utils::ext_traits::Encode;
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "olap")]
 use diesel_models::{
+    address::Address as DieselAddress,
     customers::Customer as DieselCustomer,
     payout_attempt::PayoutAttempt as DieselPayoutAttempt,
     query::generics::db_metrics,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
+    schema::{
+        address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl,
+        payouts::dsl as po_dsl,
+    },
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -305,8 +309,15 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         merchant_id: &str,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError>
-    {
+    ) -> error_stack::Result<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            diesel_models::Customer,
+            Option<diesel_models::Address>,
+        )>,
+        StorageError,
+    > {
         self.router_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
             .await
@@ -522,7 +533,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         merchant_id: &str,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
+    ) -> error_stack::Result<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            DieselCustomer,
+            Option<DieselAddress>,
+        )>,
+        StorageError,
+    > {
         use common_utils::errors::ReportSwitchExt;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -535,6 +554,10 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .inner_join(
                 diesel_models::schema::customers::table
                     .on(cust_dsl::customer_id.eq(po_dsl::customer_id)),
+            )
+            .left_outer_join(
+                diesel_models::schema::address::table
+                    .on(add_dsl::address_id.eq(po_dsl::address_id)),
             )
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
@@ -626,16 +649,22 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         query
-            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, DieselCustomer)>(conn)
+            .get_results_async::<(
+                DieselPayouts,
+                DieselPayoutAttempt,
+                DieselCustomer,
+                Option<DieselAddress>,
+            )>(conn)
             .await
             .map(|results| {
                 results
                     .into_iter()
-                    .map(|(pi, pa, c)| {
+                    .map(|(pi, pa, c, add)| {
                         (
                             Payouts::from_storage_model(pi),
                             PayoutAttempt::from_storage_model(pa),
                             c,
+                            add,
                         )
                     })
                     .collect()

@@ -5,7 +5,7 @@ pub mod retry;
 pub mod validator;
 use std::vec::IntoIter;
 
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payments as payment_enums};
 use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -45,6 +45,13 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
+
+type PayoutActionData = Vec<(
+    storage::Payouts,
+    storage::PayoutAttempt,
+    domain::Customer,
+    Option<payment_enums::Address>,
+)>;
 
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
@@ -706,7 +713,33 @@ pub async fn payouts_list_core(
                     )
                     .await
                 {
-                    Ok(customer) => Some(Ok((payouts, payout_attempt, customer))),
+                    Ok(customer) => {
+                        match payment_helpers::create_or_find_address_for_payment_by_request(
+                            db,
+                            None,
+                            Some(&payouts.address_id.to_owned()),
+                            merchant_id,
+                            Some(&payouts.customer_id.to_owned()),
+                            &key_store,
+                            &payouts.payout_id,
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                        {
+                            Ok(billing_address) => Some(Ok((
+                                payouts,
+                                payout_attempt,
+                                customer,
+                                billing_address.map(payment_enums::Address::foreign_from),
+                            ))),
+                            Err(error) => Some(Err(error.change_context(
+                                StorageError::ValueNotFound(format!(
+                                    "billing_address missing for address_id : {:?}",
+                                    payouts.address_id
+                                )),
+                            ))),
+                        }
+                    }
                     Err(error) => {
                         if matches!(
                             error.current_context(),
@@ -742,14 +775,11 @@ pub async fn payouts_list_core(
         }
     });
 
-    let pi_pa_tuple_vec: Result<
-        Vec<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>,
-        _,
-    > = join_all(collected_futures)
+    let pi_pa_tuple_vec: Result<PayoutActionData, _> = join_all(collected_futures)
         .await
         .into_iter()
         .flatten()
-        .collect::<Result<Vec<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>, _>>();
+        .collect::<Result<PayoutActionData, _>>();
 
     let data: Vec<api::PayoutCreateResponse> = pi_pa_tuple_vec
         .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -779,6 +809,7 @@ pub async fn payouts_filtered_list_core(
         storage::Payouts,
         storage::PayoutAttempt,
         diesel_models::Customer,
+        Option<diesel_models::Address>,
     )> = db
         .filter_payouts_and_attempts(
             &merchant_account.merchant_id,
@@ -788,24 +819,43 @@ pub async fn payouts_filtered_list_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
-    let data: Vec<api::PayoutCreateResponse> = join_all(list.into_iter().map(|(p, pa, c)| async {
-        match domain::Customer::convert_back(c, &key_store.key).await {
-            Ok(domain_cust) => Some((p, pa, domain_cust)),
-            Err(err) => {
-                logger::warn!(
-                    ?err,
-                    "failed to convert customer for id: {:?}",
-                    p.customer_id
-                );
-                None
+    let data: Vec<api::PayoutCreateResponse> =
+        join_all(list.into_iter().map(|(p, pa, c, b)| async {
+            match domain::Customer::convert_back(c, &key_store.key).await {
+                Ok(domain_cust) => match b {
+                    Some(addr) => match domain::Address::convert_back(addr, &key_store.key).await {
+                        Ok(domain_address) => Some((
+                            p,
+                            pa,
+                            domain_cust,
+                            Some(payment_enums::Address::foreign_from(domain_address)),
+                        )),
+                        Err(err) => {
+                            logger::warn!(
+                                ?err,
+                                "failed to convert address for id: {:?}",
+                                p.address_id
+                            );
+                            None
+                        }
+                    },
+                    None => Some((p, pa, domain_cust, None)),
+                },
+                Err(err) => {
+                    logger::warn!(
+                        ?err,
+                        "failed to convert customer for id: {:?}",
+                        p.customer_id
+                    );
+                    None
+                }
             }
-        }
-    }))
-    .await
-    .into_iter()
-    .flatten()
-    .map(ForeignFrom::foreign_from)
-    .collect();
+        }))
+        .await
+        .into_iter()
+        .flatten()
+        .map(ForeignFrom::foreign_from)
+        .collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PayoutListResponse {

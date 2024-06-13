@@ -1,11 +1,14 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::{
-    FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
-    RequestSurchargeDetails,
-};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
+use api_models::{
+    payments as payment_enums,
+    payments::{
+        FrmMessage, GetAddressFromPaymentMethodData, PaymentChargeRequest, PaymentChargeResponse,
+        RequestSurchargeDetails,
+    },
+};
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
@@ -982,11 +985,23 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
-    for api::PayoutCreateResponse
+impl
+    ForeignFrom<(
+        storage::Payouts,
+        storage::PayoutAttempt,
+        domain::Customer,
+        Option<payment_enums::Address>,
+    )> for api::PayoutCreateResponse
 {
-    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
-        let (payout, payout_attempt, customer) = item;
+    fn foreign_from(
+        item: (
+            storage::Payouts,
+            storage::PayoutAttempt,
+            domain::Customer,
+            Option<payment_enums::Address>,
+        ),
+    ) -> Self {
+        let (payout, payout_attempt, customer, billing) = item;
         let attempt = PayoutAttemptResponse {
             attempt_id: payout_attempt.payout_attempt_id,
             status: payout_attempt.status,
@@ -1030,7 +1045,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             connector_transaction_id: attempt.connector_transaction_id.clone(),
             priority: payout.priority,
             attempts: Some(vec![attempt]),
-            billing: None,
+            billing,
             client_secret: None,
         }
     }
