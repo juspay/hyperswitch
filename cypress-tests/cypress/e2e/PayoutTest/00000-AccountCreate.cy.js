@@ -1,4 +1,5 @@
 import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
+import kvBody from "../../fixtures/enable-kv-store-body.json";
 import merchantCreateBody from "../../fixtures/merchant-create-body.json";
 import State from "../../utils/State";
 
@@ -16,7 +17,12 @@ describe("Account Create flow test", () => {
   it("merchant-create-call-test", () => {
     cy.merchantCreateCallTest(merchantCreateBody, globalState);
   });
+
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+  });
+
+  it("enable kv-store", () => {
+    cy.enableKvStore(kvBody, globalState);
   });
 });

@@ -4,7 +4,7 @@ import * as utils from "../PayoutUtils/utils";
 
 let globalState;
 
-describe("Card - Auto Fulfill", () => {
+describe("Bank Transfer - SEPA", () => {
   let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
@@ -28,11 +28,12 @@ describe("Card - Auto Fulfill", () => {
     }
   });
 
-  context("Payout Card with Auto Fulfill", () => {
+  context("[Payout] [Bank transfer - SEPA] Auto Fulfill", () => {
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Fulfill"];
+        "bank_transfer_pm"
+      ]["sepa"]["Fulfill"];
+
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPayoutTest(
@@ -44,7 +45,6 @@ describe("Card - Auto Fulfill", () => {
         false,
         globalState
       );
-
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
@@ -54,11 +54,11 @@ describe("Card - Auto Fulfill", () => {
     });
   });
 
-  context("Payout Card with Manual Fulfill - Create Confirm", () => {
+  context("[Payout] [Bank transfer - SEPA] Manual Fulfill", () => {
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Confirm"];
+        "bank_transfer_pm"
+      ]["sepa"]["Confirm"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPayoutTest(
@@ -76,8 +76,8 @@ describe("Card - Auto Fulfill", () => {
 
     it("fulfill-payout-call-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Fulfill"];
+        "bank_transfer_pm"
+      ]["sepa"]["Fulfill"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.fulfillPayoutCallTest({}, req_data, res_data, globalState);
@@ -90,11 +90,11 @@ describe("Card - Auto Fulfill", () => {
     });
   });
 
-  context("Payout Card with Manual Fulfill - Create Intent + Confirm", () => {
+  context("[Payout] [Bank transfer - SEPA] Manual", () => {
     it("create-payout-call", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Create"];
+        "bank_transfer_pm"
+      ]["sepa"]["Create"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPayoutTest(
@@ -112,8 +112,8 @@ describe("Card - Auto Fulfill", () => {
 
     it("confirm-payout-call", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Confirm"];
+        "bank_transfer_pm"
+      ]["sepa"]["Confirm"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.updatePayoutCallTest({}, req_data, res_data, false, globalState);
@@ -123,8 +123,8 @@ describe("Card - Auto Fulfill", () => {
 
     it("fulfill-payout-call-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Fulfill"];
+        "bank_transfer_pm"
+      ]["sepa"]["Fulfill"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.fulfillPayoutCallTest({}, req_data, res_data, globalState);
@@ -135,5 +135,57 @@ describe("Card - Auto Fulfill", () => {
     it("retrieve-payout-call-test", () => {
       cy.retrievePayoutCallTest(globalState);
     });
+  });
+});
+
+// TODO: Add test for Bank Transfer - ACH
+describe("Bank Transfer - ACH", () => {
+  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+
+      // Check if the connector supports card payouts (based on the connector configuration in creds)
+      if (!globalState.get("payoutsExecution")) {
+        should_continue = false;
+      }
+    });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
+});
+
+// TODO: Add test for Bank Transfer - BACS
+describe("Bank Transfer - BACS", () => {
+  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+
+      // Check if the connector supports card payouts (based on the connector configuration in creds)
+      if (!globalState.get("payoutsExecution")) {
+        should_continue = false;
+      }
+    });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
   });
 });
