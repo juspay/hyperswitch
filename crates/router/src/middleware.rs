@@ -3,6 +3,7 @@ use router_env::{
     logger,
     tracing::{field::Empty, Instrument},
 };
+use common_utils::consts::TENANT_HEADER;
 
 use crate::headers;
 /// Middleware to include request ID in response header.
@@ -142,7 +143,7 @@ where
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
         let tenant_id = req
             .headers()
-            .get("x-tenant-id")
+            .get(TENANT_HEADER)
             .and_then(|i| i.to_str().ok())
             .map(|s| s.to_owned());
         let response_fut = self.service.call(req);
