@@ -214,7 +214,7 @@ pub async fn list_customer_payment_method_api_client(
                 auth.key_store,
                 Some(req),
                 None,
-                is_ephemeral_auth.then(|| api_key).flatten(),
+                is_ephemeral_auth.then_some(api_key).flatten(),
             )
         },
         &*auth,
