@@ -1,5 +1,4 @@
-use diesel_models::authentication::Authentication;
-use diesel_models::enums as storage_enums;
+use diesel_models::{authentication::Authentication, enums as storage_enums};
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
