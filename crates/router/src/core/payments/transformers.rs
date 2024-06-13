@@ -995,7 +995,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             connector: payout_attempt.connector.clone(),
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
-            payment_method: Some(payout.payout_type),
+            payment_method: payout.payout_type,
             payout_method_type: None,
             connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,

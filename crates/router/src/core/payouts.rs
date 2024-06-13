@@ -311,6 +311,7 @@ pub async fn payouts_create_core(
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
+    let payout_type = payout_data.payouts.payout_type.to_owned();
 
     // Persist payout method data in temp locker
     payout_data.payout_method_data = helpers::make_payout_method_data(
@@ -319,7 +320,7 @@ pub async fn payouts_create_core(
         payout_attempt.payout_token.as_deref(),
         &payout_attempt.customer_id,
         &payout_attempt.merchant_id,
-        Some(&payout_data.payouts.payout_type.clone()),
+        payout_type,
         &key_store,
         Some(&mut payout_data),
         merchant_account.storage_scheme,
@@ -449,7 +450,7 @@ pub async fn payouts_update_core(
         payout_attempt.payout_token.as_deref(),
         &payout_attempt.customer_id,
         &payout_attempt.merchant_id,
-        Some(&payout_data.payouts.payout_type.clone()),
+        payout_data.payouts.payout_type,
         &key_store,
         Some(&mut payout_data),
         merchant_account.storage_scheme,
@@ -639,7 +640,7 @@ pub async fn payouts_fulfill_core(
             payout_attempt.payout_token.as_deref(),
             &payout_attempt.customer_id,
             &payout_attempt.merchant_id,
-            Some(&payout_data.payouts.payout_type.clone()),
+            payout_data.payouts.payout_type,
             &key_store,
             Some(&mut payout_data),
             merchant_account.storage_scheme,
@@ -892,7 +893,7 @@ pub async fn call_connector_payout(
                 payout_attempt.payout_token.as_deref(),
                 &payout_attempt.customer_id,
                 &payout_attempt.merchant_id,
-                Some(&payouts.payout_type),
+                payouts.payout_type,
                 key_store,
                 Some(payout_data),
                 merchant_account.storage_scheme,
@@ -2003,10 +2004,7 @@ pub async fn payout_create_db_entries(
 
     // Make payouts entry
     let currency = req.currency.to_owned().get_required_value("currency")?;
-    let payout_type = req
-        .payout_type
-        .to_owned()
-        .get_required_value("payout_type")?;
+    let payout_type = req.payout_type.to_owned();
 
     let payout_method_id = if stored_payout_method_data.is_some() {
         req.payout_token.to_owned()

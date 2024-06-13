@@ -1437,6 +1437,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::BankDebit(_)
                     | PaymentMethodData::BankRedirect(_)
                     | PaymentMethodData::BankTransfer(_)
+                    | PaymentMethodData::RealTimePayment(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::Crypto(_)
                     | PaymentMethodData::GiftCard(_)
@@ -1485,6 +1486,8 @@ pub enum PaymentMethodData {
     BankDebit(BankDebitData),
     #[schema(title = "BankTransfer")]
     BankTransfer(Box<BankTransferData>),
+    #[schema(title = "RealTimePayment")]
+    RealTimePayment(Box<RealTimePaymentData>),
     #[schema(title = "Crypto")]
     Crypto(CryptoData),
     #[schema(title = "MandatePayment")]
@@ -1518,6 +1521,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
+            | Self::RealTimePayment(_)
             | Self::Upi(_)
             | Self::GiftCard(_)
             | Self::CardToken(_)
@@ -1552,6 +1556,7 @@ impl PaymentMethodData {
             Self::BankRedirect(_) => Some(api_enums::PaymentMethod::BankRedirect),
             Self::BankDebit(_) => Some(api_enums::PaymentMethod::BankDebit),
             Self::BankTransfer(_) => Some(api_enums::PaymentMethod::BankTransfer),
+            Self::RealTimePayment(_) => Some(api_enums::PaymentMethod::RealTimePayment),
             Self::Crypto(_) => Some(api_enums::PaymentMethod::Crypto),
             Self::Reward => Some(api_enums::PaymentMethod::Reward),
             Self::Upi(_) => Some(api_enums::PaymentMethod::Upi),
@@ -1651,6 +1656,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::OnlineBankingThailand { .. } => {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
+            Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
         }
     }
 }
@@ -1690,6 +1696,17 @@ impl GetPaymentMethodType for BankTransferData {
 impl GetPaymentMethodType for CryptoData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         api_enums::PaymentMethodType::CryptoCurrency
+    }
+}
+
+impl GetPaymentMethodType for RealTimePaymentData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Fps {} => api_enums::PaymentMethodType::Fps,
+            Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
+            Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
+            Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+        }
     }
 }
 
@@ -1805,6 +1822,7 @@ pub enum AdditionalPaymentData {
     BankDebit {},
     MandatePayment {},
     Reward {},
+    RealTimePayment {},
     Upi {},
     GiftCard {},
     Voucher {},
@@ -1956,6 +1974,7 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: common_enums::BankNames,
     },
+    LocalBankRedirect {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -2065,6 +2084,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             } => get_billing_address_inner(Some(billing_details), None, None),
             Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
             Self::OnlineBankingFpx { .. }
+            | Self::LocalBankRedirect {}
             | Self::OnlineBankingThailand { .. }
             | Self::Bizum {}
             | Self::OnlineBankingPoland { .. }
@@ -2272,6 +2292,15 @@ pub enum BankTransferData {
     LocalBankTransfer {
         bank_code: Option<String>,
     },
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RealTimePaymentData {
+    Fps {},
+    DuitNow {},
+    PromptPay {},
+    VietQr {},
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -2588,8 +2617,6 @@ pub struct SwishQrData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
-    #[schema(value_type = String)]
-    pub destination_account_number: Secret<String>,
     #[schema(value_type = Date)]
     pub date_of_birth: Secret<Date>,
 }
@@ -2744,6 +2771,7 @@ where
                 | PaymentMethodDataResponse::GiftCard {}
                 | PaymentMethodDataResponse::PayLater(_)
                 | PaymentMethodDataResponse::Paypal {}
+                | PaymentMethodDataResponse::RealTimePayment {}
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
                 | PaymentMethodDataResponse::BankTransfer {}
@@ -2774,6 +2802,7 @@ pub enum PaymentMethodDataResponse {
     BankDebit {},
     MandatePayment {},
     Reward {},
+    RealTimePayment {},
     Upi {},
     Voucher {},
     GiftCard {},
@@ -3913,6 +3942,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
             AdditionalPaymentData::Reward {} => Self::Reward {},
+            AdditionalPaymentData::RealTimePayment {} => Self::RealTimePayment {},
             AdditionalPaymentData::Upi {} => Self::Upi {},
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
             AdditionalPaymentData::Voucher {} => Self::Voucher {},

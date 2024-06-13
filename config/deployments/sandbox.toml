@@ -288,6 +288,7 @@ mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR
 [pm_filters.prophetpay]
 card_redirect.currency = "USD"
 
+
 [pm_filters.stax]
 ach = { country = "US", currency = "USD" }
 
