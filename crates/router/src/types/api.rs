@@ -344,6 +344,25 @@ impl ConnectorData {
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
+<<<<<<< HEAD
+                enums::Connector::Aci => Ok(Box::new(&connector::Aci)),
+                enums::Connector::Adyen => Ok(Box::new(&connector::Adyen)),
+                enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
+                enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
+                enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
+                enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)),
+                enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
+                enums::Connector::Bluesnap => Ok(Box::new(connector::Bluesnap::new())),
+                enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
+                enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
+                enums::Connector::Cashtocode => Ok(Box::new(connector::Cashtocode::new())),
+                enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
+                enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
+                enums::Connector::Cryptopay => Ok(Box::new(connector::Cryptopay::new())),
+                enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
+                enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
+=======
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(&connector::Aci))),
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
@@ -394,6 +413,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
                 }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
+>>>>>>> ecc862c3543be37e2cc7959f450ca51770978ae5
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<1>,
@@ -497,7 +517,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(&connector::Tsys))),
-                enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(&connector::Volt))),
+                enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(&connector::Zen))),
                 enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(&connector::Zsl))),
                 enums::Connector::Signifyd
