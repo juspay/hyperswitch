@@ -1983,9 +1983,7 @@ pub async fn create_org_authentication_method(
             last_modified_at: now,
         })
         .await
-        .change_context(UserErrors::InternalServerError)?;
-    // have to change error
-
+        .to_duplicate_response(UserErrors::OrgAuthMethodAlreadyExists)?;
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -1993,7 +1991,7 @@ pub async fn update_org_authentication_method(
     state: SessionState,
     req: user_api::UpdateOrgAuthenticationMethodRequest,
 ) -> UserResponse<()> {
-    state
+    let p = state
         .store
         .update_org_authentication_method(
             &req.org_id,
@@ -2003,8 +2001,7 @@ pub async fn update_org_authentication_method(
             },
         )
         .await
-        .change_context(UserErrors::RoleNameAlreadyExists)?;
-    // have to change error
+        .change_context(UserErrors::InvalidOrgAuthMethodOperation)?;
     Ok(ApplicationResponse::StatusOk)
 }
 
