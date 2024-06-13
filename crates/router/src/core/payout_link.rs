@@ -217,7 +217,7 @@ fn filter_payout_methods(
                         payment_method_list_hm.insert(payment_method,card_hs.clone());
                     }else if payment_method == common_enums::PaymentMethod::Wallet {
                         wallet_hs.insert(pmts.payment_method_type);
-                        payment_method_list_hm.insert(payment_method,bank_transfer_hs.clone());
+                        payment_method_list_hm.insert(payment_method,wallet_hs.clone());
                     }else if payment_method == common_enums::PaymentMethod::BankTransfer {
                         bank_transfer_hs.insert(pmts.payment_method_type);
                         payment_method_list_hm.insert(payment_method,bank_transfer_hs.clone());
@@ -227,11 +227,8 @@ fn filter_payout_methods(
         }
     }
     for (pm, method_types) in payment_method_list_hm {
-        // Check if HashSet is not empty
         if !method_types.is_empty() {
-            // Convert HashSet to Vec
             let payment_method_types: Vec<enums::PaymentMethodType> = method_types.into_iter().collect();
-            // Construct EnabledPaymentMethod instance and insert into response vector
             let enabled_payment_method = enums::EnabledPaymentMethod {
                 payment_method: pm,
                 payment_method_types,
