@@ -315,7 +315,7 @@ impl ConnectorData {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(Box::new(&connector::Aci)),
-                enums::Connector::Adyen => Ok(Box::new(&connector::Adyen)),
+                enums::Connector::Adyen => Ok(Box::new(connector::Adyen::new())),
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),

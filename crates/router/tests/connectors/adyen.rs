@@ -16,7 +16,7 @@ impl utils::Connector for AdyenTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Adyen;
         types::api::ConnectorData {
-            connector: Box::new(&Adyen),
+            connector: Box::new(Adyen::new()),
             connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
