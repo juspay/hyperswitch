@@ -64,6 +64,7 @@ use crate::{
     pii::prelude::*,
     routes::{
         self,
+        app::SessionStateInfo,
         metrics::{self, request},
         payment_methods::ParentPaymentMethodToken,
     },
@@ -3107,9 +3108,24 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     key_store: domain::MerchantKeyStore,
     req: Option<api::PaymentMethodListRequest>,
     customer_id: Option<&id_type::CustomerId>,
+    ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = state.store.as_ref();
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
+
+    let auth_cust = if let Some(key) = ephemeral_api_key {
+        let key = state
+            .store()
+            .get_ephemeral_key(key)
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        Some(key.customer_id.clone())
+    } else {
+        None
+    };
+
+    let customer_id = customer_id.or(auth_cust.as_ref());
 
     if let Some(customer_id) = customer_id {
         Box::pin(list_customer_payment_method(
