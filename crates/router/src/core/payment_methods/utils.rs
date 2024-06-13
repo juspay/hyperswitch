@@ -571,7 +571,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCountries::DisableOnly(countries) => {
@@ -592,7 +592,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCountries::AllAccepted => return Ok(None),
@@ -628,7 +628,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     config_country_agg_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
         }
