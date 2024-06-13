@@ -152,7 +152,7 @@ Cypress.Commands.add(
           return false;
         } else {
           globalState.set("payoutsExecution", true);
-        } 
+        }
 
         createConnectorBody.connector_account_details = authDetails;
         cy.request({
@@ -1185,7 +1185,6 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
-
 Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
   const jwt_body = {
     email: `${globalState.get("email")}`,
@@ -1252,7 +1251,6 @@ Cypress.Commands.add("ListMCAbyMID", (globalState) => {
     globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
     console.log("stripeMcaId", response.body[0].merchant_connector_id);
     console.log("adyenMcaId", response.body[1].merchant_connector_id);
-
   });
 });
 
