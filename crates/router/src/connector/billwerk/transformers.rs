@@ -1,4 +1,7 @@
-use common_utils::pii::{Email, SecretSerdeValue};
+use common_utils::{
+    id_type,
+    pii::{Email, SecretSerdeValue},
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -96,6 +99,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | domain::payments::PaymentMethodData::Crypto(_)
             | domain::payments::PaymentMethodData::MandatePayment
             | domain::payments::PaymentMethodData::Reward
+            | domain::payments::PaymentMethodData::RealTimePayment(_)
             | domain::payments::PaymentMethodData::Upi(_)
             | domain::payments::PaymentMethodData::Voucher(_)
             | domain::payments::PaymentMethodData::GiftCard(_)
@@ -145,7 +149,7 @@ impl<T>
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCustomerObject {
-    handle: Option<String>,
+    handle: Option<id_type::CustomerId>,
     email: Option<Email>,
     address: Option<Secret<String>>,
     address2: Option<Secret<String>>,

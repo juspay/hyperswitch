@@ -2,7 +2,7 @@ pub mod disputes;
 pub mod fraud_check;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types::MinorUnit};
+use common_utils::{request::Method, types as common_types, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
 use crate::router_request_types::{authentication::AuthNFlowType, ResponseId};
@@ -148,6 +148,9 @@ pub enum RedirectForm {
         customer_vault_id: String,
         order_id: String,
     },
+    Mifinity {
+        initialization_token: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -182,7 +185,7 @@ pub struct RetrieveFileResponse {
 #[derive(Clone, Debug, Default)]
 pub struct PayoutsResponseData {
     pub status: Option<common_enums::PayoutStatus>,
-    pub connector_payout_id: String,
+    pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub should_add_next_step_to_process_tracker: bool,
 }
@@ -205,6 +208,15 @@ pub struct MandateRevokeResponseData {
 
 #[derive(Debug, Clone)]
 pub enum AuthenticationResponseData {
+    PreAuthVersionCallResponse {
+        maximum_supported_3ds_version: common_types::SemanticVersion,
+    },
+    PreAuthThreeDsMethodCallResponse {
+        threeds_server_transaction_id: String,
+        three_ds_method_data: Option<String>,
+        three_ds_method_url: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
+    },
     PreAuthNResponse {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
@@ -219,6 +231,8 @@ pub enum AuthenticationResponseData {
         authn_flow_type: AuthNFlowType,
         authentication_value: Option<String>,
         trans_status: common_enums::TransactionStatus,
+        connector_metadata: Option<serde_json::Value>,
+        ds_trans_id: Option<String>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,

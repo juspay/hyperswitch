@@ -1,6 +1,7 @@
 pub mod types;
 
 use actix_web::{web, HttpRequest, HttpResponse};
+use common_utils::id_type;
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
@@ -56,7 +57,7 @@ pub async fn customer_create(
 pub async fn customer_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
     let payload = customer_types::CustomerId {
         customer_id: path.into_inner(),
@@ -91,7 +92,7 @@ pub async fn customer_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
     form_payload: web::Bytes,
 ) -> HttpResponse {
     let payload: types::CustomerUpdateRequest = match qs_config.deserialize_bytes(&form_payload) {
@@ -103,7 +104,7 @@ pub async fn customer_update(
 
     let customer_id = path.into_inner();
     let mut cust_update_req: customer_types::CustomerRequest = payload.into();
-    cust_update_req.customer_id = customer_id;
+    cust_update_req.customer_id = Some(customer_id);
 
     let flow = Flow::CustomersUpdate;
 
@@ -133,7 +134,7 @@ pub async fn customer_update(
 pub async fn customer_delete(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
     let payload = customer_types::CustomerId {
         customer_id: path.into_inner(),
@@ -155,7 +156,7 @@ pub async fn customer_delete(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -167,7 +168,7 @@ pub async fn customer_delete(
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let payload = json_payload.into_inner();
@@ -194,7 +195,7 @@ pub async fn list_customer_payment_method_api(
                 auth.merchant_account,
                 auth.key_store,
                 Some(req),
-                Some(customer_id.as_str()),
+                Some(&customer_id),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),

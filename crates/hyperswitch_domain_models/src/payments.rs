@@ -1,4 +1,4 @@
-use common_utils::{self, pii, types::MinorUnit};
+use common_utils::{self, id_type, pii, types::MinorUnit};
 use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
@@ -18,7 +18,7 @@ pub struct PaymentIntent {
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,

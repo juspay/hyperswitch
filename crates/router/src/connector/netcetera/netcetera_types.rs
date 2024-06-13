@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use common_utils::pii::Email;
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
+use unidecode::unidecode;
 
 use crate::{
     connector::utils::{AddressDetailsData, PhoneDetailsData},
@@ -701,7 +703,13 @@ impl
                 .address
                 .as_ref()
                 .and_then(|add| add.city.clone()),
-            bill_addr_country: None,
+            bill_addr_country: billing_address.address.as_ref().and_then(|add| {
+                add.country.map(|country| {
+                    common_enums::Country::from_alpha2(country)
+                        .to_numeric()
+                        .to_string()
+                })
+            }),
             bill_addr_line1: billing_address
                 .address
                 .as_ref()
@@ -739,15 +747,25 @@ impl
                 .clone()
                 .map(PhoneNumber::try_from)
                 .transpose()?,
-            cardholder_name: billing_address
-                .address
-                .as_ref()
-                .and_then(|add| add.first_name.clone()),
+            cardholder_name: billing_address.address.and_then(|address| {
+                address
+                    .get_optional_full_name()
+                    .map(|name| masking::Secret::new(unidecode(&name.expose())))
+            }),
             ship_addr_city: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
                 .and_then(|add| add.city.clone()),
-            ship_addr_country: None,
+            ship_addr_country: shipping_address
+                .as_ref()
+                .and_then(|shipping_add| shipping_add.address.as_ref())
+                .and_then(|add| {
+                    add.country.map(|country| {
+                        common_enums::Country::from_alpha2(country)
+                            .to_numeric()
+                            .to_string()
+                    })
+                }),
             ship_addr_line1: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
@@ -1313,7 +1331,7 @@ pub struct Browser {
     /// - with message version = 2.1.0 and deviceChannel = 02 (BRW).
     /// - with message version = 2.2.0 and deviceChannel = 02 (BRW) and browserJavascriptEnabled = true.
     #[serde(rename = "browserTZ")]
-    browser_tz: Option<u32>,
+    browser_tz: Option<i32>,
 
     /// Exact content of the HTTP user-agent header. The field is limited to maximum 2048 characters. If the total length of
     /// the User-Agent sent by the browser exceeds 2048 characters, the 3DS Server truncates the excess portion.
@@ -1364,7 +1382,7 @@ impl From<crate::types::BrowserInformation> for Browser {
             browser_color_depth: value.color_depth.map(|cd| cd.to_string()),
             browser_screen_height: value.screen_height,
             browser_screen_width: value.screen_width,
-            browser_tz: Some(1),
+            browser_tz: value.time_zone,
             browser_user_agent: value.user_agent,
             challenge_window_size: Some(ChallengeWindowSizeEnum::FullScreen),
             browser_javascript_enabled: value.java_script_enabled,

@@ -260,7 +260,7 @@ pub async fn routing_update_default_config(
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingUpdateDefaultConfig,
         state,
         &req,
@@ -282,7 +282,7 @@ pub async fn routing_update_default_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -293,7 +293,7 @@ pub async fn routing_retrieve_default_config(
     req: HttpRequest,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
         state,
         &req,
@@ -310,7 +310,7 @@ pub async fn routing_retrieve_default_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::RoutingRead),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -574,7 +574,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
     req: HttpRequest,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
         state,
         &req,
@@ -599,7 +599,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -616,7 +616,7 @@ pub async fn routing_update_default_config_for_profile(
         updated_config: json_payload.into_inner(),
         profile_id: path.into_inner(),
     };
-    oss_api::server_wrap(
+    Box::pin(oss_api::server_wrap(
         Flow::RoutingUpdateDefaultConfig,
         state,
         &req,
@@ -639,6 +639,6 @@ pub async fn routing_update_default_config_for_profile(
         #[cfg(feature = "release")]
         &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

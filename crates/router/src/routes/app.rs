@@ -1,10 +1,11 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+use common_utils::consts::{DEFAULT_TENANT, GLOBAL_TENANT};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::{Blake3, VerifySignature};
 #[cfg(feature = "email")]
@@ -16,9 +17,10 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::MockDb;
+use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
+use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
 #[cfg(feature = "dummy_connector")]
@@ -31,8 +33,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
-    user::*, user_role::*, webhook_events::*,
+    admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -45,20 +47,26 @@ use super::{ephemeral_key::*, webhooks::*};
 use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsProvider;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
-use crate::{configs::secrets_transformers, errors::RouterResult};
 pub use crate::{
     configs::settings,
     core::routing,
-    db::{StorageImpl, StorageInterface},
+    db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
-    services::get_store,
+    services::{get_cache_store, get_store},
+};
+use crate::{
+    configs::{secrets_transformers, Settings},
+    db::kafka_store::{KafkaStore, TenantID},
+    errors::RouterResult,
 };
 
 #[derive(Clone)]
@@ -67,77 +75,64 @@ pub struct ReqState {
 }
 
 #[derive(Clone)]
-pub struct AppState {
-    pub flow_name: String,
+pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
+    /// Global store is used for global schema operations in tables like Users and Tenants
+    pub global_store: Box<dyn GlobalStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
+    pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
-    pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
-    pub pool: crate::analytics::AnalyticsProvider,
-    #[cfg(feature = "olap")]
-    pub opensearch_client: OpenSearchClient,
+    pub pool: AnalyticsProvider,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub base_url: String,
+    pub tenant: Tenant,
+    #[cfg(feature = "olap")]
+    pub opensearch_client: Arc<OpenSearchClient>,
 }
-
-impl scheduler::SchedulerAppState for AppState {
+impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
         self.store.get_scheduler_db()
     }
 }
+impl SessionState {
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
+}
 
-pub trait AppStateInfo {
+pub trait SessionStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
     fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
-    #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService>;
-    fn add_request_id(&mut self, request_id: RequestId);
-    fn add_merchant_id(&mut self, merchant_id: Option<String>);
-    fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
+    fn add_request_id(&mut self, request_id: RequestId);
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])>;
 }
 
-#[cfg(feature = "partial-auth")]
-static CHECKSUM_KEY: once_cell::sync::OnceCell<(
-    masking::StrongSecret<String>,
-    masking::StrongSecret<Vec<u8>>,
-)> = once_cell::sync::OnceCell::new();
-
-impl AppStateInfo for AppState {
-    fn conf(&self) -> settings::Settings<RawSecret> {
-        self.conf.as_ref().to_owned()
-    }
+impl SessionStateInfo for SessionState {
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
-    #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService> {
-        self.email_client.to_owned()
+    fn conf(&self) -> settings::Settings<RawSecret> {
+        self.conf.as_ref().to_owned()
     }
     fn event_handler(&self) -> EventsHandler {
         self.event_handler.clone()
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
-    }
-
-    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
-        self.api_client.add_merchant_id(merchant_id);
-    }
-    fn add_flow_name(&mut self, flow_name: String) {
-        self.api_client.add_flow_name(flow_name);
-    }
-    fn get_request_id(&self) -> Option<String> {
-        self.api_client.get_request_id()
     }
 
     #[cfg(feature = "partial-auth")]
@@ -172,6 +167,107 @@ impl AppStateInfo for AppState {
             }
         }
     }
+}
+#[derive(Clone)]
+pub struct AppState {
+    pub flow_name: String,
+    pub global_store: Box<dyn GlobalStorageInterface>,
+    pub stores: HashMap<String, Box<dyn StorageInterface>>,
+    pub conf: Arc<settings::Settings<RawSecret>>,
+    pub event_handler: EventsHandler,
+    #[cfg(feature = "email")]
+    pub email_client: Arc<dyn EmailService>,
+    pub api_client: Box<dyn crate::services::ApiClient>,
+    #[cfg(feature = "olap")]
+    pub pools: HashMap<String, AnalyticsProvider>,
+    #[cfg(feature = "olap")]
+    pub opensearch_client: Arc<OpenSearchClient>,
+    pub request_id: Option<RequestId>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
+}
+impl scheduler::SchedulerAppState for AppState {
+    fn get_tenants(&self) -> Vec<String> {
+        self.conf.multitenancy.get_tenant_names()
+    }
+}
+pub trait AppStateInfo {
+    fn conf(&self) -> settings::Settings<RawSecret>;
+    fn event_handler(&self) -> EventsHandler;
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Arc<dyn EmailService>;
+    fn add_request_id(&mut self, request_id: RequestId);
+    fn add_merchant_id(&mut self, merchant_id: Option<String>);
+    fn add_flow_name(&mut self, flow_name: String);
+    fn get_request_id(&self) -> Option<String>;
+    // #[cfg(feature = "partial-auth")]
+    // fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])>;
+}
+
+#[cfg(feature = "partial-auth")]
+static CHECKSUM_KEY: once_cell::sync::OnceCell<(
+    masking::StrongSecret<String>,
+    masking::StrongSecret<Vec<u8>>,
+)> = once_cell::sync::OnceCell::new();
+
+impl AppStateInfo for AppState {
+    fn conf(&self) -> settings::Settings<RawSecret> {
+        self.conf.as_ref().to_owned()
+    }
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Arc<dyn EmailService> {
+        self.email_client.to_owned()
+    }
+    fn event_handler(&self) -> EventsHandler {
+        self.event_handler.clone()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.api_client.add_request_id(request_id);
+        self.request_id.replace(request_id);
+    }
+
+    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
+        self.api_client.add_merchant_id(merchant_id);
+    }
+    fn add_flow_name(&mut self, flow_name: String) {
+        self.api_client.add_flow_name(flow_name);
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
+    }
+
+    // #[cfg(feature = "partial-auth")]
+    // fn get_detached_auth(&self) -> RouterResult<(impl VerifySignature, &[u8])> {
+    //     use error_stack::ResultExt;
+    //     use hyperswitch_domain_models::errors::api_error_response as errors;
+    //     use masking::prelude::PeekInterface as _;
+    //     use router_env::logger;
+
+    //     let output = CHECKSUM_KEY.get_or_try_init(|| {
+    //         let conf = self.conf();
+    //         let context = conf
+    //             .api_keys
+    //             .get_inner()
+    //             .checksum_auth_context
+    //             .peek()
+    //             .clone();
+    //         let key = conf.api_keys.get_inner().checksum_auth_key.peek();
+    //         hex::decode(key).map(|key| {
+    //             (
+    //                 masking::StrongSecret::new(context),
+    //                 masking::StrongSecret::new(key),
+    //             )
+    //         })
+    //     });
+
+    //     match output {
+    //         Ok((context, key)) => Ok((Blake3::new(context.peek().clone()), key.peek())),
+    //         Err(err) => {
+    //             logger::error!("Failed to get checksum key");
+    //             Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
+    //         }
+    //     }
+    // }
 }
 
 impl AsRef<Self> for AppState {
@@ -226,43 +322,57 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let opensearch_client = conf
-                .opensearch
-                .get_opensearch_client()
-                .await
-                .expect("Failed to create opensearch client");
-
-            let store: Box<dyn StorageInterface> = match storage_impl {
-                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
-                    EventsHandler::Kafka(kafka_client) => Box::new(
-                        crate::db::KafkaStore::new(
-                            #[allow(clippy::expect_used)]
-                            get_store(&conf.clone(), shut_down_signal, testable)
-                                .await
-                                .expect("Failed to create store"),
-                            kafka_client.clone(),
-                            crate::db::kafka_store::TenantID("default".to_string()),
-                        )
-                        .await,
-                    ),
-                    EventsHandler::Logs(_) => Box::new(
-                        #[allow(clippy::expect_used)]
-                        get_store(&conf, shut_down_signal, testable)
-                            .await
-                            .expect("Failed to create store"),
-                    ),
-                },
-                #[allow(clippy::expect_used)]
-                StorageImpl::Mock => Box::new(
-                    MockDb::new(&conf.redis)
-                        .await
-                        .expect("Failed to create mock store"),
-                ),
-            };
+            let opensearch_client = Arc::new(
+                conf.opensearch
+                    .get_opensearch_client()
+                    .await
+                    .expect("Failed to create opensearch client"),
+            );
 
             #[cfg(feature = "olap")]
-            let pool =
-                crate::analytics::AnalyticsProvider::from_conf(conf.analytics.get_inner()).await;
+            let mut pools: HashMap<String, AnalyticsProvider> = HashMap::new();
+            let mut stores = HashMap::new();
+            #[allow(clippy::expect_used)]
+            let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
+                .await
+                .expect("Failed to create store");
+            let global_tenant = if conf.multitenancy.enabled {
+                GLOBAL_TENANT
+            } else {
+                DEFAULT_TENANT
+            };
+            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+                &storage_impl,
+                &event_handler,
+                &conf,
+                &settings::GlobalTenant {
+                    schema: global_tenant.to_string(),
+                    redis_key_prefix: String::default(),
+                },
+                Arc::clone(&cache_store),
+                testable,
+            )
+            .await
+            .get_global_storage_interface();
+            for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
+                let store: Box<dyn StorageInterface> = Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                )
+                .await
+                .get_storage_interface();
+                stores.insert(tenant_name.clone(), store);
+                #[cfg(feature = "olap")]
+                let pool =
+                    AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant_name.as_str())
+                        .await;
+                #[cfg(feature = "olap")]
+                pools.insert(tenant_name.clone(), pool);
+            }
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
@@ -271,14 +381,15 @@ impl AppState {
 
             Self {
                 flow_name: String::from("default"),
-                store,
+                stores,
+                global_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
                 api_client,
                 event_handler,
                 #[cfg(feature = "olap")]
-                pool,
+                pools,
                 #[cfg(feature = "olap")]
                 opensearch_client,
                 request_id: None,
@@ -287,6 +398,43 @@ impl AppState {
             }
         })
         .await
+    }
+
+    async fn get_store_interface(
+        storage_impl: &StorageImpl,
+        event_handler: &EventsHandler,
+        conf: &Settings,
+        tenant: &dyn TenantConfig,
+        cache_store: Arc<RedisStore>,
+        testable: bool,
+    ) -> Box<dyn CommonStorageInterface> {
+        match storage_impl {
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
+                EventsHandler::Kafka(kafka_client) => Box::new(
+                    KafkaStore::new(
+                        #[allow(clippy::expect_used)]
+                        get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
+                            .await
+                            .expect("Failed to create store"),
+                        kafka_client.clone(),
+                        TenantID(tenant.get_schema().to_string()),
+                    )
+                    .await,
+                ),
+                EventsHandler::Logs(_) => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(conf, tenant, Arc::clone(&cache_store), testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
+            },
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
+        }
     }
 
     pub async fn new(
@@ -307,6 +455,29 @@ impl AppState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
+    }
+    pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
+    where
+        F: FnOnce() -> E + Copy,
+    {
+        let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
+        Ok(SessionState {
+            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            global_store: self.global_store.clone(),
+            conf: Arc::clone(&self.conf),
+            api_client: self.api_client.clone(),
+            event_handler: self.event_handler.clone(),
+            #[cfg(feature = "olap")]
+            pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
+            file_storage_client: self.file_storage_client.clone(),
+            request_id: self.request_id,
+            base_url: tenant_conf.base_url.clone(),
+            tenant: tenant_conf.clone(),
+            #[cfg(feature = "email")]
+            email_client: Arc::clone(&self.email_client),
+            #[cfg(feature = "olap")]
+            opensearch_client: Arc::clone(&self.opensearch_client),
+        })
     }
 }
 
@@ -1045,6 +1216,19 @@ impl Configs {
     }
 }
 
+pub struct ApplePayCertificatesMigration;
+
+#[cfg(feature = "olap")]
+impl ApplePayCertificatesMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/apple_pay_certificates_migration")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
+            ))
+    }
+}
+
 pub struct Poll;
 
 #[cfg(feature = "oltp")]
@@ -1244,7 +1428,7 @@ impl User {
             // The route is utilized to select an invitation from a list of merchants in an intermediate state
             .service(
                 web::resource("/merchants_select/list")
-                    .route(web::get().to(list_merchants_for_user_with_spt)),
+                    .route(web::get().to(list_merchants_for_user)),
             )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
@@ -1257,9 +1441,11 @@ impl User {
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")
+                .service(web::resource("").route(web::get().to(check_two_factor_auth_status)))
                 .service(
                     web::scope("/totp")
                         .service(web::resource("/begin").route(web::get().to(totp_begin)))
+                        .service(web::resource("/reset").route(web::get().to(totp_reset)))
                         .service(
                             web::resource("/verify")
                                 .route(web::post().to(totp_verify))

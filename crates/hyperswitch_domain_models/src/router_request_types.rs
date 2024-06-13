@@ -1,7 +1,9 @@
 pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
-use common_utils::{consts, errors, ext_traits::OptionExt, pii};
+use common_utils::{
+    consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
+};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -13,7 +15,7 @@ use crate::{
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
     router_data::{self, RouterData},
-    router_response_types as response_types,
+    router_flow_types as flows, router_response_types as response_types,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -57,12 +59,15 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub authentication_data: Option<AuthenticationData>,
     pub charges: Option<PaymentCharges>,
+
+    // New amount for amount frame work
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct PaymentCharges {
     pub charge_type: api_models::enums::PaymentChargeType,
-    pub fees: i64,
+    pub fees: MinorUnit,
     pub transfer_account_id: String,
 }
 
@@ -77,6 +82,10 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<pii::SecretSerdeValue>,
     // This metadata is used to store the metadata shared during the payment intent request.
+
+    // New amount for amount frame work
+    pub minor_payment_amount: MinorUnit,
+    pub minor_amount_to_capture: MinorUnit,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -125,13 +134,19 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
         })
     }
 }
-impl<F> TryFrom<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
-    for ConnectorCustomerData
+impl
+    TryFrom<
+        &RouterData<flows::Authorize, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+    > for ConnectorCustomerData
 {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(
-        data: &RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
+        data: &RouterData<
+            flows::Authorize,
+            PaymentsAuthorizeData,
+            response_types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
@@ -226,7 +241,13 @@ pub struct PaymentsPreProcessingData {
     pub surcharge_details: Option<SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
@@ -236,6 +257,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
@@ -248,7 +270,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             browser_info: data.browser_info,
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: data.related_transaction_id,
             redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
         })
     }
 }
@@ -260,6 +285,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: None,
@@ -272,7 +298,10 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             browser_info: data.browser_info,
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
+            mandate_id: data.mandate_id,
+            related_transaction_id: None,
             redirect_response: data.redirect_response,
+            enrolled_for_3ds: true,
         })
     }
 }
@@ -296,6 +325,9 @@ pub struct CompleteAuthorizeData {
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    // New amount for amount frame work
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone)]
@@ -387,18 +419,18 @@ impl ResponseId {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SurchargeDetails {
     /// original_amount
-    pub original_amount: common_utils::types::MinorUnit,
+    pub original_amount: MinorUnit,
     /// surcharge value
     pub surcharge: common_utils::types::Surcharge,
     /// tax on surcharge value
     pub tax_on_surcharge:
         Option<common_utils::types::Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>>,
     /// surcharge amount for this payment
-    pub surcharge_amount: common_utils::types::MinorUnit,
+    pub surcharge_amount: MinorUnit,
     /// tax on surcharge amount for this payment
-    pub tax_on_surcharge_amount: common_utils::types::MinorUnit,
+    pub tax_on_surcharge_amount: MinorUnit,
     /// sum of original amount,
-    pub final_amount: common_utils::types::MinorUnit,
+    pub final_amount: MinorUnit,
 }
 
 impl SurchargeDetails {
@@ -410,7 +442,7 @@ impl SurchargeDetails {
             && request_surcharge_details.tax_amount.unwrap_or_default()
                 == self.tax_on_surcharge_amount
     }
-    pub fn get_total_surcharge_amount(&self) -> common_utils::types::MinorUnit {
+    pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_on_surcharge_amount
     }
 }
@@ -447,7 +479,8 @@ pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: String,
     pub threeds_server_transaction_id: String,
-    pub message_version: String,
+    pub message_version: common_types::SemanticVersion,
+    pub ds_trans_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -459,6 +492,7 @@ pub struct RefundsData {
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub payment_amount: i64,
+
     pub reason: Option<String>,
     pub webhook_url: Option<String>,
     /// Amount to be refunded
@@ -468,6 +502,10 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub charges: Option<ChargeRefunds>,
+
+    // New amount for amount frame work
+    pub minor_payment_amount: MinorUnit,
+    pub minor_refund_amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -608,15 +646,16 @@ pub struct PayoutsData {
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+    pub priority: Option<storage_enums::PayoutSendPriority>,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub name: Option<Secret<String, masking::WithType>>,
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,

@@ -13,12 +13,12 @@ use crate::{
         fraud_check::{FraudCheckFulfillmentData, FrmFulfillmentRouterData},
         storage, ConnectorAuthType, ErrorResponse, PaymentAddress, RouterData,
     },
-    utils, AppState,
+    utils, SessionState,
 };
 
 #[instrument(skip_all)]
 pub async fn construct_fulfillment_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
@@ -72,9 +72,11 @@ pub async fn construct_fulfillment_router_data<'a>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: FraudCheckFulfillmentData {
             amount: payment_attempt.amount.get_amount_as_i64(),

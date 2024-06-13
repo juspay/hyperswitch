@@ -165,7 +165,10 @@ pub struct GetUserDetailsResponse {
     #[serde(skip_serializing)]
     pub user_id: String,
     pub org_id: String,
+    pub is_two_factor_auth_setup: bool,
+    pub recovery_codes_left: Option<usize>,
 }
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetUserRoleDetailsRequest {
     pub email: pii::Email,
@@ -233,6 +236,12 @@ pub struct SkipTwoFactorAuthQueryParam {
 pub struct TokenResponse {
     pub token: Secret<String>,
     pub token_type: TokenPurpose,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthStatusResponse {
+    pub totp: bool,
+    pub recovery_code: bool,
 }
 
 #[derive(Debug, serde::Serialize)]

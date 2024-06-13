@@ -298,6 +298,8 @@ pub enum Flow {
     GsmRuleRetrieve,
     /// Gsm Rule Update flow
     GsmRuleUpdate,
+    /// Apple pay certificates migration
+    ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// User Sign Up
@@ -404,6 +406,8 @@ pub enum Flow {
     UserFromEmail,
     /// Begin TOTP
     TotpBegin,
+    // Reset TOTP
+    TotpReset,
     /// Verify TOTP
     TotpVerify,
     /// Update TOTP secret
@@ -414,6 +418,8 @@ pub enum Flow {
     RecoveryCodesGenerate,
     // Terminate two factor authentication
     TerminateTwoFactorAuth,
+    // Check 2FA status
+    TwoFactorAuthStatus,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

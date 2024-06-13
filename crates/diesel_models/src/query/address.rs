@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
@@ -90,7 +91,7 @@ impl Address {
 
     pub async fn update_by_merchant_id_customer_id(
         conn: &PgPooledConn,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         address: AddressUpdateInternal,
     ) -> StorageResult<Vec<Self>> {

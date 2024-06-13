@@ -1,6 +1,5 @@
 pub mod paypal;
 pub mod stripe;
-
 use error_stack::ResultExt;
 
 use crate::{
@@ -9,10 +8,10 @@ use crate::{
     services,
     services::ConnectorIntegration,
     types::{self, api, domain, storage::enums as storage_enums},
-    AppState,
+    SessionState,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VerifyConnectorData {
     pub connector: &'static (dyn api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,
@@ -26,6 +25,7 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
+            minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
             currency: storage_enums::Currency::USD,
             metadata: None,
@@ -81,10 +81,12 @@ impl VerifyConnectorData {
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,
             amount_captured: None,
+            minor_amount_captured: None,
             preprocessing_id: None,
             connector_customer: None,
             connector_auth_type: self.connector_auth.clone(),
             connector_meta_data: None,
+            connector_wallets_details: None,
             payment_method_token: None,
             connector_api_version: None,
             recurring_mandate_payment_data: None,
@@ -113,7 +115,7 @@ impl VerifyConnectorData {
 #[async_trait::async_trait]
 pub trait VerifyConnector {
     async fn verify(
-        state: &AppState,
+        state: &SessionState,
         connector_data: VerifyConnectorData,
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
@@ -147,7 +149,7 @@ pub trait VerifyConnector {
     }
 
     async fn get_access_token(
-        _state: &AppState,
+        _state: &SessionState,
         _connector_data: VerifyConnectorData,
     ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
         // AccessToken is None for the connectors without the AccessToken Flow.
