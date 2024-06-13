@@ -512,7 +512,7 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
 
     fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
         match self.amount.clone() {
-            Some(amount) => amount.parse().ok().map(|amt| MinorUnit::new(amt)),
+            Some(amount) => amount.parse().ok().map(MinorUnit::new),
             None => None,
         }
     }
