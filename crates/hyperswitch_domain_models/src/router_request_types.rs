@@ -646,7 +646,7 @@ pub struct PayoutsData {
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
-    pub payout_type: storage_enums::PayoutType,
+    pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,

@@ -522,7 +522,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::BankRedirectData::Sofort { .. }
                 | domain::BankRedirectData::Trustly { .. }
                 | domain::BankRedirectData::OnlineBankingFpx { .. }
-                | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::LocalBankRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("multisafepay"),
                     ))?
@@ -584,7 +585,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::BankRedirectData::Sofort { .. }
                 | domain::BankRedirectData::Trustly { .. }
                 | domain::BankRedirectData::OnlineBankingFpx { .. }
-                | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::LocalBankRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("multisafepay"),
                     ))?
@@ -600,6 +602,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -769,7 +772,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::BankRedirectData::Sofort { .. }
                     | domain::BankRedirectData::Trustly { .. }
                     | domain::BankRedirectData::OnlineBankingFpx { .. }
-                    | domain::BankRedirectData::OnlineBankingThailand { .. } => None,
+                    | domain::BankRedirectData::OnlineBankingThailand { .. }
+                    | domain::BankRedirectData::LocalBankRedirect {} => None,
                 }
             }
             domain::PaymentMethodData::MandatePayment => None,
@@ -778,6 +782,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)

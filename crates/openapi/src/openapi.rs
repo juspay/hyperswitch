@@ -303,6 +303,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AlfamartVoucherData,
         api_models::payments::IndomaretVoucherData,
         api_models::payments::BankRedirectData,
+        api_models::payments::RealTimePaymentData,
         api_models::payments::BankRedirectBilling,
         api_models::payments::BankRedirectBilling,
         api_models::payments::ConnectorMetadata,
