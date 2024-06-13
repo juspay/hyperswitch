@@ -205,10 +205,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                connector_integration
-                    .execute_pretasks(self, state)
-                    .await
-                    .to_payment_failed_response()?;
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     &metrics::CONTEXT,
@@ -357,7 +353,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
             resp.clone(),
             router_data.request.to_owned(),
-            resp.response,
+            resp.response.clone(),
         );
         if connector.connector_name == api_models::enums::Connector::Airwallex {
             authorize_router_data.reference_id = resp.reference_id;
@@ -371,6 +367,13 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             };
             authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
             authorize_router_data.request.related_transaction_id = related_transaction_id;
+        } else if connector.connector_name == api_models::enums::Connector::Shift4 {
+            if resp.request.enrolled_for_3ds {
+                authorize_router_data.response = resp.response;
+                authorize_router_data.status = resp.status;
+            } else {
+                authorize_router_data.request.enrolled_for_3ds = false;
+            }
         }
         Ok(authorize_router_data)
     } else {

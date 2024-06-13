@@ -17,6 +17,7 @@ use scheduler::SchedulerInterface;
 use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
+use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
 #[cfg(feature = "dummy_connector")]
@@ -81,10 +82,10 @@ pub struct SessionState {
     pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
-    pub tenant: String,
+    pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
 }
@@ -143,8 +144,8 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Box<dyn FileStorageInterface>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub file_storage_client: Arc<dyn FileStorageInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -369,6 +370,7 @@ impl AppState {
     where
         F: FnOnce() -> E + Copy,
     {
+        let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
@@ -379,15 +381,8 @@ impl AppState {
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
             request_id: self.request_id,
-            base_url: self
-                .conf
-                .multitenancy
-                .get_tenant(tenant)
-                .ok_or_else(err)?
-                .clone()
-                .base_url
-                .clone(),
-            tenant: tenant.to_string().clone(),
+            base_url: tenant_conf.base_url.clone(),
+            tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]

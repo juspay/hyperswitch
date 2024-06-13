@@ -1,13 +1,12 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
     date_time,
     ext_traits::ByteSliceExt,
     request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hex::encode;
@@ -36,8 +35,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Cryptopay;
+#[derive(Clone)]
+pub struct Cryptopay {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Cryptopay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Cryptopay {}
 impl api::PaymentSession for Cryptopay {}
@@ -123,7 +132,7 @@ where
             (headers::DATE.to_string(), date.into()),
             (
                 headers::CONTENT_TYPE.to_string(),
-                Self.get_content_type().to_string().into(),
+                self.get_content_type().to_string().into(),
             ),
         ];
         Ok(headers)
@@ -244,12 +253,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cryptopay::CryptopayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = cryptopay::CryptopayRouterData::from((amount, req));
         let connector_req = cryptopay::CryptopayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -288,13 +297,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let capture_amount_in_minor_units = match response.data.price_amount {
+            Some(ref amount) => Some(utils::convert_back(
+                self.amount_converter,
+                amount.clone(),
+                data.request.currency,
+            )?),
+            None => None,
+        };
         types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            data.request.currency,
+            capture_amount_in_minor_units,
         ))
     }
 
@@ -375,13 +392,21 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let capture_amount_in_minor_units = match response.data.price_amount {
+            Some(ref amount) => Some(utils::convert_back(
+                self.amount_converter,
+                amount.clone(),
+                data.request.currency,
+            )?),
+            None => None,
+        };
         types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            data.request.currency,
+            capture_amount_in_minor_units,
         ))
     }
 

@@ -1109,9 +1109,8 @@ impl QueueInterface for KafkaStore {
         entry_id: &RedisEntryId,
         fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
-        let stream_name = format!("{}_{}", &self.tenant_id.0, stream);
         self.diesel_store
-            .stream_append_entry(&stream_name, entry_id, fields)
+            .stream_append_entry(stream, entry_id, fields)
             .await
     }
 

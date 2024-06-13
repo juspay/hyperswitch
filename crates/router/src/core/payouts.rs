@@ -26,7 +26,7 @@ use super::{
     payments::customers,
 };
 #[cfg(feature = "olap")]
-use crate::types::{domain::behaviour::Conversion, transformers::ForeignFrom};
+use crate::types::domain::behaviour::Conversion;
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -41,6 +41,7 @@ use crate::{
         api::{self, payouts},
         domain,
         storage::{self, PaymentRoutingInfo},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -160,13 +161,13 @@ pub async fn make_connector_decision(
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
-            call_connector_payout(
+            Box::pin(call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
                 &connector_data,
                 payout_data,
-            )
+            ))
             .await?;
 
             #[cfg(feature = "payout_retry")]
@@ -197,13 +198,13 @@ pub async fn make_connector_decision(
 
             let connector_data = get_next_connector(&mut connectors)?;
 
-            call_connector_payout(
+            Box::pin(call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
                 &connector_data,
                 payout_data,
-            )
+            ))
             .await?;
 
             #[cfg(feature = "payout_retry")]
@@ -310,6 +311,7 @@ pub async fn payouts_create_core(
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
+    let payout_type = payout_data.payouts.payout_type.to_owned();
 
     // Persist payout method data in temp locker
     payout_data.payout_method_data = helpers::make_payout_method_data(
@@ -318,7 +320,7 @@ pub async fn payouts_create_core(
         payout_attempt.payout_token.as_deref(),
         &payout_attempt.customer_id,
         &payout_attempt.merchant_id,
-        Some(&payout_data.payouts.payout_type.clone()),
+        payout_type,
         &key_store,
         Some(&mut payout_data),
         merchant_account.storage_scheme,
@@ -448,7 +450,7 @@ pub async fn payouts_update_core(
         payout_attempt.payout_token.as_deref(),
         &payout_attempt.customer_id,
         &payout_attempt.merchant_id,
-        Some(&payout_data.payouts.payout_type.clone()),
+        payout_data.payouts.payout_type,
         &key_store,
         Some(&mut payout_data),
         merchant_account.storage_scheme,
@@ -638,7 +640,7 @@ pub async fn payouts_fulfill_core(
             payout_attempt.payout_token.as_deref(),
             &payout_attempt.customer_id,
             &payout_attempt.merchant_id,
-            Some(&payout_data.payouts.payout_type.clone()),
+            payout_data.payouts.payout_type,
             &key_store,
             Some(&mut payout_data),
             merchant_account.storage_scheme,
@@ -891,7 +893,7 @@ pub async fn call_connector_payout(
                 payout_attempt.payout_token.as_deref(),
                 &payout_attempt.customer_id,
                 &payout_attempt.merchant_id,
-                Some(&payouts.payout_type),
+                payouts.payout_type,
                 key_store,
                 Some(payout_data),
                 merchant_account.storage_scheme,
@@ -933,13 +935,13 @@ pub async fn call_connector_payout(
         .await?;
 
         // Payout creation flow
-        complete_create_payout(
+        Box::pin(complete_create_payout(
             state,
             merchant_account,
             key_store,
             connector_data,
             payout_data,
-        )
+        ))
         .await?;
     };
 
@@ -1330,13 +1332,13 @@ pub async fn complete_create_payout(
                 .attach_printable("Error updating payouts in db")?;
         } else {
             // create payout_object in connector as well as router
-            create_payout(
+            Box::pin(create_payout(
                 state,
                 merchant_account,
                 key_store,
                 connector_data,
                 payout_data,
-            )
+            ))
             .await
             .attach_printable("Payout creation failed for given Payout request")?;
         }
@@ -1380,10 +1382,7 @@ pub async fn create_payout(
     > = connector_data.connector.get_connector_integration();
 
     // 4. Execute pretasks
-    connector_integration
-        .execute_pretasks(&mut router_data, state)
-        .await
-        .to_payout_failed_response()?;
+    complete_payout_quote_steps_if_required(state, connector_data, &mut router_data).await?;
 
     // 5. Call connector service
     let router_data_resp = services::execute_connector_processing_step(
@@ -1471,6 +1470,45 @@ pub async fn create_payout(
         }
     };
 
+    Ok(())
+}
+
+async fn complete_payout_quote_steps_if_required<F>(
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    router_data: &mut types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+) -> RouterResult<()> {
+    if connector_data
+        .connector_name
+        .is_payout_quote_call_required()
+    {
+        let quote_router_data =
+            types::PayoutsRouterData::foreign_from((router_data, router_data.request.clone()));
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::PoQuote,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > = connector_data.connector.get_connector_integration();
+        let router_data_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &quote_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .to_payout_failed_response()?;
+
+        match router_data_resp.response.to_owned() {
+            Ok(resp) => {
+                router_data.quote_id = resp.connector_payout_id;
+            }
+            Err(_err) => {
+                router_data.response = router_data_resp.response;
+            }
+        };
+    }
     Ok(())
 }
 
@@ -1966,10 +2004,7 @@ pub async fn payout_create_db_entries(
 
     // Make payouts entry
     let currency = req.currency.to_owned().get_required_value("currency")?;
-    let payout_type = req
-        .payout_type
-        .to_owned()
-        .get_required_value("payout_type")?;
+    let payout_type = req.payout_type.to_owned();
 
     let payout_method_id = if stored_payout_method_data.is_some() {
         req.payout_token.to_owned()

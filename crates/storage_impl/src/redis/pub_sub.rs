@@ -3,8 +3,8 @@ use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
 use crate::redis::cache::{
-    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, PM_FILTERS_CGRAPH_CACHE,
-    ROUTING_CACHE,
+    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, DECISION_MANAGER_CACHE,
+    PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE, SURCHARGE_CACHE,
 };
 
 #[async_trait::async_trait]
@@ -119,6 +119,24 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                         .await;
                     key
                 }
+                CacheKind::DecisionManager(key) => {
+                    DECISION_MANAGER_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    key
+                }
+                CacheKind::Surcharge(key) => {
+                    SURCHARGE_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    key
+                }
                 CacheKind::All(key) => {
                     CONFIG_CACHE
                         .remove(CacheKey {
@@ -150,6 +168,19 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             prefix: self.key_prefix.clone(),
                         })
                         .await;
+                    DECISION_MANAGER_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+                    SURCHARGE_CACHE
+                        .remove(CacheKey {
+                            key: key.to_string(),
+                            prefix: self.key_prefix.clone(),
+                        })
+                        .await;
+
                     key
                 }
             };
