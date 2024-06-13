@@ -76,8 +76,6 @@ impl ProcessTrackerNew {
     where
         T: Serialize + std::fmt::Debug,
     {
-        const BUSINESS_STATUS_PENDING: &str = "Pending";
-
         let current_time = common_utils::date_time::now();
         Ok(Self {
             id: process_tracker_id.into(),
@@ -91,7 +89,7 @@ impl ProcessTrackerNew {
                 .encode_to_value()
                 .change_context(errors::DatabaseError::Others)
                 .attach_printable("Failed to serialize process tracker tracking data")?,
-            business_status: String::from(BUSINESS_STATUS_PENDING),
+            business_status: String::from(business_status::PENDING),
             status: storage_enums::ProcessTrackerStatus::New,
             event: vec![],
             created_at: current_time,
@@ -226,4 +224,25 @@ mod tests {
             string_format.parse_enum("ProcessTrackerRunner").unwrap();
         assert_eq!(enum_format, ProcessTrackerRunner::PaymentsSyncWorkflow);
     }
+}
+
+pub mod business_status {
+    /// global failure after error received from execute workflow
+    pub const GLOBAL_FAILURE: &str = "GLOBAL_FAILURE";
+    /// Business status after task completed by consumer, say card deletion from locker, refund
+    pub const COMPLETED_BY_PT: &str = "COMPLETED_BY_PT";
+    /// Failed to fetch webhook URL of merchant
+    pub const FAILURE: &str = "FAILURE";
+    /// Revoke API Key expiry task
+    pub const REVOKED: &str = "Revoked";
+    /// Retry deleting tokenized data
+    pub const RETRIES_EXCEEDED: &str = "RETRIES_EXCEEDED";
+    /// Successful webhook first attempt
+    pub const INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL: &str = "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL";
+    /// Consumer error handler failed to update status
+    pub const GLOBAL_ERROR: &str = "GLOBAL_ERROR";
+    /// Changed webhook resource status after event was created, hence the mismatch
+    pub const RESOURCE_STATUS_MISMATCH: &str = "RESOURCE_STATUS_MISMATCH";
+    /// Business status after a payment is created
+    pub const PENDING: &str = "Pending";
 }
