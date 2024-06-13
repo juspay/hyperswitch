@@ -4022,7 +4022,7 @@ pub async fn get_apple_pay_retryable_connectors<F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
-    pre_routing_connector_data_list: &Vec<api::ConnectorData>,
+    pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&String>,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
