@@ -1,4 +1,4 @@
-use common_utils::date_time;
+use common_utils::{date_time, types::MinorUnit};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -16,26 +16,16 @@ use crate::{
 };
 
 pub struct PlacetopayRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for PlacetopayRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for PlacetopayRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -83,7 +73,7 @@ pub struct PlacetopayPayment {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAmount {
     currency: storage_enums::Currency,
-    total: i64,
+    total: MinorUnit,
 }
 
 #[derive(Debug, Serialize)]
