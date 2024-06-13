@@ -1991,7 +1991,7 @@ pub async fn update_org_authentication_method(
     state: SessionState,
     req: user_api::UpdateOrgAuthenticationMethodRequest,
 ) -> UserResponse<()> {
-    let p = state
+    state
         .store
         .update_org_authentication_method(
             &req.org_id,

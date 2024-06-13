@@ -83,9 +83,7 @@ pub enum UserErrors {
     #[error("Org auth method already exists")]
     OrgAuthMethodAlreadyExists,
     #[error("Invalid org auth method operation")]
-    InvalidOrgAuthMethodOperation
-    
-    
+    InvalidOrgAuthMethodOperation,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
