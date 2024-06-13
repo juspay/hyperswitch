@@ -1,4 +1,7 @@
-use common_utils::{crypto::{self, GenerateDigest}, types::MinorUnit};
+use common_utils::{
+    crypto::{self, GenerateDigest},
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::DistString;
@@ -509,7 +512,7 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
 
     fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
         match self.amount.clone() {
-            Some(amount) =>  amount.parse().ok().map(|amt| MinorUnit::new(amt)),
+            Some(amount) => amount.parse().ok().map(|amt| MinorUnit::new(amt)),
             None => None,
         }
     }

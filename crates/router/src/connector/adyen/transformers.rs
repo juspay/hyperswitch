@@ -39,19 +39,9 @@ pub struct AdyenRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        MinorUnit,
-        T,
-    )> for AdyenRouterData<T>
-{
+impl<T> TryFrom<(MinorUnit, T)> for AdyenRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, item): (
-            MinorUnit,
-            T,
-        ),
-    ) -> Result<Self,Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -3229,7 +3219,7 @@ impl<F>
             payment_method_balance: Some(types::PaymentMethodBalance {
                 minor_amount: item.response.balance.value,
                 currency: item.response.balance.currency,
-                amount:item.response.balance.value,
+                amount: item.response.balance.value,
             }),
             ..item.data
         })
@@ -4318,7 +4308,7 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
     }
 
     fn get_amount_captured(&self) -> Option<i64> {
-          self.amount
+        self.amount
             .as_ref()
             .map(|amount_struct| amount_struct.value.get_amount_as_i64())
     }

@@ -705,5 +705,5 @@ pub struct SetupMandateRequestData {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     // Minor Unit for SetupMandateRequestData
-    pub minor_amount:Option<MinorUnit>
+    pub minor_amount: Option<MinorUnit>,
 }

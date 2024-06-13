@@ -149,7 +149,7 @@ pub struct PaymentMethodBalance {
     pub currency: common_enums::enums::Currency,
 
     // minor unit for amount framework
-    pub minor_amount: MinorUnit
+    pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

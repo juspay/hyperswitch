@@ -1065,7 +1065,6 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
     fn get_minor_amount_captured(&self) -> Option<MinorUnit> {
         Some(MinorUnit::new(self.amount))
     }
-
 }
 
 impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
