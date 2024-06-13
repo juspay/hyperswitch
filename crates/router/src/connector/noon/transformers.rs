@@ -230,8 +230,7 @@ impl
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
         StringMajorUnit,
-        Option<NoonSubscriptionData>,
-        String,
+        StringMajorUnit,
     )> for NoonPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -239,14 +238,13 @@ impl
         data: (
             &types::PaymentsAuthorizeRouterData,
             StringMajorUnit,
-            Option<NoonSubscriptionData>,
-            String,
+            StringMajorUnit,
         ),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let amount = data.1;
-        let subscription = data.2;
-        let name = data.3;
+        let mandate_amount = data.2;
+
         let (payment_data, currency, category) = match item.request.connector_mandate_id() {
             Some(mandate_id) => (
                 NoonPaymentData::Subscription(NoonSubscription {
@@ -377,6 +375,21 @@ impl
                     postal_code: address.zip.clone(),
                 },
             });
+        
+        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
+        let name: String = item
+            .get_description()?
+            .trim()
+            .replace("  ", " ")
+            .chars()
+            .take(50)
+            .collect();
+
+        let subscription = Some(NoonSubscriptionData {
+            subscription_type: NoonSubscriptionType::Unscheduled,
+            name: name.clone(),
+            max_amount: mandate_amount,
+        });
 
         let tokenize_c_c = subscription.is_some().then_some(true);
 

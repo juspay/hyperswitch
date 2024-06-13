@@ -15,7 +15,7 @@ use transformers as noon;
 
 use crate::{
     configs::settings,
-    connector::utils::{self as connector_utils, PaymentMethodDataType, RouterData},
+    connector::utils::{self as connector_utils, PaymentMethodDataType},
     consts,
     core::{
         errors::{self, CustomResult},
@@ -280,53 +280,36 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
 
-        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
-        let name: String = req
-            .get_description()?
-            .trim()
-            .replace("  ", " ")
-            .chars()
-            .take(50)
-            .collect();
+        let mandate_amount = {
+            let mandate_data = req.request.get_setup_mandate_details().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "setup_future_usage.mandate_data",
+                }
+            })?;
 
-        let subscription: Option<noon::NoonSubscriptionData> = req
-            .request
-            .get_setup_mandate_details()
-            .map(|mandate_data| {
-                let max_amount = match &mandate_data.mandate_type {
-                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        mandate,
-                    ))
-                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        mandate,
-                    ))) => connector_utils::convert_amount(
-                        self.amount_converter,
-                        mandate.amount,
-                        mandate.currency,
-                    ),
-                    Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
-                        Err(errors::ConnectorError::MissingRequiredField {
-                            field_name:
-                                "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                        }
-                        .into())
-                    }
-                    None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "setup_future_usage.mandate_data.mandate_type",
-                    }
-                    .into()),
-                }?;
-                Ok::<noon::NoonSubscriptionData, Report<errors::ConnectorError>>(
-                    noon::NoonSubscriptionData {
-                        subscription_type: noon::NoonSubscriptionType::Unscheduled,
-                        name: name.clone(),
-                        max_amount,
-                    },
-                )
-            })
-            .transpose()?;
+            let mandate = match &mandate_data.mandate_type {
+                Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(mandate))
+                | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
+                    mandate,
+                ))) => Ok(mandate),
+                Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                    })
+                }
+                None => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "setup_future_usage.mandate_data.mandate_type",
+                }),
+            }?;
 
-        let connector_req = noon::NoonPaymentsRequest::try_from((req, amount, subscription, name))?;
+            connector_utils::convert_amount(
+                self.amount_converter,
+                mandate.amount,
+                mandate.currency,
+            )?
+        };
+
+        let connector_req = noon::NoonPaymentsRequest::try_from((req, amount, mandate_amount))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
