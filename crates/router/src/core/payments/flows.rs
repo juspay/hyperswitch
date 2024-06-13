@@ -58,6 +58,7 @@ pub trait Feature<F, T> {
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&String>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
