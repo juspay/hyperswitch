@@ -1900,6 +1900,11 @@ pub(crate) fn validate_auth_and_metadata_type_with_connector(
             cybersource::transformers::CybersourceAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Datatrans => {
+        //     datatrans::transformers::DatatransAuthType::try_from(val)?;
+        //     Ok(())
+        // }
+        // added for future use
         api_enums::Connector::Dlocal => {
             dlocal::transformers::DlocalAuthType::try_from(val)?;
             Ok(())
