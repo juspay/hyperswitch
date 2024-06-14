@@ -2064,22 +2064,29 @@ pub async fn payout_create_db_entries(
         .customer_id;
     let payout_link = if let Some(payout_link_create) = req.payout_link {
         if payout_link_create {
-            Some(validator::create_payout_link(
-                state,
-                merchant_account,
-                &req.payout_link_config,
-                &customer_id,
-                req.return_url.to_owned(),
-                payout_id,
-                req.amount
-                    .as_ref()
-                    .get_required_value("amount")
-                    .attach_printable("amount is a required value when creating payout links")?,
-                req.currency
-                    .as_ref()
-                    .get_required_value("currency")
-                    .attach_printable("currency is a required value when creating payout links")?,
-            ).await?)
+            Some(
+                validator::create_payout_link(
+                    state,
+                    merchant_account,
+                    &req.payout_link_config,
+                    &customer_id,
+                    req.return_url.to_owned(),
+                    payout_id,
+                    req.amount
+                        .as_ref()
+                        .get_required_value("amount")
+                        .attach_printable(
+                            "amount is a required value when creating payout links",
+                        )?,
+                    req.currency
+                        .as_ref()
+                        .get_required_value("currency")
+                        .attach_printable(
+                            "currency is a required value when creating payout links",
+                        )?,
+                )
+                .await?,
+            )
         } else {
             None
         }
