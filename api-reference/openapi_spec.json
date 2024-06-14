@@ -17192,14 +17192,14 @@
       "PayoutLinkResponse": {
         "type": "object",
         "required": [
-          "link",
-          "payout_link_id"
+          "payout_link_id",
+          "link"
         ],
         "properties": {
-          "link": {
+          "payout_link_id": {
             "type": "string"
           },
-          "payout_link_id": {
+          "link": {
             "type": "string"
           }
         }
@@ -17490,7 +17490,7 @@
           "fast",
           "regular",
           "wire",
-          "crossBorder",
+          "cross_border",
           "internal"
         ]
       },

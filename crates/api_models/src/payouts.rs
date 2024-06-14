@@ -700,6 +700,7 @@ pub struct PayoutListFilters {
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutLinkResponse {
     pub payout_link_id: String,
+    #[schema(value_type = String)]
     pub link: Secret<String>,
 }
 
