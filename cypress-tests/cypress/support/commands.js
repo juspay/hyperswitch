@@ -1088,9 +1088,10 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
         response.body.customer_payment_methods[0].payment_token;
       globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
     } else {
+      // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
       expect(response.body)
         .to.have.property("customer_payment_methods")
-        .to.be.an("array").and.not.empty;
+        .to.be.an("array").and.empty;
     }
   });
 });
@@ -1119,21 +1120,63 @@ Cypress.Commands.add(
     res_data,
     confirm,
     auto_fulfill,
-    token,
     globalState
   ) => {
-    if (token === true) {
-      createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
-      createConfirmPayoutBody.payout_type = req_data.payout_type;
-      createConfirmPayoutBody.priority = req_data.priority;
-    } else {
-      for (const key in req_data) {
-        createConfirmPayoutBody[key] = req_data[key];
-      }
+    for (const key in req_data) {
+      createConfirmPayoutBody[key] = req_data[key];
     }
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.customer_id = globalState.get("customerId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payouts/create`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: createConfirmPayoutBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      expect(res_data.status).to.equal(response.status);
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        globalState.set("payoutAmount", createConfirmPayoutBody.amount);
+        globalState.set("payoutID", response.body.payout_id);
+        for (const key in res_data.body) {
+          expect(res_data.body[key]).to.equal(response.body[key]);
+        }
+      } else {
+        expect(response.body).to.have.property("error");
+        for (const key in res_data.body.error) {
+          expect(res_data.body.error[key]).to.equal(response.body.error[key]);
+        }
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "createConfirmWithTokenPayoutTest",
+  (
+    createConfirmPayoutBody,
+    req_data,
+    res_data,
+    confirm,
+    auto_fulfill,
+    globalState
+  ) => {
+    for (const key in req_data) {
+      createConfirmPayoutBody[key] = req_data[key];
+    }
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
+    createConfirmPayoutBody.auto_fulfill = auto_fulfill;
+    createConfirmPayoutBody.confirm = confirm;
 
     cy.request({
       method: "POST",

@@ -94,7 +94,6 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
         res_data,
         true,
         true,
-        false,
         globalState
       );
       if (should_continue)
@@ -118,7 +117,6 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
         req_data,
         res_data,
         true,
-        false,
         false,
         globalState
       );
@@ -155,7 +153,6 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
         res_data,
         false,
         true,
-        false,
         globalState
       );
       if (should_continue)
@@ -200,7 +197,6 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
         createPayoutBody,
         req_data,
         res_data,
-        false,
         false,
         false,
         globalState

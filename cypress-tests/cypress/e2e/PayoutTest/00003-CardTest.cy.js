@@ -41,7 +41,6 @@ describe("[Payout] Cards", () => {
         res_data,
         true,
         true,
-        false,
         globalState
       );
 
@@ -66,7 +65,6 @@ describe("[Payout] Cards", () => {
         req_data,
         res_data,
         true,
-        false,
         false,
         globalState
       );
@@ -101,7 +99,6 @@ describe("[Payout] Cards", () => {
         createPayoutBody,
         req_data,
         res_data,
-        false,
         false,
         false,
         globalState

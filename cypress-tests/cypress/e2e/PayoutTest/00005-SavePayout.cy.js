@@ -59,11 +59,10 @@ describe("[Payout] Saved Card", () => {
       ]["Token"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.createConfirmPayoutTest(
+      cy.createConfirmWithTokenPayoutTest(
         createPayoutBody,
         req_data,
         res_data,
-        true,
         true,
         true,
         globalState
@@ -97,7 +96,6 @@ describe("[Payout] Saved Card", () => {
           res_data,
           true,
           true,
-          false,
           globalState
         );
 
@@ -115,11 +113,10 @@ describe("[Payout] Saved Card", () => {
         ]["Token"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        cy.createConfirmPayoutTest(
+        cy.createConfirmWithTokenPayoutTest(
           createPayoutBody,
           req_data,
           res_data,
-          true,
           true,
           true,
           globalState
@@ -190,13 +187,12 @@ describe("[Payout] Saved Bank transfer", () => {
         ]["sepa"]["Token"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        cy.createConfirmPayoutTest(
+        cy.createConfirmWithTokenPayoutTest(
           createPayoutBody,
           req_data,
           res_data,
           true,
           true,
-          true, // This is the flag to indicate that the token should be used
           globalState
         );
 
@@ -229,7 +225,6 @@ describe("[Payout] Saved Bank transfer", () => {
           res_data,
           true,
           true,
-          false,
           globalState
         );
 
@@ -247,13 +242,12 @@ describe("[Payout] Saved Bank transfer", () => {
         ]["sepa"]["Token"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        cy.createConfirmPayoutTest(
+        cy.createConfirmWithTokenPayoutTest(
           createPayoutBody,
           req_data,
           res_data,
           true,
           true,
-          true, // This is the flag to indicate that the token should be used
           globalState
         );
 
