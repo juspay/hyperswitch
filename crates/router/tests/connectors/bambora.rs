@@ -15,7 +15,7 @@ impl utils::Connector for BamboraTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bambora;
         types::api::ConnectorData {
-            connector: Box::new(&Bambora),
+            connector: Box::new(Bambora::new()),
             connector_name: types::Connector::Bambora,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

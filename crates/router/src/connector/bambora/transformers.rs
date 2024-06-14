@@ -1,5 +1,5 @@
 use base64::Engine;
-use common_utils::{ext_traits::ValueExt, pii::IpAddress};
+use common_utils::{ext_traits::ValueExt, pii::IpAddress, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -17,16 +17,13 @@ use crate::{
 };
 
 pub struct BamboraRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BamboraRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for BamboraRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -71,7 +68,7 @@ pub struct BamboraBrowserInfo {
 #[derive(Default, Debug, Serialize)]
 pub struct BamboraPaymentsRequest {
     order_number: String,
-    amount: f64,
+    amount: FloatMajorUnit,
     payment_method: PaymentMethod,
     customer_ip: Option<Secret<String, IpAddress>>,
     term_url: Option<String>,
@@ -80,7 +77,7 @@ pub struct BamboraPaymentsRequest {
 
 #[derive(Default, Debug, Serialize)]
 pub struct BamboraVoidRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
 }
 
 fn get_browser_info(
@@ -262,7 +259,7 @@ pub struct BamboraPaymentsResponse {
     message: String,
     auth_code: String,
     created: String,
-    amount: f32,
+    amount: FloatMajorUnit,
     order_number: String,
     #[serde(rename = "type")]
     payment_type: String,
@@ -355,7 +352,7 @@ pub struct AdjustedBy {
     adjusted_by_type: String,
     approval: i32,
     message: String,
-    amount: f32,
+    amount: FloatMajorUnit,
     created: String,
     url: String,
 }
@@ -387,7 +384,7 @@ pub enum PaymentMethod {
 // Capture
 #[derive(Default, Debug, Clone, Serialize, PartialEq)]
 pub struct BamboraPaymentsCaptureRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     payment_method: PaymentMethod,
 }
 
@@ -672,7 +669,7 @@ impl<F>
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct BamboraRefundRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<BamboraRouterData<&types::RefundsRouterData<F>>> for BamboraRefundRequest {
@@ -718,7 +715,7 @@ pub struct RefundResponse {
     pub message: String,
     pub auth_code: String,
     pub created: String,
-    pub amount: f32,
+    pub amount: FloatMajorUnit,
     pub order_number: String,
     #[serde(rename = "type")]
     pub payment_type: String,
@@ -817,6 +814,6 @@ pub struct CardValidation {
     trans_date: String,
     order_number: String,
     type_: String,
-    amount: f64,
+    amount: FloatMajorUnit,
     cvd_id: i32,
 }

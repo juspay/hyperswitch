@@ -317,8 +317,10 @@ impl ConnectorData {
                 enums::Connector::Aci => Ok(Box::new(&connector::Aci)),
                 enums::Connector::Adyen => Ok(Box::new(&connector::Adyen)),
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
-                enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
-                enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                enums::Connector::Authorizedotnet => {
+                    Ok(Box::new(connector::Authorizedotnet::new()))
+                }
+                enums::Connector::Bambora => Ok(Box::new(connector::Bambora::new())),
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),

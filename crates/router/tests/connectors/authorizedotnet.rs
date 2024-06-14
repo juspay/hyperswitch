@@ -15,7 +15,7 @@ impl utils::Connector for AuthorizedotnetTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Authorizedotnet;
         types::api::ConnectorData {
-            connector: Box::new(&Authorizedotnet),
+            connector: Box::new(Authorizedotnet::new()),
             connector_name: types::Connector::Authorizedotnet,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
