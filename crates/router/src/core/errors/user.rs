@@ -257,8 +257,8 @@ impl UserErrors {
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",
-            Self::OrgAuthMethodAlreadyExists => "Org authentication method already exists",
-            Self::InvalidOrgAuthMethodOperation => "Invalid org authentication method operation",
+            Self::OrgAuthMethodAlreadyExists => "Org auth method already exists",
+            Self::InvalidOrgAuthMethodOperation => "Invalid org auth method operation",
         }
     }
 }

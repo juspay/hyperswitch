@@ -2778,7 +2778,7 @@ pub enum TokenPurpose {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum AuthMethod {
-    Okta,
+    OpenIdConnect,
     MagicLink,
     #[default]
     Password,

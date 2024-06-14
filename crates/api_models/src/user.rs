@@ -283,21 +283,23 @@ pub struct RecoveryCodes {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateOrgAuthenticationMethodRequest {
-    pub org_id: String,
+    pub owner_id: String,
     pub auth_method: common_enums::AuthMethod,
-    pub auth_config: Option<serde_json::Value>,
+    pub config: Option<serde_json::Value>,
+    pub allow_signup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateOrgAuthenticationMethodRequest {
-    pub org_id: String,
+    pub owner_id: String,
     pub auth_method: common_enums::AuthMethod,
-    pub auth_config: Option<serde_json::Value>,
+    pub config: Option<serde_json::Value>,
+    pub allow_singup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetOrgAuthenticationMethodsRequest {
-    pub org_id: String,
+    pub owner_id: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -307,7 +309,6 @@ pub struct ListOrgAuthenticationMethods {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct OrgAuthenticationMethodResponse {
-    pub org_id: String,
+    pub owner_id: String,
     pub auth_method: common_enums::AuthMethod,
-    pub auth_config: Option<serde_json::Value>,
 }

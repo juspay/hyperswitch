@@ -704,9 +704,10 @@ diesel::table! {
     org_authentication_methods (id) {
         id -> Int4,
         #[max_length = 64]
-        org_id -> Varchar,
+        owner_id -> Varchar,
         auth_method -> AuthMethod,
-        auth_config -> Nullable<Jsonb>,
+        config -> Nullable<Jsonb>,
+        allow_signup -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
     }

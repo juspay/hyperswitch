@@ -876,7 +876,7 @@ pub async fn resend_invite(
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
                     .attach_printable(format!(
-                        "User role with user_id = {} and org_id = {} is not found",
+                        "User role with user_id = {} and owner_id = {} is not found",
                         user.get_user_id(),
                         user_from_token.merchant_id
                     ))
@@ -1145,7 +1145,7 @@ pub async fn switch_merchant_id(
                 }
             })?;
 
-        let org_id = state
+        let owner_id = state
             .store
             .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
             .await
@@ -1162,7 +1162,7 @@ pub async fn switch_merchant_id(
             &state,
             &user,
             request.merchant_id.clone(),
-            org_id.clone(),
+            owner_id.clone(),
             user_from_token.role_id.clone(),
         )
         .await?;
@@ -1976,9 +1976,10 @@ pub async fn create_org_authentication_method(
     state
         .store
         .insert_org_authentication_method(OrgAuthenticationMethodNew {
-            org_id: req.org_id,
+            owner_id: req.owner_id,
             auth_method: req.auth_method,
-            auth_config: req.auth_config,
+            config: req.config,
+            allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
         })
@@ -1994,11 +1995,9 @@ pub async fn update_org_authentication_method(
     state
         .store
         .update_org_authentication_method(
-            &req.org_id,
+            &req.owner_id,
             req.auth_method,
-            OrgAuthenticationMethodUpdate::UpdateAuthConfig {
-                auth_config: req.auth_config,
-            },
+            OrgAuthenticationMethodUpdate::UpdateConfig { config: req.config },
         )
         .await
         .change_context(UserErrors::InvalidOrgAuthMethodOperation)?;
@@ -2011,14 +2010,13 @@ pub async fn list_org_authentication_methods(
 ) -> UserResponse<user_api::ListOrgAuthenticationMethods> {
     let org_authentication_methods: Vec<_> = state
         .store
-        .get_org_authentication_methods_details(&req.org_id)
+        .list_authentication_methods_for_org_id(&req.owner_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
         .map(|user| user_api::OrgAuthenticationMethodResponse {
-            org_id: user.org_id,
+            owner_id: user.owner_id,
             auth_method: user.auth_method,
-            auth_config: user.auth_config,
         })
         .collect();
 

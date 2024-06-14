@@ -2868,12 +2868,12 @@ impl OrgAuthenticationMethodInterface for KafkaStore {
             .await
     }
 
-    async fn get_org_authentication_methods_details(
+    async fn list_authentication_methods_for_org_id(
         &self,
         org_id: &str,
     ) -> CustomResult<Vec<storage::OrgAuthenticationMethod>, errors::StorageError> {
         self.diesel_store
-            .get_org_authentication_methods_details(org_id)
+            .list_authentication_methods_for_org_id(org_id)
             .await
     }
 

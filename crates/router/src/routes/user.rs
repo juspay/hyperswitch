@@ -755,7 +755,7 @@ pub async fn create_org_authentication_method(
     req: HttpRequest,
     json_payload: web::Json<user_api::CreateOrgAuthenticationMethodRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ListOrgAuthenticationMethods;
+    let flow = Flow::CreateOrgAuthenticationMethod;
 
     Box::pin(api::server_wrap(
         flow,
@@ -774,7 +774,7 @@ pub async fn update_org_authentication_method(
     req: HttpRequest,
     json_payload: web::Json<user_api::UpdateOrgAuthenticationMethodRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ListOrgAuthenticationMethods;
+    let flow = Flow::UpdateOrgAuthenticationMethod;
 
     Box::pin(api::server_wrap(
         flow,
