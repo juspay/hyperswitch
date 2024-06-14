@@ -57,7 +57,7 @@ CREATE TABLE fraud_check (
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1
 ) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
 ORDER BY
-    (created_at, merchant_id, attempt_id,frm_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
+    (created_at, merchant_id, attempt_id, frm_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
 CREATE MATERIALIZED VIEW fraud_check_mv TO fraud_check (
     `frm_id` String,

@@ -1,4 +1,3 @@
-// use diesel_models::enums as storage_enums;
 use diesel_models::{
     enums as storage_enums,
     enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
