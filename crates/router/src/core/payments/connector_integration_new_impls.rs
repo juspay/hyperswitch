@@ -277,7 +277,6 @@ mod dummy_connector_default_impl {
     {
     }
 
-    #[cfg(feature = "payouts")]
     impl<const T: u8> api::PayoutsNew for connector::DummyConnector<T> {}
 
     #[cfg(feature = "payouts")]
@@ -395,7 +394,6 @@ mod dummy_connector_default_impl {
     {
     }
 
-    #[cfg(feature = "frm")]
     impl<const T: u8> api::FraudCheckNew for connector::DummyConnector<T> {}
 
     #[cfg(feature = "frm")]
@@ -1169,7 +1167,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Zsl
 );
 
-#[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1178,7 +1175,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts {
     };
 }
 
-#[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts!(
     connector::Aci,
     connector::Adyen,
@@ -1906,7 +1902,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Zsl
 );
 
-#[cfg(feature = "frm")]
 macro_rules! default_imp_for_new_connector_integration_frm {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1915,7 +1910,6 @@ macro_rules! default_imp_for_new_connector_integration_frm {
     };
 }
 
-#[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm!(
     connector::Aci,
     connector::Adyen,

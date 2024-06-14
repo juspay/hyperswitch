@@ -83,7 +83,6 @@ pub trait PayoutRecipientAccountNew:
 {
 }
 
-#[cfg(feature = "payouts")]
 pub trait PayoutsNew:
     api_types::ConnectorCommon
     + PayoutCancelNew

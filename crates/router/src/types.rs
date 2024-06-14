@@ -22,10 +22,6 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_request_types::PayoutsData;
-#[cfg(feature = "payouts")]
-pub use hyperswitch_domain_models::router_response_types::PayoutsResponseData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
@@ -35,8 +31,8 @@ pub use hyperswitch_domain_models::{
     },
     router_data_new::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        FrmFlowData, MandateRevokeFlowData, PaymentFlowData, PayoutFlowData, RefundFlowData,
-        RouterDataNew, WebhookSourceVerifyData,
+        FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataNew,
+        WebhookSourceVerifyData,
     },
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
@@ -56,6 +52,11 @@ pub use hyperswitch_domain_models::{
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
+};
+#[cfg(feature = "payouts")]
+pub use hyperswitch_domain_models::{
+    router_data_new::PayoutFlowData, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
 };
 
 pub use crate::core::payments::CustomerDetails;

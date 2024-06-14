@@ -29,8 +29,10 @@ pub mod webhooks;
 pub mod authentication_new;
 pub mod disputes_new;
 pub mod files_new;
+#[cfg(feature = "frm")]
 pub mod fraud_check_new;
 pub mod payments_new;
+#[cfg(feature = "payouts")]
 pub mod payouts_new;
 pub mod refunds_new;
 
@@ -477,6 +479,9 @@ pub trait FraudCheck:
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheck {}
 
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheckNew {}
+
 #[cfg(feature = "payouts")]
 pub trait Payouts:
     ConnectorCommon
@@ -491,6 +496,9 @@ pub trait Payouts:
 }
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
+
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutsNew {}
 
 #[cfg(test)]
 mod test {
