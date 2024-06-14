@@ -42,6 +42,7 @@ pub async fn initiate_payout_link(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let payout_link_id = payout
         .payout_link_id
+        .clone()
         .get_required_value("payout link id")
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "payout link not found".to_string(),
@@ -58,23 +59,8 @@ pub async fn initiate_payout_link(
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
     let status = payout_link.link_status;
     let link_data = payout_link.link_data;
-    let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &merchant_account.merchant_id,
-            false,
-            &key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    let filtered_mcas_on_profile = helpers::filter_mca_based_on_business_profile(
-        all_mcas.clone(),
-        Some(payout.profile_id.clone()),
-    );
-    let filtered_mca = helpers::filter_mca_based_on_connector_type(
-        filtered_mcas_on_profile.clone(),
-        common_enums::ConnectorType::PayoutProcessor,
-    );
-    let enabled_payout_methods = filter_payout_methods(filtered_mca);
+    let enabled_payout_methods =
+        filter_payout_methods(db, &merchant_account, &key_store, &payout).await?;
     logger::debug!("enabled_payout_methods: {:?}", enabled_payout_methods);
     match status {
         enums::PaymentMethodCollectStatus::Initiated => {
@@ -117,7 +103,6 @@ pub async fn initiate_payout_link(
                 let enabled_payment_methods = link_data
                     .enabled_payment_methods
                     .unwrap_or(enabled_payout_methods);
-
                 let js_data = payouts::PayoutLinkDetails {
                     pub_key: merchant_account
                         .publishable_key
@@ -194,9 +179,30 @@ where
 }
 
 #[cfg(feature = "payouts")]
-fn filter_payout_methods(
-    filtered_mca: Vec<domain::MerchantConnectorAccount>,
-) -> Vec<enums::EnabledPaymentMethod> {
+pub async fn filter_payout_methods(
+    db: &dyn StorageInterface,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
+) -> errors::RouterResult<Vec<enums::EnabledPaymentMethod>> {
+    //Fetch all merchant connector accounts
+    let all_mcas = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &merchant_account.merchant_id,
+            false,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    // fetch all mca based on profile id
+    let filtered_mca_on_profile =
+        helpers::filter_mca_based_on_business_profile(all_mcas, Some(payout.profile_id.clone()));
+    //Since we just need payout connectors here, filter mca based on connector type.
+    let filtered_mca = helpers::filter_mca_based_on_connector_type(
+        filtered_mca_on_profile.clone(),
+        common_enums::ConnectorType::PayoutProcessor,
+    );
+
     let mut response: Vec<enums::EnabledPaymentMethod> = vec![];
     let mut payment_method_list_hm: HashMap<
         common_enums::PaymentMethod,
@@ -246,5 +252,5 @@ fn filter_payout_methods(
             response.push(enabled_payment_method);
         }
     }
-    response
+    Ok(response)
 }

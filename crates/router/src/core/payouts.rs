@@ -2287,7 +2287,7 @@ pub async fn make_payout_data(
         merchant_connector_account: None,
         should_terminate: false,
         profile_id,
-        payout_link_data: None, // Should be changed
+        payout_link_data: None,
     })
 }
 
