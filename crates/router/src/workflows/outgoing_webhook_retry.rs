@@ -139,13 +139,13 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     .await?;
 
                 // TODO: Add request state for the PT flows as well
-                let (content, event_type) = get_outgoing_webhook_content_and_event_type(
+                let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
                     state.get_req_state(),
                     merchant_account.clone(),
                     key_store.clone(),
                     &tracking_data,
-                )
+                ))
                 .await?;
 
                 match event_type {
