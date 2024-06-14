@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.31.1-hotfix3
+
+### Features
+
+- **router:** Include the pre-routing connectors in Apple Pay retries ([#5010](https://github.com/juspay/hyperswitch/pull/5010)) ([`75b98ad`](https://github.com/juspay/hyperswitch/commit/75b98ad211f528ac3e0ceb5ec61d4b5f656a7ac0))
+
+- - -
+
 ## 2024.05.31.1-hotfix2
 
 ### Features
