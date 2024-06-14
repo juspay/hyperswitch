@@ -16,7 +16,7 @@ where
     (result, time_spent)
 }
 
-/// Record the time taken by the operation for the given context
+/// Record the time taken (in seconds) by the operation for the given context
 #[inline]
 pub async fn record_operation_time<F, R>(
     future: F,
