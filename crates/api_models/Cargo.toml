@@ -35,7 +35,6 @@ url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 frunk = "0.4.2"
 frunk_core = "0.4.2"
-diesel_models = { version = "0.1.0", path = "../diesel_models" }
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }

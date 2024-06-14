@@ -336,6 +336,7 @@ dependencies = [
  "aws-sdk-lambda",
  "aws-smithy-types 1.1.8",
  "bigdecimal",
+ "common_enums",
  "common_utils",
  "diesel_models",
  "error-stack",
@@ -399,7 +400,6 @@ dependencies = [
  "cards",
  "common_enums",
  "common_utils",
- "diesel_models",
  "error-stack",
  "euclid",
  "frunk",
@@ -1934,6 +1934,8 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
+ "frunk",
+ "frunk_core",
  "router_derive",
  "serde",
  "serde_json",

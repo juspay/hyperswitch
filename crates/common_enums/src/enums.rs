@@ -14,6 +14,7 @@ pub mod diesel_exports {
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
         DbRefundStatus as RefundStatus,
+        DbFraudCheckStatus as FraudCheckStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
@@ -229,6 +230,30 @@ pub enum AuthenticationType {
     /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
     #[default]
     NoThreeDs,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckStatus {
+    Fraud,
+    ManualReview,
+    #[default]
+    Pending,
+    Legit,
+    TransactionFailure,
 }
 
 #[derive(

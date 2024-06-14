@@ -3,7 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use diesel_models::enums::FraudCheckStatus;
+use common_enums::enums::FraudCheckStatus;
 
 #[derive(
     Clone,

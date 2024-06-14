@@ -242,29 +242,6 @@ pub enum FraudCheckType {
     PostFrm,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[strum(serialize_all = "snake_case")]
-pub enum FraudCheckStatus {
-    Fraud,
-    ManualReview,
-    #[default]
-    Pending,
-    Legit,
-    TransactionFailure,
-}
 
 #[derive(
     Clone,

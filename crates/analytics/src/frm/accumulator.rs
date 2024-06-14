@@ -1,6 +1,5 @@
 use api_models::analytics::frm::FrmMetricsBucketValue;
-use diesel_models::enums as storage_enums;
-
+use common_enums::enums as storage_enums;
 use super::metrics::FrmMetricRow;
 #[derive(Debug, Default)]
 pub struct FrmMetricsAccumulator {
