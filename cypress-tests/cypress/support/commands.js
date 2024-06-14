@@ -195,51 +195,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "createConnectorWithNameCallTest",
-  (createConnectorBody, connector_name, connector_type, globalState) => {
-    const merchantId = globalState.get("merchantId");
-    createConnectorBody.connector_name = connector_name;
-    createConnectorBody.connector_type = connector_type;
-    // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
-    // it is best to use then() to handle the response within the same block of code
-    cy.readFile(globalState.get("connectorAuthFilePath")).then(
-      (jsonContent) => {
-        const authDetails = getValueByKey(
-          JSON.stringify(jsonContent),
-          connector_name
-        );
-        createConnectorBody.connector_account_details = authDetails;
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "api-key": globalState.get("adminApiKey"),
-          },
-          body: createConnectorBody,
-          failOnStatusCode: false,
-        }).then((response) => {
-          logRequestId(response.headers["x-request-id"]);
-
-          if (response.status === 200) {
-            globalState.set(
-              `${connector_name}_mc_id`,
-              response.body.merchant_connector_id
-            );
-          } else {
-            cy.task(
-              "cli_log",
-              "response status -> " + JSON.stringify(response.status)
-            );
-          }
-        });
-      }
-    );
-  }
-);
-
 function getValueByKey(jsonObject, key) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
