@@ -8,11 +8,11 @@ pub use hyperswitch_domain_models::router_flow_types::fraud_check::{
 };
 
 pub use super::fraud_check_new::*;
-use super::{BoxedConnector, ConnectorData, SessionConnectorData};
+use super::{ConnectorData, SessionConnectorData};
 use crate::{
     connector,
     core::errors,
-    services::api,
+    services::{api, connector_integration_interface::ConnectorEnum},
     types::fraud_check::{
         FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
         FraudCheckResponseData, FraudCheckSaleData, FraudCheckTransactionData,
@@ -46,7 +46,7 @@ pub trait FraudCheckRecordReturn:
 
 #[derive(Clone)]
 pub struct FraudCheckConnectorData {
-    pub connector: BoxedConnector,
+    pub connector: ConnectorEnum,
     pub connector_name: enums::FrmConnectors,
 }
 pub enum ConnectorCallType {
@@ -71,10 +71,14 @@ impl FraudCheckConnectorData {
 
     fn convert_connector(
         connector_name: enums::FrmConnectors,
-    ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
-            enums::FrmConnectors::Signifyd => Ok(Box::new(&connector::Signifyd)),
-            enums::FrmConnectors::Riskified => Ok(Box::new(&connector::Riskified)),
+            enums::FrmConnectors::Signifyd => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd)))
+            }
+            enums::FrmConnectors::Riskified => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::Riskified)))
+            }
         }
     }
 }

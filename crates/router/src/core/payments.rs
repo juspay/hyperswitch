@@ -79,10 +79,10 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{app::ReqState, metrics, payment_methods::ParentPaymentMethodToken, SessionState},
-    services::{self, api::Authenticate},
+    services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
-        api::{self, authentication, ConnectorCallType},
+        api::{self, authentication, ConnectorCallType, ConnectorCommon},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},

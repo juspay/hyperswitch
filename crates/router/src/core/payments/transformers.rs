@@ -26,7 +26,9 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
-        self, api, domain,
+        self, api,
+        api::ConnectorTransactionId,
+        domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
         MultipleCaptureRequestData,
@@ -1382,7 +1384,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
     }
 }
 
-impl api::ConnectorTransactionId for Helcim {
+impl ConnectorTransactionId for Helcim {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1397,7 +1399,7 @@ impl api::ConnectorTransactionId for Helcim {
     }
 }
 
-impl api::ConnectorTransactionId for Nexinets {
+impl ConnectorTransactionId for Nexinets {
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,

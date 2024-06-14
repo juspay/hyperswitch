@@ -15,23 +15,23 @@ impl ConnectorActions for AdyenTest {}
 impl utils::Connector for AdyenTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Adyen;
-        types::api::ConnectorData {
-            connector: Box::new(&Adyen),
-            connector_name: types::Connector::Adyen,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Adyen),
+            types::Connector::Adyen,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         use router::connector::Adyen;
-        Some(types::api::ConnectorData {
-            connector: Box::new(&Adyen),
-            connector_name: types::Connector::Adyen,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        })
+        Some(utils::construct_connector_data_old(
+            Box::new(&Adyen),
+            types::Connector::Adyen,
+            types::api::GetToken::Connector,
+            None,
+        ))
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

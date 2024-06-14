@@ -85,6 +85,7 @@ pub struct PayoutFlowData {
     pub quote_id: Option<String>,
 }
 
+#[cfg(feature = "frm")]
 #[derive(Debug, Clone)]
 pub struct FrmFlowData {
     pub merchant_id: String,

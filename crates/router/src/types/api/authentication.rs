@@ -6,7 +6,6 @@ use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
 
 pub use super::authentication_new::*;
-use super::BoxedConnector;
 use crate::core::errors;
 
 #[derive(Debug, Clone)]
@@ -20,7 +19,10 @@ pub struct Authentication;
 
 #[derive(Debug, Clone)]
 pub struct PostAuthentication;
-use crate::{connector, services, types, types::storage};
+use crate::{
+    connector, services, services::connector_integration_interface::ConnectorEnum, types,
+    types::storage,
+};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AcquirerDetails {
@@ -123,7 +125,7 @@ pub trait ExternalAuthentication:
 
 #[derive(Clone)]
 pub struct AuthenticationConnectorData {
-    pub connector: BoxedConnector,
+    pub connector: ConnectorEnum,
     pub connector_name: enums::AuthenticationConnectors,
 }
 
@@ -141,13 +143,17 @@ impl AuthenticationConnectorData {
 
     fn convert_connector(
         connector_name: enums::AuthenticationConnectors,
-    ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
             enums::AuthenticationConnectors::Threedsecureio => {
-                Ok(Box::new(&connector::Threedsecureio))
+                Ok(ConnectorEnum::Old(Box::new(&connector::Threedsecureio)))
             }
-            enums::AuthenticationConnectors::Netcetera => Ok(Box::new(&connector::Netcetera)),
-            enums::AuthenticationConnectors::Gpayments => Ok(Box::new(&connector::Gpayments)),
+            enums::AuthenticationConnectors::Netcetera => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::Netcetera)))
+            }
+            enums::AuthenticationConnectors::Gpayments => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::Gpayments)))
+            }
         }
     }
 }

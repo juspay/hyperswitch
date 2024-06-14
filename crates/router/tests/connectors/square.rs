@@ -12,12 +12,12 @@ impl ConnectorActions for SquareTest {}
 impl Connector for SquareTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Square;
-        types::api::ConnectorData {
-            connector: Box::new(&Square),
-            connector_name: types::Connector::Square,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Square),
+            types::Connector::Square,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

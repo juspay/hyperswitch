@@ -22,6 +22,8 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
+#[cfg(feature = "frm")]
+pub use hyperswitch_domain_models::router_data_new::FrmFlowData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
@@ -31,7 +33,7 @@ pub use hyperswitch_domain_models::{
     },
     router_data_new::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataNew,
+        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataNew,
         WebhookSourceVerifyData,
     },
     router_request_types::{

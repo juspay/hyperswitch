@@ -60,8 +60,7 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         connector_request: Option<services::Request>,
         _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::IncrementalAuthorization,
             types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
@@ -97,8 +96,7 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
     ) -> RouterResult<(Option<services::Request>, bool)> {
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::IncrementalAuthorization,
                     types::PaymentsIncrementalAuthorizationData,
                     types::PaymentsResponseData,

@@ -24,6 +24,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_domain_models::router_data_new::flow_common_types as common_types;
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
 use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
@@ -32,8 +33,11 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::AuthenticateAndFetch;
 pub use super::connector_integration_new::*;
+use super::{
+    authentication::AuthenticateAndFetch,
+    connector_integration_interface::BoxedConnectorIntegrationInterface,
+};
 use crate::{
     configs::{settings::Connectors, Settings},
     consts,
@@ -52,6 +56,7 @@ use crate::{
         metrics::{self, request as metrics_request},
         AppState, SessionState,
     },
+    services::connector_integration_interface::Conversion,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -61,6 +66,29 @@ use crate::{
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
     Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
+
+pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
+pub type BoxedRefundConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::RefundFlowData, Req, Resp>;
+#[cfg(feature = "frm")]
+pub type BoxedFrmConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FrmFlowData, Req, Resp>;
+pub type BoxedDisputeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputesFlowData, Req, Resp>;
+pub type BoxedMandateRevokeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::MandateRevokeFlowData, Req, Resp>;
+#[cfg(feature = "payouts")]
+pub type BoxedPayoutConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PayoutFlowData, Req, Resp>;
+pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
+pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
+pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 
 pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
@@ -131,7 +159,9 @@ pub trait ConnectorValidation: ConnectorCommon {
 }
 
 #[async_trait::async_trait]
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
+pub trait ConnectorIntegration<T, Req, Resp>:
+    ConnectorIntegrationAny<T, Req, Resp> + Sync + ConnectorCommon
+{
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -277,11 +307,12 @@ pub async fn execute_connector_processing_step<
     'b,
     'a,
     T,
+    ResourceCommonData: Clone + Conversion<T, Req, Resp> + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
     state: &'b SessionState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
+    connector_integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,

@@ -9,7 +9,7 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::SessionState,
-    services::{self, logger},
+    services::{self, api::ConnectorValidation, logger},
     types::{self, api, domain, storage},
 };
 
@@ -56,8 +56,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector_request: Option<services::Request>,
         _business_profile: &storage::business_profile::BusinessProfile,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
@@ -127,8 +126,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     );
                     return Ok((None, false));
                 }
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::PSync,
                     types::PaymentsSyncData,
                     types::PaymentsResponseData,
@@ -155,8 +153,7 @@ where
         _state: &SessionState,
         _pending_connector_capture_id_list: Vec<String>,
         _call_connector_action: payments::CallConnectorAction,
-        _connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        _connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
@@ -173,8 +170,7 @@ impl RouterDataPSync
         state: &SessionState,
         pending_connector_capture_id_list: Vec<String>,
         call_connector_action: payments::CallConnectorAction,
-        connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
@@ -185,7 +181,7 @@ impl RouterDataPSync
             // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
             let resp = services::execute_connector_processing_step(
                 state,
-                connector_integration.clone(),
+                connector_integration.clone_box(),
                 self,
                 call_connector_action.clone(),
                 None,
@@ -203,7 +199,7 @@ impl RouterDataPSync
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
                 let resp = services::execute_connector_processing_step(
                     state,
-                    connector_integration.clone(),
+                    connector_integration.clone_box(),
                     &cloned_router_data,
                     call_connector_action.clone(),
                     None,
