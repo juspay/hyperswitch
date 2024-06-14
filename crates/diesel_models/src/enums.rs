@@ -242,7 +242,6 @@ pub enum FraudCheckType {
     PostFrm,
 }
 
-
 #[derive(
     Clone,
     Copy,

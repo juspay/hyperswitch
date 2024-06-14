@@ -333,7 +333,9 @@ impl KafkaProducer {
             &KafkaFraudCheck::from_storage(attempt),
             tenant_id.clone(),
         ))
-        .attach_printable_lazy(|| format!("Failed to add positive fraud check event {attempt:?}"))?;
+        .attach_printable_lazy(|| {
+            format!("Failed to add positive fraud check event {attempt:?}")
+        })?;
 
         self.log_event(&KafkaConsolidatedEvent::new(
             &KafkaFraudCheckEvent::from_storage(attempt),
