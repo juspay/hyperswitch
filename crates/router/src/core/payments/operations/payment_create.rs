@@ -1032,11 +1032,11 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
-        let guest_customer_details = if request.customer_id.is_some() {
+        let guest_customer_details = if let Some(cid) = &request.customer_id {
             let customer = state
                 .store
                 .find_customer_by_customer_id_merchant_id(
-                    &request.customer_id.clone().unwrap().clone(),
+                    cid,
                     &merchant_account.merchant_id,
                     key_store,
                     merchant_account.storage_scheme,
