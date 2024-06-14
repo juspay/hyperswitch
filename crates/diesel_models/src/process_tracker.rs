@@ -229,30 +229,38 @@ mod tests {
 pub mod business_status {
     /// Indicates that an irrecoverable error occurred during the workflow execution.
     pub const GLOBAL_FAILURE: &str = "GLOBAL_FAILURE";
+
     /// Task successfully completed by consumer.
     /// A task that reaches this status should not be retried (rescheduled for execution) later.
     pub const COMPLETED_BY_PT: &str = "COMPLETED_BY_PT";
+
     /// An error occurred during the workflow execution which prevents further execution and
     /// retries.
     /// A task that reaches this status should not be retried (rescheduled for execution) later.
     pub const FAILURE: &str = "FAILURE";
+
     /// The resource associated with the task was removed, due to which further retries can/should
     /// not be done.
     pub const REVOKED: &str = "Revoked";
+
     /// The task was executed for the maximum possible number of times without a successful outcome.
     /// A task that reaches this status should not be retried (rescheduled for execution) later.
     pub const RETRIES_EXCEEDED: &str = "RETRIES_EXCEEDED";
+
     /// The outgoing webhook was successfully delivered in the initial attempt.
     /// Further retries of the task are not required.
     pub const INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL: &str = "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL";
+
     /// Indicates that an error occurred during the workflow execution.
     /// This status is typically set by the workflow error handler.
     /// A task that reaches this status should not be retried (rescheduled for execution) later.
     pub const GLOBAL_ERROR: &str = "GLOBAL_ERROR";
+
     /// The resource associated with the task has been significantly modified since the task was
     /// created, due to which further retries of the current task are not required.
     /// A task that reaches this status should not be retried (rescheduled for execution) later.
     pub const RESOURCE_STATUS_MISMATCH: &str = "RESOURCE_STATUS_MISMATCH";
+
     /// Business status set for newly created tasks.
     pub const PENDING: &str = "Pending";
 }
