@@ -162,6 +162,7 @@ where
             .payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -966,6 +967,15 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
+            payment_method_data: pa.payment_method_data.and_then(|data| {
+                match data.parse_value("PaymentMethodDataResponseWithBilling") {
+                    Ok(parsed_data) => Some(parsed_data),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {}", e);
+                        None
+                    }
+                }
+            }),
             ..Default::default()
         }
     }
@@ -985,7 +995,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             connector: payout_attempt.connector.clone(),
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
-            payment_method: Some(payout.payout_type),
+            payment_method: payout.payout_type,
             payout_method_type: None,
             connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
@@ -1786,6 +1796,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
+            minor_amount: Some(amount),
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,

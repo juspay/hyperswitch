@@ -2,12 +2,13 @@ import confirmBody from "../../fixtures/confirm-body.json";
 import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
 describe("Card - NoThreeDS payment flow test", () => {
+  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -18,15 +19,12 @@ describe("Card - NoThreeDS payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
   context("Card-NoThreeDS payment flow test Create and confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-    beforeEach(function () {
-      if (!should_continue) {
-        this.skip();
-      }
-    });
-
     it("create-payment-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "PaymentIntent"
@@ -39,7 +37,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         res_data,
         "no_three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -66,14 +64,6 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   context("Card-NoThreeDS payment flow test Create+Confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-    beforeEach(function () {
-      if (!should_continue) {
-        this.skip();
-      }
-    });
-
     it("create+confirm-payment-call-test", () => {
       console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
@@ -87,7 +77,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         res_data,
         "no_three_ds",
         "automatic",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);

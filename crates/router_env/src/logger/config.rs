@@ -103,6 +103,8 @@ pub struct LogTelemetry {
     pub use_xray_generator: bool,
     /// Route Based Tracing
     pub route_to_trace: Option<Vec<String>>,
+    /// Interval for collecting the metrics (such as gauge) in background thread
+    pub bg_metrics_collection_interval_in_secs: Option<u16>,
 }
 
 /// Telemetry / tracing.

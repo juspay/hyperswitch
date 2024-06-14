@@ -13,7 +13,7 @@ impl utils::Connector for CryptopayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cryptopay;
         api::ConnectorData {
-            connector: Box::new(&Cryptopay),
+            connector: Box::new(Cryptopay::new()),
             connector_name: types::Connector::Cryptopay,
             get_token: api::GetToken::Connector,
             merchant_connector_id: None,
