@@ -8,7 +8,22 @@ const globalState = new State({
   connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
 });
 
-const connectorId = globalState.get("connectorId");
+const connectorName = normalise(globalState.get("connectorId"));
+
+function normalise(input) {
+  const exceptions = {
+    bankofamerica: "Bank of America",
+    cybersource: "Cybersource",
+    paypal: "Paypal",
+    // Add more known exceptions here
+  };
+
+  if (exceptions[input.toLowerCase()]) {
+    return exceptions[input.toLowerCase()];
+  } else {
+    return input;
+  }
+}
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -42,7 +57,7 @@ const getDefaultExchange = () => ({
     body: {
       error: {
         type: "invalid_request",
-        message: `Selected payment method through ${connectorId} is not implemented`,
+        message: `Selected payment method through ${connectorName} is not implemented`,
         code: "IR_00",
       },
     },
@@ -65,6 +80,133 @@ export const getCustomExchange = (overrides) => {
     },
   };
 };
+
+export const payment_methods_enabled = [
+  {
+    payment_method: "card",
+    payment_method_types: [
+      {
+        payment_method_type: "credit",
+        card_networks: [
+          "AmericanExpress",
+          "Discover",
+          "Interac",
+          "JCB",
+          "Mastercard",
+          "Visa",
+          "DinersClub",
+          "UnionPay",
+          "RuPay",
+        ],
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "debit",
+        card_networks: [
+          "AmericanExpress",
+          "Discover",
+          "Interac",
+          "JCB",
+          "Mastercard",
+          "Visa",
+          "DinersClub",
+          "UnionPay",
+          "RuPay",
+        ],
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "bank_transfer",
+    payment_method_types: [
+      {
+        payment_method_type: "pix",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "bank_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "ideal",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "giropay",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sofort",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "eps",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "blik",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "przelewy24",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
 
 export const connectorDetails = {
   card_pm: {
@@ -392,6 +534,19 @@ export const connectorDetails = {
             pix: {},
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
         currency: "BRL",
       },
     }),
@@ -420,6 +575,19 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
       },
     }),
     giropay: getCustomExchange({
@@ -437,6 +605,19 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
       },
     }),
     sofort: getCustomExchange({
@@ -451,6 +632,19 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
       },
     }),
     eps: getCustomExchange({
@@ -461,6 +655,35 @@ export const connectorDetails = {
           bank_redirect: {
             eps: {
               bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+    }),
+    przelewy24: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
             },
           },
         },

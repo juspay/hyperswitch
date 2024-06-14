@@ -76,7 +76,7 @@ pub mod html {
             EmailBody::MagicLink { link, user_name } => {
                 format!(
                     include_str!("assets/magic_link.html"),
-                    user_name = user_name,
+                    username = user_name,
                     link = link
                 )
             }

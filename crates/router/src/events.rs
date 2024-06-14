@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
@@ -94,14 +96,15 @@ impl MessagingInterface for EventsHandler {
     fn send_message<T>(
         &self,
         data: T,
+        metadata: HashMap<String, String>,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
         T: Message<Class = Self::MessageClass> + ErasedMaskSerialize,
     {
         match self {
-            Self::Kafka(a) => a.send_message(data, timestamp),
-            Self::Logs(a) => a.send_message(data, timestamp),
+            Self::Kafka(a) => a.send_message(data, metadata, timestamp),
+            Self::Logs(a) => a.send_message(data, metadata, timestamp),
         }
     }
 }

@@ -228,7 +228,7 @@ pub async fn merchant_select(
 
     if let Some(true) = req.need_dashboard_entry_response {
         let user_from_db = state
-            .store
+            .global_store
             .find_user_by_id(user_token.user_id.as_str())
             .await
             .change_context(UserErrors::InternalServerError)?
@@ -281,7 +281,7 @@ pub async fn merchant_select_token_only_flow(
     .ok_or(UserErrors::MerchantIdNotFound)?;
 
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_id(user_token.user_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)?
@@ -309,7 +309,7 @@ pub async fn delete_user_role(
     _req_state: ReqState,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
-        .store
+        .global_store
         .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?.into_inner())
         .await
         .map_err(|e| {
@@ -369,7 +369,7 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?
     } else {
         state
-            .store
+            .global_store
             .delete_user_by_user_id(user_from_db.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
