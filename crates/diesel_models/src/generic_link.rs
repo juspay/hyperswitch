@@ -145,7 +145,7 @@ pub struct PaymentMethodCollectLinkData {
     pub session_expiry: u32,
     #[serde(flatten)]
     pub ui_config: storage_enums::CollectLinkConfig,
-    pub enabled_payment_methods: Vec<storage_enums::EnabledPaymentMethod>,
+    pub enabled_payment_methods: Option<Vec<storage_enums::EnabledPaymentMethod>>,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable, Serialize, Deserialize)]

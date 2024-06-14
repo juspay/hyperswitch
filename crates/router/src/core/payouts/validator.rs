@@ -195,7 +195,7 @@ pub(super) fn validate_payout_list_request_for_joins(
 pub async fn create_payout_link(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    req: &api_models::payouts::PayoutCreatePayoutLinkConfig,
+    req: &Option<api_models::payouts::PayoutCreatePayoutLinkConfig>,
     customer_id: &CustomerId,
     return_url: Option<String>,
     payout_id: &String,
@@ -203,8 +203,11 @@ pub async fn create_payout_link(
     currency: &enums::Currency,
 ) -> RouterResult<PayoutLink> {
     // Create payment method collect link ID
-    let payout_link_id =
-        core_utils::get_or_generate_id("payout_link_id", &req.payout_link_id, "payout_link")?;
+    let payout_link_id = core_utils::get_or_generate_id(
+        "payout_link_id",
+        &req.as_ref().and_then(|req| req.payout_link_id.clone()),
+        "payout_link",
+    )?;
 
     // Fetch all configs
     let default_config = &state.conf.generic_link.payment_method_collect;
@@ -218,7 +221,7 @@ pub async fn create_payout_link(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "payout_link_config in merchant_account",
         })?;
-    let ui_config = &req.ui_config;
+    let ui_config = &req.as_ref().and_then(|config| config.ui_config.clone());
     // Create client secret
     let client_secret = utils::generate_id(consts::ID_LENGTH, "payout_link_secret");
 
@@ -255,8 +258,7 @@ pub async fn create_payout_link(
             fallback_ui_config.theme.clone(),
         ),
     };
-
-    let session_expiry = match req.session_expiry {
+    let session_expiry = match req.as_ref().and_then(|req| req.session_expiry) {
         Some(expiry) => expiry,
         None => default_config.expiry,
     };
@@ -268,12 +270,9 @@ pub async fn create_payout_link(
         logo,
         collector_name,
     };
-
-    let enabled_payment_methods = match (&req.enabled_payment_methods, &merchant_config) {
-        (Some(enabled_payment_methods), _) => enabled_payment_methods.clone(),
-        (None, Some(config)) => config.enabled_payment_methods.clone(),
-        _ => default_config.enabled_payment_methods.clone(),
-    };
+    let req_enabled_payment_methods = req
+        .as_ref()
+        .and_then(|req| req.enabled_payment_methods.to_owned());
 
     let data = PayoutLinkData {
         payout_link_id: payout_link_id.clone(),
@@ -284,7 +283,7 @@ pub async fn create_payout_link(
         client_secret: Secret::new(client_secret),
         session_expiry,
         ui_config: payout_link_config,
-        enabled_payment_methods,
+        enabled_payment_methods: req_enabled_payment_methods,
         amount: MinorUnit::from(*amount).get_amount_as_i64(),
         currency: *currency,
     };

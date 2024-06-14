@@ -2064,34 +2064,22 @@ pub async fn payout_create_db_entries(
         .customer_id;
     let payout_link = if let Some(payout_link_create) = req.payout_link {
         if payout_link_create {
-            let payout_link_config = req.payout_link_config.as_ref().ok_or_else(|| {
-                report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payout_link_config",
-                })
-            })?;
-            Some(
-                validator::create_payout_link(
-                    state,
-                    merchant_account,
-                    payout_link_config,
-                    &customer_id,
-                    req.return_url.to_owned(),
-                    payout_id,
-                    req.amount
-                        .as_ref()
-                        .get_required_value("amount")
-                        .attach_printable(
-                            "amount is a required value when creating payout links",
-                        )?,
-                    req.currency
-                        .as_ref()
-                        .get_required_value("currency")
-                        .attach_printable(
-                            "currency is a required value when creating payout links",
-                        )?,
-                )
-                .await?,
-            )
+            Some(validator::create_payout_link(
+                state,
+                merchant_account,
+                &req.payout_link_config,
+                &customer_id,
+                req.return_url.to_owned(),
+                payout_id,
+                req.amount
+                    .as_ref()
+                    .get_required_value("amount")
+                    .attach_printable("amount is a required value when creating payout links")?,
+                req.currency
+                    .as_ref()
+                    .get_required_value("currency")
+                    .attach_printable("currency is a required value when creating payout links")?,
+            ).await?)
         } else {
             None
         }
@@ -2291,10 +2279,7 @@ pub async fn make_payout_data(
     let business_profile =
         validate_and_get_business_profile(state, &profile_id, merchant_id).await?;
     let payout_method_data = match req {
-        payouts::PayoutRequest::PayoutCreateRequest(r) => {
-            logger::debug!("request.payout_method_data");
-            r.payout_method_data.to_owned()
-        }
+        payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutRetrieveRequest(_)
         | payouts::PayoutRequest::PayoutActionRequest(_) => {
             match payout_attempt.payout_token.to_owned() {

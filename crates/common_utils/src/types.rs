@@ -873,7 +873,7 @@ pub struct PayoutLinkData {
     /// Payout link's UI configurations
     pub ui_config: enums::CollectLinkConfig,
     /// List of enabled payment methods
-    pub enabled_payment_methods: Vec<enums::EnabledPaymentMethod>,
+    pub enabled_payment_methods: Option<Vec<enums::EnabledPaymentMethod>>,
     /// Payout amount
     pub amount: i64,
     /// Payout currency

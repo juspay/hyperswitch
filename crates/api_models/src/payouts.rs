@@ -169,6 +169,7 @@ pub struct PayoutCreatePayoutLinkConfig {
     pub payout_link_id: Option<String>,
 
     #[serde(flatten)]
+    #[schema(value_type = Option<CollectLinkConfig>)]
     pub ui_config: Option<api_enums::CollectLinkConfig>,
 
     /// Will be used to expire client secret after certain amount of time to be supplied in seconds
@@ -486,6 +487,7 @@ pub struct PayoutCreateResponse {
     pub attempts: Option<Vec<PayoutAttemptResponse>>,
 
     // If payout link is request, this represents response on
+    #[schema(value_type = Option<PayoutLinkResponse>)]
     pub payout_link: Option<PayoutLinkResponse>,
 }
 
