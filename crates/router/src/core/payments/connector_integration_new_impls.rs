@@ -5,6 +5,527 @@ use crate::{
     types::{self, api},
 };
 
+#[cfg(feature = "dummy_connector")]
+mod dummy_connector_default_impl {
+    #[cfg(feature = "frm")]
+    use super::frm_types;
+    use super::{api, connector, services, types};
+    impl<const T: u8> api::PaymentNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentAuthorizeNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentAuthorizeSessionTokenNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentSyncNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentVoidNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentApproveNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentRejectNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentCaptureNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentSessionNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::MandateSetupNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentIncrementalAuthorizationNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentsCompleteAuthorizeNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentTokenNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::ConnectorCustomerNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentsPreProcessingNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Authorize,
+            types::PaymentFlowData,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PSync,
+            types::PaymentFlowData,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Void,
+            types::PaymentFlowData,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Approve,
+            types::PaymentFlowData,
+            types::PaymentsApproveData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Reject,
+            types::PaymentFlowData,
+            types::PaymentsRejectData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Capture,
+            types::PaymentFlowData,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Session,
+            types::PaymentFlowData,
+            types::PaymentsSessionData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::SetupMandate,
+            types::PaymentFlowData,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::IncrementalAuthorization,
+            types::PaymentFlowData,
+            types::PaymentsIncrementalAuthorizationData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::CompleteAuthorize,
+            types::PaymentFlowData,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PaymentMethodToken,
+            types::PaymentFlowData,
+            types::PaymentMethodTokenizationData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::CreateConnectorCustomer,
+            types::PaymentFlowData,
+            types::ConnectorCustomerData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PreProcessing,
+            types::PaymentFlowData,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::AuthorizeSessionToken,
+            types::PaymentFlowData,
+            types::AuthorizeSessionTokenData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+    impl<const T: u8> api::RefundNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::RefundExecuteNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::RefundSyncNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Execute,
+            types::RefundFlowData,
+            types::RefundsData,
+            types::RefundsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::RSync,
+            types::RefundFlowData,
+            types::RefundsData,
+            types::RefundsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+    impl<const T: u8> api::ConnectorAccessTokenNew for connector::DummyConnector<T> {}
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::AccessTokenAuth,
+            types::AccessTokenFlowData,
+            types::AccessTokenRequestData,
+            types::AccessToken,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::DisputeNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::AcceptDisputeNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Accept,
+            types::DisputesFlowData,
+            types::AcceptDisputeRequestData,
+            types::AcceptDisputeResponse,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::DefendDisputeNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Defend,
+            types::DisputesFlowData,
+            types::DefendDisputeRequestData,
+            types::DefendDisputeResponse,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::SubmitEvidenceNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Evidence,
+            types::DisputesFlowData,
+            types::SubmitEvidenceRequestData,
+            types::SubmitEvidenceResponse,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::FileUploadNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::UploadFileNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Upload,
+            types::FilesFlowData,
+            types::UploadFileRequestData,
+            types::UploadFileResponse,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::RetrieveFileNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Retrieve,
+            types::FilesFlowData,
+            types::RetrieveFileRequestData,
+            types::RetrieveFileResponse,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
+    impl<const T: u8> api::PayoutsNew for connector::DummyConnector<T> {}
+
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8> api::PayoutCreateNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PoCreate,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8> api::PayoutEligibilityNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PoEligibility,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8> api::PayoutFulfillNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PoFulfill,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
+    impl<const T: u8> api::PayoutCancelNew for connector::DummyConnector<T> {}
+
+    #[cfg(feature = "payouts")]
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PoCancel,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
+    impl<const T: u8> api::PayoutQuoteNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PoQuote,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8> api::PayoutRecipientNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PoRecipient,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8> api::PayoutRecipientAccountNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "payouts")]
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PoRecipientAccount,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::ConnectorVerifyWebhookSourceNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::VerifyWebhookSource,
+            types::WebhookSourceVerifyData,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "frm")]
+    impl<const T: u8> api::FraudCheckNew for connector::DummyConnector<T> {}
+
+    #[cfg(feature = "frm")]
+    impl<const T: u8> api::FraudCheckSaleNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "frm")]
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Sale,
+            types::FrmFlowData,
+            frm_types::FraudCheckSaleData,
+            frm_types::FraudCheckResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "frm")]
+    impl<const T: u8> api::FraudCheckCheckoutNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "frm")]
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Checkout,
+            types::FrmFlowData,
+            frm_types::FraudCheckCheckoutData,
+            frm_types::FraudCheckResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "frm")]
+    impl<const T: u8> api::FraudCheckTransactionNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "frm")]
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Transaction,
+            types::FrmFlowData,
+            frm_types::FraudCheckTransactionData,
+            frm_types::FraudCheckResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "frm")]
+    impl<const T: u8> api::FraudCheckFulfillmentNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "frm")]
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Fulfillment,
+            types::FrmFlowData,
+            frm_types::FraudCheckFulfillmentData,
+            frm_types::FraudCheckResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "frm")]
+    impl<const T: u8> api::FraudCheckRecordReturnNew for connector::DummyConnector<T> {}
+    #[cfg(feature = "frm")]
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::RecordReturn,
+            types::FrmFlowData,
+            frm_types::FraudCheckRecordReturnData,
+            frm_types::FraudCheckResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::ConnectorMandateRevokeNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::MandateRevoke,
+            types::MandateRevokeFlowData,
+            types::MandateRevokeRequestData,
+            types::MandateRevokeResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8> api::ExternalAuthenticationNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::ConnectorPreAuthenticationNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::ConnectorPreAuthenticationVersionCallNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::ConnectorAuthenticationNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::ConnectorPostAuthenticationNew for connector::DummyConnector<T> {}
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::Authentication,
+            types::ExternalAuthenticationFlowData,
+            types::authentication::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PreAuthentication,
+            types::ExternalAuthenticationFlowData,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PreAuthenticationVersionCall,
+            types::ExternalAuthenticationFlowData,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationNew<
+            api::PostAuthentication,
+            types::ExternalAuthenticationFlowData,
+            types::authentication::ConnectorPostAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+}
+
 macro_rules! default_imp_for_new_connector_integration_payment {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -93,178 +614,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
     };
 }
 
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentAuthorizeNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentAuthorizeSessionTokenNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentSyncNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentVoidNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentApproveNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentRejectNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentCaptureNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentSessionNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::MandateSetupNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentIncrementalAuthorizationNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentsCompleteAuthorizeNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentTokenNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorCustomerNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentsPreProcessingNew for connector::DummyConnector<T> {}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Authorize,
-        types::PaymentFlowData,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PSync,
-        types::PaymentFlowData,
-        types::PaymentsSyncData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Void,
-        types::PaymentFlowData,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Approve,
-        types::PaymentFlowData,
-        types::PaymentsApproveData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Reject,
-        types::PaymentFlowData,
-        types::PaymentsRejectData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Capture,
-        types::PaymentFlowData,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Session,
-        types::PaymentFlowData,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::SetupMandate,
-        types::PaymentFlowData,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::IncrementalAuthorization,
-        types::PaymentFlowData,
-        types::PaymentsIncrementalAuthorizationData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::CompleteAuthorize,
-        types::PaymentFlowData,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PaymentMethodToken,
-        types::PaymentFlowData,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::CreateConnectorCustomer,
-        types::PaymentFlowData,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PreProcessing,
-        types::PaymentFlowData,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::AuthorizeSessionToken,
-        types::PaymentFlowData,
-        types::AuthorizeSessionTokenData,
-        types::PaymentsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-
 default_imp_for_new_connector_integration_payment!(
     connector::Aci,
     connector::Adyen,
@@ -346,29 +695,6 @@ macro_rules! default_imp_for_new_connector_integration_refund {
     };
 }
 
-impl<const T: u8> api::RefundNew for connector::DummyConnector<T> {}
-impl<const T: u8> api::RefundExecuteNew for connector::DummyConnector<T> {}
-impl<const T: u8> api::RefundSyncNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Execute,
-        types::RefundFlowData,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::RSync,
-        types::RefundFlowData,
-        types::RefundsData,
-        types::RefundsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 default_imp_for_new_connector_integration_refund!(
     connector::Aci,
     connector::Adyen,
@@ -443,17 +769,6 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
             for $path::$connector{}
     )*
     };
-}
-
-impl<const T: u8> api::ConnectorAccessTokenNew for connector::DummyConnector<T> {}
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::AccessTokenAuth,
-        types::AccessTokenFlowData,
-        types::AccessTokenRequestData,
-        types::AccessToken,
-    > for connector::DummyConnector<T>
-{
 }
 
 default_imp_for_new_connector_integration_connector_access_token!(
@@ -538,49 +853,6 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
     };
 }
 
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::DisputeNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::AcceptDisputeNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Accept,
-        types::DisputesFlowData,
-        types::AcceptDisputeRequestData,
-        types::AcceptDisputeResponse,
-    > for connector::DummyConnector<T>
-{
-}
-macro_rules! default_imp_for_new_connector_integration_defend_dispute {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::DefendDisputeNew for $path::$connector {}
-            impl
-                services::ConnectorIntegrationNew<
-                api::Defend,
-                types::DisputesFlowData,
-                types::DefendDisputeRequestData,
-                types::DefendDisputeResponse,
-            > for $path::$connector
-            {}
-        )*
-    };
-}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::DefendDisputeNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Defend,
-        types::DisputesFlowData,
-        types::DefendDisputeRequestData,
-        types::DefendDisputeResponse,
-    > for connector::DummyConnector<T>
-{
-}
-
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -595,19 +867,6 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
             {}
     )*
     };
-}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::SubmitEvidenceNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Evidence,
-        types::DisputesFlowData,
-        types::SubmitEvidenceRequestData,
-        types::SubmitEvidenceResponse,
-    > for connector::DummyConnector<T>
-{
 }
 
 default_imp_for_new_connector_integration_accept_dispute!(
@@ -674,6 +933,22 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Zen,
     connector::Zsl
 );
+
+macro_rules! default_imp_for_new_connector_integration_defend_dispute {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::DefendDisputeNew for $path::$connector {}
+            impl
+                services::ConnectorIntegrationNew<
+                api::Defend,
+                types::DisputesFlowData,
+                types::DefendDisputeRequestData,
+                types::DefendDisputeResponse,
+            > for $path::$connector
+            {}
+        )*
+    };
+}
 default_imp_for_new_connector_integration_defend_dispute!(
     connector::Aci,
     connector::Adyen,
@@ -829,33 +1104,6 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
     };
 }
 
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::FileUploadNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::UploadFileNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Upload,
-        types::FilesFlowData,
-        types::UploadFileRequestData,
-        types::UploadFileResponse,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::RetrieveFileNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Retrieve,
-        types::FilesFlowData,
-        types::RetrieveFileRequestData,
-        types::RetrieveFileResponse,
-    > for connector::DummyConnector<T>
-{
-}
-
 default_imp_for_new_connector_integration_file_upload!(
     connector::Aci,
     connector::Adyen,
@@ -921,6 +1169,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Zsl
 );
 
+#[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -929,8 +1178,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts {
     };
 }
 
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutsNew for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts!(
     connector::Aci,
     connector::Adyen,
@@ -1013,20 +1261,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
     };
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutCreateNew for connector::DummyConnector<T> {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PoCreate,
-        types::PayoutFlowData,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
     connector::Aci,
@@ -1111,20 +1345,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 }
 
 #[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutEligibilityNew for connector::DummyConnector<T> {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PoEligibility,
-        types::PayoutFlowData,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Aci,
     connector::Adyen,
@@ -1207,20 +1427,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
     };
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutFulfillNew for connector::DummyConnector<T> {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PoFulfill,
-        types::PayoutFlowData,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Aci,
@@ -1305,20 +1511,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 }
 
 #[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutCancelNew for connector::DummyConnector<T> {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PoCancel,
-        types::PayoutFlowData,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Aci,
     connector::Adyen,
@@ -1401,20 +1593,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
     };
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutQuoteNew for connector::DummyConnector<T> {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PoQuote,
-        types::PayoutFlowData,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
     connector::Aci,
@@ -1499,20 +1677,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 }
 
 #[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutRecipientNew for connector::DummyConnector<T> {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PoRecipient,
-        types::PayoutFlowData,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Aci,
     connector::Adyen,
@@ -1596,20 +1760,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 }
 
 #[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutRecipientAccountNew for connector::DummyConnector<T> {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PoRecipientAccount,
-        types::PayoutFlowData,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Aci,
     connector::Adyen,
@@ -1674,7 +1824,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Zen,
     connector::Zsl
 );
-#[cfg(feature = "payouts")]
+
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1691,19 +1841,6 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
     };
 }
 
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorVerifyWebhookSourceNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::VerifyWebhookSource,
-        types::WebhookSourceVerifyData,
-        types::VerifyWebhookSourceRequestData,
-        types::VerifyWebhookSourceResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Aci,
     connector::Adyen,
@@ -1777,8 +1914,7 @@ macro_rules! default_imp_for_new_connector_integration_frm {
     )*
     };
 }
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::FraudCheckNew for connector::DummyConnector<T> {}
+
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm!(
     connector::Aci,
@@ -1862,18 +1998,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
     };
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8> api::FraudCheckSaleNew for connector::DummyConnector<T> {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Sale,
-        types::FrmFlowData,
-        frm_types::FraudCheckSaleData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
     connector::Aci,
@@ -1957,18 +2081,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
     };
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8> api::FraudCheckCheckoutNew for connector::DummyConnector<T> {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Checkout,
-        types::FrmFlowData,
-        frm_types::FraudCheckCheckoutData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
     connector::Aci,
@@ -2052,18 +2164,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
     };
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8> api::FraudCheckTransactionNew for connector::DummyConnector<T> {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Transaction,
-        types::FrmFlowData,
-        frm_types::FraudCheckTransactionData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
     connector::Aci,
@@ -2147,18 +2247,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
     };
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8> api::FraudCheckFulfillmentNew for connector::DummyConnector<T> {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Fulfillment,
-        types::FrmFlowData,
-        frm_types::FraudCheckFulfillmentData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Aci,
@@ -2242,18 +2330,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
     };
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8> api::FraudCheckRecordReturnNew for connector::DummyConnector<T> {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::RecordReturn,
-        types::FrmFlowData,
-        frm_types::FraudCheckRecordReturnData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
     connector::Aci,
@@ -2335,18 +2411,6 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
     };
 }
 
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorMandateRevokeNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::MandateRevoke,
-        types::MandateRevokeFlowData,
-        types::MandateRevokeRequestData,
-        types::MandateRevokeResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Aci,
     connector::Adyen,
@@ -2455,57 +2519,6 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
     };
 }
 
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ExternalAuthenticationNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorPreAuthenticationNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorPreAuthenticationVersionCallNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorAuthenticationNew for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorPostAuthenticationNew for connector::DummyConnector<T> {}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::Authentication,
-        types::ExternalAuthenticationFlowData,
-        types::authentication::ConnectorAuthenticationRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PreAuthentication,
-        types::ExternalAuthenticationFlowData,
-        types::authentication::PreAuthNRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PreAuthenticationVersionCall,
-        types::ExternalAuthenticationFlowData,
-        types::authentication::PreAuthNRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegrationNew<
-        api::PostAuthentication,
-        types::ExternalAuthenticationFlowData,
-        types::authentication::ConnectorPostAuthenticationRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 default_imp_for_new_connector_integration_connector_authentication!(
     connector::Aci,
     connector::Adyen,
