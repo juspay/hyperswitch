@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use diesel_models::fraud_check::FraudCheck;
 use events::{Event, EventInfo};
 use serde::Serialize;
@@ -21,6 +22,10 @@ pub enum AuditEventType {
     },
     PaymentCancelled {
         cancellation_reason: Option<String>,
+    },
+    PaymentCapture {
+        capture_amount: Option<MinorUnit>,
+        multiple_capture_count: Option<i16>,
     },
 }
 
@@ -55,6 +60,7 @@ impl Event for AuditEvent {
             AuditEventType::PaymentConfirm { .. } => "payment_confirm",
             AuditEventType::ConnectorDecided => "connector_decided",
             AuditEventType::ConnectorCalled => "connector_called",
+            AuditEventType::PaymentCapture { .. } => "payment_capture",
             AuditEventType::RefundCreated => "refund_created",
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
