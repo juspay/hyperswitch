@@ -163,6 +163,9 @@ impl storage_impl::config::TenantConfig for Tenant {
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
     }
+}
+
+impl storage_impl::config::ClickHouseConfig for Tenant {
     fn get_clickhouse_database(&self) -> &str {
         self.clickhouse_database.as_str()
     }
@@ -172,7 +175,6 @@ impl storage_impl::config::TenantConfig for Tenant {
 pub struct GlobalTenant {
     pub schema: String,
     pub redis_key_prefix: String,
-    pub clickhouse_database: String,
 }
 
 impl storage_impl::config::TenantConfig for GlobalTenant {
@@ -181,9 +183,6 @@ impl storage_impl::config::TenantConfig for GlobalTenant {
     }
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database.as_str()
     }
 }
 

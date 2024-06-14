@@ -603,7 +603,7 @@ impl AnalyticsProvider {
 
     pub async fn from_conf(
         config: &AnalyticsConfig,
-        tenant: &dyn storage_impl::config::TenantConfig,
+        tenant: &dyn storage_impl::config::ClickHouseConfig,
     ) -> Self {
         match config {
             AnalyticsConfig::Sqlx { sqlx } => {
