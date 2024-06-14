@@ -6,6 +6,7 @@ use common_utils::ext_traits::{Encode, StringExt, ValueExt};
 use diesel_models::configs;
 use error_stack::ResultExt;
 use euclid::frontend::ast;
+use storage_impl::redis::cache;
 
 use super::routing::helpers::{
     get_payment_config_routing_id, update_merchant_active_algorithm_ref,
@@ -99,8 +100,9 @@ pub async fn upsert_conditional_config(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error serializing the config")?;
 
-            algo_id.update_conditional_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            algo_id.update_conditional_config_id(key.clone());
+            let config_key = cache::CacheKind::DecisionManager(key.into());
+            update_merchant_active_algorithm_ref(db, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -134,8 +136,9 @@ pub async fn upsert_conditional_config(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error fetching the config")?;
 
-            algo_id.update_conditional_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            algo_id.update_conditional_config_id(key.clone());
+            let config_key = cache::CacheKind::DecisionManager(key.into());
+            update_merchant_active_algorithm_ref(db, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -164,7 +167,8 @@ pub async fn delete_conditional_config(
         .attach_printable("Could not decode the conditional_config algorithm")?
         .unwrap_or_default();
     algo_id.config_algo_id = None;
-    update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+    let config_key = cache::CacheKind::DecisionManager(key.clone().into());
+    update_merchant_active_algorithm_ref(db, &key_store, config_key, algo_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update deleted algorithm ref")?;

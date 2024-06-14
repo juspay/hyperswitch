@@ -18,7 +18,8 @@ traces_enabled = false                                      # Whether traces are
 metrics_enabled = true                                      # Whether metrics are enabled.
 ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
-use_xray_generator = false
+use_xray_generator = false                                  # Set this to true for AWS X-ray compatible traces
+bg_metrics_collection_interval_in_secs = 15                 # Interval for collecting the metrics in background thread
 
 [master_database]
 username = "db_user"

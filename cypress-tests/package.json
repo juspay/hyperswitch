@@ -16,5 +16,8 @@
   "devDependencies": {
     "cypress": "^13.10.0",
     "jsqr": "^1.4.0"
+  },
+  "dependencies": {
+    "prettier": "^3.3.2"
   }
 }
