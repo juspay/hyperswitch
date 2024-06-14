@@ -1032,7 +1032,7 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
-        let guest_customer_details = if let Some(cid) = &request.customer_id {
+        let guest_customer_details_json = if let Some(cid) = &request.customer_id {
             let customer = state
                 .store
                 .find_customer_by_customer_id_merchant_id(
@@ -1042,18 +1042,22 @@ impl PaymentCreate {
                     merchant_account.storage_scheme,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-            if customer.name.is_some()
-                || customer.email.is_some()
-                || customer.phone.is_some()
-                || customer.phone_country_code.is_some()
-            {
-                Some(GuestCustomerDetails {
-                    name: customer.name.map(Encryptable::into_inner),
-                    email: customer.email.map(pii::Email::from),
-                    phone: customer.phone.map(Encryptable::into_inner),
-                    phone_country_code: customer.phone_country_code.clone(),
-                })
+                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound);
+            if let Ok(customer) = customer {
+                if customer.name.is_some()
+                    || customer.email.is_some()
+                    || customer.phone.is_some()
+                    || customer.phone_country_code.is_some()
+                {
+                    Some(GuestCustomerDetails {
+                        name: customer.name.map(Encryptable::into_inner),
+                        email: customer.email.map(pii::Email::from),
+                        phone: customer.phone.map(Encryptable::into_inner),
+                        phone_country_code: customer.phone_country_code.clone(),
+                    })
+                } else {
+                    None
+                }
             } else {
                 None
             }
@@ -1073,19 +1077,23 @@ impl PaymentCreate {
         };
 
         let key = key_store.key.get_inner().peek();
-        let guest_customer_details_json = guest_customer_details
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
-            })
-            .attach_printable("Unable to convert guest customer details to a value")?
-            .map(Secret::new)
-            .async_lift(|inner| domain_types::encrypt_optional(inner, key))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt guest customer details")?;
+        let guest_customer_details = if guest_customer_details_json.is_some() {
+            guest_customer_details_json
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "primary_business_details",
+                })
+                .attach_printable("Unable to convert guest customer details to a value")?
+                .map(Secret::new)
+                .async_lift(|inner| domain_types::encrypt_optional(inner, key))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt guest customer details")?
+        } else {
+            None
+        };
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
@@ -1134,7 +1142,7 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
-            guest_customer_details: guest_customer_details_json,
+            guest_customer_details,
         })
     }
 
