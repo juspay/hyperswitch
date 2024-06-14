@@ -23,9 +23,9 @@ use super::blocklist;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
-use super::payouts::*;
-#[cfg(feature = "payouts")]
 use super::payout_link::*;
+#[cfg(feature = "payouts")]
+use super::payouts::*;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
