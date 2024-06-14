@@ -4,11 +4,13 @@ use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::errors;
-use crate::{core::errors::RouterResponse, services::ApplicationResponse, types::domain, AppState};
+use crate::{
+    core::errors::RouterResponse, services::ApplicationResponse, types::domain, SessionState,
+};
 
 #[instrument(skip_all)]
 pub async fn retrieve_poll_status(
-    state: AppState,
+    state: SessionState,
     req: crate::types::api::PollId,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<PollResponse> {

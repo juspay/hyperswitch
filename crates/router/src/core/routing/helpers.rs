@@ -10,11 +10,11 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
-use storage_impl::redis::cache as redis_cache;
+use storage_impl::redis::cache;
 
 use crate::{
     core::errors::{self, RouterResult},
-    db::{cache, StorageInterface},
+    db::StorageInterface,
     types::{domain, storage},
     utils::StringExt,
 };
@@ -188,6 +188,7 @@ pub async fn update_routing_algorithm(
 pub async fn update_merchant_active_algorithm_ref(
     db: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
+    config_key: cache::CacheKind<'_>,
     algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
     let ref_value = algorithm_id
@@ -226,6 +227,11 @@ pub async fn update_merchant_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
+    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [config_key])
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate the config cache")?;
+
     Ok(())
 }
 
@@ -245,12 +251,11 @@ pub async fn update_business_profile_active_algorithm_ref(
     #[cfg(feature = "business_profile_routing")]
     let profile_id = current_business_profile.profile_id.clone();
     #[cfg(feature = "business_profile_routing")]
-    let routing_cache_key = redis_cache::CacheKind::Routing(
-        format!("routing_config_{merchant_id}_{profile_id}").into(),
-    );
+    let routing_cache_key =
+        cache::CacheKind::Routing(format!("routing_config_{merchant_id}_{profile_id}").into());
 
     #[cfg(not(feature = "business_profile_routing"))]
-    let routing_cache_key = redis_cache::CacheKind::Routing(format!("dsl_{merchant_id}").into());
+    let routing_cache_key = cache::CacheKind::Routing(format!("dsl_{merchant_id}").into());
     let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
         storage::enums::TransactionType::Payment => (Some(ref_val), None),
         #[cfg(feature = "payouts")]
@@ -278,6 +283,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         extended_card_info_config: None,
         use_billing_as_payment_method_billing: None,
         collect_shipping_details_from_wallet_connector: None,
+        is_connector_agnostic_mit_enabled: None,
     };
 
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
@@ -285,7 +291,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-    cache::publish_into_redact_channel(db, [routing_cache_key])
+    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate routing cache")?;

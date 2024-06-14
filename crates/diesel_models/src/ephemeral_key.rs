@@ -1,7 +1,9 @@
+use common_utils::id_type;
+
 pub struct EphemeralKeyNew {
     pub id: String,
     pub merchant_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub secret: String,
 }
 
@@ -9,7 +11,7 @@ pub struct EphemeralKeyNew {
 pub struct EphemeralKey {
     pub id: String,
     pub merchant_id: String,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub created_at: i64,
     pub expires: i64,
     pub secret: String,

@@ -15,6 +15,11 @@ pub use api_models::payments::{
     WalletData,
 };
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_flow_types::payments::{
+    Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
+    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
+    PreProcessing, Reject, Session, SetupMandate, Void,
+};
 
 use crate::{
     core::errors,
@@ -23,55 +28,6 @@ use crate::{
 };
 
 impl super::Router for PaymentsRequest {}
-
-// Core related api layer.
-#[derive(Debug, Clone)]
-pub struct Authorize;
-
-#[derive(Debug, Clone)]
-pub struct AuthorizeSessionToken;
-
-#[derive(Debug, Clone)]
-pub struct CompleteAuthorize;
-
-#[derive(Debug, Clone)]
-pub struct Approve;
-
-// Used in gift cards balance check
-#[derive(Debug, Clone)]
-pub struct Balance;
-
-#[derive(Debug, Clone)]
-pub struct InitPayment;
-
-#[derive(Debug, Clone)]
-pub struct Capture;
-
-#[derive(Debug, Clone)]
-pub struct PSync;
-#[derive(Debug, Clone)]
-pub struct Void;
-
-#[derive(Debug, Clone)]
-pub struct Reject;
-
-#[derive(Debug, Clone)]
-pub struct Session;
-
-#[derive(Debug, Clone)]
-pub struct PaymentMethodToken;
-
-#[derive(Debug, Clone)]
-pub struct CreateConnectorCustomer;
-
-#[derive(Debug, Clone)]
-pub struct SetupMandate;
-
-#[derive(Debug, Clone)]
-pub struct PreProcessing;
-
-#[derive(Debug, Clone)]
-pub struct IncrementalAuthorization;
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
@@ -118,6 +74,15 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 
 pub trait PaymentAuthorize:
     api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentAuthorizeSessionToken:
+    api::ConnectorIntegration<
+    AuthorizeSessionToken,
+    types::AuthorizeSessionTokenData,
+    types::PaymentsResponseData,
+>
 {
 }
 
@@ -205,6 +170,7 @@ pub trait Payment:
     api_types::ConnectorCommon
     + api_types::ConnectorValidation
     + PaymentAuthorize
+    + PaymentAuthorizeSessionToken
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture

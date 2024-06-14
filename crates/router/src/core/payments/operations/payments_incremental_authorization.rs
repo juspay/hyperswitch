@@ -18,7 +18,7 @@ use crate::{
     },
     routes::{
         app::{ReqState, StorageInterface},
-        AppState,
+        SessionState,
     },
     services,
     types::{
@@ -41,7 +41,7 @@ impl<F: Send + Clone>
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &PaymentsIncrementalAuthorizationRequest,
         merchant_account: &domain::MerchantAccount,
@@ -174,7 +174,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b AppState,
+        db: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
@@ -307,7 +307,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -323,7 +323,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         _request: &PaymentsIncrementalAuthorizationRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -334,7 +334,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
         _payment_data: &mut payments::PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {

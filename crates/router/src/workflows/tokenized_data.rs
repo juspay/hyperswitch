@@ -1,16 +1,16 @@
 use scheduler::consumer::workflows::ProcessTrackerWorkflow;
 
 use crate::{
-    core::payment_methods::vault, errors, logger::error, routes::AppState, types::storage,
+    core::payment_methods::vault, errors, logger::error, routes::SessionState, types::storage,
 };
 
 pub struct DeleteTokenizeDataWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for DeleteTokenizeDataWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for DeleteTokenizeDataWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         Ok(vault::start_tokenize_data_workflow(state, &process).await?)
@@ -18,7 +18,7 @@ impl ProcessTrackerWorkflow<AppState> for DeleteTokenizeDataWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         process: storage::ProcessTracker,
         _error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {

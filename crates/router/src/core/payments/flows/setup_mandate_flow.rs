@@ -3,13 +3,13 @@ use async_trait::async_trait;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain, storage},
 };
@@ -24,7 +24,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -51,7 +51,7 @@ impl
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
@@ -78,7 +78,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -87,7 +87,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn add_payment_method_token<'a>(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
@@ -104,7 +104,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn create_connector_customer<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
@@ -118,7 +118,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
@@ -140,20 +140,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             }
             _ => Ok((None, true)),
         }
-    }
-}
-
-impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            email: data.email,
-            payment_method_data: data.payment_method_data,
-            description: None,
-            phone: None,
-            name: None,
-            preprocessing_id: None,
-        })
     }
 }
 
@@ -185,18 +171,5 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     }
     fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
         self.customer_acceptance.clone().map(From::from)
-    }
-}
-
-impl TryFrom<types::SetupMandateRequestData> for types::PaymentMethodTokenizationData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: data.payment_method_data,
-            browser_info: None,
-            currency: data.currency,
-            amount: data.amount,
-        })
     }
 }

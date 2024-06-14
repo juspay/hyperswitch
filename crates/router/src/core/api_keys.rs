@@ -9,7 +9,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::ApplicationResponse,
     types::{api, storage, transformers::ForeignInto},
     utils,
@@ -110,7 +110,7 @@ impl PlaintextApiKey {
 
 #[instrument(skip_all)]
 pub async fn create_api_key(
-    state: AppState,
+    state: SessionState,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
@@ -244,7 +244,7 @@ pub async fn add_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn retrieve_api_key(
-    state: AppState,
+    state: SessionState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
@@ -261,7 +261,7 @@ pub async fn retrieve_api_key(
 
 #[instrument(skip_all)]
 pub async fn update_api_key(
-    state: AppState,
+    state: SessionState,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let merchant_id = api_key.merchant_id.clone();
@@ -381,7 +381,9 @@ pub async fn update_api_key_expiry_task(
         retry_count: Some(0),
         schedule_time,
         tracking_data: Some(updated_api_key_expiry_workflow_model),
-        business_status: Some("Pending".to_string()),
+        business_status: Some(String::from(
+            diesel_models::process_tracker::business_status::PENDING,
+        )),
         status: Some(storage_enums::ProcessTrackerStatus::New),
         updated_at: Some(current_time),
     };
@@ -395,7 +397,7 @@ pub async fn update_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
-    state: AppState,
+    state: SessionState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
@@ -450,7 +452,7 @@ pub async fn revoke_api_key_expiry_task(
     let task_ids = vec![task_id];
     let updated_process_tracker_data = storage::ProcessTrackerUpdate::StatusUpdate {
         status: storage_enums::ProcessTrackerStatus::Finish,
-        business_status: Some("Revoked".to_string()),
+        business_status: Some(String::from(diesel_models::business_status::REVOKED)),
     };
 
     store
@@ -463,7 +465,7 @@ pub async fn revoke_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn list_api_keys(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
     limit: Option<i64>,
     offset: Option<i64>,

@@ -89,6 +89,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     status: new.status,
                     attempt_count: new.attempt_count,
                     confirm: new.confirm,
+                    priority: new.priority,
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -688,6 +689,7 @@ impl DataModelExt for Payouts {
             status: self.status,
             attempt_count: self.attempt_count,
             confirm: self.confirm,
+            priority: self.priority,
         }
     }
 
@@ -714,6 +716,7 @@ impl DataModelExt for Payouts {
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
             confirm: storage_model.confirm,
+            priority: storage_model.priority,
         }
     }
 }
@@ -743,6 +746,7 @@ impl DataModelExt for PayoutsNew {
             status: self.status,
             attempt_count: self.attempt_count,
             confirm: self.confirm,
+            priority: self.priority,
         }
     }
 
@@ -769,6 +773,7 @@ impl DataModelExt for PayoutsNew {
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
             confirm: storage_model.confirm,
+            priority: storage_model.priority,
         }
     }
 }

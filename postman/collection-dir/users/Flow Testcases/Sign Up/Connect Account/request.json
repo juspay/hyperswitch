@@ -1,0 +1,29 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Cookie",
+      "value": "Cookie_1=value"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw_json_formatted": {
+      "email": "{{unique_email}}"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/user/connect_account",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "user",
+      "connect_account"
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -14,7 +14,7 @@ use crate::{
         payments::CallConnectorAction,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -32,7 +32,7 @@ use crate::{
 
 #[instrument(skip(state))]
 pub async fn get_mandate(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: mandates::MandateId,
@@ -60,7 +60,7 @@ pub async fn get_mandate(
 
 #[instrument(skip(state))]
 pub async fn revoke_mandate(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: mandates::MandateId,
@@ -223,7 +223,7 @@ pub async fn update_connector_mandate_id(
 
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
@@ -235,7 +235,7 @@ pub async fn get_customer_mandates(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while finding mandate: merchant_id: {}, customer_id: {}",
+                "Failed while finding mandate: merchant_id: {}, customer_id: {:?}",
                 merchant_account.merchant_id, req.customer_id
             )
         })?;
@@ -271,7 +271,7 @@ where
     }
 }
 pub async fn update_mandate_procedure<F, FData>(
-    state: &AppState,
+    state: &SessionState,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     mandate: Mandate,
     merchant_id: &str,
@@ -342,9 +342,9 @@ where
 }
 
 pub async fn mandate_procedure<F, FData>(
-    state: &AppState,
+    state: &SessionState,
     resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
-    customer_id: &Option<String>,
+    customer_id: &Option<id_type::CustomerId>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
@@ -472,7 +472,7 @@ where
 
 #[instrument(skip(state))]
 pub async fn retrieve_mandates_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     constraints: api_models::mandates::MandateListConstraints,

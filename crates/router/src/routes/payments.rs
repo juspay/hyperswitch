@@ -681,6 +681,7 @@ pub async fn payments_redirect_response(
                 auth.merchant_account,
                 auth.key_store,
                 req,
+
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -742,6 +743,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
                 auth.merchant_account,
                 auth.key_store,
                 req,
+
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -786,6 +788,7 @@ pub async fn payments_complete_authorize_redirect(
                 auth.merchant_account,
                 auth.key_store,
                 req,
+
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -949,7 +952,7 @@ pub async fn payments_list(
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -961,7 +964,7 @@ pub async fn payments_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
@@ -973,7 +976,7 @@ pub async fn payments_list_by_filter(
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -983,7 +986,7 @@ pub async fn payments_list_by_filter(
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
@@ -995,7 +998,7 @@ pub async fn get_filters_for_payments(
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -1005,7 +1008,7 @@ pub async fn get_filters_for_payments(
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -1016,7 +1019,7 @@ pub async fn get_payment_filters(
     req: actix_web::HttpRequest,
 ) -> impl Responder {
     let flow = Flow::PaymentsFilters;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -1026,7 +1029,7 @@ pub async fn get_payment_filters(
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -1142,7 +1145,7 @@ pub async fn payments_reject(
 #[allow(clippy::too_many_arguments)]
 async fn authorize_verify_select<Op>(
     operation: Op,
-    state: app::AppState,
+    state: app::SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,

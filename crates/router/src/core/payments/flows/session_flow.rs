@@ -28,7 +28,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -55,7 +55,7 @@ impl
 impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
@@ -81,7 +81,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 
     async fn add_access_token<'a>(
         &self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -123,7 +123,7 @@ fn is_dynamic_fields_required(
 }
 
 fn build_apple_pay_session_request(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     request: payment_types::ApplepaySessionRequest,
     apple_pay_merchant_cert: masking::Secret<String>,
     apple_pay_merchant_cert_key: masking::Secret<String>,
@@ -147,7 +147,7 @@ fn build_apple_pay_session_request(
 }
 
 async fn create_applepay_session_token(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     business_profile: &storage::business_profile::BusinessProfile,
@@ -166,8 +166,20 @@ async fn create_applepay_session_token(
         )
     } else {
         // Get the apple pay metadata
-        let apple_pay_metadata =
-            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?;
+        let connector_apple_pay_wallet_details =
+            helpers::get_applepay_metadata(router_data.connector_wallets_details.clone())
+                .map_err(|error| {
+                    logger::debug!(
+                        "Apple pay connector wallets details parsing failed in create_applepay_session_token {:?}",
+                        error
+                    )
+                })
+                .ok();
+
+        let apple_pay_metadata = match connector_apple_pay_wallet_details {
+            Some(apple_pay_wallet_details) => apple_pay_wallet_details,
+            None => helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?,
+        };
 
         // Get payment request data , apple pay session request and merchant keys
         let (
@@ -467,7 +479,7 @@ fn create_apple_pay_session_response(
 }
 
 fn create_gpay_session_token(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     business_profile: &storage::business_profile::BusinessProfile,
@@ -598,7 +610,10 @@ fn create_gpay_session_token(
     }
 }
 
-fn is_session_response_delayed(state: &routes::AppState, connector: &api::ConnectorData) -> bool {
+fn is_session_response_delayed(
+    state: &routes::SessionState,
+    connector: &api::ConnectorData,
+) -> bool {
     let connectors_with_delayed_response = &state
         .conf
         .delayed_session_response
@@ -626,7 +641,7 @@ where
 {
     async fn decide_flow<'a, 'b>(
         &'b self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
@@ -634,11 +649,47 @@ where
     ) -> RouterResult<Self>;
 }
 
+fn create_paypal_sdk_session_token(
+    _state: &routes::SessionState,
+    router_data: &types::PaymentsSessionRouterData,
+    connector: &api::ConnectorData,
+    _business_profile: &storage::business_profile::BusinessProfile,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let connector_metadata = router_data.connector_meta_data.clone();
+
+    let paypal_sdk_data = connector_metadata
+        .clone()
+        .parse_value::<payment_types::PaypalSdkSessionTokenData>("PaypalSdkSessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorMetaData)
+        .attach_printable(format!(
+            "cannot parse paypal_sdk metadata from the given value {connector_metadata:?}"
+        ))
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_metadata".to_string(),
+            expected_format: "paypal_sdk_metadata_format".to_string(),
+        })?;
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::Paypal(Box::new(
+                payment_types::PaypalSessionTokenResponse {
+                    connector: connector.connector_name.to_string(),
+                    session_token: paypal_sdk_data.data.client_id,
+                    sdk_next_action: payment_types::SdkNextAction {
+                        next_action: payment_types::NextActionCall::Confirm,
+                    },
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
+}
+
 #[async_trait]
 impl RouterDataSession for types::PaymentsSessionRouterData {
     async fn decide_flow<'a, 'b>(
         &'b self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
@@ -650,6 +701,9 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
             }
             api::GetToken::ApplePayMetadata => {
                 create_applepay_session_token(state, self, connector, business_profile).await
+            }
+            api::GetToken::PaypalSdkMetadata => {
+                create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedConnectorIntegration<

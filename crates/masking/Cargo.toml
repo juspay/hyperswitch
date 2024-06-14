@@ -8,9 +8,10 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["alloc", "serde", "diesel"]
+default = ["alloc", "serde", "diesel", "time"]
 alloc = ["zeroize/alloc"]
 serde = ["dep:serde", "dep:serde_json"]
+time = ["dep:time"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -23,6 +24,7 @@ erased-serde = "0.4.4"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1.0.115", optional = true }
 subtle = "2.5.0"
+time = {version = "0.3.35", optional = true, features = ["serde-human-readable"] }
 zeroize = { version = "1.7", default-features = false }
 
 [dev-dependencies]

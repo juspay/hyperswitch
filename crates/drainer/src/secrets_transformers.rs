@@ -45,5 +45,6 @@ pub async fn fetch_raw_secrets(
         drainer: conf.drainer,
         encryption_management: conf.encryption_management,
         secrets_management: conf.secrets_management,
+        multitenancy: conf.multitenancy,
     }
 }

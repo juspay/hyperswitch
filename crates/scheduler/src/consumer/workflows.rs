@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 pub use diesel_models::process_tracker as storage;
+use diesel_models::process_tracker::business_status;
 use router_env::logger;
 
-use crate::{errors, SchedulerAppState};
+use crate::{errors, SchedulerSessionState};
 
 pub type WorkflowSelectorFn =
     fn(&storage::ProcessTracker) -> Result<(), errors::ProcessTrackerError>;
@@ -26,7 +27,7 @@ pub trait ProcessTrackerWorkflows<T>: Send + Sync {
         process: storage::ProcessTracker,
     ) -> CustomResult<(), errors::ProcessTrackerError>
     where
-        T: SchedulerAppState,
+        T: SchedulerSessionState,
     {
         let app_state = &state.clone();
         let output = operation.execute_workflow(app_state, process.clone()).await;
@@ -45,7 +46,10 @@ pub trait ProcessTrackerWorkflows<T>: Send + Sync {
                     let status = app_state
                         .get_db()
                         .as_scheduler()
-                        .finish_process_with_business_status(process, "GLOBAL_FAILURE".to_string())
+                        .finish_process_with_business_status(
+                            process,
+                            business_status::GLOBAL_FAILURE,
+                        )
                         .await;
                     if let Err(error) = status {
                         logger::error!(?error, "Failed to update process business status");

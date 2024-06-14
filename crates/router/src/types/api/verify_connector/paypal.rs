@@ -4,7 +4,7 @@ use super::{VerifyConnector, VerifyConnectorData};
 use crate::{
     connector,
     core::errors,
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api},
 };
@@ -12,7 +12,7 @@ use crate::{
 #[async_trait::async_trait]
 impl VerifyConnector for connector::Paypal {
     async fn get_access_token(
-        state: &AppState,
+        state: &SessionState,
         connector_data: VerifyConnectorData,
     ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
         let token_data: types::AccessTokenRequestData =

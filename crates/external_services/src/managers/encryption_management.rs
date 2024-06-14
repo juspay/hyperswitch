@@ -2,6 +2,8 @@
 //! Encryption management util module
 //!
 
+use std::sync::Arc;
+
 use common_utils::errors::CustomResult;
 use hyperswitch_interfaces::encryption_interface::{
     EncryptionError, EncryptionManagementInterface,
@@ -42,12 +44,12 @@ impl EncryptionManagementConfig {
     /// Retrieves the appropriate encryption client based on the configuration.
     pub async fn get_encryption_management_client(
         &self,
-    ) -> CustomResult<Box<dyn EncryptionManagementInterface>, EncryptionError> {
+    ) -> CustomResult<Arc<dyn EncryptionManagementInterface>, EncryptionError> {
         Ok(match self {
             #[cfg(feature = "aws_kms")]
-            Self::AwsKms { aws_kms } => Box::new(aws_kms::core::AwsKmsClient::new(aws_kms).await),
+            Self::AwsKms { aws_kms } => Arc::new(aws_kms::core::AwsKmsClient::new(aws_kms).await),
 
-            Self::NoEncryption => Box::new(NoEncryption),
+            Self::NoEncryption => Arc::new(NoEncryption),
         })
     }
 }

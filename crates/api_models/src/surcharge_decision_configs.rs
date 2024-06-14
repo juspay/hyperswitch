@@ -41,6 +41,7 @@ impl EuclidDirFilter for SurchargeDecisionConfigs {
         DirKeyKind::BankRedirectType,
         DirKeyKind::BankDebitType,
         DirKeyKind::CryptoType,
+        DirKeyKind::RealTimePaymentType,
     ];
 }
 

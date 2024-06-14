@@ -83,3 +83,15 @@ pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
 
 /// Max ttl for Extended card info in redis (in seconds)
 pub const MAX_TTL_FOR_EXTENDED_CARD_INFO: u16 = 60 * 60 * 2;
+
+/// Default tenant to be used when multitenancy is disabled
+pub const DEFAULT_TENANT: &str = "public";
+
+/// Global tenant to be used when multitenancy is enabled
+pub const GLOBAL_TENANT: &str = "global";
+
+/// Max Length for MerchantReferenceId
+pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
+
+/// Minimum allowed length for MerchantReferenceId
+pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;

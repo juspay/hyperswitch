@@ -378,27 +378,7 @@ pub enum GlobalpayPaymentStatus {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct GlobalpayWebhoookResourceObject {
-    pub data: GlobalpayWebhookDataResource,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GlobalpayWebhookDataResource {
-    pub object: serde_json::Value,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct GlobalpayWebhookObjectId {
-    pub id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GlobalpayWebhookDataId {
-    pub object: GlobalpayWebhookObjectDataId,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GlobalpayWebhookObjectDataId {
     pub id: String,
 }
 

@@ -12,9 +12,9 @@ impl ApiEventMetric for CustomerDeleteResponse {
 
 impl ApiEventMetric for CustomerRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Customer {
-            customer_id: self.customer_id.clone(),
-        })
+        self.customer_id
+            .clone()
+            .map(|customer_id| ApiEventsType::Customer { customer_id })
     }
 }
 

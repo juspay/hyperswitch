@@ -4,7 +4,7 @@ use api_models::payment_methods::PaymentMethodsData;
 use common_enums::PaymentMethod;
 use common_utils::{
     ext_traits::{Encode, ValueExt},
-    pii,
+    id_type, pii,
 };
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
@@ -18,7 +18,7 @@ use crate::{
         mandate, payment_methods, payments,
     },
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -54,11 +54,11 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<FData>(
-    state: &AppState,
+    state: &SessionState,
     connector_name: String,
     merchant_connector_id: Option<String>,
     save_payment_method_data: SavePaymentMethodData<FData>,
-    customer_id: Option<String>,
+    customer_id: Option<id_type::CustomerId>,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
@@ -307,7 +307,7 @@ where
                                         payment_methods::cards::create_payment_method(
                                             db,
                                             &payment_method_create_request,
-                                            customer_id.as_str(),
+                                            &customer_id,
                                             &resp.payment_method_id,
                                             locker_id,
                                             merchant_id,
@@ -402,7 +402,7 @@ where
                                                 payment_method_create_request.clone(),
                                                 key_store,
                                                 &merchant_account.merchant_id,
-                                                customer_id.as_str(),
+                                                &customer_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
                                                 locker_id,
@@ -426,7 +426,7 @@ where
 
                                 payment_methods::cards::delete_card_from_locker(
                                     state,
-                                    customer_id.as_str(),
+                                    &customer_id,
                                     merchant_id,
                                     existing_pm
                                         .locker_id
@@ -439,7 +439,7 @@ where
                                     state,
                                     payment_method_create_request,
                                     &card,
-                                    customer_id.clone(),
+                                    &customer_id,
                                     merchant_account,
                                     api::enums::LockerChoice::HyperswitchCardVault,
                                     Some(
@@ -529,7 +529,7 @@ where
                         payment_methods::cards::create_payment_method(
                             db,
                             &payment_method_create_request,
-                            customer_id.as_str(),
+                            &customer_id,
                             &resp.payment_method_id,
                             locker_id,
                             merchant_id,
@@ -646,7 +646,7 @@ async fn skip_saving_card_in_locker(
 }
 
 pub async fn save_in_locker(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
@@ -660,14 +660,14 @@ pub async fn save_in_locker(
         .clone()
         .get_required_value("customer_id")?;
     match payment_method_request.card.clone() {
-        Some(card) => payment_methods::cards::add_card_to_locker(
+        Some(card) => Box::pin(payment_methods::cards::add_card_to_locker(
             state,
             payment_method_request,
             &card,
             &customer_id,
             merchant_account,
             None,
-        )
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed"),
@@ -719,7 +719,7 @@ pub fn create_payment_method_metadata(
 }
 
 pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
@@ -727,7 +727,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
         payments::TokenizationAction::TokenizeInConnector
-        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
+        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::PaymentMethodToken,
@@ -738,17 +738,12 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
                 Err(types::ErrorResponse::default());
 
-            let mut pm_token_router_data =
+            let pm_token_router_data =
                 helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
                     router_data.clone(),
                     pm_token_request_data,
                     pm_token_response_data,
                 );
-
-            connector_integration
-                .execute_pretasks(&mut pm_token_router_data, state)
-                .await
-                .to_payment_failed_response()?;
 
             router_data
                 .request

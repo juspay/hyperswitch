@@ -71,7 +71,7 @@ qrcode = "0.14.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 regex = "1.10.4"
-reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
+reqwest = { version = "0.11.27", features = ["json", "native-tls","__rustls", "gzip", "multipart"] }
 ring = "0.17.8"
 roxmltree = "0.19.0"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
@@ -87,7 +87,7 @@ sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "runtime-to
 strum = { version = "0.26", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.58"
-time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.11.0"
 url = { version = "2.5.0", features = ["serde"] }
@@ -127,6 +127,8 @@ iso_currency = "0.4.4"
 actix-http = "3.6.0"
 events = { version = "0.1.0", path = "../events" }
 totp-rs = { version = "5.5.1", features = ["gen_secret", "otpauth"]}
+serde_repr = "0.1.19"
+unidecode = "0.3.0"
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }

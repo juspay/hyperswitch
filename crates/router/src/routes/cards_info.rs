@@ -41,7 +41,7 @@ pub async fn card_iin_info(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         Flow::CardsInfo,
         state,
         &req,
@@ -49,6 +49,6 @@ pub async fn card_iin_info(
         |state, auth, req, _| cards_info::retrieve_card_info(state, auth.merchant_account, req),
         &*auth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

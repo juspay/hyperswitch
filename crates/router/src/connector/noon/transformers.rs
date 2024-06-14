@@ -308,7 +308,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         | domain::WalletData::WeChatPayRedirect(_)
                         | domain::WalletData::WeChatPayQr(_)
                         | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_) => {
+                        | domain::WalletData::SwishQr(_)
+                        | domain::WalletData::Mifinity(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                             ))
@@ -322,6 +323,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::MandatePayment {}
                     | domain::PaymentMethodData::Reward {}
+                    | domain::PaymentMethodData::RealTimePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)

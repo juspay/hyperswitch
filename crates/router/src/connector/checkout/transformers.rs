@@ -112,12 +112,11 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("checkout"),
-                    )
-                    .into())
-                }
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )
+                .into()),
             },
             domain::PaymentMethodData::Card(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -127,6 +126,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -349,11 +349,10 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("checkout"),
-                    ))
-                }
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )),
             },
 
             domain::PaymentMethodData::PayLater(_)
@@ -363,6 +362,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -383,7 +383,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 eci: authentication_data.and_then(|auth| auth.eci.clone()),
                 cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.map(|auth| auth.message_version.clone()),
+                version: authentication_data.map(|auth| auth.message_version.to_string()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,

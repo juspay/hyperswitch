@@ -26,5 +26,9 @@ pub static ANALYSIS_GRAPH: Lazy<hyperswitch_constraint_graph::ConstraintGraph<'_
             // Payment Method should be `GiftCard` for a GiftCardType to
             // be present
             PaymentMethod(GiftCard) ->> GiftCardType(any);
+
+            // Payment Method should be `RealTimePayment` for a RealTimePaymentType to
+            // be present
+            PaymentMethod(RealTimePayment) ->> RealTimePaymentType(any);
         }
     });

@@ -25,6 +25,7 @@ use crate::{connector, services, types, types::storage};
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
     pub acquirer_merchant_mid: String,
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
@@ -119,7 +120,7 @@ pub trait ExternalAuthentication:
 {
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AuthenticationConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: enums::AuthenticationConnectors,

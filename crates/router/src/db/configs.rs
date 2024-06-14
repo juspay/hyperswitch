@@ -2,14 +2,14 @@ use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use storage_impl::redis::{
-    cache::{CacheKind, CONFIG_CACHE},
+    cache::{self, CacheKind, CONFIG_CACHE},
     kv_store::RedisConnInterface,
     pub_sub::PubSubInterface,
 };
 
-use super::{cache, MockDb, Store};
+use super::{MockDb, Store};
 use crate::{
-    connection, consts,
+    connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -72,7 +72,7 @@ impl ConfigInterface for Store {
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .publish(
-                consts::PUB_SUB_CHANNEL,
+                cache::PUB_SUB_CHANNEL,
                 CacheKind::Config((&inserted.key).into()),
             )
             .await
@@ -179,7 +179,7 @@ impl ConfigInterface for Store {
 
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
+            .publish(cache::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
             .await
             .map_err(Into::<errors::StorageError>::into)?;
 

@@ -32,7 +32,7 @@ use crate::{
         },
         ResponseId,
     },
-    AppState,
+    SessionState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -67,7 +67,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: PaymentToFrmData,
         frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>> {
@@ -139,7 +139,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         _req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
@@ -178,7 +178,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
 
     async fn pre_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,

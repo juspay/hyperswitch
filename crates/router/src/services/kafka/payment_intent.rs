@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use time::OffsetDateTime;
@@ -11,7 +11,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<&'a String>,
+    pub customer_id: Option<&'a id_type::CustomerId>,
     pub description: Option<&'a String>,
     pub return_url: Option<&'a String>,
     pub connector_id: Option<&'a String>,

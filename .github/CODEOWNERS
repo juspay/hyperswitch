@@ -18,7 +18,7 @@ crates/router/src/services/ @juspay/hyperswitch-framework
 crates/router/src/db/ @juspay/hyperswitch-framework
 crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
-openapi/ @juspay/hyperswitch-framework
+api-reference/ @juspay/hyperswitch-framework
 postman/ @juspay/hyperswitch-framework
 cypress-tests/ @juspay/hyperswitch-framework @juspay/hyperswitch-qa
 Cargo.toml @juspay/hyperswitch-framework

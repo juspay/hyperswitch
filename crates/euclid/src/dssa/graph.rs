@@ -68,6 +68,7 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::BusinessLabel(bl) => bl.value.to_string(),
             Self::SetupFutureUsage(sfu) => sfu.to_string(),
             Self::CardRedirectType(crt) => crt.to_string(),
+            Self::RealTimePaymentType(rtpt) => rtpt.to_string(),
         }
     }
 }

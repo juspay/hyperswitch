@@ -101,3 +101,22 @@ macro_rules! histogram_metric_i64 {
         > = once_cell::sync::Lazy::new(|| $meter.i64_histogram($description).init());
     };
 }
+
+/// Create a [`ObservableGauge`][ObservableGauge] metric with the specified name and an optional description,
+/// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
+///
+/// [ObservableGauge]: opentelemetry::metrics::ObservableGauge
+/// [Meter]: opentelemetry::metrics::Meter
+#[macro_export]
+macro_rules! gauge_metric {
+    ($name:ident, $meter:ident) => {
+        pub(crate) static $name: once_cell::sync::Lazy<
+            $crate::opentelemetry::metrics::ObservableGauge<u64>,
+        > = once_cell::sync::Lazy::new(|| $meter.u64_observable_gauge(stringify!($name)).init());
+    };
+    ($name:ident, $meter:ident, description:literal) => {
+        pub(crate) static $name: once_cell::sync::Lazy<
+            $crate::opentelemetry::metrics::ObservableGauge<u64>,
+        > = once_cell::sync::Lazy::new(|| $meter.u64_observable_gauge($description).init());
+    };
+}

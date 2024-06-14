@@ -7,7 +7,7 @@ use crate::{
         errors::{self, RouterResult},
         payments,
     },
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{self, api as api_types, domain, storage::enums},
 };
@@ -17,11 +17,11 @@ use crate::{
 /// There was an error, cannot proceed further
 #[cfg(feature = "payouts")]
 pub async fn create_access_token<F: Clone + 'static>(
-    state: &AppState,
+    state: &SessionState,
     connector_data: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &mut types::PayoutsRouterData<F>,
-    payout_type: enums::PayoutType,
+    payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<()> {
     let connector_access_token = add_access_token_for_payout(
         state,
@@ -48,11 +48,11 @@ pub async fn create_access_token<F: Clone + 'static>(
 
 #[cfg(feature = "payouts")]
 pub async fn add_access_token_for_payout<F: Clone + 'static>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &types::PayoutsRouterData<F>,
-    payout_type: enums::PayoutType,
+    payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -132,7 +132,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
 
 #[cfg(feature = "payouts")]
 pub async fn refresh_connector_auth(
-    state: &AppState,
+    state: &SessionState,
     connector: &api_types::ConnectorData,
     _merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<

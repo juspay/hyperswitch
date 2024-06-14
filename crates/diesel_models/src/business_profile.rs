@@ -124,6 +124,7 @@ pub enum BusinessProfileUpdate {
         extended_card_info_config: Option<pii::SecretSerdeValue>,
         use_billing_as_payment_method_billing: Option<bool>,
         collect_shipping_details_from_wallet_connector: Option<bool>,
+        is_connector_agnostic_mit_enabled: Option<bool>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
@@ -157,6 +158,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 extended_card_info_config,
                 use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector,
+                is_connector_agnostic_mit_enabled,
             } => Self {
                 profile_name,
                 modified_at,
@@ -178,6 +180,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 extended_card_info_config,
                 use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector,
+                is_connector_agnostic_mit_enabled,
                 ..Default::default()
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {

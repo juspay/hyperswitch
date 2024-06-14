@@ -13,11 +13,11 @@ use masking::Secret;
 
 use crate::{
     core::errors::{UserErrors, UserResult},
-    headers, AppState,
+    headers, SessionState,
 };
 
 pub async fn insert_merchant_scoped_metadata_to_db(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -50,7 +50,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
         })
 }
 pub async fn insert_user_scoped_metadata_to_db(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -84,7 +84,7 @@ pub async fn insert_user_scoped_metadata_to_db(
 }
 
 pub async fn get_merchant_scoped_metadata_from_db(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     org_id: String,
     metadata_keys: Vec<DBEnum>,
@@ -97,7 +97,7 @@ pub async fn get_merchant_scoped_metadata_from_db(
         .attach_printable("DB Error Fetching DashboardMetaData")
 }
 pub async fn get_user_scoped_metadata_from_db(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -121,7 +121,7 @@ pub async fn get_user_scoped_metadata_from_db(
 }
 
 pub async fn update_merchant_scoped_metadata(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,
@@ -149,7 +149,7 @@ pub async fn update_merchant_scoped_metadata(
         .change_context(UserErrors::InternalServerError)
 }
 pub async fn update_user_scoped_metadata(
-    state: &AppState,
+    state: &SessionState,
     user_id: String,
     merchant_id: String,
     org_id: String,

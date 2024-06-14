@@ -112,7 +112,7 @@ pub async fn payments_link_list(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -120,7 +120,7 @@ pub async fn payments_link_list(
         |state, auth, payload, _| list_payment_link(state, auth.merchant_account, payload),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

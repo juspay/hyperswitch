@@ -35,6 +35,7 @@ impl DashboardRequestPayload {
         connector: Connector,
         payment_method_type: PaymentMethodType,
         payment_method: PaymentMethod,
+        payment_experience: Option<api_models::enums::PaymentExperience>,
     ) -> Option<api_models::enums::PaymentExperience> {
         match payment_method {
             PaymentMethod::BankRedirect => None,
@@ -43,6 +44,7 @@ impl DashboardRequestPayload {
                 (Connector::DummyConnector4, _) | (Connector::DummyConnector7, _) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
+                (Connector::Paypal, Paypal) => payment_experience,
                 (Connector::Zen, GooglePay) | (Connector::Zen, ApplePay) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
@@ -61,6 +63,7 @@ impl DashboardRequestPayload {
             },
         }
     }
+
     pub fn transform_payment_method(
         connector: Connector,
         provider: Vec<Provider>,
@@ -81,6 +84,7 @@ impl DashboardRequestPayload {
                     connector,
                     method_type.payment_method_type,
                     payment_method,
+                    method_type.payment_experience,
                 ),
             };
             payment_method_types.push(data)
@@ -123,13 +127,14 @@ impl DashboardRequestPayload {
                         }
                     }
 
-                    PaymentMethod::Wallet
-                    | PaymentMethod::BankRedirect
+                    PaymentMethod::BankRedirect
+                    | PaymentMethod::Wallet
                     | PaymentMethod::PayLater
                     | PaymentMethod::BankTransfer
                     | PaymentMethod::Crypto
                     | PaymentMethod::BankDebit
                     | PaymentMethod::Reward
+                    | PaymentMethod::RealTimePayment
                     | PaymentMethod::Upi
                     | PaymentMethod::Voucher
                     | PaymentMethod::GiftCard
@@ -191,9 +196,15 @@ impl DashboardRequestPayload {
             merchant_name: None,
             acquirer_bin: None,
             acquirer_merchant_id: None,
+            acquirer_country_code: None,
             three_ds_requestor_name: None,
             three_ds_requestor_id: None,
             pull_mechanism_for_external_3ds_enabled: None,
+            paypal_sdk: None,
+            klarna_region: None,
+            source_balance_account: None,
+            brand_id: None,
+            destination_account_number: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -205,6 +216,7 @@ impl DashboardRequestPayload {
         let merchant_id = meta_data.merchant_id.clone();
         let terminal_id = meta_data.terminal_id.clone();
         let endpoint_prefix = meta_data.endpoint_prefix.clone();
+        let paypal_sdk = meta_data.paypal_sdk;
         let apple_pay = meta_data.apple_pay;
         let apple_pay_combined = meta_data.apple_pay_combined;
         let merchant_config_currency = meta_data.merchant_config_currency;
@@ -213,10 +225,15 @@ impl DashboardRequestPayload {
         let merchant_name = meta_data.merchant_name;
         let acquirer_bin = meta_data.acquirer_bin;
         let acquirer_merchant_id = meta_data.acquirer_merchant_id;
+        let acquirer_country_code = meta_data.acquirer_country_code;
         let three_ds_requestor_name = meta_data.three_ds_requestor_name;
         let three_ds_requestor_id = meta_data.three_ds_requestor_id;
         let pull_mechanism_for_external_3ds_enabled =
             meta_data.pull_mechanism_for_external_3ds_enabled;
+        let klarna_region = meta_data.klarna_region;
+        let source_balance_account = meta_data.source_balance_account;
+        let brand_id = meta_data.brand_id;
+        let destination_account_number = meta_data.destination_account_number;
 
         Some(ApiModelMetaData {
             google_pay,
@@ -228,14 +245,20 @@ impl DashboardRequestPayload {
             merchant_config_currency,
             apple_pay_combined,
             endpoint_prefix,
+            paypal_sdk,
             mcc,
             merchant_country_code,
             merchant_name,
             acquirer_bin,
             acquirer_merchant_id,
+            acquirer_country_code,
             three_ds_requestor_name,
             three_ds_requestor_id,
             pull_mechanism_for_external_3ds_enabled,
+            klarna_region,
+            source_balance_account,
+            brand_id,
+            destination_account_number,
         })
     }
 

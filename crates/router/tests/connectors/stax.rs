@@ -51,7 +51,6 @@ fn get_default_payment_info(
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         currency: None,
-        country: None,
     })
 }
 

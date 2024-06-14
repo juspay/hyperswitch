@@ -30,6 +30,9 @@ impl SerializableSecret for u16 {}
 impl SerializableSecret for i8 {}
 impl SerializableSecret for i32 {}
 
+#[cfg(feature = "time")]
+impl SerializableSecret for time::Date {}
+
 impl<'de, T, I> Deserialize<'de> for Secret<T, I>
 where
     T: Clone + de::DeserializeOwned + Sized,

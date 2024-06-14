@@ -27,6 +27,10 @@ pub enum OutgoingWebhookEventContent {
         payment_id: Option<String>,
         content: Value,
     },
+    Payout {
+        payout_id: String,
+        content: Value,
+    },
     Refund {
         payment_id: String,
         refund_id: String,
@@ -72,6 +76,12 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),
                 content: masking::masked_serialize(&mandate_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+            }),
+            #[cfg(feature = "payouts")]
+            Self::PayoutDetails(payout_payload) => Some(OutgoingWebhookEventContent::Payout {
+                payout_id: payout_payload.payout_id.clone(),
+                content: masking::masked_serialize(&payout_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
         }

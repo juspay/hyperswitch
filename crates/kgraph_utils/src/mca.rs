@@ -77,7 +77,6 @@ fn get_dir_value_payment_method(
 
         api_enums::PaymentMethodType::ClassicReward => Ok(dirval!(RewardType = ClassicReward)),
         api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
-        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
         api_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),
         api_enums::PaymentMethodType::GoPay => Ok(dirval!(WalletType = GoPay)),
         api_enums::PaymentMethodType::KakaoPay => Ok(dirval!(WalletType = KakaoPay)),
@@ -92,6 +91,9 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::OnlineBankingThailand => {
             Ok(dirval!(BankRedirectType = OnlineBankingThailand))
+        }
+        api_enums::PaymentMethodType::LocalBankRedirect => {
+            Ok(dirval!(BankRedirectType = LocalBankRedirect))
         }
         api_enums::PaymentMethodType::TouchNGo => Ok(dirval!(WalletType = TouchNGo)),
         api_enums::PaymentMethodType::Atome => Ok(dirval!(PayLaterType = Atome)),
@@ -133,6 +135,13 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Oxxo => Ok(dirval!(VoucherType = Oxxo)),
         api_enums::PaymentMethodType::CardRedirect => Ok(dirval!(CardRedirectType = CardRedirect)),
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
+        api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
+        api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
+        api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
+        api_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
+        api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
+        api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
+        api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
     }
 }
 
@@ -400,6 +409,7 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(BankDebitType));
     global_vector.append(collect_global_variants!(CryptoType));
     global_vector.append(collect_global_variants!(RewardType));
+    global_vector.append(collect_global_variants!(RealTimePaymentType));
     global_vector.append(collect_global_variants!(UpiType));
     global_vector.append(collect_global_variants!(VoucherType));
     global_vector.append(collect_global_variants!(GiftCardType));

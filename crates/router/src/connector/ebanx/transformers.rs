@@ -218,7 +218,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxPayoutResponse>>
                 status: Some(storage_enums::PayoutStatus::from(
                     item.response.payout.status,
                 )),
-                connector_payout_id: item.response.payout.uid,
+                connector_payout_id: Some(item.response.payout.uid),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -240,7 +240,8 @@ impl<F> TryFrom<&EbanxRouterData<&types::PayoutsRouterData<F>>> for EbanxPayoutF
     fn try_from(item: &EbanxRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
                 integration_key: ebanx_auth_type.integration_key,
                 uid: request
@@ -301,7 +302,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxFulfillResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::from(item.response.status)),
-                connector_payout_id: item.data.request.get_transfer_id()?,
+                connector_payout_id: Some(item.data.request.get_transfer_id()?),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),
@@ -330,7 +331,8 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for EbanxPayoutCancelRequest {
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let ebanx_auth_type = EbanxAuthType::try_from(&item.connector_auth_type)?;
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
                 integration_key: ebanx_auth_type.integration_key,
                 uid: request
@@ -391,12 +393,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxCancelResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::from(item.response.status)),
-                connector_payout_id: item
-                    .data
-                    .request
-                    .connector_payout_id
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
             }),

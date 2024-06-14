@@ -1,4 +1,4 @@
-use common_utils::{crypto, date_time, pii};
+use common_utils::{crypto, date_time, id_type, pii};
 use diesel_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -10,7 +10,7 @@ use crate::errors::{CustomResult, ValidationError};
 #[derive(Clone, Debug)]
 pub struct Customer {
     pub id: Option<i32>,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub merchant_id: String,
     pub name: crypto::OptionalEncryptableName,
     pub email: crypto::OptionalEncryptableEmail,

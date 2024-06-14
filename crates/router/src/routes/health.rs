@@ -40,7 +40,9 @@ pub async fn deep_health_check(
     .await
 }
 
-async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHealthCheckResponse> {
+async fn deep_health_check_func(
+    state: app::SessionState,
+) -> RouterResponse<RouterHealthCheckResponse> {
     logger::info!("Deep health check was called");
 
     logger::debug!("Database health check begin");

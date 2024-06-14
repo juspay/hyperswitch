@@ -13,7 +13,7 @@ impl utils::Connector for CryptopayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cryptopay;
         api::ConnectorData {
-            connector: Box::new(&Cryptopay),
+            connector: Box::new(Cryptopay::new()),
             connector_name: types::Connector::Cryptopay,
             get_token: api::GetToken::Connector,
             merchant_connector_id: None,
@@ -71,6 +71,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         currency: enums::Currency::USD,
         payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: Some("XRP".to_string()),
+            network: None,
         }),
         confirm: true,
         statement_descriptor_suffix: None,

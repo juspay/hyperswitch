@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use error_stack::report;
 
@@ -42,7 +43,7 @@ impl Mandate {
     pub async fn find_by_merchant_id_customer_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,

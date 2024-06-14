@@ -52,22 +52,46 @@ impl SchedulerInterface for MockDb {}
 
 #[async_trait::async_trait]
 pub trait SchedulerAppState: Send + Sync + Clone {
+    fn get_tenants(&self) -> Vec<String>;
+}
+#[async_trait::async_trait]
+pub trait SchedulerSessionState: Send + Sync + Clone {
     fn get_db(&self) -> Box<dyn SchedulerInterface>;
 }
-
-pub async fn start_process_tracker<T: SchedulerAppState + 'static>(
+pub async fn start_process_tracker<
+    T: SchedulerAppState + 'static,
+    U: SchedulerSessionState + 'static,
+    F,
+>(
     state: &T,
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
-    runner_from_task: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
-) -> CustomResult<(), errors::ProcessTrackerError> {
+    runner_from_task: impl workflows::ProcessTrackerWorkflows<U> + 'static + Copy + std::fmt::Debug,
+    app_state_to_session_state: F,
+) -> CustomResult<(), errors::ProcessTrackerError>
+where
+    F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
+{
     match scheduler_flow {
         SchedulerFlow::Producer => {
-            producer::start_producer(state, scheduler_settings, channel).await?
+            producer::start_producer(
+                state,
+                scheduler_settings,
+                channel,
+                app_state_to_session_state,
+            )
+            .await?
         }
         SchedulerFlow::Consumer => {
-            consumer::start_consumer(state, scheduler_settings, runner_from_task, channel).await?
+            consumer::start_consumer(
+                state,
+                scheduler_settings,
+                runner_from_task,
+                channel,
+                app_state_to_session_state,
+            )
+            .await?
         }
         SchedulerFlow::Cleaner => {
             error!("This flow has not been implemented yet!");

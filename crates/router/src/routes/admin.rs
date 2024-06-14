@@ -413,7 +413,7 @@ pub async fn payment_connector_delete(
         merchant_connector_id,
     })
     .into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -430,7 +430,7 @@ pub async fn payment_connector_delete(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Merchant Account - Toggle KV

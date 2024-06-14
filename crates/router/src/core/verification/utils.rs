@@ -4,13 +4,13 @@ use error_stack::{Report, ResultExt};
 use crate::{
     core::errors::{self, utils::StorageErrorExt},
     logger,
-    routes::AppState,
+    routes::SessionState,
     types,
     types::storage,
 };
 
 pub async fn check_existence_and_add_domain_to_db(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     merchant_connector_id: String,
     domain_from_req: Vec<String>,
@@ -61,6 +61,7 @@ pub async fn check_existence_and_add_domain_to_db(
         pm_auth_config: None,
         connector_label: None,
         status: None,
+        connector_wallets_details: None,
     };
     state
         .store

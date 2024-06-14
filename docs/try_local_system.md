@@ -13,7 +13,7 @@ Check the Table Of Contents to jump to the relevant section.
 **Table Of Contents:**
 
 - [Run hyperswitch using Docker Compose](#run-hyperswitch-using-docker-compose)
-  - [Run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+  - [Running additional services](#running-additional-services)
 - [Set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
@@ -68,9 +68,16 @@ Check the Table Of Contents to jump to the relevant section.
    If the command returned a `200 OK` status code, proceed with
    [trying out our APIs](#try-out-our-apis).
 
-### Run the scheduler and monitoring services
+### Running additional services
 
-You can run the scheduler and monitoring services by specifying suitable profile
+The default behaviour for docker compose only runs the following services:
+1. postgres
+2. redis (standalone)
+3. hyperswitch server
+4. hyperswitch control center
+5. hyperswitch web sdk
+
+You can run the scheduler, data and monitoring services by specifying suitable profile
 names to the above Docker Compose command.
 To understand more about the hyperswitch architecture and the components
 involved, check out the [architecture document][architecture].
@@ -93,6 +100,13 @@ involved, check out the [architecture document][architecture].
   logs using the "Explore" tab, select Loki as the data source, and select the
   container to query logs from.
 
+- To run the data services (Clickhouse, Kafka and Opensearch) you can specify the `olap` profile
+
+   ```shell
+   docker compose --profile olap up -d
+   ```
+   You can read more about using the data services [here][data-docs]
+
 - You can also specify multiple profile names by specifying the `--profile` flag
   multiple times.
   To run both the scheduler components and monitoring services, the Docker
@@ -109,6 +123,7 @@ Once the services have been confirmed to be up and running, you can proceed with
 [docker-compose-config]: /config/docker_compose.toml
 [docker-compose-yml]: /docker-compose.yml
 [architecture]: /docs/architecture.md
+[data-docs]: /crates/analytics/docs/README.md
 
 ## Set up a development environment using Docker Compose
 

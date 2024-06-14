@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel_models::{address::AddressUpdateInternal, enums::MerchantStorageScheme};
 use error_stack::ResultExt;
 
@@ -66,7 +67,7 @@ where
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         address: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -75,7 +76,7 @@ where
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use common_utils::ext_traits::AsyncExt;
+    use common_utils::{ext_traits::AsyncExt, id_type};
     use error_stack::{report, ResultExt};
     use router_env::{instrument, tracing};
 
@@ -237,7 +238,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -270,7 +271,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::ext_traits::AsyncExt;
+    use common_utils::{ext_traits::AsyncExt, id_type};
     use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
@@ -587,7 +588,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::CustomerId,
             merchant_id: &str,
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -777,7 +778,7 @@ impl AddressInterface for MockDb {
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
-        customer_id: &str,
+        customer_id: &id_type::CustomerId,
         merchant_id: &str,
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
@@ -788,7 +789,7 @@ impl AddressInterface for MockDb {
             .await
             .iter_mut()
             .find(|address| {
-                address.customer_id == Some(customer_id.to_string())
+                address.customer_id.as_ref() == Some(customer_id)
                     && address.merchant_id == merchant_id
             })
             .map(|a| {

@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+pub mod apple_pay_certificates_migration;
 pub mod authentication;
 pub mod blocklist;
 pub mod cache;
