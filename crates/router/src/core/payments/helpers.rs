@@ -3961,12 +3961,13 @@ pub fn get_applepay_metadata(
         })
 }
 
+#[cfg(all(feature = "retry", feature = "connector_choice_mca_id"))]
 pub async fn get_apple_pay_retryable_connectors<F>(
     state: AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
-    decided_connector_data: api::ConnectorData,
+    pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&String>,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
@@ -3981,13 +3982,17 @@ where
             field_name: "profile_id",
         })?;
 
+    let pre_decided_connector_data_first = pre_routing_connector_data_list
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
     let merchant_connector_account_type = get_merchant_connector_account(
         &state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
-        profile_id, // need to fix this
-        &decided_connector_data.connector_name.to_string(),
+        profile_id,
+        &pre_decided_connector_data_first.connector_name.to_string(),
         merchant_connector_id,
     )
     .await?;
@@ -4008,9 +4013,14 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let mut connector_data_list = vec![decided_connector_data.clone()];
+        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
+            merchant_connector_account_list,
+            Some(profile_id.to_string()),
+        );
 
-        for merchant_connector_account in merchant_connector_account_list {
+        let mut connector_data_list = vec![pre_decided_connector_data_first.clone()];
+
+        for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata,
                 Some(&merchant_connector_account.connector_name),
@@ -4031,7 +4041,48 @@ where
                 }
             }
         }
-        Some(connector_data_list)
+
+        let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
+            &*state.clone().store,
+            profile_id,
+            &api_enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get merchant default fallback connectors config")?;
+
+        let mut routing_connector_data_list = Vec::new();
+
+        pre_routing_connector_data_list.iter().for_each(|pre_val| {
+            routing_connector_data_list.push(pre_val.merchant_connector_id.clone())
+        });
+
+        fallback_connetors_list.iter().for_each(|fallback_val| {
+            routing_connector_data_list
+                .iter()
+                .all(|val| *val != fallback_val.merchant_connector_id)
+                .then(|| {
+                    routing_connector_data_list.push(fallback_val.merchant_connector_id.clone())
+                });
+        });
+
+        // connector_data_list is the list of connectors for which Apple Pay simplified flow is configured.
+        // This list is arranged in the same order as the merchant's connectors routingconfiguration.
+
+        let mut ordered_connector_data_list = Vec::new();
+
+        routing_connector_data_list
+            .iter()
+            .for_each(|merchant_connector_id| {
+                let connector_data = connector_data_list.iter().find(|connector_data| {
+                    *merchant_connector_id == connector_data.merchant_connector_id
+                });
+                if let Some(connector_data_details) = connector_data {
+                    ordered_connector_data_list.push(connector_data_details.clone());
+                }
+            });
+
+        Some(ordered_connector_data_list)
     } else {
         None
     };
