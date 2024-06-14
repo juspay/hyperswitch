@@ -24,6 +24,7 @@ mod checkout;
 mod coinbase;
 mod cryptopay;
 mod cybersource;
+mod datatrans;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;

@@ -56,7 +56,7 @@ impl SPTFlow {
             Self::TOTP => Ok(true),
             // Main email APIs
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
-            Self::VerifyEmail => Ok(!user.0.is_verified && !jumps.contains(&TokenPurpose::SSO)),
+            Self::VerifyEmail => Ok(true),
             // Final Checks
             Self::ForceSetPassword => user
                 .is_password_rotate_required(state)
@@ -178,18 +178,16 @@ const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 6] = [
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::SPTFlow(SPTFlow::SSO),
     UserFlow::SPTFlow(SPTFlow::TOTP),
-    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
     UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const RESET_PASSWORD_FLOW: [UserFlow; 3] = [
+const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
-    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::ResetPassword),
 ];
 
