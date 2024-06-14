@@ -3,6 +3,7 @@ pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
 pub mod vault;
+use common_utils::id_type;
 
 pub use api_models::enums::Connector;
 use api_models::payments::CardToken;
@@ -231,4 +232,28 @@ pub async fn retrieve_payment_method_with_token(
         },
     };
     Ok(token)
+}
+
+pub struct PaymentMethodAddServer {
+    pub state: SessionState,
+    pub req: api::PaymentMethodCreate,
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+    pub pm_id: Option<String>,
+    pub cust_id: Option<id_type::CustomerId>,
+}
+pub struct PaymentMethodAddClient {
+    pub state: SessionState,
+    pub req: api::PaymentMethodCreate,
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+    pub pm_id: Option<String>,
+    pub cust_id: Option<id_type::CustomerId>,
+}
+
+pub trait PaymentMethodCreate<T> {
+    async fn perform_preprocessing(&mut self) -> RouterResult<T>;
+    async fn vault_payment_method(&self) -> RouterResult<T>;
+    async fn handle_duplication(&self) -> RouterResult<T>;
+    fn generate_response(&self) -> RouterResult<T>;
 }

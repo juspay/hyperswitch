@@ -33,8 +33,8 @@ pub async fn create_payment_method_api(
             Box::pin(cards::get_client_secret_or_add_payment_method(
                 state,
                 req,
-                &auth.merchant_account,
-                &auth.key_store,
+                auth.merchant_account,
+                auth.key_store,
             ))
             .await
         },
@@ -70,7 +70,8 @@ pub async fn save_payment_method_api(
                 req,
                 auth.merchant_account,
                 auth.key_store,
-                pm_id.clone(),
+                Some(pm_id.clone()),
+                true,
             ))
         },
         &*auth,
