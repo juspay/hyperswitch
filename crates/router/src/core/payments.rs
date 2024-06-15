@@ -3558,6 +3558,24 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
             Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
         }
         _ => {
+            let skip_saving_wallet_at_connector_optional =
+                helpers::config_skip_saving_wallet_at_connector(
+                    &*state.store,
+                    &payment_data.payment_intent.merchant_id,
+                )
+                .await?;
+
+            if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional
+            {
+                if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type
+                {
+                    if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                        payment_data.payment_intent.setup_future_usage =
+                            Some(enums::FutureUsage::OnSession);
+                    }
+                }
+            };
+
             let first_choice = connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
