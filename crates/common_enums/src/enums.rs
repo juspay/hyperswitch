@@ -128,6 +128,7 @@ pub enum RoutableConnectors {
     Coinbase,
     Cryptopay,
     Cybersource,
+    // Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,

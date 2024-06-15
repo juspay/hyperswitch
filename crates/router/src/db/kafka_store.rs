@@ -1821,7 +1821,7 @@ impl ProcessTrackerInterface for KafkaStore {
     async fn finish_process_with_business_status(
         &self,
         this: storage::ProcessTracker,
-        business_status: String,
+        business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
             .finish_process_with_business_status(this, business_status)
