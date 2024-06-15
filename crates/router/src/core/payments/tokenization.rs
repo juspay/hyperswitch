@@ -522,7 +522,7 @@ where
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
                                     &customer_id,
-                                    &merchant_id,
+                                    merchant_id,
                                     None,
                                 )
                                 .await
