@@ -280,33 +280,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
 
-        let mandate_amount = if let Some(mandate_data) = req.request.get_setup_mandate_details() {
-            let mandate = match &mandate_data.mandate_type {
-                Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(mandate))
-                | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                    mandate,
-                ))) => Ok(mandate),
-                Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
-                    Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                    })
-                }
-                None => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "setup_future_usage.mandate_data.mandate_type",
-                }),
-            }?;
+        let mandate_details =
+            connector_utils::get_mandate_details(req.request.get_setup_mandate_details())?;
+        let mandate_amount = mandate_details
+            .map(|mandate| {
+                connector_utils::convert_amount(
+                    self.amount_converter,
+                    mandate.amount,
+                    mandate.currency,
+                )
+            })
+            .transpose()?;
 
-            let amount = connector_utils::convert_amount(
-                self.amount_converter,
-                mandate.amount,
-                mandate.currency,
-            )?;
-            Some(amount)
-        } else {
-            None
-        };
-
-        let connector_req = noon::NoonPaymentsRequest::try_from((req, amount, mandate_amount))?;
+        let connector_router_data = noon::NoonRouterData::from((amount, req, mandate_amount));
+        let connector_req = noon::NoonPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

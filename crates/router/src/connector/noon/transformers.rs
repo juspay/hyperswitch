@@ -18,6 +18,25 @@ const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
 const GOOGLEPAY_API_VERSION: u8 = 2;
 
 #[derive(Debug, Serialize)]
+pub struct NoonRouterData<T> {
+    pub amount: StringMajorUnit,
+    pub router_data: T,
+    pub mandate_amount: Option<StringMajorUnit>,
+}
+
+impl<T> From<(StringMajorUnit, T, Option<StringMajorUnit>)> for NoonRouterData<T> {
+    fn from(
+        (amount, router_data, mandate_amount): (StringMajorUnit, T, Option<StringMajorUnit>),
+    ) -> Self {
+        Self {
+            amount,
+            router_data,
+            mandate_amount,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NoonChannels {
     Web,
@@ -226,24 +245,14 @@ pub struct NoonPaymentsRequest {
     billing: Option<NoonBilling>,
 }
 
-impl
-    TryFrom<(
-        &types::PaymentsAuthorizeRouterData,
-        StringMajorUnit,
-        Option<StringMajorUnit>,
-    )> for NoonPaymentsRequest
-{
+impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: (
-            &types::PaymentsAuthorizeRouterData,
-            StringMajorUnit,
-            Option<StringMajorUnit>,
-        ),
+        data: &NoonRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let item = data.0;
-        let amount = data.1;
-        let mandate_amount = data.2;
+        let item = data.router_data;
+        let amount = &data.amount;
+        let mandate_amount = &data.mandate_amount;
 
         let (payment_data, currency, category) = match item.request.connector_mandate_id() {
             Some(mandate_id) => (
@@ -385,16 +394,16 @@ impl
             .take(50)
             .collect();
 
-        let subscription = mandate_amount.map(|amount| NoonSubscriptionData {
+        let subscription = mandate_amount.as_ref().map(|amount| NoonSubscriptionData {
             subscription_type: NoonSubscriptionType::Unscheduled,
             name: name.clone(),
-            max_amount: amount,
+            max_amount: amount.to_owned(),
         });
 
         let tokenize_c_c = subscription.is_some().then_some(true);
 
         let order = NoonOrder {
-            amount,
+            amount: amount.to_owned(),
             currency,
             channel,
             category,
