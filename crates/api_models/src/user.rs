@@ -282,10 +282,24 @@ pub struct RecoveryCodes {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub enum AuthConfig {
+    OpenIdConnect(OpenIdConnect),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct OpenIdConnect {
+    pub name: String,
+    pub base_url: String,
+    pub client_id: String,
+    pub client_secret: Option<Secret<String>>,
+    pub private_key: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateOrgAuthenticationMethodRequest {
     pub owner_id: String,
     pub auth_method: common_enums::AuthMethod,
-    pub config: Option<serde_json::Value>,
+    pub config: AuthConfig,
     pub allow_signup: bool,
 }
 
@@ -293,8 +307,8 @@ pub struct CreateOrgAuthenticationMethodRequest {
 pub struct UpdateOrgAuthenticationMethodRequest {
     pub owner_id: String,
     pub auth_method: common_enums::AuthMethod,
-    pub config: Option<serde_json::Value>,
-    pub allow_singup: bool,
+    pub config: AuthConfig,
+    pub allow_signup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -311,4 +325,5 @@ pub struct ListOrgAuthenticationMethods {
 pub struct OrgAuthenticationMethodResponse {
     pub owner_id: String,
     pub auth_method: common_enums::AuthMethod,
+    pub allow_signup: bool,
 }

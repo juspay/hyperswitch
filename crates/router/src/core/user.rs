@@ -1972,13 +1972,17 @@ pub async fn create_org_authentication_method(
     state: SessionState,
     req: user_api::CreateOrgAuthenticationMethodRequest,
 ) -> UserResponse<()> {
+    let config = serde_json::to_value(req.config)
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to convert auth config to json")?;
+
     let now = common_utils::date_time::now();
     state
         .store
         .insert_org_authentication_method(OrgAuthenticationMethodNew {
             owner_id: req.owner_id,
             auth_method: req.auth_method,
-            config: req.config,
+            config: Some(config),
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
@@ -1992,12 +1996,15 @@ pub async fn update_org_authentication_method(
     state: SessionState,
     req: user_api::UpdateOrgAuthenticationMethodRequest,
 ) -> UserResponse<()> {
+    let updated_config = serde_json::to_value(req.config)
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to convert auth config to json")?;
     state
         .store
         .update_org_authentication_method(
             &req.owner_id,
             req.auth_method,
-            OrgAuthenticationMethodUpdate::UpdateConfig { config: req.config },
+            OrgAuthenticationMethodUpdate::UpdateConfig { config: Some(updated_config) },
         )
         .await
         .change_context(UserErrors::InvalidOrgAuthMethodOperation)?;
@@ -2014,9 +2021,10 @@ pub async fn list_org_authentication_methods(
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .map(|user| user_api::OrgAuthenticationMethodResponse {
-            owner_id: user.owner_id,
-            auth_method: user.auth_method,
+        .map(|method| user_api::OrgAuthenticationMethodResponse {
+            owner_id: method.owner_id,
+            auth_method: method.auth_method,
+            allow_signup: method.allow_signup,
         })
         .collect();
 
