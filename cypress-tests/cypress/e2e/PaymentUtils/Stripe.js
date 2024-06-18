@@ -35,6 +35,7 @@ const singleUseMandateData = {
     },
   },
 };
+
 const multiUseMandateData = {
   customer_acceptance: {
     acceptance_type: "offline",
