@@ -653,9 +653,10 @@ pub async fn add_payment_method(
                     };
 
                     let updated_card = Some(api::CardDetailFromLocker {
-                        scheme: None,
+                        scheme: existing_pm.scheme.clone(),
                         last4_digits: Some(card.card_number.get_last4()),
-                        issuer_country: None,
+                        issuer_country: card.card_issuing_country,
+                        card_isin: Some(card.card_number.get_card_isin()),
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
                         expiry_year: Some(card.card_exp_year),
@@ -663,10 +664,9 @@ pub async fn add_payment_method(
                         card_fingerprint: None,
                         card_holder_name: card.card_holder_name,
                         nick_name: card.nick_name,
-                        card_network: None,
-                        card_isin: None,
-                        card_issuer: None,
-                        card_type: None,
+                        card_network: card.card_network,
+                        card_issuer: card.card_issuer,
+                        card_type: card.card_type,
                         saved_to_locker: true,
                     });
 
