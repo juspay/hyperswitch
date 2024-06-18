@@ -515,35 +515,79 @@ where
                         }
                     },
                     None => {
-                        let pm_metadata = create_payment_method_metadata(None, connector_token)?;
-
-                        locker_id = resp.payment_method.and_then(|pm| {
-                            if pm == PaymentMethod::Card {
-                                Some(resp.payment_method_id)
-                            } else {
-                                None
+                        let customer_apple_pay_saved_pm_id_option = if payment_method_type
+                            == Some(api_models::enums::PaymentMethodType::ApplePay)
+                        {
+                            match state
+                                .store
+                                .find_payment_method_by_customer_id_merchant_id_list(
+                                    &customer_id,
+                                    merchant_id,
+                                    None,
+                                )
+                                .await
+                            {
+                                Ok(customer_payment_methods) => Ok(customer_payment_methods
+                                    .iter()
+                                    .find(|payment_method| {
+                                        payment_method.payment_method_type
+                                            == Some(api_models::enums::PaymentMethodType::ApplePay)
+                                    })
+                                    .map(|pm| pm.payment_method_id.clone())),
+                                Err(error) => {
+                                    if error.current_context().is_db_not_found() {
+                                        Ok(None)
+                                    } else {
+                                        Err(error)
+                                            .change_context(
+                                                errors::ApiErrorResponse::InternalServerError,
+                                            )
+                                            .attach_printable(
+                                                "failed to find payment methods for a customer",
+                                            )
+                                    }
+                                }
                             }
-                        });
+                        } else {
+                            Ok(None)
+                        }?;
 
-                        resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
-                        payment_methods::cards::create_payment_method(
-                            db,
-                            &payment_method_create_request,
-                            &customer_id,
-                            &resp.payment_method_id,
-                            locker_id,
-                            merchant_id,
-                            pm_metadata,
-                            customer_acceptance,
-                            pm_data_encrypted,
-                            key_store,
-                            connector_mandate_details,
-                            None,
-                            network_transaction_id,
-                            merchant_account.storage_scheme,
-                            encrypted_payment_method_billing_address,
-                        )
-                        .await?;
+                        if let Some(customer_apple_pay_saved_pm_id) =
+                            customer_apple_pay_saved_pm_id_option
+                        {
+                            resp.payment_method_id = customer_apple_pay_saved_pm_id;
+                        } else {
+                            let pm_metadata =
+                                create_payment_method_metadata(None, connector_token)?;
+
+                            locker_id = resp.payment_method.and_then(|pm| {
+                                if pm == PaymentMethod::Card {
+                                    Some(resp.payment_method_id)
+                                } else {
+                                    None
+                                }
+                            });
+
+                            resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+                            payment_methods::cards::create_payment_method(
+                                db,
+                                &payment_method_create_request,
+                                &customer_id,
+                                &resp.payment_method_id,
+                                locker_id,
+                                merchant_id,
+                                pm_metadata,
+                                customer_acceptance,
+                                pm_data_encrypted,
+                                key_store,
+                                connector_mandate_details,
+                                None,
+                                network_transaction_id,
+                                merchant_account.storage_scheme,
+                                encrypted_payment_method_billing_address,
+                            )
+                            .await?;
+                        };
                     }
                 }
 
