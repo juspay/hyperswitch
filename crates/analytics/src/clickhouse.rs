@@ -32,9 +32,13 @@ use crate::{
 
 pub type ClickhouseResult<T> = error_stack::Result<T, ClickhouseError>;
 
+#[derive(Debug, serde::Deserialize)]
+pub struct TenantID(pub String);
+
 #[derive(Clone, Debug)]
 pub struct ClickhouseClient {
     pub config: Arc<ClickhouseConfig>,
+    pub tenant_id: TenantID
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
