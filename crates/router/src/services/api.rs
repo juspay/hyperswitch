@@ -19,7 +19,7 @@ use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY,
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
@@ -783,10 +783,10 @@ where
         .into_iter()
         .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
-        common_utils::consts::DEFAULT_TENANT.to_string()
+        DEFAULT_TENANT.to_string()
     } else {
         incoming_request_header
-            .get("x-tenant-id")
+            .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
             .map(|req_tenant_id| {
