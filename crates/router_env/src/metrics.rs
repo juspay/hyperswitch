@@ -1,7 +1,5 @@
 //! Utilities to easily create opentelemetry contexts, meters and metrics.
 
-pub mod request;
-
 /// Create a metrics [`Context`][Context] with the specified name.
 ///
 /// [Context]: opentelemetry::Context
