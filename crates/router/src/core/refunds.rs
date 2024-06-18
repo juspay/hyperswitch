@@ -9,6 +9,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     types::MinorUnit,
 };
+use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, metrics::request::add_attributes, tracing};
@@ -1022,7 +1023,7 @@ pub async fn sync_refund_with_gateway_workflow(
                 .as_scheduler()
                 .finish_process_with_business_status(
                     refund_tracker.clone(),
-                    "COMPLETED_BY_PT".to_string(),
+                    business_status::COMPLETED_BY_PT,
                 )
                 .await?
         }
@@ -1187,7 +1188,7 @@ pub async fn trigger_refund_execute_workflow(
             db.as_scheduler()
                 .finish_process_with_business_status(
                     refund_tracker.clone(),
-                    "COMPLETED_BY_PT".to_string(),
+                    business_status::COMPLETED_BY_PT,
                 )
                 .await?;
         }

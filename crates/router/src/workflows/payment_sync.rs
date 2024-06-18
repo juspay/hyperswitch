@@ -1,4 +1,5 @@
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
+use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
@@ -89,7 +90,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 state
                     .store
                     .as_scheduler()
-                    .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                    .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                     .await?
             }
             _ => {
@@ -269,7 +270,7 @@ pub async fn retry_sync_task(
         }
         None => {
             db.as_scheduler()
-                .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
                 .await?;
             Ok(true)
         }

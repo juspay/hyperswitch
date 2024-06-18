@@ -381,7 +381,9 @@ pub async fn update_api_key_expiry_task(
         retry_count: Some(0),
         schedule_time,
         tracking_data: Some(updated_api_key_expiry_workflow_model),
-        business_status: Some("Pending".to_string()),
+        business_status: Some(String::from(
+            diesel_models::process_tracker::business_status::PENDING,
+        )),
         status: Some(storage_enums::ProcessTrackerStatus::New),
         updated_at: Some(current_time),
     };
@@ -450,7 +452,7 @@ pub async fn revoke_api_key_expiry_task(
     let task_ids = vec![task_id];
     let updated_process_tracker_data = storage::ProcessTrackerUpdate::StatusUpdate {
         status: storage_enums::ProcessTrackerStatus::Finish,
-        business_status: Some("Revoked".to_string()),
+        business_status: Some(String::from(diesel_models::business_status::REVOKED)),
     };
 
     store
