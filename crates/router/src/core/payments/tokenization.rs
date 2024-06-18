@@ -517,6 +517,8 @@ where
                     None => {
                         let customer_apple_pay_saved_pm_id_option = if payment_method_type
                             == Some(api_models::enums::PaymentMethodType::ApplePay)
+                            || payment_method_type
+                                == Some(api_models::enums::PaymentMethodType::GooglePay)
                         {
                             match state
                                 .store
@@ -532,6 +534,10 @@ where
                                     .find(|payment_method| {
                                         payment_method.payment_method_type
                                             == Some(api_models::enums::PaymentMethodType::ApplePay)
+                                            || payment_method.payment_method_type
+                                                == Some(
+                                                    api_models::enums::PaymentMethodType::GooglePay,
+                                                )
                                     })
                                     .map(|pm| pm.payment_method_id.clone())),
                                 Err(error) => {
