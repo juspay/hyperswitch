@@ -81,33 +81,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 call_connector_action,
                 connector_request,
             )
-            .await;
-
-            let updated_router_data = match resp {
-                Ok(router_data) => router_data,
-                Err(ref err) => match err.current_context() {
-                    crate::core::errors::ConnectorError::IntegrityCheckFailed {
-                        status_code,
-                        reason,
-                        field_names,
-                        connector_transaction_id,
-                    } => {
-                        self.response = Err(types::ErrorResponse {
-                            code: "IE".to_string(),
-                            message: reason.to_owned(),
-                            reason: Some(format!("{reason} Data mismatched for {field_names}")),
-                            status_code: status_code.to_owned(),
-                            attempt_status: None,
-                            connector_transaction_id: connector_transaction_id.to_owned()
-                        });
-                        self
-                    }
-                    _ => resp.to_payment_failed_response()?
-                },
-            };
+            .await.to_payment_failed_response()?;
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-            Ok(updated_router_data)
+            Ok(resp)
         } else {
             Ok(self.clone())
         }

@@ -1020,11 +1020,16 @@ impl
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
 
-                    types::RouterData::try_from(types::ResponseRouterData {
+                    let response_data = types::RouterData::try_from(types::ResponseRouterData {
                         response,
                         data: data.clone(),
                         http_code: res.status_code,
-                    })
+                    });
+
+                    response_data.map(|mut res| {
+                        res.integrity_check = Ok(());
+                        res
+                })
                 }
                 _ => {
                     let response: stripe::PaymentIntentResponse = res
@@ -1032,29 +1037,32 @@ impl
                         .parse_struct("PaymentIntentResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+                    let amount_in_minor_unit =  connector_utils::convert_back_amount_to_minor_units(
+                        self.amount_converter,
+                        response.amount.clone(),
+                        response.currency.clone(),
+                    )?;
+
                     let response_integrity_object = AuthoriseIntegrityObject {
                         amount: response.amount.clone(),
                         currency: response.currency.clone(),
                     };
 
-                    println!("sahkal sahkal");
-
-                    connector_utils::check_integrity(
-                        self.authorise_integrity_check,
-                        data.request.integrity_object.clone(),
-                        response_integrity_object,
-                        res.status_code.clone(),
-                        Some(response.id.clone())
-                    )?;
+                    let integrity_check = self.authorise_integrity_check.check_integrity( data.request.integrity_object.clone(),
+                                                response_integrity_object, Some(response.id));
 
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
 
-                    types::RouterData::try_from(types::ResponseRouterData {
+                    let response_data = types::RouterData::try_from(types::ResponseRouterData {
                         response,
                         data: data.clone(),
                         http_code: res.status_code,
-                    })
+                    });
+                    response_data.map(|mut res| {
+                        res.integrity_check = integrity_check
+                        res
+                })
                 }
             },
             _ => {
@@ -1068,23 +1076,23 @@ impl
                     currency: response.currency.clone(),
                 };
 
-                connector_utils::check_integrity(
-                    self.authorise_integrity_check,
-                    data.request.integrity_object.clone(),
-                    response_integrity_object,
-                    res.status_code.clone(),
-                    Some(response.id.clone())
-                )?;
+                let integrity_check = self.authorise_integrity_check.check_integrity( data.request.integrity_object.clone(),
+                                                response_integrity_object, Some(response.id));
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
+                let response_data = types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
                 })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+                response_data.map(|mut res|{
+                    res.integrity_check = integrity_check;
+                    res
+                })
             }
         }
     }

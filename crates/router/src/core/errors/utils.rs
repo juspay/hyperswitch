@@ -168,18 +168,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 .into()
             }
-            errors::ConnectorError::IntegrityCheckFailed {
-                status_code,
-                reason,
-                field_names,
-                connector_transaction_id
-            } => errors::ApiErrorResponse::IntegrityCheckFailed {
-                status_code: status_code.to_owned(),
-                reason: reason.to_owned(),
-                field_names: field_names.to_owned(),
-                connector_transaction_id: connector_transaction_id.to_owned()
-            }
-            .into(),
             errors::ConnectorError::FailedToObtainIntegrationUrl
             | errors::ConnectorError::RequestEncodingFailed
             | errors::ConnectorError::RequestEncodingFailedWithReason(_)
@@ -280,7 +268,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
-                errors::ConnectorError::IntegrityCheckFailed  {status_code, reason, field_names, connector_transaction_id} => errors::ApiErrorResponse::IntegrityCheckFailed {status_code: status_code.to_owned(), reason: reason.to_owned(), field_names: field_names.to_owned(), connector_transaction_id: connector_transaction_id.to_owned()},
                 errors::ConnectorError::InvalidWalletToken {wallet_name} => errors::ApiErrorResponse::InvalidWalletToken {wallet_name: wallet_name.to_string()},
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
                 errors::ConnectorError::FailedToObtainAuthType =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
@@ -369,17 +356,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         wallet_name: wallet_name.to_string(),
                     }
                 }
-                errors::ConnectorError::IntegrityCheckFailed {
-                    status_code,
-                    reason,
-                    field_names,
-                    connector_transaction_id
-                } => errors::ApiErrorResponse::IntegrityCheckFailed {
-                    status_code: status_code.to_owned(),
-                    reason: reason.to_owned(),
-                    field_names: field_names.to_owned(),
-                    connector_transaction_id: connector_transaction_id.to_owned()
-                },
                 errors::ConnectorError::RequestEncodingFailed
                 | errors::ConnectorError::RequestEncodingFailedWithReason(_)
                 | errors::ConnectorError::ParsingFailed

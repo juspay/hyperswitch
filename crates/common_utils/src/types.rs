@@ -27,7 +27,7 @@ use utoipa::ToSchema;
 
 use crate::{
     consts,
-    errors::{CustomResult, IntegrityCheckError, ParsingError, PercentageError, ValidationError},
+    errors::{CustomResult, ParsingError, PercentageError, IntegrityCheckError},
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
@@ -744,7 +744,8 @@ pub trait ConnectorIntegrity: Send {
         &self,
         req_integrity_object: Self::IntegrityObject,
         res_integrity_object: Self::IntegrityObject,
-    ) -> Result<(), error_stack::Report<IntegrityCheckError>>;
+        connector_transaction_id: Option<String>
+    ) -> Result<(), IntegrityCheckError>;
 }
 
 /// Connector required amount type
@@ -757,7 +758,8 @@ impl ConnectorIntegrity for AuthoriseIntegrity {
         &self,
         req_integrity_object: AuthoriseIntegrityObject,
         res_integrity_object: AuthoriseIntegrityObject,
-    ) -> Result<(), error_stack::Report<IntegrityCheckError>> {
+        connector_transaction_id: Option<String>
+    ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
         if req_integrity_object.amount != res_integrity_object.amount {
@@ -774,9 +776,9 @@ impl ConnectorIntegrity for AuthoriseIntegrity {
         } else {
             let field_names = mismatched_fields.join(", ");
 
-            Err(error_stack::Report::new(
-                IntegrityCheckError::IntegrityCheckFailed { field_names },
-            ))
+            Err(
+                IntegrityCheckError { field_names, connector_transaction_id },
+            )
         }
     }
 }

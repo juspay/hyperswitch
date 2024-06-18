@@ -221,13 +221,6 @@ pub enum ConnectorError {
     InvalidConnectorConfig { config: &'static str },
     #[error("Failed to convert amount to required type")]
     AmountConversionFailed,
-    #[error("{reason} as data mismatched for {field_names}")]
-    IntegrityCheckFailed {
-        status_code: u16,
-        reason: String,
-        field_names: String,
-        connector_transaction_id: Option<String>,
-    },
 }
 
 #[derive(Debug, thiserror::Error)]
