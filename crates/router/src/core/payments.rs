@@ -42,7 +42,7 @@ pub use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 use redis_interface::errors::RedisError;
-use router_env::{instrument, metrics::request::add_attributes, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
-use router_env::metrics::request::add_attributes;
+use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{

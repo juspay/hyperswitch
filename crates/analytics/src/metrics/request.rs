@@ -1,6 +1,6 @@
 use std::time;
 
-use router_env::metrics::request::add_attributes;
+use router_env::metrics::add_attributes;
 
 #[inline]
 pub async fn record_operation_time<F, R, T>(

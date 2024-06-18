@@ -26,9 +26,7 @@ use common_utils::{
 use error_stack::{report, Report, ResultExt};
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
 use masking::{Maskable, PeekInterface};
-use router_env::{
-    instrument, metrics::request::add_attributes, tracing, tracing_actix_web::RequestId, Tag,
-};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Tera};

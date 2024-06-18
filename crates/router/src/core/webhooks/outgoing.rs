@@ -8,7 +8,7 @@ use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
-    metrics::request::add_attributes,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 

@@ -6,7 +6,7 @@ use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
 use ring::hmac;
-use router_env::metrics::request::add_attributes;
+use router_env::metrics::add_attributes;
 use roxmltree;
 use time::OffsetDateTime;
 use transformers as boku;

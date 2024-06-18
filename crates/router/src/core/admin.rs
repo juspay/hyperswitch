@@ -15,7 +15,7 @@ use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
-use router_env::metrics::request::add_attributes;
+use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
 use crate::{

@@ -3,7 +3,7 @@ use common_utils::date_time;
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, metrics::request::add_attributes, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
     configs::settings,

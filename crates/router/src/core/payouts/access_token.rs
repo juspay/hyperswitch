@@ -1,6 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use router_env::metrics::request::add_attributes;
+use router_env::metrics::add_attributes;
 
 use crate::{
     consts,

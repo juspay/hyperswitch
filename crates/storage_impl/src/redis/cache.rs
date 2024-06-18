@@ -6,11 +6,11 @@ use common_utils::{
 };
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
-use moka::{future::Cache as MokaCache, notification::RemovalCause};
+use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
 use router_env::{
-    metrics::request,
+    metrics::add_attributes,
     tracing::{self, instrument},
 };
 
@@ -203,15 +203,15 @@ impl Cache {
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
-            if let RemovalCause::Explicit = cause {
-                metrics::CACHE_MANUAL_INVALIDATION.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &request::add_attributes([("cache_type", name)]),
-                );
-            };
+            metrics::IN_MEMORY_CACHE_EVICTION_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &add_attributes([
+                    ("cache_type", name.to_owned()),
+                    ("removal_cause", format!("{:?}", cause)),
+                ]),
+            );
         };
-
         let mut cache_builder = MokaCache::builder()
             .time_to_live(std::time::Duration::from_secs(time_to_live))
             .time_to_idle(std::time::Duration::from_secs(time_to_idle))
@@ -236,16 +236,16 @@ impl Cache {
 
         // Add cache hit and cache miss metrics
         if val.is_some() {
-            metrics::CACHE_HIT.add(
+            metrics::IN_MEMORY_CACHE_HIT.add(
                 &metrics::CONTEXT,
                 1,
-                &request::add_attributes([("cache_type", self.name)]),
+                &add_attributes([("cache_type", self.name)]),
             );
         } else {
-            metrics::CACHE_MISS.add(
+            metrics::IN_MEMORY_CACHE_MISS.add(
                 &metrics::CONTEXT,
                 1,
-                &request::add_attributes([("cache_type", self.name)]),
+                &add_attributes([("cache_type", self.name)]),
             );
         }
 
@@ -280,10 +280,10 @@ impl Cache {
     pub async fn record_entry_count_metric(&self) {
         self.run_pending_tasks().await;
 
-        metrics::CACHE_ENTRY_COUNT.observe(
+        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.observe(
             &metrics::CONTEXT,
             self.get_entry_count(),
-            &request::add_attributes([("cache_type", self.name)]),
+            &add_attributes([("cache_type", self.name)]),
         );
     }
 }

@@ -7,7 +7,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, metrics::request::add_attributes, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "payouts")]

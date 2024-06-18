@@ -12,7 +12,7 @@ use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
-    metrics::request::add_attributes,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 

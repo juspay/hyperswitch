@@ -1,4 +1,4 @@
-use router_env::{metrics::request::add_attributes, opentelemetry};
+use router_env::{metrics::add_attributes, opentelemetry};
 
 use super::utils as metric_utils;
 use crate::services::ApplicationResponse;

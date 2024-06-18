@@ -29,7 +29,7 @@ use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
-use router_env::metrics::request::add_attributes;
+use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;

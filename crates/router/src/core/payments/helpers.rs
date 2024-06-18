@@ -26,7 +26,7 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
-use router_env::{instrument, logger, metrics::request::add_attributes, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 

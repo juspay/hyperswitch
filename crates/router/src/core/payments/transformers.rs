@@ -11,7 +11,7 @@ use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
-use router_env::{instrument, metrics::request::add_attributes, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{

@@ -1,4 +1,4 @@
-use router_env::{instrument, metrics::request::add_attributes, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
     core::{

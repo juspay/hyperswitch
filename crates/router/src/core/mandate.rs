@@ -5,7 +5,7 @@ use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, ResultExt};
 use futures::future;
-use router_env::{instrument, logger, metrics::request::add_attributes, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 
 use super::payments::helpers as payment_helper;
 use crate::{

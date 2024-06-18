@@ -8,7 +8,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use router_env::{instrument, metrics::request::add_attributes, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
 use crate::{

@@ -11,7 +11,7 @@ use api_models::analytics::{
 use error_stack::ResultExt;
 use router_env::{
     logger,
-    metrics::request::add_attributes,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 

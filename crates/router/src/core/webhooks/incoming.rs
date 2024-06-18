@@ -10,9 +10,7 @@ use api_models::{
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use router_env::{
-    instrument, metrics::request::add_attributes, tracing, tracing_actix_web::RequestId,
-};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
 use crate::{

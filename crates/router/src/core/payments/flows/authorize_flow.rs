@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use router_env::metrics::request::add_attributes;
+use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
