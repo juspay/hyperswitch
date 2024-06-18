@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.31.1-hotfix4
+
+### Features
+
+- **connector:** [CRYPTOPAY] Make payment_method_data.crypto.network as enum ([#5020](https://github.com/juspay/hyperswitch/pull/5020)) ([`e068524`](https://github.com/juspay/hyperswitch/commit/e068524b1bb10bb352ee226826e0c7ed9edb0178))
+
+- - -
+
 ## 2024.05.31.1-hotfix3
 
 ### Features
