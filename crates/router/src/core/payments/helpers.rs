@@ -4793,3 +4793,26 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
 pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
     format!("{merchant_id}_{payment_id}_extended_card_info")
 }
+
+pub async fn config_skip_saving_wallet_at_connector(
+    db: &dyn StorageInterface,
+    merchant_id: &String,
+) -> CustomResult<Option<Vec<storage_enums::PaymentMethodType>>, errors::ApiErrorResponse> {
+    let config = db
+        .find_config_by_key_unwrap_or(
+            format!("skip_saving_wallet_at_connector_{}", merchant_id).as_str(),
+            Some("[]".to_string()),
+        )
+        .await;
+    Ok(match config {
+        Ok(conf) => Some(
+            serde_json::from_str::<Vec<storage_enums::PaymentMethodType>>(&conf.config)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
+        ),
+        Err(err) => {
+            logger::error!("{err}");
+            None
+        }
+    })
+}
