@@ -20,11 +20,11 @@ impl UserFlow {
     async fn is_required(
         &self,
         user: &UserFromStorage,
-        jumps: &[TokenPurpose],
+        path: &[TokenPurpose],
         state: &SessionState,
     ) -> UserResult<bool> {
         match self {
-            Self::SPTFlow(flow) => flow.is_required(user, jumps, state).await,
+            Self::SPTFlow(flow) => flow.is_required(user, path, state).await,
             Self::JWTFlow(flow) => flow.is_required(user, state).await,
         }
     }
@@ -45,7 +45,7 @@ impl SPTFlow {
     async fn is_required(
         &self,
         user: &UserFromStorage,
-        jumps: &[TokenPurpose],
+        path: &[TokenPurpose],
         state: &SessionState,
     ) -> UserResult<bool> {
         match self {
@@ -60,7 +60,7 @@ impl SPTFlow {
             // Final Checks
             Self::ForceSetPassword => user
                 .is_password_rotate_required(state)
-                .map(|rotate_required| rotate_required && !jumps.contains(&TokenPurpose::SSO)),
+                .map(|rotate_required| rotate_required && !path.contains(&TokenPurpose::SSO)),
             Self::MerchantSelect => user
                 .get_roles_from_db(state)
                 .await
@@ -78,6 +78,7 @@ impl SPTFlow {
             self.into(),
             next_flow.origin.clone(),
             &state.conf,
+            next_flow.path.to_vec(),
         )
         .await
         .map(|token| token.into())
@@ -194,7 +195,7 @@ const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
 pub struct CurrentFlow {
     origin: Origin,
     current_flow_index: usize,
-    jumps: Vec<TokenPurpose>,
+    path: Vec<TokenPurpose>,
 }
 
 impl CurrentFlow {
@@ -207,13 +208,13 @@ impl CurrentFlow {
             .iter()
             .position(|flow| flow == &current_flow)
             .ok_or(UserErrors::InternalServerError)?;
-        let mut jumps = token.jumps;
-        jumps.push(current_flow.into());
+        let mut path = token.path;
+        path.push(current_flow.into());
 
         Ok(Self {
             origin: token.origin,
             current_flow_index: index,
-            jumps,
+            path,
         })
     }
 
@@ -222,11 +223,12 @@ impl CurrentFlow {
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
 
         for flow in remaining_flows {
-            if flow.is_required(&user, &self.jumps, state).await? {
+            if flow.is_required(&user, &self.path, state).await? {
                 return Ok(NextFlow {
                     origin: self.origin.clone(),
                     next_flow: *flow,
                     user,
+                    path: self.path,
                 });
             }
         }
@@ -238,6 +240,7 @@ pub struct NextFlow {
     origin: Origin,
     next_flow: UserFlow,
     user: UserFromStorage,
+    path: Vec<TokenPurpose>,
 }
 
 impl NextFlow {
@@ -247,12 +250,14 @@ impl NextFlow {
         state: &SessionState,
     ) -> UserResult<Self> {
         let flows = origin.get_flows();
+        let path = vec![];
         for flow in flows {
-            if flow.is_required(&user, &[], state).await? {
+            if flow.is_required(&user, &path, state).await? {
                 return Ok(Self {
                     origin,
                     next_flow: *flow,
                     user,
+                    path,
                 });
             }
         }
