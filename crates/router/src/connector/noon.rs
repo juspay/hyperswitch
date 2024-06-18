@@ -454,7 +454,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
-        let connector_req = noon::NoonPaymentsActionRequest::try_from((req, amount))?;
+        let connector_router_data = noon::NoonRouterData::from((amount, req, None));
+        let connector_req = noon::NoonPaymentsActionRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -699,7 +700,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let connector_req = noon::NoonPaymentsActionRequest::try_from((req, refund_amount))?;
+        let connector_router_data = noon::NoonRouterData::from((refund_amount, req, None));
+        let connector_req = noon::NoonPaymentsActionRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

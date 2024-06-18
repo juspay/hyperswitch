@@ -52,10 +52,10 @@ pub enum NoonSubscriptionType {
 #[serde(rename_all = "camelCase")]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
-    pub subscription_type: NoonSubscriptionType,
+    subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
-    pub name: String,
-    pub max_amount: StringMajorUnit,
+    name: String,
+    max_amount: StringMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -394,11 +394,13 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
             .take(50)
             .collect();
 
-        let subscription = mandate_amount.as_ref().map(|amount| NoonSubscriptionData {
-            subscription_type: NoonSubscriptionType::Unscheduled,
-            name: name.clone(),
-            max_amount: amount.to_owned(),
-        });
+        let subscription = mandate_amount
+            .as_ref()
+            .map(|mandate_max_amount| NoonSubscriptionData {
+                subscription_type: NoonSubscriptionType::Unscheduled,
+                name: name.clone(),
+                max_amount: mandate_max_amount.to_owned(),
+            });
 
         let tokenize_c_c = subscription.is_some().then_some(true);
 
@@ -625,18 +627,18 @@ pub struct NoonPaymentsActionRequest {
     transaction: NoonActionTransaction,
 }
 
-impl TryFrom<(&types::PaymentsCaptureRouterData, StringMajorUnit)> for NoonPaymentsActionRequest {
+impl TryFrom<&NoonRouterData<&types::PaymentsCaptureRouterData>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: (&types::PaymentsCaptureRouterData, StringMajorUnit),
+        data: &NoonRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let item = data.0;
-        let amount = data.1;
+        let item = data.router_data;
+        let amount = &data.amount;
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
         let transaction = NoonActionTransaction {
-            amount,
+            amount: amount.to_owned(),
             currency: item.request.currency,
             transaction_reference: None,
         };
@@ -687,18 +689,16 @@ impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
     }
 }
 
-impl<F> TryFrom<(&types::RefundsRouterData<F>, StringMajorUnit)> for NoonPaymentsActionRequest {
+impl<F> TryFrom<&NoonRouterData<&types::RefundsRouterData<F>>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        data: (&types::RefundsRouterData<F>, StringMajorUnit),
-    ) -> Result<Self, Self::Error> {
-        let item = data.0;
-        let refund_amount = data.1;
+    fn try_from(data: &NoonRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let item = data.router_data;
+        let refund_amount = &data.amount;
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
         let transaction = NoonActionTransaction {
-            amount: refund_amount,
+            amount: refund_amount.to_owned(),
             currency: item.request.currency,
             transaction_reference: Some(item.request.refund_id.clone()),
         };
