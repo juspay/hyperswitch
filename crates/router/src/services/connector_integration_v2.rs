@@ -11,15 +11,15 @@ use crate::{
     services::CaptureSyncMethod, settings::Connectors, types,
 };
 
-pub type BoxedConnectorIntegrationNew<'a, Flow, ResourceCommonData, Req, Resp> =
+pub type BoxedConnectorIntegrationV2<'a, Flow, ResourceCommonData, Req, Resp> =
     Box<&'a (dyn ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync)>;
 
 pub trait ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp>:
     Send + Sync + 'static
 {
-    fn get_connector_integration_new(
+    fn get_connector_integration_v2(
         &self,
-    ) -> BoxedConnectorIntegrationNew<'_, Flow, ResourceCommonData, Req, Resp>;
+    ) -> BoxedConnectorIntegrationV2<'_, Flow, ResourceCommonData, Req, Resp>;
 }
 
 impl<S, Flow, ResourceCommonData, Req, Resp>
@@ -27,9 +27,9 @@ impl<S, Flow, ResourceCommonData, Req, Resp>
 where
     S: ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync,
 {
-    fn get_connector_integration_new(
+    fn get_connector_integration_v2(
         &self,
-    ) -> BoxedConnectorIntegrationNew<'_, Flow, ResourceCommonData, Req, Resp> {
+    ) -> BoxedConnectorIntegrationV2<'_, Flow, ResourceCommonData, Req, Resp> {
         Box::new(self)
     }
 }
@@ -77,7 +77,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(None)
     }
 
-    fn build_request_new(
+    fn build_request_v2(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         _connectors: &Connectors,
@@ -90,7 +90,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(None)
     }
 
-    fn handle_response_new(
+    fn handle_response_v2(
         &self,
         data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         event_builder: Option<&mut ConnectorEvent>,
@@ -106,7 +106,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(data.clone())
     }
 
-    fn get_error_response_new(
+    fn get_error_response_v2(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,

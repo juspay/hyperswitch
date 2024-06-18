@@ -24,7 +24,7 @@ pub trait RetrieveFileV2:
 }
 
 pub trait FileUploadV2: ConnectorCommon + Sync + UploadFileV2 + RetrieveFileV2 {
-    fn validate_file_upload_new(
+    fn validate_file_upload_v2(
         &self,
         _purpose: FilePurpose,
         _file_size: i32,
