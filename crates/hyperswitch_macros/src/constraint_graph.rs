@@ -747,6 +747,7 @@ struct GraphSpecCtx {
     key_type: KeyType,
     value_type: ValueType,
     imports: Vec<Imports>,
+    #[allow(dead_code)]
     mappers: Vec<Mapper>,
     domain_defs: Vec<DomainDef>,
     rules: Vec<Rule>,
@@ -1132,7 +1133,7 @@ impl CompileCtx {
                 domain_def,
                 format!(
                     "domain with the name '{}' already exists",
-                    domain_def.domain_var.to_string()
+                    domain_def.domain_var
                 ),
             ));
         }

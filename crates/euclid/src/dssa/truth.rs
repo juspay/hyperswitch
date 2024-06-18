@@ -1,8 +1,7 @@
-use euclid_macros::knowledge;
 use hyperswitch_macros::constraint_graph;
 use once_cell::sync::Lazy;
 
-use crate::{dssa::graph::euclid_graph_prelude, frontend::dir};
+use crate::frontend::dir;
 
 pub static ANALYSIS_GRAPH: Lazy<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>> =
     Lazy::new(|| {
