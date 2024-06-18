@@ -264,12 +264,12 @@ impl Cache {
     }
 
     /// Performs any pending maintenance operations needed by the cache.
-    pub async fn run_pending_tasks(&self) {
+    async fn run_pending_tasks(&self) {
         self.inner.run_pending_tasks().await;
     }
 
     /// Returns an approximate number of entries in this cache.
-    pub fn get_entry_count(&self) -> u64 {
+    fn get_entry_count(&self) -> u64 {
         self.inner.entry_count()
     }
 
