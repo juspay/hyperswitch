@@ -1837,12 +1837,6 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
-impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::ParsingError {
-    fn switch(&self) -> errors::ConnectorError {
-        errors::ConnectorError::ParsingFailed
-    }
-}
-
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     consts::BASE64_ENGINE
         .decode(data)

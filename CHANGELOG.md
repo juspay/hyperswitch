@@ -4,6 +4,46 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.17.0
+
+### Features
+
+- **connector:** Added template code for datatrans ([#4890](https://github.com/juspay/hyperswitch/pull/4890)) ([`6582729`](https://github.com/juspay/hyperswitch/commit/658272904897f7cbc4d9a349278712f35a8d3e96))
+
+### Bug Fixes
+
+- **users:** Magic link is not expiring after one usage ([#4971](https://github.com/juspay/hyperswitch/pull/4971)) ([`2852a3b`](https://github.com/juspay/hyperswitch/commit/2852a3ba156e3e2bd89d0a116990134268e7bee8))
+
+### Miscellaneous Tasks
+
+- **process_tracker:** Use `const` instead of `String` for `business_status` ([#4849](https://github.com/juspay/hyperswitch/pull/4849)) ([`40dfad8`](https://github.com/juspay/hyperswitch/commit/40dfad89ac6e70a15321b3711ee4c05c3c2ff201))
+- Introduce RouterDataNew and FlowSpecificData models ([#4961](https://github.com/juspay/hyperswitch/pull/4961)) ([`656fb3e`](https://github.com/juspay/hyperswitch/commit/656fb3e09a159d1cf67b2f494673bc8ded5a7ae8))
+- Address Rust 1.79 clippy lints ([#5003](https://github.com/juspay/hyperswitch/pull/5003)) ([`edf919e`](https://github.com/juspay/hyperswitch/commit/edf919e142736a28588b0f7e40ce724ad0065777))
+
+**Full Changelog:** [`2024.06.14.0...2024.06.17.0`](https://github.com/juspay/hyperswitch/compare/2024.06.14.0...2024.06.17.0)
+
+- - -
+
+## 2024.06.14.0
+
+### Features
+
+- **connectors:** [Iatapay] add payment methods ([#4968](https://github.com/juspay/hyperswitch/pull/4968)) ([`0e059e7`](https://github.com/juspay/hyperswitch/commit/0e059e7d847b0c15ed120c72bb4902ac60e6f955))
+- **payment_methods:** Use Ephemeral auth for pm list and pm delete ([#4996](https://github.com/juspay/hyperswitch/pull/4996)) ([`ad7886a`](https://github.com/juspay/hyperswitch/commit/ad7886a6ff636f99e62601483c907f5c90954eb4))
+- **router:** Include the pre-routing connectors in Apple Pay retries ([#4952](https://github.com/juspay/hyperswitch/pull/4952)) ([`fb83661`](https://github.com/juspay/hyperswitch/commit/fb836618a66f57fca5c78aa1c2a255792ab1dfb4))
+
+### Bug Fixes
+
+- **cypress:** Add `jwt_token` and `cookie` for routing test ([#4953](https://github.com/juspay/hyperswitch/pull/4953)) ([`0a86cdb`](https://github.com/juspay/hyperswitch/commit/0a86cdb5060679e9609c2db6d2f82b8edda1b374))
+
+### Refactors
+
+- **core:** Make country aggregator nodes weak for list payment methods ([#4994](https://github.com/juspay/hyperswitch/pull/4994)) ([`18493bd`](https://github.com/juspay/hyperswitch/commit/18493bd8f03b933b15bc3c40b3501222587fc59f))
+
+**Full Changelog:** [`2024.06.13.0...2024.06.14.0`](https://github.com/juspay/hyperswitch/compare/2024.06.13.0...2024.06.14.0)
+
+- - -
+
 ## 2024.06.13.0
 
 ### Features
