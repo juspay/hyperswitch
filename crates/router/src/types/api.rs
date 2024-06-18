@@ -43,6 +43,7 @@ use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
 };
+pub use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorCommonExt, CurrencyUnit};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -52,17 +53,15 @@ pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
     payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
 };
-use super::ErrorResponse;
 use crate::{
     configs::settings::Connectors,
-    connector, consts,
+    connector,
     core::{
         errors::{self, CustomResult},
         payments::types as payments_types,
     },
-    events::connector_api_logs::ConnectorEvent,
     services::{
-        request, ConnectorIntegration, ConnectorIntegrationV2, ConnectorRedirectResponse,
+        ConnectorIntegration, ConnectorIntegrationV2, ConnectorRedirectResponse,
         ConnectorValidation,
     },
     types::{self, api::enums as api_enums},
@@ -135,71 +134,6 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
-    }
-}
-
-pub enum CurrencyUnit {
-    Base,
-    Minor,
-}
-
-pub trait ConnectorCommon {
-    /// Name of the connector (in lowercase).
-    fn id(&self) -> &'static str;
-
-    /// Connector accepted currency unit as either "Base" or "Minor"
-    fn get_currency_unit(&self) -> CurrencyUnit {
-        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
-    }
-
-    /// HTTP header used for authorization.
-    fn get_auth_header(
-        &self,
-        _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(Vec::new())
-    }
-
-    /// HTTP `Content-Type` to be used for POST requests.
-    /// Defaults to `application/json`.
-    fn common_get_content_type(&self) -> &'static str {
-        "application/json"
-    }
-
-    // FIXME write doc - think about this
-    // fn headers(&self) -> Vec<(&str, &str)>;
-
-    /// The base URL for interacting with the connector's API.
-    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
-
-    /// common error response for a connector if it is same in all case
-    fn build_error_response(
-        &self,
-        res: types::Response,
-        _event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: consts::NO_ERROR_MESSAGE.to_string(),
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
-}
-
-/// Extended trait for connector common to allow functions with generic type
-pub trait ConnectorCommonExt<Flow, Req, Resp>:
-    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
-{
-    /// common header builder when every request for the connector have same headers
-    fn build_headers(
-        &self,
-        _req: &types::RouterData<Flow, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(Vec::new())
     }
 }
 

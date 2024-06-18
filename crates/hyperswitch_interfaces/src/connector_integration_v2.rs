@@ -7,16 +7,19 @@ use masking::Maskable;
 use serde_json::json;
 
 use crate::{
-    errors, events::connector_api_logs::ConnectorEvent, routes::metrics,
-    services::CaptureSyncMethod, settings::Connectors, types,
+    api::CaptureSyncMethod, configs::Connectors, errors,
+    events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
+/// alias for Box of a type that implements trait ConnectorIntegrationV2
 pub type BoxedConnectorIntegrationV2<'a, Flow, ResourceCommonData, Req, Resp> =
     Box<&'a (dyn ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync)>;
 
+/// trait with a function that returns BoxedConnectorIntegrationV2
 pub trait ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp>:
     Send + Sync + 'static
 {
+    /// function what returns BoxedConnectorIntegrationV2
     fn get_connector_integration_v2(
         &self,
     ) -> BoxedConnectorIntegrationV2<'_, Flow, ResourceCommonData, Req, Resp>;
@@ -34,9 +37,11 @@ where
     }
 }
 
+/// The new connector integration trait with an additional ResourceCommonData generic paramenter
 pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
-    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + types::api::ConnectorCommon
+    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + super::api::ConnectorCommon
 {
+    /// returns a vec of tuple of header key and value
     fn get_headers(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -45,6 +50,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(vec![])
     }
 
+    /// returnes content type
     fn get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
@@ -54,6 +60,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Method::Post
     }
 
+    /// retuns url
     fn get_url(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -62,6 +69,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(String::new())
     }
 
+    /// retuns request body
     fn get_request_body(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -70,6 +78,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
     }
 
+    /// returns form data
     fn get_request_form_data(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -77,6 +86,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(None)
     }
 
+    /// builds the request and returns it
     fn build_request_v2(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -85,11 +95,12 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         metrics::UNIMPLEMENTED_FLOW.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes("connector", self.id())],
+            &[metrics::add_attributes("connector", self.id())],
         );
         Ok(None)
     }
 
+    /// accepts the raw api response and decodes it
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -106,6 +117,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(data.clone())
     }
 
+    /// accepts the raw api error response and decodes it
     fn get_error_response_v2(
         &self,
         res: types::Response,
@@ -115,6 +127,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(ErrorResponse::get_not_implemented())
     }
 
+    /// accepts the raw 5xx error response and decodes it
     fn get_5xx_error_response(
         &self,
         res: types::Response,
@@ -146,12 +159,14 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     }
 
     // whenever capture sync is implemented at the connector side, this method should be overridden
+    /// retunes the capture sync method
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
     }
 
+    /// returns certificate string
     fn get_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -159,6 +174,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(None)
     }
 
+    /// returns private key string
     fn get_certificate_key(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
