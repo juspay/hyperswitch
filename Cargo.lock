@@ -3695,11 +3695,22 @@ name = "hyperswitch_interfaces"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bytes 1.6.0",
  "common_utils",
  "dyn-clone",
+ "http 0.2.12",
+ "hyperswitch_domain_models",
  "masking",
+ "mime",
+ "once_cell",
+ "reqwest",
+ "router_derive",
+ "router_env",
  "serde",
+ "serde_json",
+ "storage_impl",
  "thiserror",
+ "time",
 ]
 
 [[package]]
