@@ -72,7 +72,7 @@ sinks:
     auth:
       strategy: basic
       user: admin
-      password: admin
+      password: 0penS3arc#
     encoding:
       except_fields:
         - message_key
@@ -91,7 +91,7 @@ sinks:
     endpoint: http://loki:3100
     labels:
       source: vector
-      topic: '{{ .topiac }}'
+      topic: '{{ .topic }}'
       job: kafka
     encoding:
       codec: json
