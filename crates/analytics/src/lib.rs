@@ -471,7 +471,7 @@ impl AnalyticsProvider {
                                 );
                                 match (&sqlx_result, &ckh_result) {
                                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics metrics")
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres frm analytics metrics")
                                     }
                                     _ => {}
                                 };
@@ -498,7 +498,7 @@ impl AnalyticsProvider {
                                 );
                                 match (&sqlx_result, &ckh_result) {
                                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics metrics")
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres frm analytics metrics")
                                     }
                                     _ => {}
                                 };
