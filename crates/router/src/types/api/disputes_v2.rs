@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::{
-    router_data_new::DisputesFlowData,
+    router_data_v2::DisputesFlowData,
     router_flow_types::dispute::{Accept, Defend, Evidence},
 };
 

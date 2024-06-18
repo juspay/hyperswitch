@@ -21,7 +21,7 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     PreProcessing, Reject, Session, SetupMandate, Void,
 };
 
-pub use super::payments_new::*;
+pub use super::payments_v2::*;
 use crate::{
     core::errors,
     services::api,

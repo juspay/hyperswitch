@@ -3,7 +3,7 @@ pub use api_models::refunds::{
     RefundsRetrieveRequest,
 };
 pub use hyperswitch_domain_models::{
-    router_data_new::flow_common_types::RefundFlowData,
+    router_data_v2::flow_common_types::RefundFlowData,
     router_flow_types::refunds::{Execute, RSync},
 };
 

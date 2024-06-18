@@ -2,7 +2,7 @@ use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
 };
-use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_new::RouterDataV2};
+use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_v2::RouterDataV2};
 use masking::Maskable;
 use serde_json::json;
 
@@ -14,7 +14,7 @@ use crate::{
 pub type BoxedConnectorIntegrationNew<'a, Flow, ResourceCommonData, Req, Resp> =
     Box<&'a (dyn ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync)>;
 
-pub trait ConnectorIntegrationAnyNew<Flow, ResourceCommonData, Req, Resp>:
+pub trait ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp>:
     Send + Sync + 'static
 {
     fn get_connector_integration_new(
@@ -23,7 +23,7 @@ pub trait ConnectorIntegrationAnyNew<Flow, ResourceCommonData, Req, Resp>:
 }
 
 impl<S, Flow, ResourceCommonData, Req, Resp>
-    ConnectorIntegrationAnyNew<Flow, ResourceCommonData, Req, Resp> for S
+    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> for S
 where
     S: ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync,
 {
@@ -35,7 +35,7 @@ where
 }
 
 pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
-    ConnectorIntegrationAnyNew<Flow, ResourceCommonData, Req, Resp> + Sync + types::api::ConnectorCommon
+    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + types::api::ConnectorCommon
 {
     fn get_headers(
         &self,

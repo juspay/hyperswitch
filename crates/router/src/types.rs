@@ -29,7 +29,7 @@ pub use hyperswitch_domain_models::{
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
-    router_data_new::{
+    router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
         FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
         WebhookSourceVerifyData,
@@ -55,7 +55,7 @@ pub use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::{
-    router_data_new::PayoutFlowData, router_request_types::PayoutsData,
+    router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
 

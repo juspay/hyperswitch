@@ -26,20 +26,20 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
-pub mod authentication_new;
-pub mod disputes_new;
-pub mod files_new;
+pub mod authentication_v2;
+pub mod disputes_v2;
+pub mod files_v2;
 #[cfg(feature = "frm")]
-pub mod fraud_check_new;
-pub mod payments_new;
+pub mod fraud_check_v2;
+pub mod payments_v2;
 #[cfg(feature = "payouts")]
-pub mod payouts_new;
-pub mod refunds_new;
+pub mod payouts_v2;
+pub mod refunds_v2;
 
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data_new::AccessTokenFlowData;
+use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
 };

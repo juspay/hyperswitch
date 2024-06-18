@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::{
-    router_data_new::PaymentFlowData,
+    router_data_v2::PaymentFlowData,
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,

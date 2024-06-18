@@ -10,13 +10,13 @@ pub mod pm_auth;
 #[cfg(feature = "recon")]
 pub mod recon;
 
-pub mod connector_integration_new;
+pub mod connector_integration_v2;
 #[cfg(feature = "email")]
 pub mod email;
 
 use std::sync::Arc;
 
-pub use connector_integration_new::*;
+pub use connector_integration_v2::*;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::StorageResult;
 use masking::{ExposeInterface, StrongSecret};
