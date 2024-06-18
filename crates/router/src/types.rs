@@ -23,7 +23,7 @@ pub use api_models::{enums::Connector, mandates};
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
 #[cfg(feature = "frm")]
-pub use hyperswitch_domain_models::router_data_new::FrmFlowData;
+pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
@@ -31,9 +31,9 @@ pub use hyperswitch_domain_models::{
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
-    router_data_new::{
+    router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataNew,
+        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
         WebhookSourceVerifyData,
     },
     router_request_types::{
@@ -57,7 +57,7 @@ pub use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::{
-    router_data_new::PayoutFlowData, router_request_types::PayoutsData,
+    router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
 

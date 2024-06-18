@@ -2,7 +2,7 @@ use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
 };
-use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_new::RouterDataNew};
+use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_v2::RouterDataV2};
 use masking::Maskable;
 use serde_json::json;
 
@@ -11,35 +11,35 @@ use crate::{
     services::CaptureSyncMethod, settings::Connectors, types,
 };
 
-pub type BoxedConnectorIntegrationNew<'a, Flow, ResourceCommonData, Req, Resp> =
-    Box<&'a (dyn ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp> + Send + Sync)>;
+pub type BoxedConnectorIntegrationV2<'a, Flow, ResourceCommonData, Req, Resp> =
+    Box<&'a (dyn ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync)>;
 
-pub trait ConnectorIntegrationAnyNew<Flow, ResourceCommonData, Req, Resp>:
+pub trait ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp>:
     Send + Sync + 'static
 {
-    fn get_connector_integration_new(
+    fn get_connector_integration_v2(
         &self,
-    ) -> BoxedConnectorIntegrationNew<'_, Flow, ResourceCommonData, Req, Resp>;
+    ) -> BoxedConnectorIntegrationV2<'_, Flow, ResourceCommonData, Req, Resp>;
 }
 
 impl<S, Flow, ResourceCommonData, Req, Resp>
-    ConnectorIntegrationAnyNew<Flow, ResourceCommonData, Req, Resp> for S
+    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> for S
 where
-    S: ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp> + Send + Sync,
+    S: ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync,
 {
-    fn get_connector_integration_new(
+    fn get_connector_integration_v2(
         &self,
-    ) -> BoxedConnectorIntegrationNew<'_, Flow, ResourceCommonData, Req, Resp> {
+    ) -> BoxedConnectorIntegrationV2<'_, Flow, ResourceCommonData, Req, Resp> {
         Box::new(self)
     }
 }
 
-pub trait ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp>:
-    ConnectorIntegrationAnyNew<Flow, ResourceCommonData, Req, Resp> + Sync + types::api::ConnectorCommon
+pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
+    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + types::api::ConnectorCommon
 {
     fn get_headers(
         &self,
-        _req: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
@@ -56,7 +56,7 @@ pub trait ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp>:
 
     fn get_url(
         &self,
-        _req: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(String::new())
@@ -64,7 +64,7 @@ pub trait ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp>:
 
     fn get_request_body(
         &self,
-        _req: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
@@ -72,14 +72,14 @@ pub trait ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp>:
 
     fn get_request_form_data(
         &self,
-        _req: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
         Ok(None)
     }
 
-    fn build_request_new(
+    fn build_request_v2(
         &self,
-        _req: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         metrics::UNIMPLEMENTED_FLOW.add(
@@ -90,12 +90,12 @@ pub trait ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp>:
         Ok(None)
     }
 
-    fn handle_response_new(
+    fn handle_response_v2(
         &self,
-        data: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
-    ) -> CustomResult<RouterDataNew<Flow, ResourceCommonData, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<Flow, ResourceCommonData, Req, Resp>, errors::ConnectorError>
     where
         Flow: Clone,
         ResourceCommonData: Clone,
@@ -106,7 +106,7 @@ pub trait ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp>:
         Ok(data.clone())
     }
 
-    fn get_error_response_new(
+    fn get_error_response_v2(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -154,14 +154,14 @@ pub trait ConnectorIntegrationNew<Flow, ResourceCommonData, Req, Resp>:
 
     fn get_certificate(
         &self,
-        _req: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
     fn get_certificate_key(
         &self,
-        _req: &RouterDataNew<Flow, ResourceCommonData, Req, Resp>,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }

@@ -13,8 +13,8 @@ use crate::{
     types::{self, api as api_types},
 };
 
-pub trait PayoutCancelNew:
-    api::ConnectorIntegrationNew<
+pub trait PayoutCancelV2:
+    api::ConnectorIntegrationV2<
     PoCancel,
     types::PayoutFlowData,
     types::PayoutsData,
@@ -23,8 +23,8 @@ pub trait PayoutCancelNew:
 {
 }
 
-pub trait PayoutCreateNew:
-    api::ConnectorIntegrationNew<
+pub trait PayoutCreateV2:
+    api::ConnectorIntegrationV2<
     PoCreate,
     types::PayoutFlowData,
     types::PayoutsData,
@@ -33,8 +33,8 @@ pub trait PayoutCreateNew:
 {
 }
 
-pub trait PayoutEligibilityNew:
-    api::ConnectorIntegrationNew<
+pub trait PayoutEligibilityV2:
+    api::ConnectorIntegrationV2<
     PoEligibility,
     types::PayoutFlowData,
     types::PayoutsData,
@@ -43,8 +43,8 @@ pub trait PayoutEligibilityNew:
 {
 }
 
-pub trait PayoutFulfillNew:
-    api::ConnectorIntegrationNew<
+pub trait PayoutFulfillV2:
+    api::ConnectorIntegrationV2<
     PoFulfill,
     types::PayoutFlowData,
     types::PayoutsData,
@@ -53,8 +53,8 @@ pub trait PayoutFulfillNew:
 {
 }
 
-pub trait PayoutQuoteNew:
-    api::ConnectorIntegrationNew<
+pub trait PayoutQuoteV2:
+    api::ConnectorIntegrationV2<
     PoQuote,
     types::PayoutFlowData,
     types::PayoutsData,
@@ -63,8 +63,8 @@ pub trait PayoutQuoteNew:
 {
 }
 
-pub trait PayoutRecipientNew:
-    api::ConnectorIntegrationNew<
+pub trait PayoutRecipientV2:
+    api::ConnectorIntegrationV2<
     PoRecipient,
     types::PayoutFlowData,
     types::PayoutsData,
@@ -73,8 +73,8 @@ pub trait PayoutRecipientNew:
 {
 }
 
-pub trait PayoutRecipientAccountNew:
-    api::ConnectorIntegrationNew<
+pub trait PayoutRecipientAccountV2:
+    api::ConnectorIntegrationV2<
     PoRecipientAccount,
     types::PayoutFlowData,
     types::PayoutsData,
@@ -83,14 +83,14 @@ pub trait PayoutRecipientAccountNew:
 {
 }
 
-pub trait PayoutsNew:
+pub trait PayoutsV2:
     api_types::ConnectorCommon
-    + PayoutCancelNew
-    + PayoutCreateNew
-    + PayoutEligibilityNew
-    + PayoutFulfillNew
-    + PayoutQuoteNew
-    + PayoutRecipientNew
-    + PayoutRecipientAccountNew
+    + PayoutCancelV2
+    + PayoutCreateV2
+    + PayoutEligibilityV2
+    + PayoutFulfillV2
+    + PayoutQuoteV2
+    + PayoutRecipientV2
+    + PayoutRecipientAccountV2
 {
 }

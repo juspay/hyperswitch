@@ -10,38 +10,38 @@ mod dummy_connector_default_impl {
     #[cfg(feature = "frm")]
     use super::frm_types;
     use super::{api, connector, services, types};
-    impl<const T: u8> api::PaymentNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentAuthorizeNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentAuthorizeV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentAuthorizeSessionTokenNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentAuthorizeSessionTokenV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentSyncNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentSyncV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentVoidNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentVoidV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentApproveNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentApproveV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentRejectNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentRejectV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentCaptureNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentCaptureV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentSessionNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentSessionV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::MandateSetupNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::MandateSetupV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentIncrementalAuthorizationNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentIncrementalAuthorizationV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentsCompleteAuthorizeNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentsCompleteAuthorizeV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentTokenNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentTokenV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::ConnectorCustomerNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorCustomerV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentsPreProcessingNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PaymentsPreProcessingV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Authorize,
             types::PaymentFlowData,
             types::PaymentsAuthorizeData,
@@ -51,7 +51,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PSync,
             types::PaymentFlowData,
             types::PaymentsSyncData,
@@ -61,7 +61,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Void,
             types::PaymentFlowData,
             types::PaymentsCancelData,
@@ -71,7 +71,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Approve,
             types::PaymentFlowData,
             types::PaymentsApproveData,
@@ -81,7 +81,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Reject,
             types::PaymentFlowData,
             types::PaymentsRejectData,
@@ -91,7 +91,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Capture,
             types::PaymentFlowData,
             types::PaymentsCaptureData,
@@ -101,7 +101,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Session,
             types::PaymentFlowData,
             types::PaymentsSessionData,
@@ -111,7 +111,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::SetupMandate,
             types::PaymentFlowData,
             types::SetupMandateRequestData,
@@ -121,7 +121,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::IncrementalAuthorization,
             types::PaymentFlowData,
             types::PaymentsIncrementalAuthorizationData,
@@ -131,7 +131,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::CompleteAuthorize,
             types::PaymentFlowData,
             types::CompleteAuthorizeData,
@@ -141,7 +141,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PaymentMethodToken,
             types::PaymentFlowData,
             types::PaymentMethodTokenizationData,
@@ -151,7 +151,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::CreateConnectorCustomer,
             types::PaymentFlowData,
             types::ConnectorCustomerData,
@@ -161,7 +161,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PreProcessing,
             types::PaymentFlowData,
             types::PaymentsPreProcessingData,
@@ -171,7 +171,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::AuthorizeSessionToken,
             types::PaymentFlowData,
             types::AuthorizeSessionTokenData,
@@ -179,12 +179,12 @@ mod dummy_connector_default_impl {
         > for connector::DummyConnector<T>
     {
     }
-    impl<const T: u8> api::RefundNew for connector::DummyConnector<T> {}
-    impl<const T: u8> api::RefundExecuteNew for connector::DummyConnector<T> {}
-    impl<const T: u8> api::RefundSyncNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::RefundV2 for connector::DummyConnector<T> {}
+    impl<const T: u8> api::RefundExecuteV2 for connector::DummyConnector<T> {}
+    impl<const T: u8> api::RefundSyncV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Execute,
             types::RefundFlowData,
             types::RefundsData,
@@ -194,7 +194,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::RSync,
             types::RefundFlowData,
             types::RefundsData,
@@ -202,9 +202,9 @@ mod dummy_connector_default_impl {
         > for connector::DummyConnector<T>
     {
     }
-    impl<const T: u8> api::ConnectorAccessTokenNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorAccessTokenV2 for connector::DummyConnector<T> {}
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::AccessTokenAuth,
             types::AccessTokenFlowData,
             types::AccessTokenRequestData,
@@ -213,12 +213,12 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::DisputeNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::DisputeV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::AcceptDisputeNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::AcceptDisputeV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Accept,
             types::DisputesFlowData,
             types::AcceptDisputeRequestData,
@@ -227,10 +227,10 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::DefendDisputeNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::DefendDisputeV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Defend,
             types::DisputesFlowData,
             types::DefendDisputeRequestData,
@@ -239,10 +239,10 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::SubmitEvidenceNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::SubmitEvidenceV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Evidence,
             types::DisputesFlowData,
             types::SubmitEvidenceRequestData,
@@ -251,12 +251,12 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::FileUploadNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::FileUploadV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::UploadFileNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::UploadFileV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Upload,
             types::FilesFlowData,
             types::UploadFileRequestData,
@@ -265,10 +265,10 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::RetrieveFileNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::RetrieveFileV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Retrieve,
             types::FilesFlowData,
             types::RetrieveFileRequestData,
@@ -277,15 +277,14 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::PayoutsNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PayoutsV2 for connector::DummyConnector<T> {}
 
     #[cfg(feature = "payouts")]
+    impl<const T: u8> api::PayoutCreateV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PayoutCreateNew for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
-
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PoCreate,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -295,12 +294,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "payouts")]
-
-    impl<const T: u8> api::PayoutEligibilityNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PayoutEligibilityV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
-
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PoEligibility,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -310,12 +307,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "payouts")]
-
-    impl<const T: u8> api::PayoutFulfillNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PayoutFulfillV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
-
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PoFulfill,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -325,11 +320,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "payouts")]
-    impl<const T: u8> api::PayoutCancelNew for connector::DummyConnector<T> {}
-
+    impl<const T: u8> api::PayoutCancelV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PoCancel,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -339,11 +333,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "payouts")]
-    impl<const T: u8> api::PayoutQuoteNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PayoutQuoteV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
-
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PoQuote,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -353,12 +346,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "payouts")]
-
-    impl<const T: u8> api::PayoutRecipientNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PayoutRecipientV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
-
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PoRecipient,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -368,12 +359,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "payouts")]
-
-    impl<const T: u8> api::PayoutRecipientAccountNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::PayoutRecipientAccountV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
-
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PoRecipientAccount,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -382,10 +371,10 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::ConnectorVerifyWebhookSourceNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorVerifyWebhookSourceV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::VerifyWebhookSource,
             types::WebhookSourceVerifyData,
             types::VerifyWebhookSourceRequestData,
@@ -394,13 +383,13 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::FraudCheckNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::FraudCheckV2 for connector::DummyConnector<T> {}
 
     #[cfg(feature = "frm")]
-    impl<const T: u8> api::FraudCheckSaleNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::FraudCheckSaleV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "frm")]
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Sale,
             types::FrmFlowData,
             frm_types::FraudCheckSaleData,
@@ -410,10 +399,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "frm")]
-    impl<const T: u8> api::FraudCheckCheckoutNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::FraudCheckCheckoutV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "frm")]
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Checkout,
             types::FrmFlowData,
             frm_types::FraudCheckCheckoutData,
@@ -423,10 +412,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "frm")]
-    impl<const T: u8> api::FraudCheckTransactionNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::FraudCheckTransactionV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "frm")]
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Transaction,
             types::FrmFlowData,
             frm_types::FraudCheckTransactionData,
@@ -436,10 +425,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "frm")]
-    impl<const T: u8> api::FraudCheckFulfillmentNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::FraudCheckFulfillmentV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "frm")]
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Fulfillment,
             types::FrmFlowData,
             frm_types::FraudCheckFulfillmentData,
@@ -449,10 +438,10 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "frm")]
-    impl<const T: u8> api::FraudCheckRecordReturnNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::FraudCheckRecordReturnV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "frm")]
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::RecordReturn,
             types::FrmFlowData,
             frm_types::FraudCheckRecordReturnData,
@@ -461,10 +450,10 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::ConnectorMandateRevokeNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorMandateRevokeV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::MandateRevoke,
             types::MandateRevokeFlowData,
             types::MandateRevokeRequestData,
@@ -473,18 +462,18 @@ mod dummy_connector_default_impl {
     {
     }
 
-    impl<const T: u8> api::ExternalAuthenticationNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ExternalAuthenticationV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::ConnectorPreAuthenticationNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorPreAuthenticationV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::ConnectorPreAuthenticationVersionCallNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorPreAuthenticationVersionCallV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::ConnectorAuthenticationNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorAuthenticationV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::ConnectorPostAuthenticationNew for connector::DummyConnector<T> {}
+    impl<const T: u8> api::ConnectorPostAuthenticationV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::Authentication,
             types::ExternalAuthenticationFlowData,
             types::authentication::ConnectorAuthenticationRequestData,
@@ -494,7 +483,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PreAuthentication,
             types::ExternalAuthenticationFlowData,
             types::authentication::PreAuthNRequestData,
@@ -504,7 +493,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PreAuthenticationVersionCall,
             types::ExternalAuthenticationFlowData,
             types::authentication::PreAuthNRequestData,
@@ -514,7 +503,7 @@ mod dummy_connector_default_impl {
     }
 
     impl<const T: u8>
-        services::ConnectorIntegrationNew<
+        services::ConnectorIntegrationV2<
             api::PostAuthentication,
             types::ExternalAuthenticationFlowData,
             types::authentication::ConnectorPostAuthenticationRequestData,
@@ -527,47 +516,47 @@ mod dummy_connector_default_impl {
 macro_rules! default_imp_for_new_connector_integration_payment {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PaymentNew for $path::$connector{}
-            impl api::PaymentAuthorizeNew for $path::$connector{}
-            impl api::PaymentAuthorizeSessionTokenNew for $path::$connector{}
-            impl api::PaymentSyncNew for $path::$connector{}
-            impl api::PaymentVoidNew for $path::$connector{}
-            impl api::PaymentApproveNew for $path::$connector{}
-            impl api::PaymentRejectNew for $path::$connector{}
-            impl api::PaymentCaptureNew for $path::$connector{}
-            impl api::PaymentSessionNew for $path::$connector{}
-            impl api::MandateSetupNew for $path::$connector{}
-            impl api::PaymentIncrementalAuthorizationNew for $path::$connector{}
-            impl api::PaymentsCompleteAuthorizeNew for $path::$connector{}
-            impl api::PaymentTokenNew for $path::$connector{}
-            impl api::ConnectorCustomerNew for $path::$connector{}
-            impl api::PaymentsPreProcessingNew for $path::$connector{}
+            impl api::PaymentV2 for $path::$connector{}
+            impl api::PaymentAuthorizeV2 for $path::$connector{}
+            impl api::PaymentAuthorizeSessionTokenV2 for $path::$connector{}
+            impl api::PaymentSyncV2 for $path::$connector{}
+            impl api::PaymentVoidV2 for $path::$connector{}
+            impl api::PaymentApproveV2 for $path::$connector{}
+            impl api::PaymentRejectV2 for $path::$connector{}
+            impl api::PaymentCaptureV2 for $path::$connector{}
+            impl api::PaymentSessionV2 for $path::$connector{}
+            impl api::MandateSetupV2 for $path::$connector{}
+            impl api::PaymentIncrementalAuthorizationV2 for $path::$connector{}
+            impl api::PaymentsCompleteAuthorizeV2 for $path::$connector{}
+            impl api::PaymentTokenV2 for $path::$connector{}
+            impl api::ConnectorCustomerV2 for $path::$connector{}
+            impl api::PaymentsPreProcessingV2 for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::PSync,types::PaymentFlowData, types::PaymentsSyncData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::PSync,types::PaymentFlowData, types::PaymentsSyncData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::Void, types::PaymentFlowData, types::PaymentsCancelData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::Void, types::PaymentFlowData, types::PaymentsCancelData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::Approve,types::PaymentFlowData, types::PaymentsApproveData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::Approve,types::PaymentFlowData, types::PaymentsApproveData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::Reject,types::PaymentFlowData, types::PaymentsRejectData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::Reject,types::PaymentFlowData, types::PaymentsRejectData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::Capture,types::PaymentFlowData, types::PaymentsCaptureData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::Capture,types::PaymentFlowData, types::PaymentsCaptureData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::Session,types::PaymentFlowData, types::PaymentsSessionData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::Session,types::PaymentFlowData, types::PaymentsSessionData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::SetupMandate,types::PaymentFlowData, types::SetupMandateRequestData, types::PaymentsResponseData>
+            services::ConnectorIntegrationV2<api::SetupMandate,types::PaymentFlowData, types::SetupMandateRequestData, types::PaymentsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::IncrementalAuthorization,
                 types::PaymentFlowData,
                 types::PaymentsIncrementalAuthorizationData,
@@ -575,34 +564,34 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             >
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::CompleteAuthorize,
             types::PaymentFlowData,
                 types::CompleteAuthorizeData,
                 types::PaymentsResponseData,
             >            for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PaymentMethodToken,
             types::PaymentFlowData,
                 types::PaymentMethodTokenizationData,
                 types::PaymentsResponseData,
             > for   $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::CreateConnectorCustomer,
             types::PaymentFlowData,
                 types::ConnectorCustomerData,
                 types::PaymentsResponseData,
             > for $path::$connector{}
-            impl services::ConnectorIntegrationNew<
+            impl services::ConnectorIntegrationV2<
             api::PreProcessing,
             types::PaymentFlowData,
                 types::PaymentsPreProcessingData,
                 types::PaymentsResponseData,
             > for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
                 api::AuthorizeSessionToken,
                 types::PaymentFlowData,
                 types::AuthorizeSessionTokenData,
@@ -680,14 +669,14 @@ default_imp_for_new_connector_integration_payment!(
 macro_rules! default_imp_for_new_connector_integration_refund {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::RefundNew for $path::$connector{}
-            impl api::RefundExecuteNew for $path::$connector{}
-            impl api::RefundSyncNew for $path::$connector{}
+            impl api::RefundV2 for $path::$connector{}
+            impl api::RefundExecuteV2 for $path::$connector{}
+            impl api::RefundSyncV2 for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::Execute, types::RefundFlowData, types::RefundsData, types::RefundsResponseData>
+            services::ConnectorIntegrationV2<api::Execute, types::RefundFlowData, types::RefundsData, types::RefundsResponseData>
             for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::RSync, types::RefundFlowData, types::RefundsData, types::RefundsResponseData>
+            services::ConnectorIntegrationV2<api::RSync, types::RefundFlowData, types::RefundsData, types::RefundsResponseData>
             for $path::$connector{}
     )*
     };
@@ -761,9 +750,9 @@ default_imp_for_new_connector_integration_refund!(
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::ConnectorAccessTokenNew for $path::$connector{}
+            impl api::ConnectorAccessTokenV2 for $path::$connector{}
             impl
-            services::ConnectorIntegrationNew<api::AccessTokenAuth, types::AccessTokenFlowData, types::AccessTokenRequestData, types::AccessToken>
+            services::ConnectorIntegrationV2<api::AccessTokenAuth, types::AccessTokenFlowData, types::AccessTokenRequestData, types::AccessToken>
             for $path::$connector{}
     )*
     };
@@ -837,10 +826,10 @@ default_imp_for_new_connector_integration_connector_access_token!(
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::DisputeNew for $path::$connector {}
-            impl api::AcceptDisputeNew for $path::$connector {}
+            impl api::DisputeV2 for $path::$connector {}
+            impl api::AcceptDisputeV2 for $path::$connector {}
             impl
-                services::ConnectorIntegrationNew<
+                services::ConnectorIntegrationV2<
                 api::Accept,
                 types::DisputesFlowData,
                 types::AcceptDisputeRequestData,
@@ -854,9 +843,9 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::SubmitEvidenceNew for $path::$connector {}
+            impl api::SubmitEvidenceV2 for $path::$connector {}
             impl
-                services::ConnectorIntegrationNew<
+                services::ConnectorIntegrationV2<
                 api::Evidence,
                 types::DisputesFlowData,
                 types::SubmitEvidenceRequestData,
@@ -935,9 +924,9 @@ default_imp_for_new_connector_integration_accept_dispute!(
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::DefendDisputeNew for $path::$connector {}
+            impl api::DefendDisputeV2 for $path::$connector {}
             impl
-                services::ConnectorIntegrationNew<
+                services::ConnectorIntegrationV2<
                 api::Defend,
                 types::DisputesFlowData,
                 types::DefendDisputeRequestData,
@@ -1079,19 +1068,19 @@ default_imp_for_new_connector_integration_submit_evidence!(
 macro_rules! default_imp_for_new_connector_integration_file_upload {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::FileUploadNew for $path::$connector {}
-            impl api::UploadFileNew for $path::$connector {}
+            impl api::FileUploadV2 for $path::$connector {}
+            impl api::UploadFileV2 for $path::$connector {}
             impl
-                services::ConnectorIntegrationNew<
+                services::ConnectorIntegrationV2<
                 api::Upload,
                 types::FilesFlowData,
                 types::UploadFileRequestData,
                 types::UploadFileResponse,
             > for $path::$connector
             {}
-            impl api::RetrieveFileNew for $path::$connector {}
+            impl api::RetrieveFileV2 for $path::$connector {}
             impl
-                services::ConnectorIntegrationNew<
+                services::ConnectorIntegrationV2<
                 api::Retrieve,
                 types::FilesFlowData,
                 types::RetrieveFileRequestData,
@@ -1170,7 +1159,7 @@ default_imp_for_new_connector_integration_file_upload!(
 macro_rules! default_imp_for_new_connector_integration_payouts {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutsNew for $path::$connector {}
+            impl api::PayoutsV2 for $path::$connector {}
     )*
     };
 }
@@ -1244,9 +1233,9 @@ default_imp_for_new_connector_integration_payouts!(
 macro_rules! default_imp_for_new_connector_integration_payouts_create {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutCreateNew for $path::$connector {}
+            impl api::PayoutCreateV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PoCreate,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -1327,9 +1316,9 @@ default_imp_for_new_connector_integration_payouts_create!(
 macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutEligibilityNew for $path::$connector {}
+            impl api::PayoutEligibilityV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PoEligibility,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -1410,9 +1399,9 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
 macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutFulfillNew for $path::$connector {}
+            impl api::PayoutFulfillV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PoFulfill,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -1493,9 +1482,9 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
 macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutCancelNew for $path::$connector {}
+            impl api::PayoutCancelV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PoCancel,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -1576,9 +1565,9 @@ default_imp_for_new_connector_integration_payouts_cancel!(
 macro_rules! default_imp_for_new_connector_integration_payouts_quote {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutQuoteNew for $path::$connector {}
+            impl api::PayoutQuoteV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PoQuote,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -1659,9 +1648,9 @@ default_imp_for_new_connector_integration_payouts_quote!(
 macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutRecipientNew for $path::$connector {}
+            impl api::PayoutRecipientV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PoRecipient,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -1742,9 +1731,9 @@ default_imp_for_new_connector_integration_payouts_recipient!(
 macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PayoutRecipientAccountNew for $path::$connector {}
+            impl api::PayoutRecipientAccountV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PoRecipientAccount,
             types::PayoutFlowData,
             types::PayoutsData,
@@ -1824,9 +1813,9 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::ConnectorVerifyWebhookSourceNew for $path::$connector {}
+            impl api::ConnectorVerifyWebhookSourceV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::VerifyWebhookSource,
             types::WebhookSourceVerifyData,
             types::VerifyWebhookSourceRequestData,
@@ -1905,7 +1894,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
 macro_rules! default_imp_for_new_connector_integration_frm {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::FraudCheckNew for $path::$connector {}
+            impl api::FraudCheckV2 for $path::$connector {}
     )*
     };
 }
@@ -1979,9 +1968,9 @@ default_imp_for_new_connector_integration_frm!(
 macro_rules! default_imp_for_new_connector_integration_frm_sale {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::FraudCheckSaleNew for $path::$connector {}
+            impl api::FraudCheckSaleV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::Sale,
             types::FrmFlowData,
             frm_types::FraudCheckSaleData,
@@ -2062,9 +2051,9 @@ default_imp_for_new_connector_integration_frm_sale!(
 macro_rules! default_imp_for_new_connector_integration_frm_checkout {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::FraudCheckCheckoutNew for $path::$connector {}
+            impl api::FraudCheckCheckoutV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::Checkout,
             types::FrmFlowData,
             frm_types::FraudCheckCheckoutData,
@@ -2145,9 +2134,9 @@ default_imp_for_new_connector_integration_frm_checkout!(
 macro_rules! default_imp_for_new_connector_integration_frm_transaction {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::FraudCheckTransactionNew for $path::$connector {}
+            impl api::FraudCheckTransactionV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::Transaction,
             types::FrmFlowData,
             frm_types::FraudCheckTransactionData,
@@ -2228,9 +2217,9 @@ default_imp_for_new_connector_integration_frm_transaction!(
 macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::FraudCheckFulfillmentNew for $path::$connector {}
+            impl api::FraudCheckFulfillmentV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::Fulfillment,
             types::FrmFlowData,
             frm_types::FraudCheckFulfillmentData,
@@ -2311,9 +2300,9 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
 macro_rules! default_imp_for_new_connector_integration_frm_record_return {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::FraudCheckRecordReturnNew for $path::$connector {}
+            impl api::FraudCheckRecordReturnV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::RecordReturn,
             types::FrmFlowData,
             frm_types::FraudCheckRecordReturnData,
@@ -2392,9 +2381,9 @@ default_imp_for_new_connector_integration_frm_record_return!(
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::ConnectorMandateRevokeNew for $path::$connector {}
+        $( impl api::ConnectorMandateRevokeV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::MandateRevoke,
             types::MandateRevokeFlowData,
             types::MandateRevokeRequestData,
@@ -2472,13 +2461,13 @@ default_imp_for_new_connector_integration_revoking_mandates!(
 
 macro_rules! default_imp_for_new_connector_integration_connector_authentication {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::ExternalAuthenticationNew for $path::$connector {}
-            impl api::ConnectorAuthenticationNew for $path::$connector {}
-            impl api::ConnectorPreAuthenticationNew for $path::$connector {}
-            impl api::ConnectorPreAuthenticationVersionCallNew for $path::$connector {}
-            impl api::ConnectorPostAuthenticationNew for $path::$connector {}
+        $( impl api::ExternalAuthenticationV2 for $path::$connector {}
+            impl api::ConnectorAuthenticationV2 for $path::$connector {}
+            impl api::ConnectorPreAuthenticationV2 for $path::$connector {}
+            impl api::ConnectorPreAuthenticationVersionCallV2 for $path::$connector {}
+            impl api::ConnectorPostAuthenticationV2 for $path::$connector {}
             impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::Authentication,
             types::ExternalAuthenticationFlowData,
             types::authentication::ConnectorAuthenticationRequestData,
@@ -2486,7 +2475,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
         > for $path::$connector
         {}
         impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PreAuthentication,
             types::ExternalAuthenticationFlowData,
             types::authentication::PreAuthNRequestData,
@@ -2494,7 +2483,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
         > for $path::$connector
         {}
         impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PreAuthenticationVersionCall,
             types::ExternalAuthenticationFlowData,
             types::authentication::PreAuthNRequestData,
@@ -2502,7 +2491,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
         > for $path::$connector
         {}
         impl
-            services::ConnectorIntegrationNew<
+            services::ConnectorIntegrationV2<
             api::PostAuthentication,
             types::ExternalAuthenticationFlowData,
             types::authentication::ConnectorPostAuthenticationRequestData,

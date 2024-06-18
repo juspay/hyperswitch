@@ -1,14 +1,14 @@
 use common_utils::{crypto, errors::CustomResult, request::Request};
-use hyperswitch_domain_models::{router_data::RouterData, router_data_new::RouterDataNew};
+use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
 
-use super::{BoxedConnectorIntegrationNew, ConnectorValidation};
+use super::{BoxedConnectorIntegrationV2, ConnectorValidation};
 use crate::{
     core::payments,
     errors,
     events::connector_api_logs::ConnectorEvent,
     routes::app::StorageInterface,
     services::{
-        api as services_api, connector_integration_new::ConnectorIntegrationNew,
+        api as services_api, connector_integration_v2::ConnectorIntegrationV2,
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
         ConnectorRedirectResponse, PaymentAction,
     },
@@ -16,21 +16,21 @@ use crate::{
     types::{
         self,
         api::{
-            self, disputes, Connector, ConnectorNew, CurrencyUnit, ExternalAuthenticationPayload,
+            self, disputes, Connector, ConnectorV2, CurrencyUnit, ExternalAuthenticationPayload,
             IncomingWebhookEvent, IncomingWebhookRequestDetails, ObjectReferenceId,
         },
         domain,
     },
 };
 
-pub trait Conversion<T, Req, Resp> {
+pub trait Conversion<T, Req: Clone, Resp: Clone> {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> CustomResult<RouterDataNew<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
     where
         Self: Sized;
     fn to_old_router_data(
-        new_router_data: RouterDataNew<T, Self, Req, Resp>,
+        new_router_data: RouterDataV2<T, Self, Req, Resp>,
     ) -> CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
     where
         Self: Sized;
@@ -39,13 +39,13 @@ pub trait Conversion<T, Req, Resp> {
 #[derive(Clone)]
 pub enum ConnectorEnum {
     Old(api::BoxedConnector),
-    New(api::BoxedConnectorNew),
+    New(api::BoxedConnectorV2),
 }
 
 #[derive(Clone)]
 pub enum ConnectorIntegrationEnum<'a, F, ResourceCommonData, Req, Resp> {
     Old(BoxedConnectorIntegration<'a, F, Req, Resp>),
-    New(BoxedConnectorIntegrationNew<'a, F, ResourceCommonData, Req, Resp>),
+    New(BoxedConnectorIntegrationV2<'a, F, ResourceCommonData, Req, Resp>),
 }
 
 pub type BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp> =
@@ -57,7 +57,7 @@ impl ConnectorEnum {
     ) -> BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>
     where
         dyn Connector + Sync: ConnectorIntegration<F, Req, Resp>,
-        dyn ConnectorNew + Sync: ConnectorIntegrationNew<F, ResourceCommonData, Req, Resp>,
+        dyn ConnectorV2 + Sync: ConnectorIntegrationV2<F, ResourceCommonData, Req, Resp>,
         ResourceCommonData: Conversion<F, Req, Resp> + Clone + 'static,
         F: Clone + 'static,
         Req: Clone + 'static,
@@ -68,7 +68,7 @@ impl ConnectorEnum {
                 old_integration.get_connector_integration(),
             )),
             Self::New(new_integration) => Box::new(ConnectorIntegrationEnum::New(
-                new_integration.get_connector_integration_new(),
+                new_integration.get_connector_integration_v2(),
             )),
         }
     }
@@ -82,7 +82,7 @@ impl ConnectorEnum {
         match self {
             Self::Old(connector) => connector.validate_file_upload(purpose, file_size, file_type),
             Self::New(connector) => {
-                connector.validate_file_upload_new(purpose, file_size, file_type)
+                connector.validate_file_upload_v2(purpose, file_size, file_type)
             }
         }
     }
@@ -595,7 +595,7 @@ where
             }
             ConnectorIntegrationEnum::New(new_integration) => {
                 let new_router_data = ResourceCommonData::from_old_router_data(req)?;
-                new_integration.build_request_new(&new_router_data, connectors)
+                new_integration.build_request_v2(&new_router_data, connectors)
             }
         }
     }
@@ -617,7 +617,7 @@ where
             ConnectorIntegrationEnum::New(new_integration) => {
                 let new_router_data = ResourceCommonData::from_old_router_data(data)?;
                 new_integration
-                    .handle_response_new(&new_router_data, event_builder, res)
+                    .handle_response_v2(&new_router_data, event_builder, res)
                     .map(ResourceCommonData::to_old_router_data)?
             }
         }
@@ -632,7 +632,7 @@ where
                 old_integration.get_error_response(res, event_builder)
             }
             ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.get_error_response_new(res, event_builder)
+                new_integration.get_error_response_v2(res, event_builder)
             }
         }
     }

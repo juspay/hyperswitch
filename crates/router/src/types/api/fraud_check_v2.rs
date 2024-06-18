@@ -13,13 +13,13 @@ use crate::{
     },
 };
 
-pub trait FraudCheckSaleNew:
-    api::ConnectorIntegrationNew<Sale, types::FrmFlowData, FraudCheckSaleData, FraudCheckResponseData>
+pub trait FraudCheckSaleV2:
+    api::ConnectorIntegrationV2<Sale, types::FrmFlowData, FraudCheckSaleData, FraudCheckResponseData>
 {
 }
 
-pub trait FraudCheckCheckoutNew:
-    api::ConnectorIntegrationNew<
+pub trait FraudCheckCheckoutV2:
+    api::ConnectorIntegrationV2<
     Checkout,
     types::FrmFlowData,
     FraudCheckCheckoutData,
@@ -28,8 +28,8 @@ pub trait FraudCheckCheckoutNew:
 {
 }
 
-pub trait FraudCheckTransactionNew:
-    api::ConnectorIntegrationNew<
+pub trait FraudCheckTransactionV2:
+    api::ConnectorIntegrationV2<
     Transaction,
     types::FrmFlowData,
     FraudCheckTransactionData,
@@ -38,8 +38,8 @@ pub trait FraudCheckTransactionNew:
 {
 }
 
-pub trait FraudCheckFulfillmentNew:
-    api::ConnectorIntegrationNew<
+pub trait FraudCheckFulfillmentV2:
+    api::ConnectorIntegrationV2<
     Fulfillment,
     types::FrmFlowData,
     FraudCheckFulfillmentData,
@@ -48,8 +48,8 @@ pub trait FraudCheckFulfillmentNew:
 {
 }
 
-pub trait FraudCheckRecordReturnNew:
-    api::ConnectorIntegrationNew<
+pub trait FraudCheckRecordReturnV2:
+    api::ConnectorIntegrationV2<
     RecordReturn,
     types::FrmFlowData,
     FraudCheckRecordReturnData,
@@ -59,12 +59,12 @@ pub trait FraudCheckRecordReturnNew:
 }
 
 #[cfg(feature = "frm")]
-pub trait FraudCheckNew:
+pub trait FraudCheckV2:
     types::api::ConnectorCommon
-    + FraudCheckSaleNew
-    + FraudCheckTransactionNew
-    + FraudCheckCheckoutNew
-    + FraudCheckFulfillmentNew
-    + FraudCheckRecordReturnNew
+    + FraudCheckSaleV2
+    + FraudCheckTransactionV2
+    + FraudCheckCheckoutV2
+    + FraudCheckFulfillmentV2
+    + FraudCheckRecordReturnV2
 {
 }

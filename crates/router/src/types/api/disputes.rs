@@ -10,7 +10,7 @@ pub struct DisputeId {
 
 pub use hyperswitch_domain_models::router_flow_types::dispute::{Accept, Defend, Evidence};
 
-pub use super::disputes_new::*;
+pub use super::disputes_v2::*;
 
 #[derive(Default, Debug)]
 pub struct DisputePayload {

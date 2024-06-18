@@ -24,7 +24,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
-use hyperswitch_domain_models::router_data_new::flow_common_types as common_types;
+use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
 pub use hyperswitch_domain_models::router_response_types::RedirectForm;
 use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
@@ -33,7 +33,7 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-pub use super::connector_integration_new::*;
+pub use super::connector_integration_v2::*;
 use super::{
     authentication::AuthenticateAndFetch,
     connector_integration_interface::BoxedConnectorIntegrationInterface,

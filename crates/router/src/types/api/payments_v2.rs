@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::{
-    router_data_new::PaymentFlowData,
+    router_data_v2::PaymentFlowData,
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
@@ -12,8 +12,8 @@ use crate::{
     types::{self, api as api_types},
 };
 
-pub trait PaymentAuthorizeNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentAuthorizeV2:
+    api::ConnectorIntegrationV2<
     Authorize,
     PaymentFlowData,
     types::PaymentsAuthorizeData,
@@ -22,8 +22,8 @@ pub trait PaymentAuthorizeNew:
 {
 }
 
-pub trait PaymentAuthorizeSessionTokenNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentAuthorizeSessionTokenV2:
+    api::ConnectorIntegrationV2<
     AuthorizeSessionToken,
     PaymentFlowData,
     types::AuthorizeSessionTokenData,
@@ -32,8 +32,8 @@ pub trait PaymentAuthorizeSessionTokenNew:
 {
 }
 
-pub trait PaymentSyncNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentSyncV2:
+    api::ConnectorIntegrationV2<
     PSync,
     PaymentFlowData,
     types::PaymentsSyncData,
@@ -42,8 +42,8 @@ pub trait PaymentSyncNew:
 {
 }
 
-pub trait PaymentVoidNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentVoidV2:
+    api::ConnectorIntegrationV2<
     Void,
     PaymentFlowData,
     types::PaymentsCancelData,
@@ -52,8 +52,8 @@ pub trait PaymentVoidNew:
 {
 }
 
-pub trait PaymentApproveNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentApproveV2:
+    api::ConnectorIntegrationV2<
     Approve,
     PaymentFlowData,
     types::PaymentsApproveData,
@@ -62,8 +62,8 @@ pub trait PaymentApproveNew:
 {
 }
 
-pub trait PaymentRejectNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentRejectV2:
+    api::ConnectorIntegrationV2<
     Reject,
     PaymentFlowData,
     types::PaymentsRejectData,
@@ -72,8 +72,8 @@ pub trait PaymentRejectNew:
 {
 }
 
-pub trait PaymentCaptureNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentCaptureV2:
+    api::ConnectorIntegrationV2<
     Capture,
     PaymentFlowData,
     types::PaymentsCaptureData,
@@ -82,8 +82,8 @@ pub trait PaymentCaptureNew:
 {
 }
 
-pub trait PaymentSessionNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentSessionV2:
+    api::ConnectorIntegrationV2<
     Session,
     PaymentFlowData,
     types::PaymentsSessionData,
@@ -92,8 +92,8 @@ pub trait PaymentSessionNew:
 {
 }
 
-pub trait MandateSetupNew:
-    api::ConnectorIntegrationNew<
+pub trait MandateSetupV2:
+    api::ConnectorIntegrationV2<
     SetupMandate,
     PaymentFlowData,
     types::SetupMandateRequestData,
@@ -102,8 +102,8 @@ pub trait MandateSetupNew:
 {
 }
 
-pub trait PaymentIncrementalAuthorizationNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentIncrementalAuthorizationV2:
+    api::ConnectorIntegrationV2<
     IncrementalAuthorization,
     PaymentFlowData,
     types::PaymentsIncrementalAuthorizationData,
@@ -112,8 +112,8 @@ pub trait PaymentIncrementalAuthorizationNew:
 {
 }
 
-pub trait PaymentsCompleteAuthorizeNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentsCompleteAuthorizeV2:
+    api::ConnectorIntegrationV2<
     CompleteAuthorize,
     PaymentFlowData,
     types::CompleteAuthorizeData,
@@ -122,8 +122,8 @@ pub trait PaymentsCompleteAuthorizeNew:
 {
 }
 
-pub trait PaymentTokenNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentTokenV2:
+    api::ConnectorIntegrationV2<
     PaymentMethodToken,
     PaymentFlowData,
     types::PaymentMethodTokenizationData,
@@ -132,8 +132,8 @@ pub trait PaymentTokenNew:
 {
 }
 
-pub trait ConnectorCustomerNew:
-    api::ConnectorIntegrationNew<
+pub trait ConnectorCustomerV2:
+    api::ConnectorIntegrationV2<
     CreateConnectorCustomer,
     PaymentFlowData,
     types::ConnectorCustomerData,
@@ -142,8 +142,8 @@ pub trait ConnectorCustomerNew:
 {
 }
 
-pub trait PaymentsPreProcessingNew:
-    api::ConnectorIntegrationNew<
+pub trait PaymentsPreProcessingV2:
+    api::ConnectorIntegrationV2<
     PreProcessing,
     PaymentFlowData,
     types::PaymentsPreProcessingData,
@@ -152,22 +152,22 @@ pub trait PaymentsPreProcessingNew:
 {
 }
 
-pub trait PaymentNew:
+pub trait PaymentV2:
     api_types::ConnectorCommon
     + api_types::ConnectorValidation
-    + PaymentAuthorizeNew
-    + PaymentAuthorizeSessionTokenNew
-    + PaymentsCompleteAuthorizeNew
-    + PaymentSyncNew
-    + PaymentCaptureNew
-    + PaymentVoidNew
-    + PaymentApproveNew
-    + PaymentRejectNew
-    + MandateSetupNew
-    + PaymentSessionNew
-    + PaymentTokenNew
-    + PaymentsPreProcessingNew
-    + ConnectorCustomerNew
-    + PaymentIncrementalAuthorizationNew
+    + PaymentAuthorizeV2
+    + PaymentAuthorizeSessionTokenV2
+    + PaymentsCompleteAuthorizeV2
+    + PaymentSyncV2
+    + PaymentCaptureV2
+    + PaymentVoidV2
+    + PaymentApproveV2
+    + PaymentRejectV2
+    + MandateSetupV2
+    + PaymentSessionV2
+    + PaymentTokenV2
+    + PaymentsPreProcessingV2
+    + ConnectorCustomerV2
+    + PaymentIncrementalAuthorizationV2
 {
 }

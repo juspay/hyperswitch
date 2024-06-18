@@ -11,7 +11,7 @@ pub mod pm_auth;
 pub mod recon;
 
 pub mod connector_integration_interface;
-pub mod connector_integration_new;
+pub mod connector_integration_v2;
 pub mod conversion_impls;
 #[cfg(feature = "email")]
 pub mod email;
@@ -19,7 +19,7 @@ pub mod email;
 use std::sync::Arc;
 
 pub use connector_integration_interface::ConnectorIntegrationEnum;
-pub use connector_integration_new::*;
+pub use connector_integration_v2::*;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::StorageResult;
 use masking::{ExposeInterface, StrongSecret};

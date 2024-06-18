@@ -26,20 +26,20 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
-pub mod authentication_new;
-pub mod disputes_new;
-pub mod files_new;
+pub mod authentication_v2;
+pub mod disputes_v2;
+pub mod files_v2;
 #[cfg(feature = "frm")]
-pub mod fraud_check_new;
-pub mod payments_new;
+pub mod fraud_check_v2;
+pub mod payments_v2;
 #[cfg(feature = "payouts")]
-pub mod payouts_new;
-pub mod refunds_new;
+pub mod payouts_v2;
+pub mod refunds_v2;
 
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data_new::AccessTokenFlowData;
+use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
 };
@@ -63,7 +63,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     services::{
         connector_integration_interface::ConnectorEnum, request, ConnectorIntegration,
-        ConnectorIntegrationNew, ConnectorRedirectResponse, ConnectorValidation,
+        ConnectorIntegrationV2, ConnectorRedirectResponse, ConnectorValidation,
     },
     types::{self, api::enums as api_enums},
 };
@@ -72,8 +72,8 @@ pub trait ConnectorAccessToken:
 {
 }
 
-pub trait ConnectorAccessTokenNew:
-    ConnectorIntegrationNew<
+pub trait ConnectorAccessTokenV2:
+    ConnectorIntegrationV2<
     AccessTokenAuth,
     AccessTokenFlowData,
     types::AccessTokenRequestData,
@@ -97,8 +97,8 @@ pub trait ConnectorVerifyWebhookSource:
 >
 {
 }
-pub trait ConnectorVerifyWebhookSourceNew:
-    ConnectorIntegrationNew<
+pub trait ConnectorVerifyWebhookSourceV2:
+    ConnectorIntegrationV2<
     VerifyWebhookSource,
     types::WebhookSourceVerifyData,
     types::VerifyWebhookSourceRequestData,
@@ -119,8 +119,8 @@ pub trait ConnectorMandateRevoke:
 {
 }
 
-pub trait ConnectorMandateRevokeNew:
-    ConnectorIntegrationNew<
+pub trait ConnectorMandateRevokeV2:
+    ConnectorIntegrationV2<
     MandateRevoke,
     types::MandateRevokeFlowData,
     types::MandateRevokeRequestData,
@@ -242,44 +242,44 @@ impl<
 {
 }
 
-pub trait ConnectorNew:
+pub trait ConnectorV2:
     Send
-    + RefundNew
-    + PaymentNew
+    + RefundV2
+    + PaymentV2
     + ConnectorRedirectResponse
     + IncomingWebhook
-    + ConnectorAccessTokenNew
-    + DisputeNew
-    + FileUploadNew
+    + ConnectorAccessTokenV2
+    + DisputeV2
+    + FileUploadV2
     + ConnectorTransactionId
-    + PayoutsNew
-    + ConnectorVerifyWebhookSourceNew
-    + FraudCheckNew
-    + ConnectorMandateRevokeNew
-    + ExternalAuthenticationNew
+    + PayoutsV2
+    + ConnectorVerifyWebhookSourceV2
+    + FraudCheckV2
+    + ConnectorMandateRevokeV2
+    + ExternalAuthenticationV2
 {
 }
 impl<
-        T: RefundNew
-            + PaymentNew
+        T: RefundV2
+            + PaymentV2
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
-            + ConnectorAccessTokenNew
-            + DisputeNew
-            + FileUploadNew
+            + ConnectorAccessTokenV2
+            + DisputeV2
+            + FileUploadV2
             + ConnectorTransactionId
-            + PayoutsNew
-            + ConnectorVerifyWebhookSourceNew
-            + FraudCheckNew
-            + ConnectorMandateRevokeNew
-            + ExternalAuthenticationNew,
-    > ConnectorNew for T
+            + PayoutsV2
+            + ConnectorVerifyWebhookSourceV2
+            + FraudCheckV2
+            + ConnectorMandateRevokeV2
+            + ExternalAuthenticationV2,
+    > ConnectorV2 for T
 {
 }
 
 pub type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
-pub type BoxedConnectorNew = Box<&'static (dyn ConnectorNew + Sync)>;
+pub type BoxedConnectorV2 = Box<&'static (dyn ConnectorV2 + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
@@ -561,7 +561,7 @@ pub trait FraudCheck:
 pub trait FraudCheck {}
 
 #[cfg(not(feature = "frm"))]
-pub trait FraudCheckNew {}
+pub trait FraudCheckV2 {}
 
 #[cfg(feature = "payouts")]
 pub trait Payouts:
@@ -579,7 +579,7 @@ pub trait Payouts:
 pub trait Payouts {}
 
 #[cfg(not(feature = "payouts"))]
-pub trait PayoutsNew {}
+pub trait PayoutsV2 {}
 
 #[cfg(test)]
 mod test {
