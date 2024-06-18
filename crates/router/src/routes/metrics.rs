@@ -76,7 +76,6 @@ counter_metric!(REDIRECTION_TRIGGERED, GLOBAL_METER);
 
 // Connector Level Metric
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
-counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
 // Connector http status code metrics
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT, GLOBAL_METER);
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT, GLOBAL_METER);
