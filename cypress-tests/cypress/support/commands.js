@@ -224,25 +224,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("enableKvStore", (kvBody, globalState) => {
-  const merchantId = globalState.get("merchantId");
-
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/accounts/${merchantId}/kv`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    body: kvBody,
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-    expect(response.status).to.equal(200);
-    expect(response.body.kv_enabled).to.equal(true);
-  });
-});
-
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
