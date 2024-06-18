@@ -40,7 +40,8 @@ pub mod user_role;
 use std::collections::HashMap;
 
 pub use diesel_models::{
-    ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
+    process_tracker::business_status, ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner,
+    ProcessTrackerUpdate,
 };
 pub use hyperswitch_domain_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},

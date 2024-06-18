@@ -3,6 +3,7 @@ use api_models::{
     webhooks,
 };
 use common_utils::{ext_traits::Encode, request::RequestContent};
+use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
@@ -231,7 +232,7 @@ async fn trigger_webhook_to_merchant(
                 state
                     .store
                     .as_scheduler()
-                    .finish_process_with_business_status(process_tracker, "FAILURE".into())
+                    .finish_process_with_business_status(process_tracker, business_status::FAILURE)
                     .await
                     .change_context(
                         errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
@@ -304,7 +305,7 @@ async fn trigger_webhook_to_merchant(
                         state.clone(),
                         &business_profile.merchant_id,
                         process_tracker,
-                        "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL",
+                        business_status::INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL,
                     )
                     .await?;
                 } else {
@@ -769,7 +770,7 @@ async fn success_response_handler(
         Some(process_tracker) => state
             .store
             .as_scheduler()
-            .finish_process_with_business_status(process_tracker, business_status.into())
+            .finish_process_with_business_status(process_tracker, business_status)
             .await
             .change_context(
                 errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,

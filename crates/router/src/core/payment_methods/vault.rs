@@ -1178,7 +1178,7 @@ pub async fn start_tokenize_data_workflow(
             db.as_scheduler()
                 .finish_process_with_business_status(
                     tokenize_tracker.clone(),
-                    "COMPLETED_BY_PT".to_string(),
+                    diesel_models::process_tracker::business_status::COMPLETED_BY_PT,
                 )
                 .await?;
         }
@@ -1241,7 +1241,10 @@ pub async fn retry_delete_tokenize(
         }
         None => db
             .as_scheduler()
-            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+            .finish_process_with_business_status(
+                pt,
+                diesel_models::process_tracker::business_status::RETRIES_EXCEEDED,
+            )
             .await
             .map_err(Into::into),
     }
