@@ -72,16 +72,6 @@ pub struct OpensearchErrorDetails {
     pub reason: String,
 }
 
-impl OpensearchError {
-    pub fn error_type(&self) -> &str {
-        &self.error.error_type
-    }
-
-    pub fn reason(&self) -> &str {
-        &self.error.reason
-    }
-}
-
 #[derive(Debug, serde::Deserialize)]
 pub struct OpensearchSuccess {
     pub status: u16,
@@ -101,5 +91,6 @@ pub struct OpensearchResultsTotal {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct OpensearchHit {
+    #[serde(rename = "_source")]
     pub source: Value,
 }
