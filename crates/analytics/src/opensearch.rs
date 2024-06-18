@@ -76,6 +76,8 @@ pub enum OpenSearchError {
     ResponseError,
     #[error("Opensearch query building error")]
     QueryBuildingError,
+    #[error("Opensearch deserialisation error")]
+    DeserialisationError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -109,6 +111,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                 "IR",
                 0,
                 "Query building error",
+                None,
+            )),
+            Self::DeserialisationError => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                0,
+                "Deserialisation error",
                 None,
             )),
         }
