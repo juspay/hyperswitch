@@ -263,6 +263,7 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
         ))
     }
 }
+
 impl TryInto<DisputeMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
