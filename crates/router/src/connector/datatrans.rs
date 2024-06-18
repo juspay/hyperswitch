@@ -1,11 +1,13 @@
 pub mod transformers;
-
 use std::fmt::Debug;
 
+use api_models::enums::{CaptureMethod, PaymentMethodType};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
-use transformers as datatrans;
+use pm_auth::consts;
+use serde_json::json;
+use transformers::{self as datatrans};
 
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -18,7 +20,7 @@ use crate::{
     },
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        api::{self, enums, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, RequestContent, Response,
     },
     utils::BytesExt,
@@ -94,7 +96,7 @@ impl ConnectorCommon for Datatrans {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth.auth_header.into_masked(),
         )])
     }
 
@@ -103,27 +105,53 @@ impl ConnectorCommon for Datatrans {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: datatrans::DatatransErrorResponse = res
+        let response: datatrans::DatatransResponse = res
             .response
-            .parse_struct("DatatransErrorResponse")
+            .parse_struct("DatatransResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
+        let error_code = response
+            .error
+            .as_ref()
+            .and_then(|e| e.code.clone())
+            .unwrap_or(consts::NO_ERROR_CODE.to_string());
+        let error_message = response
+            .error
+            .as_ref()
+            .and_then(|e| e.message.clone())
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: error_code,
+            message: error_message,
+            reason: None,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.transaction_id,
         })
     }
 }
 
 impl ConnectorValidation for Datatrans {
     //TODO: implement functions when support enabled
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic | CaptureMethod::Manual => Ok(()),
+            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: capture_method.to_string(),
+                    connector: self.id(),
+                }
+                .into())
+            }
+        }
+    }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -164,9 +192,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "v1/transactions/authorize"
+        ))
     }
 
     fn get_request_body(
@@ -212,7 +244,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: datatrans::DatatransPaymentsResponse = res
+        let response: datatrans::DatatransResponse = res
             .response
             .parse_struct("Datatrans PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -222,6 +254,19 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let enums::AttemptStatus::Charged = router_data.status {
+                if let Some(capture_method) = data.request.capture_method {
+                    router_data.status = match capture_method {
+                        CaptureMethod::Manual => enums::AttemptStatus::Authorized,
+                        CaptureMethod::Automatic => enums::AttemptStatus::Charged,
+                        _ => enums::AttemptStatus::AuthorizationFailed,
+                    };
+                }
+            }
+
+            router_data
         })
     }
 
@@ -251,10 +296,20 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .clone()
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}v1/transactions/{}",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -278,10 +333,20 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: datatrans::DatatransPaymentsResponse = res
+        let datatrans_response: datatrans::SyncResponse = res
             .response
-            .parse_struct("datatrans PaymentsSyncResponse")
+            .parse_struct("datatrans SyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let datatrans_error: datatrans::DatatransError = res
+            .response
+            .parse_struct("datatrans DatatransError")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: datatrans::DataTransSyncResponse =
+            if datatrans_error == datatrans::DatatransError::default() {
+                datatrans::DataTransSyncResponse::Response(datatrans_response)
+            } else {
+                datatrans::DataTransSyncResponse::Error(datatrans_error)
+            };
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -317,18 +382,32 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}{}{}{}",
+            self.base_url(connectors),
+            "v1/transactions/",
+            connector_payment_id,
+            "/settle"
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_router_data = datatrans::DatatransRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = datatrans::DataPaymentCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -357,10 +436,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: datatrans::DatatransPaymentsResponse = res
-            .response
-            .parse_struct("Datatrans PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response = if res.response.is_empty() {
+            datatrans::DataTransCaptureResponse::Empty
+        } else {
+            res.response
+                .parse_struct("Datatrans DataTransCaptureResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+        };
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -382,6 +464,85 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Datatrans
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let transaction_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}v1/transactions/{}/cancel",
+            self.base_url(connectors),
+            transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Ok(RequestContent::Json(Box::new(json!({}))))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .set_body(types::PaymentsVoidType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        let response = if res.response.is_empty() {
+            datatrans::DataTransCancelResponse::Empty
+        } else {
+            res.response
+                .parse_struct("Datatrans DataTransCancelResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+        };
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
@@ -401,10 +562,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let transaction_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}v1/transactions/{}/credit",
+            self.base_url(connectors),
+            transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -447,11 +613,22 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: datatrans::RefundResponse = res
+        let success_response: datatrans::DataTransSuccessResponse = res
             .response
-            .parse_struct("datatrans RefundResponse")
+            .parse_struct("datatrans DataTransSuccessResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let error_response: datatrans::DatatransError = res
+            .response
+            .parse_struct("datatrans DatatransError")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: datatrans::DataTransRefundsResponse =
+            if error_response == datatrans::DatatransError::default() {
+                datatrans::DataTransRefundsResponse::Success(success_response)
+            } else {
+                datatrans::DataTransRefundsResponse::Error(error_response)
+            };
         event_builder.map(|i| i.set_response_body(&response));
+
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -486,10 +663,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_refund_id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}v1/transactions/{}",
+            self.base_url(connectors),
+            connector_refund_id
+        ))
     }
 
     fn build_request(
@@ -516,11 +698,21 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: datatrans::RefundResponse = res
+        let datatrans_response: datatrans::SyncResponse = res
             .response
-            .parse_struct("datatrans RefundSyncResponse")
+            .parse_struct("datatrans SyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        let datatrans_error: datatrans::DatatransError = res
+            .response
+            .parse_struct("datatrans DatatransError")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: datatrans::DataTransSyncResponse =
+            if datatrans_error == datatrans::DatatransError::default() {
+                datatrans::DataTransSyncResponse::Response(datatrans_response)
+            } else {
+                datatrans::DataTransSyncResponse::Error(datatrans_error)
+            };
+        event_builder.map(|i: &mut ConnectorEvent| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,

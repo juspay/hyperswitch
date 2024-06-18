@@ -89,7 +89,7 @@ pub enum Connector {
     Coinbase,
     Cryptopay,
     Cybersource,
-    // Datatrans,
+    Datatrans,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -252,7 +252,7 @@ impl Connector {
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
-            // | Self::Datatrans
+            | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
             | Self::Stripe => false,

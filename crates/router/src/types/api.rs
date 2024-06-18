@@ -331,7 +331,7 @@ impl ConnectorData {
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 enums::Connector::Cryptopay => Ok(Box::new(connector::Cryptopay::new())),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
-                // enums::Connector::Datatrans => Ok(Box::new(&connector::Datatrans)), added as template code for future use
+                enums::Connector::Datatrans => Ok(Box::new(&connector::Datatrans)),
                 enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(Box::new(&connector::DummyConnector::<1>)),
