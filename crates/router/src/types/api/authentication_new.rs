@@ -5,8 +5,8 @@ use super::authentication::{
 };
 use crate::{services, types};
 
-pub trait ConnectorAuthenticationNew:
-    services::ConnectorIntegrationNew<
+pub trait ConnectorAuthenticationV2:
+    services::ConnectorIntegrationV2<
     Authentication,
     types::ExternalAuthenticationFlowData,
     types::authentication::ConnectorAuthenticationRequestData,
@@ -15,8 +15,8 @@ pub trait ConnectorAuthenticationNew:
 {
 }
 
-pub trait ConnectorPreAuthenticationNew:
-    services::ConnectorIntegrationNew<
+pub trait ConnectorPreAuthenticationV2:
+    services::ConnectorIntegrationV2<
     PreAuthentication,
     types::ExternalAuthenticationFlowData,
     types::authentication::PreAuthNRequestData,
@@ -25,8 +25,8 @@ pub trait ConnectorPreAuthenticationNew:
 {
 }
 
-pub trait ConnectorPreAuthenticationVersionCallNew:
-    services::ConnectorIntegrationNew<
+pub trait ConnectorPreAuthenticationVersionCallV2:
+    services::ConnectorIntegrationV2<
     PreAuthenticationVersionCall,
     types::ExternalAuthenticationFlowData,
     types::authentication::PreAuthNRequestData,
@@ -35,8 +35,8 @@ pub trait ConnectorPreAuthenticationVersionCallNew:
 {
 }
 
-pub trait ConnectorPostAuthenticationNew:
-    services::ConnectorIntegrationNew<
+pub trait ConnectorPostAuthenticationV2:
+    services::ConnectorIntegrationV2<
     PostAuthentication,
     types::ExternalAuthenticationFlowData,
     types::authentication::ConnectorPostAuthenticationRequestData,
@@ -45,11 +45,11 @@ pub trait ConnectorPostAuthenticationNew:
 {
 }
 
-pub trait ExternalAuthenticationNew:
+pub trait ExternalAuthenticationV2:
     super::ConnectorCommon
-    + ConnectorAuthenticationNew
-    + ConnectorPreAuthenticationNew
-    + ConnectorPreAuthenticationVersionCallNew
-    + ConnectorPostAuthenticationNew
+    + ConnectorAuthenticationV2
+    + ConnectorPreAuthenticationV2
+    + ConnectorPreAuthenticationVersionCallV2
+    + ConnectorPostAuthenticationV2
 {
 }

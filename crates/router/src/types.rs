@@ -31,7 +31,7 @@ pub use hyperswitch_domain_models::{
     },
     router_data_new::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataNew,
+        FrmFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
         WebhookSourceVerifyData,
     },
     router_request_types::{

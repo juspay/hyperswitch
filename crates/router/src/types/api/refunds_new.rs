@@ -9,19 +9,14 @@ pub use hyperswitch_domain_models::{
 
 use super::ConnectorCommon;
 use crate::{services::api, types};
-pub trait RefundExecuteNew:
-    api::ConnectorIntegrationNew<
-    Execute,
-    RefundFlowData,
-    types::RefundsData,
-    types::RefundsResponseData,
->
+pub trait RefundExecuteV2:
+    api::ConnectorIntegrationV2<Execute, RefundFlowData, types::RefundsData, types::RefundsResponseData>
 {
 }
 
-pub trait RefundSyncNew:
-    api::ConnectorIntegrationNew<RSync, RefundFlowData, types::RefundsData, types::RefundsResponseData>
+pub trait RefundSyncV2:
+    api::ConnectorIntegrationV2<RSync, RefundFlowData, types::RefundsData, types::RefundsResponseData>
 {
 }
 
-pub trait RefundNew: ConnectorCommon + RefundExecuteNew + RefundSyncNew {}
+pub trait RefundV2: ConnectorCommon + RefundExecuteV2 + RefundSyncV2 {}

@@ -5,8 +5,8 @@ use hyperswitch_domain_models::{
 
 use crate::{services, types};
 
-pub trait AcceptDisputeNew:
-    services::ConnectorIntegrationNew<
+pub trait AcceptDisputeV2:
+    services::ConnectorIntegrationV2<
     Accept,
     DisputesFlowData,
     types::AcceptDisputeRequestData,
@@ -15,8 +15,8 @@ pub trait AcceptDisputeNew:
 {
 }
 
-pub trait SubmitEvidenceNew:
-    services::ConnectorIntegrationNew<
+pub trait SubmitEvidenceV2:
+    services::ConnectorIntegrationV2<
     Evidence,
     DisputesFlowData,
     types::SubmitEvidenceRequestData,
@@ -25,8 +25,8 @@ pub trait SubmitEvidenceNew:
 {
 }
 
-pub trait DefendDisputeNew:
-    services::ConnectorIntegrationNew<
+pub trait DefendDisputeV2:
+    services::ConnectorIntegrationV2<
     Defend,
     DisputesFlowData,
     types::DefendDisputeRequestData,
@@ -35,7 +35,7 @@ pub trait DefendDisputeNew:
 {
 }
 
-pub trait DisputeNew:
-    super::ConnectorCommon + AcceptDisputeNew + SubmitEvidenceNew + DefendDisputeNew
+pub trait DisputeV2:
+    super::ConnectorCommon + AcceptDisputeV2 + SubmitEvidenceV2 + DefendDisputeV2
 {
 }

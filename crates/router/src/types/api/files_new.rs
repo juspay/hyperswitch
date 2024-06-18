@@ -3,8 +3,8 @@ pub use hyperswitch_domain_models::router_flow_types::files::{Retrieve, Upload};
 use super::ConnectorCommon;
 use crate::{core::errors, services, types, types::api::FilePurpose};
 
-pub trait UploadFileNew:
-    services::ConnectorIntegrationNew<
+pub trait UploadFileV2:
+    services::ConnectorIntegrationV2<
     Upload,
     types::FilesFlowData,
     types::UploadFileRequestData,
@@ -13,8 +13,8 @@ pub trait UploadFileNew:
 {
 }
 
-pub trait RetrieveFileNew:
-    services::ConnectorIntegrationNew<
+pub trait RetrieveFileV2:
+    services::ConnectorIntegrationV2<
     Retrieve,
     types::FilesFlowData,
     types::RetrieveFileRequestData,
@@ -23,7 +23,7 @@ pub trait RetrieveFileNew:
 {
 }
 
-pub trait FileUploadNew: ConnectorCommon + Sync + UploadFileNew + RetrieveFileNew {
+pub trait FileUploadV2: ConnectorCommon + Sync + UploadFileV2 + RetrieveFileV2 {
     fn validate_file_upload_new(
         &self,
         _purpose: FilePurpose,

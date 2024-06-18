@@ -62,7 +62,7 @@ use crate::{
     },
     events::connector_api_logs::ConnectorEvent,
     services::{
-        request, ConnectorIntegration, ConnectorIntegrationNew, ConnectorRedirectResponse,
+        request, ConnectorIntegration, ConnectorIntegrationV2, ConnectorRedirectResponse,
         ConnectorValidation,
     },
     types::{self, api::enums as api_enums},
@@ -72,8 +72,8 @@ pub trait ConnectorAccessToken:
 {
 }
 
-pub trait ConnectorAccessTokenNew:
-    ConnectorIntegrationNew<
+pub trait ConnectorAccessTokenV2:
+    ConnectorIntegrationV2<
     AccessTokenAuth,
     AccessTokenFlowData,
     types::AccessTokenRequestData,
@@ -97,8 +97,8 @@ pub trait ConnectorVerifyWebhookSource:
 >
 {
 }
-pub trait ConnectorVerifyWebhookSourceNew:
-    ConnectorIntegrationNew<
+pub trait ConnectorVerifyWebhookSourceV2:
+    ConnectorIntegrationV2<
     VerifyWebhookSource,
     types::WebhookSourceVerifyData,
     types::VerifyWebhookSourceRequestData,
@@ -119,8 +119,8 @@ pub trait ConnectorMandateRevoke:
 {
 }
 
-pub trait ConnectorMandateRevokeNew:
-    ConnectorIntegrationNew<
+pub trait ConnectorMandateRevokeV2:
+    ConnectorIntegrationV2<
     MandateRevoke,
     types::MandateRevokeFlowData,
     types::MandateRevokeRequestData,
@@ -208,28 +208,28 @@ pub trait Router {}
 pub trait Connector:
     Send
     + Refund
-    + RefundNew
+    + RefundV2
     + Payment
-    + PaymentNew
+    + PaymentV2
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
-    + ConnectorAccessTokenNew
+    + ConnectorAccessTokenV2
     + Dispute
-    + DisputeNew
+    + DisputeV2
     + FileUpload
-    + FileUploadNew
+    + FileUploadV2
     + ConnectorTransactionId
     + Payouts
-    + PayoutsNew
+    + PayoutsV2
     + ConnectorVerifyWebhookSource
-    + ConnectorVerifyWebhookSourceNew
+    + ConnectorVerifyWebhookSourceV2
     + FraudCheck
-    + FraudCheckNew
+    + FraudCheckV2
     + ConnectorMandateRevoke
-    + ConnectorMandateRevokeNew
+    + ConnectorMandateRevokeV2
     + ExternalAuthentication
-    + ExternalAuthenticationNew
+    + ExternalAuthenticationV2
 {
 }
 
@@ -239,29 +239,29 @@ pub struct Pe;
 
 impl<
         T: Refund
-            + RefundNew
+            + RefundV2
             + Payment
-            + PaymentNew
+            + PaymentV2
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
-            + ConnectorAccessTokenNew
+            + ConnectorAccessTokenV2
             + Dispute
-            + DisputeNew
+            + DisputeV2
             + FileUpload
-            + FileUploadNew
+            + FileUploadV2
             + ConnectorTransactionId
             + Payouts
-            + PayoutsNew
+            + PayoutsV2
             + ConnectorVerifyWebhookSource
-            + ConnectorVerifyWebhookSourceNew
+            + ConnectorVerifyWebhookSourceV2
             + FraudCheck
-            + FraudCheckNew
+            + FraudCheckV2
             + ConnectorMandateRevoke
-            + ConnectorMandateRevokeNew
+            + ConnectorMandateRevokeV2
             + ExternalAuthentication
-            + ExternalAuthenticationNew,
+            + ExternalAuthenticationV2,
     > Connector for T
 {
 }
