@@ -1,5 +1,7 @@
 use common_utils::{errors::ValidationError, ext_traits::ValueExt};
-use diesel_models::{enums as storage_enums, ApiKeyExpiryTrackingData};
+use diesel_models::{
+    enums as storage_enums, process_tracker::business_status, ApiKeyExpiryTrackingData,
+};
 use router_env::logger;
 use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerSessionState};
 
@@ -96,7 +98,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             state
                 .get_db()
                 .as_scheduler()
-                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?
         }
         // If tasks are remaining that has to be scheduled

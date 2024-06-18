@@ -349,8 +349,8 @@ pub struct PayoutCreateResponse {
     pub connector: Option<String>,
 
     /// The payout method that is to be used
-    #[schema(value_type = PayoutType, example = "bank")]
-    pub payout_type: api_enums::PayoutType,
+    #[schema(value_type = Option<PayoutType>, example = "bank")]
+    pub payout_type: Option<api_enums::PayoutType>,
 
     /// The billing address for the payout
     #[schema(value_type = Option<Object>, example = json!(r#"{
