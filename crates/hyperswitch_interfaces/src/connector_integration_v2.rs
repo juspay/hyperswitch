@@ -37,7 +37,7 @@ where
     }
 }
 
-/// The new connector integration trait with an additional ResourceCommonData generic paramenter
+/// The new connector integration trait with an additional ResourceCommonData generic parameter
 pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + super::api::ConnectorCommon
 {
@@ -50,7 +50,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(vec![])
     }
 
-    /// returnes content type
+    /// returns content type
     fn get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
@@ -60,7 +60,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Method::Post
     }
 
-    /// retuns url
+    /// returns url
     fn get_url(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
@@ -69,7 +69,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(String::new())
     }
 
-    /// retuns request body
+    /// returns request body
     fn get_request_body(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
