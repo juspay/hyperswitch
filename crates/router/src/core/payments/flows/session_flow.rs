@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
+use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -64,10 +65,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes(
-                "connector",
-                connector.connector_name.to_string(),
-            )],
+            &add_attributes([("connector", connector.connector_name.to_string())]),
         );
         self.decide_flow(
             state,

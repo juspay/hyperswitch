@@ -6,6 +6,7 @@ use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
 use ring::hmac;
+use router_env::metrics::add_attributes;
 use roxmltree;
 use time::OffsetDateTime;
 use transformers as boku;
@@ -665,7 +666,7 @@ fn get_xml_deserialized(
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("connector", "boku")],
+        &add_attributes([("connector", "boku")]),
     );
 
     let response_data = String::from_utf8(res.response.to_vec())

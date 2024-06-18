@@ -2,7 +2,7 @@ pub mod bg_metrics_collector;
 pub mod request;
 pub mod utils;
 
-use router_env::{counter_metric, gauge_metric, global_meter, histogram_metric, metrics_context};
+use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
 
 metrics_context!(CONTEXT);
 global_meter!(GLOBAL_METER, "ROUTER_API");
@@ -135,6 +135,3 @@ counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
 
 // A counter to indicate the access token cache miss
 counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
-
-// Metrics for In-memory cache
-gauge_metric!(CACHE_ENTRY_COUNT, GLOBAL_METER);

@@ -8,7 +8,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
 use crate::{
@@ -806,16 +806,10 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    ),
-                    metrics::request::add_attributes(
-                        "payment_method",
-                        router_data.payment_method.to_string(),
-                    ),
-                ],
+                &add_attributes([
+                    ("connector", connector.connector_name.to_string()),
+                    ("payment_method", router_data.payment_method.to_string()),
+                ]),
             );
 
             let pm_token = match resp.response {

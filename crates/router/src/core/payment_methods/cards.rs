@@ -36,7 +36,7 @@ use euclid::{
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use strum::IntoEnumIterator;
 
 use super::surcharge_decision_configs::{
@@ -3958,7 +3958,7 @@ impl TempLockerCardSupport {
         metrics::TASKS_ADDED_COUNT.add(
             &metrics::CONTEXT,
             1,
-            &[request::add_attributes("flow", "DeleteTokenizeData")],
+            &add_attributes([("flow", "DeleteTokenizeData")]),
         );
         Ok(card)
     }

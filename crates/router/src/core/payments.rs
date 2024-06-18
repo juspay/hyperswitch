@@ -42,7 +42,7 @@ pub use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 use redis_interface::errors::RedisError;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
@@ -857,16 +857,13 @@ pub trait PaymentRedirectFlow: Sync {
         metrics::REDIRECTION_TRIGGERED.add(
             &metrics::CONTEXT,
             1,
-            &[
-                metrics::request::add_attributes(
+            &add_attributes([
+                (
                     "connector",
                     req.connector.to_owned().unwrap_or("null".to_string()),
                 ),
-                metrics::request::add_attributes(
-                    "merchant_id",
-                    merchant_account.merchant_id.to_owned(),
-                ),
-            ],
+                ("merchant_id", merchant_account.merchant_id.to_owned()),
+            ]),
         );
         let connector = req.connector.clone().get_required_value("connector")?;
 
