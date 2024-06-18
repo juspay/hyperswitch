@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env"]
+signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
 async_ext = ["dep:async-trait", "dep:futures"]
 logs = ["dep:router_env"]
 metrics = ["dep:router_env", "dep:futures"]
