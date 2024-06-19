@@ -37,9 +37,6 @@ const SURCHARGE_CACHE_PREFIX: &str = "surcharge";
 /// Prefix for cgraph cache key
 const CGRAPH_CACHE_PREFIX: &str = "cgraph";
 
-/// Prefix for PM Filter cgraph cache key
-const PM_FILTERS_CGRAPH_CACHE_PREFIX: &str = "pm_filters_cgraph";
-
 /// Prefix for all kinds of cache key
 const ALL_CACHE_PREFIX: &str = "all_cache_kind";
 
@@ -75,10 +72,6 @@ pub static SURCHARGE_CACHE: Lazy<Cache> =
 pub static CGRAPH_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
-/// PM Filter CGraph Cache
-pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> =
-    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
-
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -91,7 +84,6 @@ pub enum CacheKind<'a> {
     DecisionManager(Cow<'a, str>),
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
-    PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
 
@@ -104,7 +96,6 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
             CacheKind::DecisionManager(s) => format!("{DECISION_MANAGER_CACHE_PREFIX},{s}"),
             CacheKind::Surcharge(s) => format!("{SURCHARGE_CACHE_PREFIX},{s}"),
             CacheKind::CGraph(s) => format!("{CGRAPH_CACHE_PREFIX},{s}"),
-            CacheKind::PmFiltersCGraph(s) => format!("{PM_FILTERS_CGRAPH_CACHE_PREFIX},{s}"),
             CacheKind::All(s) => format!("{ALL_CACHE_PREFIX},{s}"),
         };
         Self::from_string(value)
@@ -128,10 +119,6 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
             }
             SURCHARGE_CACHE_PREFIX => Ok(Self::Surcharge(Cow::Owned(split.1.to_string()))),
             CGRAPH_CACHE_PREFIX => Ok(Self::CGraph(Cow::Owned(split.1.to_string()))),
-            PM_FILTERS_CGRAPH_CACHE_PREFIX => {
-                Ok(Self::PmFiltersCGraph(Cow::Owned(split.1.to_string())))
-            }
-
             ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
