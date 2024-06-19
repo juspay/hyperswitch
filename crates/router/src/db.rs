@@ -24,7 +24,6 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
-pub mod org_authentication_method;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
@@ -33,6 +32,7 @@ pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
 pub mod user;
+pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
 
@@ -118,7 +118,7 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + role::RoleInterface
-    + org_authentication_method::OrgAuthenticationMethodInterface
+    + user_authentication_method::OrgAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + 'static
 {

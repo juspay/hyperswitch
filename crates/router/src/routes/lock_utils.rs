@@ -224,9 +224,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RecoveryCodesGenerate
             | Flow::TerminateTwoFactorAuth
             | Flow::TwoFactorAuthStatus
-            | Flow::CreateOrgAuthenticationMethod
-            | Flow::UpdateOrgAuthenticationMethod
-            | Flow::ListOrgAuthenticationMethods => Self::User,
+            | Flow::CreateUserAuthenticationMethod
+            | Flow::UpdateUserAuthenticationMethod
+            | Flow::ListUserAuthenticationMethods => Self::User,
 
             Flow::ListRoles
             | Flow::GetRole

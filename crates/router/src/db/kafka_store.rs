@@ -31,9 +31,9 @@ use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
-    org_authentication_method::OrgAuthenticationMethodInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user_authentication_method::OrgAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
     user_role::UserRoleInterface,
 };
@@ -2859,32 +2859,40 @@ impl UserKeyStoreInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl OrgAuthenticationMethodInterface for KafkaStore {
-    async fn insert_org_authentication_method(
+    async fn insert_user_authentication_method(
         &self,
-        org_authentication_method: storage::OrgAuthenticationMethodNew,
-    ) -> CustomResult<storage::OrgAuthenticationMethod, errors::StorageError> {
+        user_authentication_method: storage::UserAuthenticationMethodNew,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
         self.diesel_store
-            .insert_org_authentication_method(org_authentication_method)
+            .insert_user_authentication_method(user_authentication_method)
             .await
     }
 
-    async fn list_authentication_methods_for_org_id(
+    async fn list_authentication_methods_for_auth_id(
         &self,
-        org_id: &str,
-    ) -> CustomResult<Vec<storage::OrgAuthenticationMethod>, errors::StorageError> {
+        auth_id: &str,
+    ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
         self.diesel_store
-            .list_authentication_methods_for_org_id(org_id)
+            .list_authentication_methods_for_auth_id(auth_id)
             .await
     }
 
-    async fn update_org_authentication_method(
+    async fn list_authentication_methods_for_owner_id(
         &self,
-        org_id: &str,
-        auth_method: enums::AuthMethod,
-        org_authentication_method_update: storage::OrgAuthenticationMethodUpdate,
-    ) -> CustomResult<storage::OrgAuthenticationMethod, errors::StorageError> {
+        owner_id: &str,
+    ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
         self.diesel_store
-            .update_org_authentication_method(org_id, auth_method, org_authentication_method_update)
+            .list_authentication_methods_for_owner_id(owner_id)
+            .await
+    }
+
+    async fn update_user_authentication_method(
+        &self,
+        id: &str,
+        user_authentication_method_update: storage::UserAuthenticationMethodUpdate,
+    ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
+        self.diesel_store
+            .update_user_authentication_method(id, user_authentication_method_update)
             .await
     }
 }

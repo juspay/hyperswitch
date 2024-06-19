@@ -750,57 +750,57 @@ pub async fn check_two_factor_auth_status(
     .await
 }
 
-pub async fn create_org_authentication_method(
+pub async fn create_user_authentication_method(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<user_api::CreateOrgAuthenticationMethodRequest>,
+    json_payload: web::Json<user_api::CreateUserAuthenticationMethodRequest>,
 ) -> HttpResponse {
-    let flow = Flow::CreateOrgAuthenticationMethod;
+    let flow = Flow::CreateUserAuthenticationMethod;
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, _, req_body, _| user_core::create_org_authentication_method(state, req_body),
+        |state, _, req_body, _| user_core::create_user_authentication_method(state, req_body),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
-pub async fn update_org_authentication_method(
+pub async fn update_user_authentication_method(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<user_api::UpdateOrgAuthenticationMethodRequest>,
+    json_payload: web::Json<user_api::UpdateUserAuthenticationMethodRequest>,
 ) -> HttpResponse {
-    let flow = Flow::UpdateOrgAuthenticationMethod;
+    let flow = Flow::UpdateUserAuthenticationMethod;
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, _, req_body, _| user_core::update_org_authentication_method(state, req_body),
+        |state, _, req_body, _| user_core::update_user_authentication_method(state, req_body),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
-pub async fn list_org_authentication_methods(
+pub async fn list_user_authentication_methods(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<user_api::GetOrgAuthenticationMethodsRequest>,
+    query: web::Query<user_api::GetUserAuthenticationMethodsRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ListOrgAuthenticationMethods;
+    let flow = Flow::ListUserAuthenticationMethods;
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         query.into_inner(),
-        |state, _, req, _| user_core::list_org_authentication_methods(state, req),
+        |state, _, req, _| user_core::list_user_authentication_methods(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))

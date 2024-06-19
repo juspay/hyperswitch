@@ -11,14 +11,14 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, BeginTotpResponse, ChangePasswordRequest,
-    ConnectAccountRequest, CreateInternalUserRequest, CreateOrgAuthenticationMethodRequest,
-    DashboardEntryResponse, ForgotPasswordRequest, GetOrgAuthenticationMethodsRequest,
+    ConnectAccountRequest, CreateInternalUserRequest, CreateUserAuthenticationMethodRequest,
+    DashboardEntryResponse, ForgotPasswordRequest, GetUserAuthenticationMethodsRequest,
     GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListOrgAuthenticationMethods, ListUsersResponse, ReInviteUserRequest,
+    InviteUserRequest, ListUserAuthenticationMethods, ListUsersResponse, ReInviteUserRequest,
     RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
     SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
     TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
-    UpdateOrgAuthenticationMethodRequest, UpdateUserAccountDetailsRequest, UserFromEmailRequest,
+    UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest, UserFromEmailRequest,
     UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
@@ -81,10 +81,10 @@ common_utils::impl_misc_api_event_type!(
     VerifyRecoveryCodeRequest,
     VerifyTotpRequest,
     RecoveryCodes,
-    GetOrgAuthenticationMethodsRequest,
-    CreateOrgAuthenticationMethodRequest,
-    UpdateOrgAuthenticationMethodRequest,
-    ListOrgAuthenticationMethods
+    GetUserAuthenticationMethodsRequest,
+    CreateUserAuthenticationMethodRequest,
+    UpdateUserAuthenticationMethodRequest,
+    ListUserAuthenticationMethods
 );
 
 #[cfg(feature = "dummy_connector")]

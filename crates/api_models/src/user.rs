@@ -296,34 +296,36 @@ pub struct OpenIdConnect {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct CreateOrgAuthenticationMethodRequest {
+pub struct CreateUserAuthenticationMethodRequest {
     pub owner_id: String,
+    pub owner_type: common_enums::Owner,
     pub auth_method: common_enums::AuthMethod,
     pub config: AuthConfig,
     pub allow_signup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UpdateOrgAuthenticationMethodRequest {
-    pub owner_id: String,
-    pub auth_method: common_enums::AuthMethod,
+pub struct UpdateUserAuthenticationMethodRequest {
+    pub id: String,
     pub config: AuthConfig,
-    pub allow_signup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetOrgAuthenticationMethodsRequest {
+pub struct GetUserAuthenticationMethodsRequest {
+    pub auth_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListUserAuthenticationMethods {
+    pub user_authentication_methods: Vec<UserAuthenticationMethodResponse>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserAuthenticationMethodResponse {
+    pub id: String,
+    pub auth_id: String,
     pub owner_id: String,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct ListOrgAuthenticationMethods {
-    pub org_authentication_methods: Vec<OrgAuthenticationMethodResponse>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct OrgAuthenticationMethodResponse {
-    pub owner_id: String,
+    pub owner_type: common_enums::Owner,
     pub auth_method: common_enums::AuthMethod,
     pub allow_signup: bool,
 }

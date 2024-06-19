@@ -5,8 +5,8 @@ use api_models::user::{self as user_api, InviteMultipleUserResponse};
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
     enums::{TotpStatus, UserStatus},
-    org_authentication_method::{OrgAuthenticationMethodNew, OrgAuthenticationMethodUpdate},
     user as storage_user,
+    user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
     user_role::UserRoleNew,
 };
 use error_stack::{report, ResultExt};
@@ -876,7 +876,7 @@ pub async fn resend_invite(
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
                     .attach_printable(format!(
-                        "User role with user_id = {} and owner_id = {} is not found",
+                        "User role with user_id = {} and merchant_id = {} is not found",
                         user.get_user_id(),
                         user_from_token.merchant_id
                     ))
@@ -1145,7 +1145,7 @@ pub async fn switch_merchant_id(
                 }
             })?;
 
-        let owner_id = state
+        let org_id = state
             .store
             .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
             .await
@@ -1162,7 +1162,7 @@ pub async fn switch_merchant_id(
             &state,
             &user,
             request.merchant_id.clone(),
-            owner_id.clone(),
+            org_id.clone(),
             user_from_token.role_id.clone(),
         )
         .await?;
@@ -1968,19 +1968,34 @@ pub async fn check_two_factor_auth_status(
     ))
 }
 
-pub async fn create_org_authentication_method(
+pub async fn create_user_authentication_method(
     state: SessionState,
-    req: user_api::CreateOrgAuthenticationMethodRequest,
+    req: user_api::CreateUserAuthenticationMethodRequest,
 ) -> UserResponse<()> {
     let config = serde_json::to_value(req.config)
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to convert auth config to json")?;
 
+    let auth_methods = state
+        .store
+        .list_authentication_methods_for_owner_id(&req.owner_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get list of auth methods for the owner id")?;
+    let auth_id = if let Some(auth_method) = auth_methods.first() {
+        auth_method.auth_id.clone()
+    } else {
+        uuid::Uuid::new_v4().to_string()
+    };
+
     let now = common_utils::date_time::now();
     state
         .store
-        .insert_org_authentication_method(OrgAuthenticationMethodNew {
+        .insert_user_authentication_method(UserAuthenticationMethodNew {
+            id: uuid::Uuid::new_v4().to_string(),
+            auth_id,
             owner_id: req.owner_id,
+            owner_type: req.owner_type,
             auth_method: req.auth_method,
             config: Some(config),
             allow_signup: req.allow_signup,
@@ -1992,45 +2007,49 @@ pub async fn create_org_authentication_method(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn update_org_authentication_method(
+pub async fn update_user_authentication_method(
     state: SessionState,
-    req: user_api::UpdateOrgAuthenticationMethodRequest,
+    req: user_api::UpdateUserAuthenticationMethodRequest,
 ) -> UserResponse<()> {
     let updated_config = serde_json::to_value(req.config)
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to convert auth config to json")?;
     state
         .store
-        .update_org_authentication_method(
-            &req.owner_id,
-            req.auth_method,
-            OrgAuthenticationMethodUpdate::UpdateConfig { config: Some(updated_config) },
+        .update_user_authentication_method(
+            &req.id,
+            UserAuthenticationMethodUpdate::UpdateConfig {
+                config: Some(updated_config),
+            },
         )
         .await
         .change_context(UserErrors::InvalidOrgAuthMethodOperation)?;
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn list_org_authentication_methods(
+pub async fn list_user_authentication_methods(
     state: SessionState,
-    req: user_api::GetOrgAuthenticationMethodsRequest,
-) -> UserResponse<user_api::ListOrgAuthenticationMethods> {
-    let org_authentication_methods: Vec<_> = state
+    req: user_api::GetUserAuthenticationMethodsRequest,
+) -> UserResponse<user_api::ListUserAuthenticationMethods> {
+    let user_authentication_methods: Vec<_> = state
         .store
-        .list_authentication_methods_for_org_id(&req.owner_id)
+        .list_authentication_methods_for_auth_id(&req.auth_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .map(|method| user_api::OrgAuthenticationMethodResponse {
+        .map(|method| user_api::UserAuthenticationMethodResponse {
+            id: method.id,
+            auth_id: method.auth_id,
             owner_id: method.owner_id,
+            owner_type: method.owner_type,
             auth_method: method.auth_method,
             allow_signup: method.allow_signup,
         })
         .collect();
 
     Ok(ApplicationResponse::Json(
-        user_api::ListOrgAuthenticationMethods {
-            org_authentication_methods,
+        user_api::ListUserAuthenticationMethods {
+            user_authentication_methods,
         },
     ))
 }

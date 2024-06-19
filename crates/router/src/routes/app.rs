@@ -1397,11 +1397,11 @@ impl User {
             web::scope("/auth")
                 .service(
                     web::resource("")
-                        .route(web::post().to(create_org_authentication_method))
-                        .route(web::put().to(update_org_authentication_method)),
+                        .route(web::post().to(create_user_authentication_method))
+                        .route(web::put().to(update_user_authentication_method)),
                 )
                 .service(
-                    web::resource("/list").route(web::get().to(list_org_authentication_methods)),
+                    web::resource("/list").route(web::get().to(list_user_authentication_methods)),
                 ),
         );
 
