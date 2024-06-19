@@ -187,7 +187,7 @@ impl CardDetailUpdate {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
     #[schema(example = "merchant_1671528864")]

@@ -68,7 +68,7 @@ pub struct StoreCardRespPayload {
     pub duplication_check: Option<DataDuplicationCheck>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum DataDuplicationCheck {
     Duplicated,
