@@ -291,7 +291,7 @@ pub struct OpenIdConnect {
     pub name: String,
     pub base_url: String,
     pub client_id: String,
-    pub client_secret: Option<Secret<String>>,
+    pub client_secret: Secret<String>,
     pub private_key: Option<Secret<String>>,
 }
 

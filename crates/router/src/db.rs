@@ -118,7 +118,7 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + role::RoleInterface
-    + user_authentication_method::OrgAuthenticationMethodInterface
+    + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + 'static
 {

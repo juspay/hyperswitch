@@ -80,10 +80,10 @@ pub enum UserErrors {
     TwoFactorAuthNotSetup,
     #[error("TOTP secret not found")]
     TotpSecretNotFound,
-    #[error("Org auth method already exists")]
-    OrgAuthMethodAlreadyExists,
-    #[error("Invalid org auth method operation")]
-    InvalidOrgAuthMethodOperation,
+    #[error("User auth method already exists")]
+    UserAuthMethodAlreadyExists,
+    #[error("Invalid user auth method operation")]
+    InvalidUserAuthMethodOperation,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -208,10 +208,10 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::TotpSecretNotFound => {
                 AER::BadRequest(ApiError::new(sub_code, 42, self.get_error_message(), None))
             }
-            Self::OrgAuthMethodAlreadyExists => {
+            Self::UserAuthMethodAlreadyExists => {
                 AER::BadRequest(ApiError::new(sub_code, 43, self.get_error_message(), None))
             }
-            Self::InvalidOrgAuthMethodOperation => {
+            Self::InvalidUserAuthMethodOperation => {
                 AER::BadRequest(ApiError::new(sub_code, 44, self.get_error_message(), None))
             }
         }
@@ -257,8 +257,8 @@ impl UserErrors {
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",
-            Self::OrgAuthMethodAlreadyExists => "Org auth method already exists",
-            Self::InvalidOrgAuthMethodOperation => "Invalid org auth method operation",
+            Self::UserAuthMethodAlreadyExists => "User auth method already exists",
+            Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
         }
     }
 }

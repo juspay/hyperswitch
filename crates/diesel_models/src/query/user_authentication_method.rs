@@ -12,7 +12,7 @@ impl UserAuthenticationMethodNew {
 }
 
 impl UserAuthenticationMethod {
-    pub async fn list_authentication_methods_for_auth_id(
+    pub async fn list_user_authentication_methods_for_auth_id(
         conn: &PgPooledConn,
         auth_id: &str,
     ) -> StorageResult<Vec<Self>> {
@@ -26,7 +26,7 @@ impl UserAuthenticationMethod {
         .await
     }
 
-    pub async fn list_authentication_methods_for_owner_id(
+    pub async fn list_user_authentication_methods_for_owner_id(
         conn: &PgPooledConn,
         owner_id: &str,
     ) -> StorageResult<Vec<Self>> {

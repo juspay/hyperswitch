@@ -10,18 +10,18 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait OrgAuthenticationMethodInterface {
+pub trait UserAuthenticationMethodInterface {
     async fn insert_user_authentication_method(
         &self,
         user_authentication_method: storage::UserAuthenticationMethodNew,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError>;
 
-    async fn list_authentication_methods_for_auth_id(
+    async fn list_user_authentication_methods_for_auth_id(
         &self,
         auth_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError>;
 
-    async fn list_authentication_methods_for_owner_id(
+    async fn list_user_authentication_methods_for_owner_id(
         &self,
         owner_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError>;
@@ -34,7 +34,7 @@ pub trait OrgAuthenticationMethodInterface {
 }
 
 #[async_trait::async_trait]
-impl OrgAuthenticationMethodInterface for Store {
+impl UserAuthenticationMethodInterface for Store {
     #[instrument(skip_all)]
     async fn insert_user_authentication_method(
         &self,
@@ -48,25 +48,29 @@ impl OrgAuthenticationMethodInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_authentication_methods_for_auth_id(
+    async fn list_user_authentication_methods_for_auth_id(
         &self,
         auth_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserAuthenticationMethod::list_authentication_methods_for_auth_id(&conn, auth_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        storage::UserAuthenticationMethod::list_user_authentication_methods_for_auth_id(
+            &conn, auth_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
-    async fn list_authentication_methods_for_owner_id(
+    async fn list_user_authentication_methods_for_owner_id(
         &self,
         owner_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserAuthenticationMethod::list_authentication_methods_for_owner_id(&conn, owner_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        storage::UserAuthenticationMethod::list_user_authentication_methods_for_owner_id(
+            &conn, owner_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -87,7 +91,7 @@ impl OrgAuthenticationMethodInterface for Store {
 }
 
 #[async_trait::async_trait]
-impl OrgAuthenticationMethodInterface for MockDb {
+impl UserAuthenticationMethodInterface for MockDb {
     async fn insert_user_authentication_method(
         &self,
         user_authentication_method: storage::UserAuthenticationMethodNew,
@@ -109,7 +113,7 @@ impl OrgAuthenticationMethodInterface for MockDb {
         Ok(user_authentication_method)
     }
 
-    async fn list_authentication_methods_for_auth_id(
+    async fn list_user_authentication_methods_for_auth_id(
         &self,
         auth_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
@@ -131,7 +135,7 @@ impl OrgAuthenticationMethodInterface for MockDb {
         Ok(user_authentication_methods_list)
     }
 
-    async fn list_authentication_methods_for_owner_id(
+    async fn list_user_authentication_methods_for_owner_id(
         &self,
         owner_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
@@ -176,7 +180,7 @@ impl OrgAuthenticationMethodInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No authentication method available for the user = {id}"
+                    "No authentication method available for the id = {id}"
                 ))
                 .into(),
             )

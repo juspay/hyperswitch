@@ -1978,7 +1978,7 @@ pub async fn create_user_authentication_method(
 
     let auth_methods = state
         .store
-        .list_authentication_methods_for_owner_id(&req.owner_id)
+        .list_user_authentication_methods_for_owner_id(&req.owner_id)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get list of auth methods for the owner id")?;
@@ -2003,7 +2003,7 @@ pub async fn create_user_authentication_method(
             last_modified_at: now,
         })
         .await
-        .to_duplicate_response(UserErrors::OrgAuthMethodAlreadyExists)?;
+        .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -2023,7 +2023,7 @@ pub async fn update_user_authentication_method(
             },
         )
         .await
-        .change_context(UserErrors::InvalidOrgAuthMethodOperation)?;
+        .change_context(UserErrors::InvalidUserAuthMethodOperation)?;
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -2033,7 +2033,7 @@ pub async fn list_user_authentication_methods(
 ) -> UserResponse<user_api::ListUserAuthenticationMethods> {
     let user_authentication_methods: Vec<_> = state
         .store
-        .list_authentication_methods_for_auth_id(&req.auth_id)
+        .list_user_authentication_methods_for_auth_id(&req.auth_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()

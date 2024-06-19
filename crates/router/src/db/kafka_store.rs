@@ -33,7 +33,7 @@ use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
-    user_authentication_method::OrgAuthenticationMethodInterface,
+    user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
     user_role::UserRoleInterface,
 };
@@ -2858,7 +2858,7 @@ impl UserKeyStoreInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl OrgAuthenticationMethodInterface for KafkaStore {
+impl UserAuthenticationMethodInterface for KafkaStore {
     async fn insert_user_authentication_method(
         &self,
         user_authentication_method: storage::UserAuthenticationMethodNew,
@@ -2868,21 +2868,21 @@ impl OrgAuthenticationMethodInterface for KafkaStore {
             .await
     }
 
-    async fn list_authentication_methods_for_auth_id(
+    async fn list_user_authentication_methods_for_auth_id(
         &self,
         auth_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
         self.diesel_store
-            .list_authentication_methods_for_auth_id(auth_id)
+            .list_user_authentication_methods_for_auth_id(auth_id)
             .await
     }
 
-    async fn list_authentication_methods_for_owner_id(
+    async fn list_user_authentication_methods_for_owner_id(
         &self,
         owner_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
         self.diesel_store
-            .list_authentication_methods_for_owner_id(owner_id)
+            .list_user_authentication_methods_for_owner_id(owner_id)
             .await
     }
 
