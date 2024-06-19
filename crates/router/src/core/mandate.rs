@@ -5,7 +5,7 @@ use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, ResultExt};
 use futures::future;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 
 use super::payments::helpers as payment_helper;
 use crate::{
@@ -404,10 +404,7 @@ where
             metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes(
-                    "connector",
-                    mandate.connector,
-                )],
+                &add_attributes([("connector", mandate.connector)]),
             );
             Ok(Some(mandate_id.clone()))
         }
@@ -463,7 +460,7 @@ where
             metrics::MANDATE_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes("connector", connector)],
+                &add_attributes([("connector", connector)]),
             );
             Ok(Some(res_mandate_id))
         }

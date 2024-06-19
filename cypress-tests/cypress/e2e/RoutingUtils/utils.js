@@ -1,7 +1,7 @@
-import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
+import { connectorDetails as commonConnectorDetails } from "./Common.js";
 
 const connectorDetails = {
-  stripe: stripeConnectorDetails,
+  common: commonConnectorDetails,
 };
 
 export const getConnectorDetails = (connectorId) => {

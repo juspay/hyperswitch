@@ -29,6 +29,7 @@ pub struct ConnectorAuthentication {
     pub coinbase: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
+    pub datatrans: Option<HeaderKey>,
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,

@@ -22,6 +22,13 @@ export const connectorDetails = {
       body: {},
     },
   },
+  jwt: {
+    Request: {},
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
   card_pm: {
     Confirm: {
       Request: {
