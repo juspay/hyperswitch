@@ -62,12 +62,7 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes::{
-        self,
-        app::SessionStateInfo,
-        metrics::{self, request},
-        payment_methods::ParentPaymentMethodToken,
-    },
+    routes::{self, app::SessionStateInfo, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
