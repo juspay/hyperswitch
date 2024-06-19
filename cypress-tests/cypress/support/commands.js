@@ -552,6 +552,49 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmUpiCallTest",
+  (confirmBody, req_data, res_data, globalState) => {
+    const paymentIntentID = globalState.get("paymentID");
+    for (const key in req_data) {
+      confirmBody[key] = req_data[key];
+    }
+    confirmBody.client_secret = globalState.get("clientSecret");
+    globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(res_data.status).to.equal(response.status);
+      expect(response.headers["content-type"]).to.include("application/json");
+      globalState.set("paymentID", paymentIntentID);
+      if (response.status === 200) {
+          switch (response.body.payment_method_type) {
+            default:
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url,
+              );
+              break;
+          }
+      } else {
+        defaultErrorHandler(response, res_data);
+      }
+    });
+  },
+);
+
+Cypress.Commands.add(
   "createConfirmPaymentTest",
   (
     createConfirmPaymentBody,
@@ -1030,6 +1073,25 @@ Cypress.Commands.add(
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && payment_method_type == "sofort")) {
+      handleRedirection(
+        "bank_redirect",
+        { redirection_url, expected_url },
+        connectorId,
+        payment_method_type,
+      );
+    }
+  },
+);
+
+Cypress.Commands.add(
+  "handleUpiRedirection",
+  (globalState, payment_method_type, expected_redirection) => {
+    let connectorId = globalState.get("connectorId");
+    let expected_url = new URL(expected_redirection);
+    let redirection_url = new URL(globalState.get("nextActionUrl"));
+    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
+    // trying to handle that specific case results in stripe 3ds tests to fail
+    if (!(payment_method_type == "upi_collect")) {
       handleRedirection(
         "bank_redirect",
         { redirection_url, expected_url },

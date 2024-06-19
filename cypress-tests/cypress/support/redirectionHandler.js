@@ -26,6 +26,14 @@ export function handleRedirection(
         payment_method_type
       );
       break;
+    case "upi":
+      UpiRedirection(
+        urls.redirection_url,
+        urls.expected_url,
+        connectorId,
+        payment_method_type
+      );
+      break;
     default:
       throw new Error(`Redirection known: ${redirection_type}`);
   }
@@ -339,5 +347,31 @@ async function fetchAndParseQRCode(url) {
       image.onerror = reject; // Handle image loading errors
     };
     reader.readAsDataURL(blob);
+  });
+}
+
+function UpiRedirection(
+  redirection_url,
+  expected_url,
+  connectorId,
+  payment_method_type
+) {
+  cy.request(redirection_url.href).then((response) => {
+    switch (connectorId) {
+      case "iatapay":
+        switch (payment_method_type) {
+          case "iatapay":
+              cy.get('input[name="token-id"]').type("successtest@iata");
+              cy.get(".button.tertiary").click();
+              cy.wait(200000);
+            break;
+          default:
+            verifyReturnUrl(redirection_url, expected_url, true);
+          // expected_redirection can be used here to handle other payment methods
+        }
+        break;
+      default:
+        verifyReturnUrl(redirection_url, expected_url, true);
+    }
   });
 }

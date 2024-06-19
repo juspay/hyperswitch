@@ -222,7 +222,7 @@ impl
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
-            notification_url: item.router_data.request.get_webhook_url()?,
+            notification_url: "https://www.google.com".to_string(), //item.router_data.request.get_webhook_url()?,
             preferred_checkout_method,
         };
         Ok(payload)
