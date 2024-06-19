@@ -13,8 +13,9 @@ use crate::{
         PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
         PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
-        PaymentsIncrementalAuthorizationRequest, PaymentsRejectRequest, PaymentsRequest,
-        PaymentsResponse, PaymentsRetrieveRequest, PaymentsStartRequest, RedirectionResponse, PaymentsManualUpdateRequest,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
+        PaymentsStartRequest, RedirectionResponse,
     },
 };
 impl ApiEventMetric for PaymentsRetrieveRequest {
