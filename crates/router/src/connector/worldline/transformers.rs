@@ -567,12 +567,12 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
             PaymentStatus::PendingApproval => Self::Authorized,
             PaymentStatus::Created => Self::Started,
             PaymentStatus::Redirected => Self::AuthenticationPending,
-            PaymentStatus::Processing 
-            |PaymentStatus::PendingPayment 
-            |PaymentStatus::PendingCompletion 
-            |PaymentStatus::PendingCapture 
-            |PaymentStatus::PendingFraudApproval 
-            |PaymentStatus::AuthorizationRequested => Self::Pending,
+            PaymentStatus::Processing
+            | PaymentStatus::PendingPayment
+            | PaymentStatus::PendingCompletion
+            | PaymentStatus::PendingCapture
+            | PaymentStatus::PendingFraudApproval
+            | PaymentStatus::AuthorizationRequested => Self::Pending,
         }
     }
 }
@@ -812,10 +812,10 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Refunded => Self::Success,
             RefundStatus::Cancelled | RefundStatus::Rejected => Self::Failure,
             RefundStatus::Processing
-            |RefundStatus::Created 
-            |RefundStatus::PendingApproval 
-            |RefundStatus::RefundRequested 
-            |RefundStatus::Captured  => Self::Pending,
+            | RefundStatus::Created
+            | RefundStatus::PendingApproval
+            | RefundStatus::RefundRequested
+            | RefundStatus::Captured => Self::Pending,
         }
     }
 }
