@@ -4,6 +4,7 @@ use common_utils::{
 };
 use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_v2::RouterDataV2};
 use masking::Maskable;
+use router_env::metrics::add_attributes;
 use serde_json::json;
 
 use crate::{
@@ -95,7 +96,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         metrics::UNIMPLEMENTED_FLOW.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::add_attributes("connector", self.id())],
+            &add_attributes([("connector", self.id())]),
         );
         Ok(None)
     }
