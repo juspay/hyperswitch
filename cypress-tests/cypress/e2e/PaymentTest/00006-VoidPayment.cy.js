@@ -39,7 +39,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         res_data,
         "no_three_ds",
         "manual",
-        globalState,
+        globalState
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -97,7 +97,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           res_data,
           "no_three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -117,7 +117,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 
   context(
@@ -143,7 +143,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           res_data,
           "no_three_ds",
           "manual",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -176,6 +176,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 });

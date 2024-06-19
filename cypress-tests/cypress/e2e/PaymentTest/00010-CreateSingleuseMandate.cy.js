@@ -45,7 +45,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -57,10 +57,10 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
-    },
+    }
   );
 
   context(
@@ -90,7 +90,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -114,7 +114,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -133,7 +133,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       it("list-mandate-call-test", () => {
         cy.listMandateCallTest(globalState);
       });
-    },
+    }
   );
 
   context(
@@ -163,7 +163,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -187,13 +187,13 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 
       it("list-mandate-call-test", () => {
         cy.listMandateCallTest(globalState);
       });
-    },
+    }
   );
 });

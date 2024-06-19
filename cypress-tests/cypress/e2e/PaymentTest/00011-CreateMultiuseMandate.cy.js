@@ -45,7 +45,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -57,7 +57,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -66,10 +66,10 @@ describe("Card - MultiUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
-    },
+    }
   );
 
   context(
@@ -99,7 +99,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -123,7 +123,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -145,7 +145,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -160,7 +160,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
-    },
+    }
   );
 
   context(
@@ -190,7 +190,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -214,9 +214,9 @@ describe("Card - MultiUse Mandates flow test", () => {
           6500,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
-    },
+    }
   );
 });
