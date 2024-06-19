@@ -79,8 +79,6 @@ pub enum MandateAcceptanceType {
 pub enum PaymentType {
     SetupMandate,
     NonMandate,
-    NewMandate,
-    UpdateMandate,
 }
 
 #[derive(
