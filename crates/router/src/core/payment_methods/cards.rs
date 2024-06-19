@@ -385,7 +385,7 @@ pub async fn add_payment_method_data(
         .attach_printable("Unable to find payment method")?;
 
     if payment_method.status != enums::PaymentMethodStatus::AwaitingData {
-        return Err((errors::ApiErrorResponse::DuplicatePaymentMethod).into());
+        return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     }
 
     let customer_id = payment_method.customer_id.clone();

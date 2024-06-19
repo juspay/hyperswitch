@@ -50,10 +50,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         if payment_method.status != prev_pm_status {
             return db
                 .as_scheduler()
-                .finish_process_with_business_status(
-                    process,
-                    "PROCESS_ALREADY_COMPLETED".to_string(),
-                )
+                .finish_process_with_business_status(process, "PROCESS_ALREADY_COMPLETED")
                 .await
                 .map_err(Into::<errors::ProcessTrackerError>::into);
         }
@@ -69,7 +66,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
 
         if let Ok(_pm) = res {
             db.as_scheduler()
-                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                .finish_process_with_business_status(process, "COMPLETED_BY_PT")
                 .await?;
         } else {
             let mapping = process_data::PaymentMethodsPTMapping::default();
@@ -89,7 +86,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
                     .map_err(Into::<errors::ProcessTrackerError>::into)?,
                 None => db
                     .as_scheduler()
-                    .finish_process_with_business_status(process, "RETRIES_EXCEEDED".to_string())
+                    .finish_process_with_business_status(process, "RETRIES_EXCEEDED")
                     .await
                     .map_err(Into::<errors::ProcessTrackerError>::into)?,
             };
