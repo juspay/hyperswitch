@@ -6819,20 +6819,7 @@
             "$ref": "#/components/schemas/BusinessGenericLinkConfig"
           },
           {
-            "type": "object",
-            "required": [
-              "enabled_payment_methods"
-            ],
-            "properties": {
-              "enabled_payment_methods": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/EnabledPaymentMethod"
-                },
-                "description": "List of payment methods shown on collect UI",
-                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\", \"sepa\"]}]"
-              }
-            }
+            "type": "object"
           }
         ]
       },
