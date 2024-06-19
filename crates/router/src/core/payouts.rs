@@ -2062,10 +2062,22 @@ pub async fn payout_create_db_entries(
             })
         })?
         .customer_id;
+
+    // Validate whether profile_id passed in request is valid and is linked to the merchant
+    let business_profile =
+        validate_and_get_business_profile(state, profile_id, merchant_id).await?;
+
     let payout_link = match req.payout_link {
         Some(true) => Some(
-            validator::create_payout_link(state, merchant_account, &customer_id, req, payout_id)
-                .await?,
+            validator::create_payout_link(
+                state,
+                &business_profile,
+                &customer_id,
+                &merchant_account.merchant_id,
+                req,
+                payout_id,
+            )
+            .await?,
         ),
         _ => None,
     };
@@ -2176,10 +2188,6 @@ pub async fn payout_create_db_entries(
             payout_id: payout_id.to_owned(),
         })
         .attach_printable("Error inserting payout_attempt in db")?;
-
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile =
-        validate_and_get_business_profile(state, profile_id, merchant_id).await?;
 
     // Make PayoutData
     Ok(PayoutData {

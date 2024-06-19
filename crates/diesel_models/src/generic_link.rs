@@ -139,12 +139,11 @@ pub struct PaymentMethodCollectLink {
 pub struct PaymentMethodCollectLinkData {
     pub pm_collect_link_id: String,
     pub customer_id: id_type::CustomerId,
-    pub sdk_host: String,
     pub link: Secret<String>,
     pub client_secret: Secret<String>,
     pub session_expiry: u32,
     #[serde(flatten)]
-    pub ui_config: storage_enums::CollectLinkConfig,
+    pub ui_config: storage_enums::GenericLinkUIConfig,
     pub enabled_payment_methods: Option<Vec<storage_enums::EnabledPaymentMethod>>,
 }
 

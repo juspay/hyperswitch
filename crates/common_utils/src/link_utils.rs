@@ -159,8 +159,6 @@ pub struct PayoutLinkData {
     pub customer_id: id_type::CustomerId,
     /// Identifier for the payouts resource
     pub payout_id: String,
-    /// HyperSwitch's SDK hostname
-    pub sdk_host: String,
     /// Link to render the payout link
     pub link: Secret<String>,
     /// Client secret generated for authenticating frontend APIs
@@ -169,7 +167,7 @@ pub struct PayoutLinkData {
     pub session_expiry: u32,
     #[serde(flatten)]
     /// Payout link's UI configurations
-    pub ui_config: enums::CollectLinkConfig,
+    pub ui_config: enums::GenericLinkUIConfig,
     /// List of enabled payment methods
     pub enabled_payment_methods: Option<Vec<enums::EnabledPaymentMethod>>,
     /// Payout amount

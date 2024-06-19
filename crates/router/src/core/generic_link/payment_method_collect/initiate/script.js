@@ -63,7 +63,7 @@ function initializeCollectSDK() {
     linkId: paymentMethodCollectDetails.pm_collect_link_id,
     customerId: paymentMethodCollectDetails.customer_id,
     theme: paymentMethodCollectDetails.theme,
-    collectorName: paymentMethodCollectDetails.collector_name,
+    collectorName: paymentMethodCollectDetails.merchant_name,
     logo: paymentMethodCollectDetails.logo,
     enabledPaymentMethods: paymentMethodCollectDetails.enabled_payment_methods,
     returnUrl: paymentMethodCollectDetails.return_url,

@@ -115,10 +115,10 @@ diesel::table! {
         payment_id -> Nullable<Varchar>,
         #[max_length = 128]
         merchant_connector_id -> Varchar,
-        #[max_length = 128]
-        directory_server_id -> Nullable<Varchar>,
         #[max_length = 64]
         ds_trans_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        directory_server_id -> Nullable<Varchar>,
         #[max_length = 64]
         acquirer_country_code -> Nullable<Varchar>,
     }
@@ -197,6 +197,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
         authentication_connector_details -> Nullable<Jsonb>,
+        payout_link_config -> Nullable<Jsonb>,
         is_extended_card_info_enabled -> Nullable<Bool>,
         extended_card_info_config -> Nullable<Jsonb>,
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
@@ -510,7 +511,7 @@ diesel::table! {
         last_modified_at -> Timestamp,
         expiry -> Timestamp,
         link_data -> Jsonb,
-        #[max_length = 32]
+        #[max_length = 256]
         link_status -> Varchar,
         link_type -> GenericLinkType,
         #[max_length = 256]
@@ -816,11 +817,11 @@ diesel::table! {
         #[max_length = 64]
         payment_method_billing_address_id -> Nullable<Varchar>,
         #[max_length = 64]
+        charge_id -> Nullable<Varchar>,
+        #[max_length = 64]
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
-        #[max_length = 64]
-        charge_id -> Nullable<Varchar>,
     }
 }
 
@@ -889,8 +890,8 @@ diesel::table! {
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
         request_external_three_ds_authentication -> Nullable<Bool>,
-        frm_metadata -> Nullable<Jsonb>,
         charges -> Nullable<Jsonb>,
+        frm_metadata -> Nullable<Jsonb>,
     }
 }
 

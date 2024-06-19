@@ -208,15 +208,23 @@ pub struct KvConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct GenericLink {
-    pub payment_method_collect: PaymentMethodCollectConfig,
+    pub payment_method_collect: GenericLinkEnvConfig,
+    pub payout_link: GenericLinkEnvConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct PaymentMethodCollectConfig {
+pub struct GenericLinkEnvConfig {
     pub sdk_url: String,
     pub expiry: u32,
-    pub ui_config: enums::CollectLinkConfig,
+    pub ui_config: GenericLinkEnvUIConfig,
     pub enabled_payment_methods: Vec<enums::EnabledPaymentMethod>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLinkEnvUIConfig {
+    pub logo: String,
+    pub merchant_name: Secret<String>,
+    pub theme: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

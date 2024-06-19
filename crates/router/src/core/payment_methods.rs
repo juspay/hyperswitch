@@ -204,6 +204,20 @@ pub async fn render_pm_collect_link(
     let has_expired = common_utils::date_time::now() > pm_collect_link.expiry;
     let status = pm_collect_link.link_status;
     let link_data = pm_collect_link.link_data;
+    let default_config = &state.conf.generic_link.payment_method_collect;
+    let default_ui_config = default_config.ui_config.clone();
+    let ui_config_data = enums::GenericLinkUIConfigFormData {
+        merchant_name: link_data
+            .ui_config
+            .merchant_name
+            .unwrap_or(default_ui_config.merchant_name),
+        logo: link_data.ui_config.logo.unwrap_or(default_ui_config.logo),
+        theme: link_data
+            .ui_config
+            .theme
+            .clone()
+            .unwrap_or(default_ui_config.theme.clone()),
+    };
     match status {
         common_utils::link_utils::PaymentMethodCollectStatus::Initiated => {
             // if expired, send back expired status page
@@ -211,7 +225,7 @@ pub async fn render_pm_collect_link(
                 let expired_link_data = services::GenericExpiredLinkData {
                     title: "Payment collect link has expired".to_string(),
                     message: "This payment collect link has expired.".to_string(),
-                    theme: link_data.ui_config.theme,
+                    theme: link_data.ui_config.theme.unwrap_or(default_ui_config.theme),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks::ExpiredLink(expired_link_data),
@@ -256,7 +270,7 @@ pub async fn render_pm_collect_link(
                     customer_id: customer.customer_id,
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
-                    ui_config: link_data.ui_config,
+                    ui_config: ui_config_data,
                     enabled_payment_methods: link_data.enabled_payment_methods,
                 };
 
@@ -268,7 +282,7 @@ pub async fn render_pm_collect_link(
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
                     css_data: serialized_css_content,
-                    sdk_url: link_data.sdk_host.clone(),
+                    sdk_url: default_config.sdk_url.clone(),
                     html_meta_tags: "".to_string(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
@@ -284,7 +298,7 @@ pub async fn render_pm_collect_link(
                 customer_id: link_data.customer_id,
                 session_expiry: pm_collect_link.expiry,
                 return_url: pm_collect_link.return_url,
-                ui_config: link_data.ui_config,
+                ui_config: ui_config_data,
                 status,
             };
 

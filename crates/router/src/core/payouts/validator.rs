@@ -8,7 +8,8 @@ use common_utils::{
     types::MinorUnit,
 };
 use diesel_models::{
-    enums::CollectLinkConfig,
+    business_profile::BusinessProfile,
+    enums::GenericLinkUIConfig,
     generic_link::{GenericLinkNew, PayoutLink},
 };
 use error_stack::{report, ResultExt};
@@ -195,8 +196,9 @@ pub(super) fn validate_payout_list_request_for_joins(
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payout_link(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    business_profile: &BusinessProfile,
     customer_id: &CustomerId,
+    merchant_id: &String,
     req: &payouts::PayoutCreateRequest,
     payout_id: &String,
 ) -> RouterResult<PayoutLink> {
@@ -211,61 +213,45 @@ pub async fn create_payout_link(
     )?;
 
     // Fetch all configs
-    let default_config = &state.conf.generic_link.payment_method_collect;
-    let merchant_config = merchant_account
-        .pm_collect_link_config
+    let default_config = &state.conf.generic_link.payout_link;
+    let merchant_config = business_profile
+        .payout_link_config
         .as_ref()
         .map(|config| {
             config
                 .clone()
-                .parse_value::<admin::MerchantCollectLinkConfig>("MerchantCollectLinkConfig")
+                .parse_value::<admin::BusinessPayoutLinkConfig>("BusinessPayoutLinkConfig")
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payout_link_config in merchant_account",
+            field_name: "payout_link_config in business_profile",
         })?;
-    let ui_config = &payout_link_config_req
+    let merchant_ui_config = merchant_config.as_ref().map(|c| c.config.ui_config.clone());
+    let ui_config = payout_link_config_req
         .as_ref()
-        .and_then(|config| config.ui_config.clone());
-    // Create client secret
+        .and_then(|config| config.ui_config.clone())
+        .or_else(|| merchant_ui_config);
+
+    // Form data to be injected in the link
+    let (logo, merchant_name, theme) = match ui_config {
+        Some(config) => (config.logo, config.merchant_name, config.theme),
+        _ => (None, None, None),
+    };
+    let payout_link_config = GenericLinkUIConfig {
+        logo,
+        merchant_name,
+        theme,
+    };
     let client_secret = utils::generate_id(consts::ID_LENGTH, "payout_link_secret");
-    let fallback_ui_config = merchant_config
-        .as_ref()
-        .map(|config| config.ui_config.clone())
-        .unwrap_or(default_config.ui_config.clone());
-
-    // Form data to be injected in HTML
-    let sdk_host = default_config.sdk_url.clone();
-
     let domain = merchant_config
         .as_ref()
-        .and_then(|c| c.domain_name.clone())
-        .unwrap_or_else(|| state.base_url.clone());
-
-    let (collector_name, logo, theme) = match ui_config {
-        Some(config) => (
-            config.collector_name.clone(),
-            config.logo.clone(),
-            config.theme.clone(),
-        ),
-        None => (
-            fallback_ui_config.collector_name.clone(),
-            fallback_ui_config.logo.clone(),
-            fallback_ui_config.theme.clone(),
-        ),
-    };
+        .and_then(|c| c.config.domain_name.clone())
+        .unwrap_or(state.base_url.clone());
     let session_expiry = match req.session_expiry {
         Some(expiry) => expiry,
         None => default_config.expiry,
     };
-    let merchant_id = merchant_account.merchant_id.clone();
     let link = Secret::new(format!("{domain}/payout_link/{merchant_id}/{payout_id}"));
-
-    let payout_link_config = CollectLinkConfig {
-        theme,
-        logo,
-        collector_name,
-    };
     let req_enabled_payment_methods = payout_link_config_req
         .as_ref()
         .and_then(|req| req.enabled_payment_methods.to_owned());
@@ -284,7 +270,6 @@ pub async fn create_payout_link(
         payout_link_id: payout_link_id.clone(),
         customer_id: customer_id.clone(),
         payout_id: payout_id.to_string(),
-        sdk_host,
         link,
         client_secret: Secret::new(client_secret),
         session_expiry,
@@ -294,12 +279,12 @@ pub async fn create_payout_link(
         currency: *currency,
     };
 
-    create_payout_link_db_entry(state, merchant_account, &data, req.return_url.clone()).await
+    create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await
 }
 
 pub async fn create_payout_link_db_entry(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_id: &String,
     payout_link_data: &PayoutLinkData,
     return_url: Option<String>,
 ) -> RouterResult<PayoutLink> {
@@ -312,7 +297,7 @@ pub async fn create_payout_link_db_entry(
     let payout_link = GenericLinkNew {
         link_id: payout_link_data.payout_link_id.to_string(),
         primary_reference: payout_link_data.payout_id.to_string(),
-        merchant_id: merchant_account.merchant_id.to_string(),
+        merchant_id: merchant_id.to_string(),
         link_type: common_enums::GenericLinkType::PayoutLink,
         link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated),
         link_data,

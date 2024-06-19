@@ -2781,18 +2781,33 @@ pub enum GenericLinkType {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
-pub struct CollectLinkConfig {
-    /// Primary color to be used in the form represented in hex format
-    #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
-    pub theme: String,
-
+pub struct GenericLinkUIConfig {
     /// Merchant's display logo
-    #[schema(value_type = Option<String>, max_length = 255, example = "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
+    pub logo: Option<String>,
+
+    /// Custom merchant name for the link
+    #[schema(value_type = Option<String>, max_length = 255, example = "Hyperswitch")]
+    pub merchant_name: Option<masking::Secret<String>>,
+
+    /// Primary color to be used in the form represented in hex format
+    #[schema(value_type = Option<String>, max_length = 255, example = "#4285F4")]
+    pub theme: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
+pub struct GenericLinkUIConfigFormData {
+    /// Merchant's display logo
+    #[schema(value_type = String, max_length = 255, example = "https://hyperswitch.io/favicon.ico")]
     pub logo: String,
 
-    /// Custom merchant name for collect link
-    #[schema(value_type = Option<String>, max_length = 255, example = "hyperswitch")]
-    pub collector_name: masking::Secret<String>,
+    /// Custom merchant name for the link
+    #[schema(value_type = String, max_length = 255, example = "Hyperswitch")]
+    pub merchant_name: masking::Secret<String>,
+
+    /// Primary color to be used in the form represented in hex format
+    #[schema(value_type = String, max_length = 255, example = "#4285F4")]
+    pub theme: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]

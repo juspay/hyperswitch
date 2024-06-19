@@ -957,8 +957,8 @@ pub struct PaymentMethodCollectLinkRequest {
     pub customer_id: id_type::CustomerId,
 
     #[serde(flatten)]
-    #[schema(value_type = CollectLinkConfig)]
-    pub ui_config: Option<api_enums::CollectLinkConfig>,
+    #[schema(value_type = GenericLinkUIConfig)]
+    pub ui_config: Option<api_enums::GenericLinkUIConfig>,
 
     /// Will be used to expire client secret after certain amount of time to be supplied in seconds
     /// (900) for 15 mins
@@ -999,8 +999,8 @@ pub struct PaymentMethodCollectLinkResponse {
 
     /// Collect link config used
     #[serde(flatten)]
-    #[schema(value_type = CollectLinkConfig)]
-    pub ui_config: api_enums::CollectLinkConfig,
+    #[schema(value_type = GenericLinkUIConfig)]
+    pub ui_config: api_enums::GenericLinkUIConfig,
 
     /// List of payment methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
@@ -1028,7 +1028,7 @@ pub struct PaymentMethodCollectLinkDetails {
     pub session_expiry: time::PrimitiveDateTime,
     pub return_url: Option<String>,
     #[serde(flatten)]
-    pub ui_config: api_enums::CollectLinkConfig,
+    pub ui_config: api_enums::GenericLinkUIConfigFormData,
     pub enabled_payment_methods: Option<Vec<api_enums::EnabledPaymentMethod>>,
 }
 
@@ -1041,7 +1041,7 @@ pub struct PaymentMethodCollectLinkStatusDetails {
     pub return_url: Option<String>,
     pub status: PaymentMethodCollectStatus,
     #[serde(flatten)]
-    pub ui_config: api_enums::CollectLinkConfig,
+    pub ui_config: api_enums::GenericLinkUIConfigFormData,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

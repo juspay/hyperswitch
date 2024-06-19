@@ -135,7 +135,7 @@ function initializePayoutSDK() {
     payoutId: payoutDetails.payout_id,
     customerId: payoutDetails.customer_id,
     theme: payoutDetails.theme,
-    collectorName: payoutDetails.collector_name,
+    collectorName: payoutDetails.merchant_name,
     logo: payoutDetails.logo,
     enabledPaymentMethods: payoutDetails.enabled_payment_methods,
     returnUrl: payoutDetails.return_url,

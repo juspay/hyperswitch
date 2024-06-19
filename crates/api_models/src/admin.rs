@@ -97,8 +97,8 @@ pub struct MerchantAccountCreate {
     pub organization_id: Option<String>,
 
     /// Default payment method collect link config
-    #[schema(value_type = Option<MerchantCollectLinkConfig>, example = r#"{"theme":"\#1B1B1B","logo":"https://upload.wikimedia.org/wikipedia/commons/8/84/Spotify_icon.svg","collector_name":"Spotify","enabled_payment_methods":[{"payment_method":"card","payment_method_types":["credit","debit"]},{"payment_method":"bank_transfer","payment_method_types":["ach","bacs","sepa"]}]}"#)]
-    pub pm_collect_link_config: Option<MerchantCollectLinkConfig>,
+    #[schema(value_type = Option<BusinessCollectLinkConfig>)]
+    pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -192,7 +192,8 @@ pub struct MerchantAccountUpdate {
     pub default_profile: Option<String>,
 
     /// Default payment method collect link config
-    pub pm_collect_link_config: Option<MerchantCollectLinkConfig>,
+    #[schema(value_type = Option<BusinessCollectLinkConfig>)]
+    pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -286,7 +287,8 @@ pub struct MerchantAccountResponse {
     pub recon_status: enums::ReconStatus,
 
     /// Default payment method collect link config
-    pub pm_collect_link_config: Option<serde_json::Value>,
+    #[schema(value_type = Option<BusinessCollectLinkConfig>)]
+    pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -954,6 +956,10 @@ pub struct BusinessProfileCreate {
     /// initiated transaction) based on the routing rules.
     /// If set to `false`, MIT will go through the same connector as the CIT.
     pub is_connector_agnostic_mit_enabled: Option<bool>,
+
+    /// Default payout link config
+    #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1038,6 +1044,10 @@ pub struct BusinessProfileResponse {
     /// initiated transaction) based on the routing rules.
     /// If set to `false`, MIT will go through the same connector as the CIT.
     pub is_connector_agnostic_mit_enabled: Option<bool>,
+
+    /// Default payout link config
+    #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1114,21 +1124,39 @@ pub struct BusinessProfileUpdate {
     /// initiated transaction) based on the routing rules.
     /// If set to `false`, MIT will go through the same connector as the CIT.
     pub is_connector_agnostic_mit_enabled: Option<bool>,
+
+    /// Default payout link config
+    #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
+}
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BusinessCollectLinkConfig {
+    #[serde(flatten)]
+    pub config: BusinessGenericLinkConfig,
+
+    /// List of payment methods shown on collect UI
+    #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs", "sepa"]}]"#)]
+    pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct MerchantCollectLinkConfig {
-    /// Custom domain name to be used for hosting collect links
-    pub domain_name: Option<String>,
-
-    /// Collect UI config
+pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
-    #[schema(value_type = CollectLinkConfig)]
-    pub ui_config: api_enums::CollectLinkConfig,
+    pub config: BusinessGenericLinkConfig,
 
     /// List of payment methods shown on collect UI
-    #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs", "sepa"]}]"#)]
     pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BusinessGenericLinkConfig {
+    /// Custom domain name to be used for hosting the link
+    pub domain_name: Option<String>,
+
+    #[serde(flatten)]
+    #[schema(value_type = GenericLinkUIConfig)]
+    pub ui_config: api_enums::GenericLinkUIConfig,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

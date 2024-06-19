@@ -174,8 +174,8 @@ pub struct PayoutCreatePayoutLinkConfig {
     pub payout_link_id: Option<String>,
 
     #[serde(flatten)]
-    #[schema(value_type = Option<CollectLinkConfig>)]
-    pub ui_config: Option<api_enums::CollectLinkConfig>,
+    #[schema(value_type = Option<GenericLinkUIConfig>)]
+    pub ui_config: Option<api_enums::GenericLinkUIConfig>,
 
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
@@ -721,7 +721,7 @@ pub struct PayoutLinkDetails {
     pub session_expiry: PrimitiveDateTime,
     pub return_url: Option<String>,
     #[serde(flatten)]
-    pub ui_config: api_enums::CollectLinkConfig,
+    pub ui_config: api_enums::GenericLinkUIConfigFormData,
     pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
     pub amount: String,
     pub currency: common_enums::Currency,
@@ -739,5 +739,5 @@ pub struct PayoutLinkStatusDetails {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     #[serde(flatten)]
-    pub ui_config: api_enums::CollectLinkConfig,
+    pub ui_config: api_enums::GenericLinkUIConfigFormData,
 }

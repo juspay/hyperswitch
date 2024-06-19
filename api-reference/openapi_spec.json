@@ -6757,6 +6757,46 @@
           }
         }
       },
+      "BusinessCollectLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BusinessGenericLinkConfig"
+          },
+          {
+            "type": "object",
+            "required": [
+              "enabled_payment_methods"
+            ],
+            "properties": {
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\", \"sepa\"]}]"
+              }
+            }
+          }
+        ]
+      },
+      "BusinessGenericLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GenericLinkUIConfig"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "domain_name": {
+                "type": "string",
+                "description": "Custom domain name to be used for hosting the link",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "BusinessPaymentLinkConfig": {
         "allOf": [
           {
@@ -6768,6 +6808,29 @@
               "domain_name": {
                 "type": "string",
                 "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "BusinessPayoutLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BusinessGenericLinkConfig"
+          },
+          {
+            "type": "object",
+            "required": [
+              "enabled_payment_methods"
+            ],
+            "properties": {
+              "enabled_payment_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnabledPaymentMethod"
+                },
+                "description": "List of payment methods shown on collect UI",
+                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\", \"sepa\"]}]"
               }
             }
           }
@@ -6892,6 +6955,14 @@
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
             "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
             "nullable": true
           }
         },
@@ -7033,6 +7104,14 @@
           "is_connector_agnostic_mit_enabled": {
             "type": "boolean",
             "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
             "nullable": true
           }
         }
@@ -7494,32 +7573,6 @@
             "type": "boolean",
             "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
             "nullable": true
-          }
-        }
-      },
-      "CollectLinkConfig": {
-        "type": "object",
-        "properties": {
-          "theme": {
-            "type": "string",
-            "description": "Primary color to be used in the form represented in hex format",
-            "example": "#4E6ADD",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "logo": {
-            "type": "string",
-            "description": "Merchant's display logo",
-            "example": "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "collector_name": {
-            "type": "string",
-            "description": "Custom merchant name for collect link",
-            "example": "hyperswitch",
-            "nullable": true,
-            "maxLength": 255
           }
         }
       },
@@ -9734,6 +9787,32 @@
       "GcashRedirection": {
         "type": "object"
       },
+      "GenericLinkUIConfig": {
+        "type": "object",
+        "properties": {
+          "logo": {
+            "type": "string",
+            "description": "Merchant's display logo",
+            "example": "https://hyperswitch.io/favicon.ico",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Custom merchant name for the link",
+            "example": "Hyperswitch",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "theme": {
+            "type": "string",
+            "description": "Primary color to be used in the form represented in hex format",
+            "example": "#4285F4",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
+      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -10975,7 +11054,7 @@
           "pm_collect_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantCollectLinkConfig"
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
               }
             ],
             "nullable": true
@@ -11147,7 +11226,11 @@
             "$ref": "#/components/schemas/ReconStatus"
           },
           "pm_collect_link_config": {
-            "description": "Default payment method collect link config",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
             "nullable": true
           }
         }
@@ -11273,41 +11356,13 @@
           "pm_collect_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantCollectLinkConfig"
+                "$ref": "#/components/schemas/BusinessCollectLinkConfig"
               }
             ],
             "nullable": true
           }
         },
         "additionalProperties": false
-      },
-      "MerchantCollectLinkConfig": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/CollectLinkConfig"
-          },
-          {
-            "type": "object",
-            "required": [
-              "enabled_payment_methods"
-            ],
-            "properties": {
-              "domain_name": {
-                "type": "string",
-                "description": "Custom domain name to be used for hosting collect links",
-                "nullable": true
-              },
-              "enabled_payment_methods": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/EnabledPaymentMethod"
-                },
-                "description": "List of payment methods shown on collect UI",
-                "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]"
-              }
-            }
-          }
-        ]
       },
       "MerchantConnectorCreate": {
         "type": "object",
@@ -13345,7 +13400,7 @@
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/CollectLinkConfig"
+            "$ref": "#/components/schemas/GenericLinkUIConfig"
           },
           {
             "type": "object",
@@ -13394,7 +13449,7 @@
       "PaymentMethodCollectLinkResponse": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/CollectLinkConfig"
+            "$ref": "#/components/schemas/GenericLinkUIConfig"
           },
           {
             "type": "object",
@@ -16710,7 +16765,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CollectLinkConfig"
+                "$ref": "#/components/schemas/GenericLinkUIConfig"
               }
             ],
             "nullable": true

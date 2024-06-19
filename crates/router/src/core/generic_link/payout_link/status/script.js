@@ -50,11 +50,11 @@ function renderStatusDetails(payoutDetails) {
   var merchantHeaderNode = document.getElementById("merchant-header");
 
   if (
-    typeof payoutDetails.collector_name === "string" &&
+    typeof payoutDetails.merchant_name === "string" &&
     merchantHeaderNode instanceof HTMLDivElement
   ) {
     var merchantNameNode = document.createElement("div");
-    merchantNameNode.innerText = payoutDetails.collector_name;
+    merchantNameNode.innerText = payoutDetails.merchant_name;
     merchantHeaderNode.appendChild(merchantNameNode);
   }
   if (

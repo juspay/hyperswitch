@@ -10,7 +10,7 @@ use crate::{
     core::payments::helpers,
     errors,
     routes::{app::StorageInterface, SessionState},
-    services::{self, logger, GenericLinks},
+    services::{self, GenericLinks},
     types::{api::enums, domain},
 };
 
@@ -58,13 +58,27 @@ pub async fn initiate_payout_link(
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
     let status = payout_link.link_status;
     let link_data = payout_link.link_data.clone();
+    let default_config = &state.conf.generic_link.payout_link;
+    let default_ui_config = default_config.ui_config.clone();
+    let ui_config_data = enums::GenericLinkUIConfigFormData {
+        merchant_name: link_data
+            .ui_config
+            .merchant_name
+            .unwrap_or(default_ui_config.merchant_name),
+        logo: link_data.ui_config.logo.unwrap_or(default_ui_config.logo),
+        theme: link_data
+            .ui_config
+            .theme
+            .clone()
+            .unwrap_or(default_ui_config.theme.clone()),
+    };
     match (has_expired, status) {
         // Send back generic expired page
         (true, _) | (_, link_utils::PayoutLinkStatus::Invalidated) => {
             let expired_link_data = services::GenericExpiredLinkData {
                 title: "Payout Expired".to_string(),
                 message: "This payout link has expired.".to_string(),
-                theme: link_data.ui_config.theme,
+                theme: link_data.ui_config.theme.unwrap_or(default_ui_config.theme),
             };
 
             if status != link_utils::PayoutLinkStatus::Invalidated {
@@ -111,11 +125,7 @@ pub async fn initiate_payout_link(
             let enabled_payout_methods =
                 filter_payout_methods(db, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods
-            let default_enabled_payout_methods = &state
-                .conf
-                .generic_link
-                .payment_method_collect
-                .enabled_payment_methods;
+            let default_enabled_payout_methods = &default_config.enabled_payment_methods;
             let fallback_enabled_payout_methods = if enabled_payout_methods.is_empty() {
                 default_enabled_payout_methods
             } else {
@@ -126,7 +136,7 @@ pub async fn initiate_payout_link(
             let enabled_payment_methods = link_data
                 .enabled_payment_methods
                 .unwrap_or(fallback_enabled_payout_methods.to_vec());
-            logger::debug!("enabled_payout_methods: {:?}", enabled_payment_methods);
+
             let js_data = payouts::PayoutLinkDetails {
                 pub_key: merchant_account
                     .publishable_key
@@ -140,7 +150,7 @@ pub async fn initiate_payout_link(
                 customer_id: customer.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link.return_url,
-                ui_config: link_data.ui_config,
+                ui_config: ui_config_data,
                 enabled_payment_methods,
                 amount,
                 currency: payout.destination_currency,
@@ -154,7 +164,7 @@ pub async fn initiate_payout_link(
             let generic_form_data = services::GenericLinkFormData {
                 js_data: serialized_js_content,
                 css_data: serialized_css_content,
-                sdk_url: link_data.sdk_host.clone(),
+                sdk_url: default_config.sdk_url.clone(),
                 html_meta_tags: "".to_string(),
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
@@ -173,7 +183,7 @@ pub async fn initiate_payout_link(
                 status: payout.status,
                 error_code: payout_attempt.error_code,
                 error_message: payout_attempt.error_message,
-                ui_config: link_data.ui_config,
+                ui_config: ui_config_data,
             };
 
             let serialized_css_content = "".to_string();
