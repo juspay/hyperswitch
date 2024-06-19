@@ -1,12 +1,13 @@
 import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/utils";
 
 let globalState;
 
 describe("Card - SingleUse Mandates flow test", () => {
+  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -17,17 +18,15 @@ describe("Card - SingleUse Mandates flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
+
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-      beforeEach(function () {
-        if (!should_continue) {
-          this.skip();
-        }
-      });
-
       it("Confirm No 3DS CIT", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -42,7 +41,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "setup_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -54,10 +53,10 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
-    },
+    }
   );
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test",
@@ -84,7 +83,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "setup_mandate",
-          globalState,
+          globalState
         );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
@@ -96,7 +95,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -105,9 +104,9 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
-    },
+    }
   );
 });

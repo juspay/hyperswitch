@@ -88,6 +88,7 @@ pub async fn construct_webhook_router_data<'a>(
         connector_meta_data: None,
         connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         request: types::VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),

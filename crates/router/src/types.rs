@@ -52,6 +52,7 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
+pub use hyperswitch_interfaces::types::Response;
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
@@ -684,13 +685,6 @@ pub struct ConnectorsList {
     pub connectors: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
-pub struct Response {
-    pub headers: Option<http::HeaderMap>,
-    pub response: bytes::Bytes,
-    pub status_code: u16,
-}
-
 impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
     fn foreign_try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
@@ -809,6 +803,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             connector_meta_data: data.connector_meta_data.clone(),
             connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
+            minor_amount_captured: data.minor_amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),
@@ -870,6 +865,7 @@ impl<F1, F2>
             connector_meta_data: data.connector_meta_data.clone(),
             connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
+            minor_amount_captured: data.minor_amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),

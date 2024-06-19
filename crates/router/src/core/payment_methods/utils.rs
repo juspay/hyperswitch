@@ -45,7 +45,7 @@ pub async fn get_merchant_pm_filter_graph<'a>(
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>>>(
             CacheKey {
                 key: key.to_string(),
-                prefix: state.tenant.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
             },
         )
         .await
@@ -61,7 +61,7 @@ pub async fn refresh_pm_filters_cache(
         .push(
             CacheKey {
                 key: key.to_string(),
-                prefix: state.tenant.clone(),
+                prefix: state.tenant.redis_key_prefix.clone(),
             },
             pm_filter_graph.clone(),
         )
@@ -571,7 +571,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCountries::DisableOnly(countries) => {
@@ -592,7 +592,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     pm_object_country_value_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
             admin::AcceptedCountries::AllAccepted => return Ok(None),
@@ -628,7 +628,7 @@ fn compile_accepted_countries_for_mca(
                 agg_nodes.push((
                     config_country_agg_node,
                     cgraph::Relation::Positive,
-                    cgraph::Strength::Strong,
+                    cgraph::Strength::Weak,
                 ));
             }
         }

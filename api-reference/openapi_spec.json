@@ -6250,6 +6250,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_redirect"
+            ],
+            "properties": {
+              "local_bank_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -9606,6 +9617,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_date_of_birth"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -11969,13 +11986,9 @@
       "MifinityData": {
         "type": "object",
         "required": [
-          "destination_account_number",
           "date_of_birth"
         ],
         "properties": {
-          "destination_account_number": {
-            "type": "string"
-          },
           "date_of_birth": {
             "type": "string",
             "format": "date"
@@ -12997,7 +13010,8 @@
           "fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees to be collected on the payment"
+            "description": "Platform fees to be collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",
@@ -13024,7 +13038,8 @@
           "application_fees": {
             "type": "integer",
             "format": "int64",
-            "description": "Platform fees collected on the payment"
+            "description": "Platform fees collected on the payment",
+            "example": 6540
           },
           "transfer_account_id": {
             "type": "string",
@@ -13350,6 +13365,7 @@
           "crypto",
           "bank_debit",
           "reward",
+          "real_time_payment",
           "upi",
           "voucher",
           "gift_card"
@@ -13646,6 +13662,18 @@
             "properties": {
               "bank_transfer": {
                 "$ref": "#/components/schemas/BankTransferData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "RealTimePayment",
+            "required": [
+              "real_time_payment"
+            ],
+            "properties": {
+              "real_time_payment": {
+                "$ref": "#/components/schemas/RealTimePaymentData"
               }
             }
           },
@@ -14010,8 +14038,10 @@
           "dana",
           "danamon_va",
           "debit",
+          "duit_now",
           "efecty",
           "eps",
+          "fps",
           "evoucher",
           "giropay",
           "givex",
@@ -14023,6 +14053,7 @@
           "indomaret",
           "klarna",
           "kakao_pay",
+          "local_bank_redirect",
           "mandiri_va",
           "knet",
           "mb_way",
@@ -14045,6 +14076,7 @@
           "pix",
           "pay_safe_card",
           "przelewy24",
+          "prompt_pay",
           "pse",
           "red_compra",
           "red_pagos",
@@ -14058,6 +14090,7 @@
           "upi_collect",
           "upi_intent",
           "vipps",
+          "viet_qr",
           "venmo",
           "walley",
           "we_chat_pay",
@@ -16885,7 +16918,6 @@
           "merchant_id",
           "amount",
           "currency",
-          "payout_type",
           "customer_id",
           "auto_fulfill",
           "client_secret",
@@ -16928,7 +16960,12 @@
             "nullable": true
           },
           "payout_type": {
-            "$ref": "#/components/schemas/PayoutType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutType"
+              }
+            ],
+            "nullable": true
           },
           "billing": {
             "type": "object",
@@ -17615,6 +17652,54 @@
             "additionalProperties": {}
           }
         }
+      },
+      "RealTimePaymentData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "fps"
+            ],
+            "properties": {
+              "fps": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "duit_now"
+            ],
+            "properties": {
+              "duit_now": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "prompt_pay"
+            ],
+            "properties": {
+              "prompt_pay": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "viet_qr"
+            ],
+            "properties": {
+              "viet_qr": {
+                "type": "object"
+              }
+            }
+          }
+        ]
       },
       "ReceiverDetails": {
         "type": "object",

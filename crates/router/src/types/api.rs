@@ -323,7 +323,7 @@ impl ConnectorData {
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
-                enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
+                enums::Connector::Bluesnap => Ok(Box::new(connector::Bluesnap::new())),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
@@ -331,6 +331,7 @@ impl ConnectorData {
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 enums::Connector::Cryptopay => Ok(Box::new(connector::Cryptopay::new())),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
+                // enums::Connector::Datatrans => Ok(Box::new(&connector::Datatrans)), added as template code for future use
                 enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(Box::new(&connector::DummyConnector::<1>)),
@@ -372,7 +373,7 @@ impl ConnectorData {
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Square => Ok(Box::new(&connector::Square)),
                 enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
-                enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
+                enums::Connector::Stripe => Ok(Box::new(connector::Stripe::new())),
                 enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),

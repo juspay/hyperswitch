@@ -18,7 +18,8 @@ traces_enabled = false                                      # Whether traces are
 metrics_enabled = true                                      # Whether metrics are enabled.
 ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
-use_xray_generator = false
+use_xray_generator = false                                  # Set this to true for AWS X-ray compatible traces
+bg_metrics_collection_interval_in_secs = 15                 # Interval for collecting the metrics in background thread
 
 [master_database]
 username = "db_user"
@@ -124,6 +125,7 @@ checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
+datatrans.base_url = "https://api.sandbox.datatrans.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
@@ -201,6 +203,7 @@ cards = [
     "coinbase",
     "cryptopay",
     "cybersource",
+    "datatrans",
     "dlocal",
     "dummyconnector",
     "ebanx",
@@ -501,6 +504,7 @@ sdk_eligible_payment_methods = "card"
 
 [multitenancy]
 enabled = false
+global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = ""}
+public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}

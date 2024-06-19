@@ -195,6 +195,7 @@ pub async fn list_customer_payment_method_api(
                 auth.key_store,
                 Some(req),
                 Some(&customer_id),
+                None,
             )
         },
         &auth::ApiKeyAuth,
