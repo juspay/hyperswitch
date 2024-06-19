@@ -32,7 +32,7 @@ use diesel_models::{
 use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
 use masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use strum::IntoEnumIterator;
 
 use super::surcharge_decision_configs::{
@@ -54,12 +54,7 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes::{
-        self,
-        app::SessionStateInfo,
-        metrics::{self, request},
-        payment_methods::ParentPaymentMethodToken,
-    },
+    routes::{self, app::SessionStateInfo, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
@@ -645,9 +640,10 @@ pub async fn add_payment_method(
                     };
 
                     let updated_card = Some(api::CardDetailFromLocker {
-                        scheme: None,
+                        scheme: existing_pm.scheme.clone(),
                         last4_digits: Some(card.card_number.get_last4()),
-                        issuer_country: None,
+                        issuer_country: card.card_issuing_country,
+                        card_isin: Some(card.card_number.get_card_isin()),
                         card_number: Some(card.card_number),
                         expiry_month: Some(card.card_exp_month),
                         expiry_year: Some(card.card_exp_year),
@@ -655,10 +651,9 @@ pub async fn add_payment_method(
                         card_fingerprint: None,
                         card_holder_name: card.card_holder_name,
                         nick_name: card.nick_name,
-                        card_network: None,
-                        card_isin: None,
-                        card_issuer: None,
-                        card_type: None,
+                        card_network: card.card_network,
+                        card_issuer: card.card_issuer,
+                        card_type: card.card_type,
                         saved_to_locker: true,
                     });
 
@@ -1097,7 +1092,7 @@ pub async fn add_card_to_locker(
     errors::VaultError,
 > {
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
-    let add_card_to_hs_resp = request::record_operation_time(
+    let add_card_to_hs_resp = common_utils::metrics::utils::record_operation_time(
         async {
             add_card_hs(
                 state,
@@ -1122,6 +1117,7 @@ pub async fn add_card_to_locker(
             })
         },
         &metrics::CARD_ADD_TIME,
+        &metrics::CONTEXT,
         &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
     )
     .await?;
@@ -1138,7 +1134,7 @@ pub async fn get_card_from_locker(
 ) -> errors::RouterResult<Card> {
     metrics::GET_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
-    let get_card_from_rs_locker_resp = request::record_operation_time(
+    let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
         async {
             get_card_from_hs_locker(
                 state,
@@ -1163,6 +1159,7 @@ pub async fn get_card_from_locker(
             })
         },
         &metrics::CARD_GET_TIME,
+        &metrics::CONTEXT,
         &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
     )
     .await?;
@@ -1179,7 +1176,7 @@ pub async fn delete_card_from_locker(
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
-    request::record_operation_time(
+    common_utils::metrics::utils::record_operation_time(
         async move {
             delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
                 .await
@@ -1189,6 +1186,7 @@ pub async fn delete_card_from_locker(
                 })
         },
         &metrics::CARD_DELETE_TIME,
+        &metrics::CONTEXT,
         &[],
     )
     .await
@@ -1751,6 +1749,7 @@ pub async fn list_payment_methods(
             helpers::verify_payment_intent_time_and_client_secret(
                 db,
                 &merchant_account,
+                &key_store,
                 req.client_secret.clone(),
             )
             .await?
@@ -2614,6 +2613,7 @@ pub async fn list_payment_methods(
             Box::pin(call_surcharge_decision_management(
                 state,
                 &merchant_account,
+                &key_store,
                 &business_profile,
                 payment_attempt,
                 payment_intent,
@@ -2692,9 +2692,11 @@ async fn validate_payment_method_and_client_secret(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn call_surcharge_decision_management(
     state: routes::SessionState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
@@ -2733,6 +2735,7 @@ pub async fn call_surcharge_decision_management(
                     surcharge_applicable: true,
                     updated_by: merchant_account.storage_scheme.to_string(),
                 },
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -2745,6 +2748,7 @@ pub async fn call_surcharge_decision_management(
 pub async fn call_surcharge_decision_management_for_saved_card(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
@@ -2780,6 +2784,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
                     surcharge_applicable: true,
                     updated_by: merchant_account.storage_scheme.to_string(),
                 },
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -3386,6 +3391,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             helpers::verify_payment_intent_time_and_client_secret(
                 db,
                 &merchant_account,
+                &key_store,
                 cloned_secret,
             )
             .await?;
@@ -3721,6 +3727,7 @@ pub async fn list_customer_payment_method(
         call_surcharge_decision_management_for_saved_card(
             state,
             &merchant_account,
+            &key_store,
             &business_profile,
             &payment_attempt,
             payment_intent,
@@ -4201,7 +4208,7 @@ impl TempLockerCardSupport {
         metrics::TASKS_ADDED_COUNT.add(
             &metrics::CONTEXT,
             1,
-            &[request::add_attributes("flow", "DeleteTokenizeData")],
+            &add_attributes([("flow", "DeleteTokenizeData")]),
         );
         Ok(card)
     }

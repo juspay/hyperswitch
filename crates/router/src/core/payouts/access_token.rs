@@ -1,5 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use router_env::metrics::add_attributes;
 
 use crate::{
     consts,
@@ -185,10 +186,7 @@ pub async fn refresh_connector_auth(
     metrics::ACCESS_TOKEN_CREATION.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            connector.connector_name.to_string(),
-        )],
+        &add_attributes([("connector", connector.connector_name.to_string())]),
     );
     Ok(access_token_router_data)
 }

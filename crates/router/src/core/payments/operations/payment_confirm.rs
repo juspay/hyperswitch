@@ -74,6 +74,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 m_merchant_id.as_str(),
+                key_store,
                 storage_scheme,
             )
             .await
@@ -304,6 +305,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             payment_intent,
                             payment_attempt,
                             &*state.store,
+                            key_store,
                             storage_scheme,
                         )
                         .await?;
@@ -860,9 +862,16 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         &'a self,
         state: &SessionState,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(state, merchant_account, payment_data).await
+        blocklist_utils::validate_data_for_blocklist(
+            state,
+            merchant_account,
+            key_store,
+            payment_data,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1218,6 +1227,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
+        let m_key_store = key_store.clone();
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -1246,6 +1256,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         request_external_three_ds_authentication: None,
                         frm_metadata: m_frm_metadata,
                     },
+                    &m_key_store,
                     storage_scheme,
                 )
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))

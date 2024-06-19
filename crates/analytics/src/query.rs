@@ -317,6 +317,7 @@ impl std::fmt::Display for Order {
 //     "count",
 //     Order::Descending,
 // )
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TopN {
     pub columns: String,
