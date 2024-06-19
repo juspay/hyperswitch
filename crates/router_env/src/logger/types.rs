@@ -434,6 +434,8 @@ pub enum Flow {
     ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
     GetExtendedCardInfo,
+    /// Manually update the payment details like status, error code, error message etc.
+    PaymentsManualUpdate,
 }
 
 ///

@@ -1392,6 +1392,32 @@ pub async fn post_3ds_payments_authorize(
     .await
 }
 
+pub async fn payments_manual_update(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsManualUpdateRequest>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::PaymentsManualUpdate;
+    let mut payload = json_payload.into_inner();
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", &payment_id);
+
+    payload.payment_id = payment_id;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
 #[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
 pub async fn retrieve_extended_card_info(
