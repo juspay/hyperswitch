@@ -67,6 +67,7 @@ function initializeCollectSDK() {
     logo: paymentMethodCollectDetails.logo,
     enabledPaymentMethods: paymentMethodCollectDetails.enabled_payment_methods,
     returnUrl: paymentMethodCollectDetails.return_url,
+    flow: "PayoutMethodCollect",
   };
   paymentMethodCollect = widgets.create(
     "paymentMethodCollect",
