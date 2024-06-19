@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.14.0-hotfix1
+
+### Refactors
+
+- **core:** Reverts the payment method list filtering using constraint graph ([#5043](https://github.com/juspay/hyperswitch/pull/5043)) ([`5a9ca93`](https://github.com/juspay/hyperswitch/commit/5a9ca9367313537e7e835541c3bc884c155ef579))
+
+- - -
+
 ## 2024.06.14.0
 
 ### Features
