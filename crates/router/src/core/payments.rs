@@ -1740,7 +1740,7 @@ where
                 if let Ok(router_types::PaymentsResponseData::SessionResponse {
                     session_token,
                     ..
-                }) = connector_response.response
+                }) = connector_response.response.clone()
                 {
                     // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
                     // In case of error, that error is already logged
@@ -1751,13 +1751,16 @@ where
                         payment_data.sessions_token.push(session_token);
                     }
                 }
+                if let Err(connector_error_response) = connector_response.response {
+                    logger::error!(
+                        "sessions_connector_error {} {:?}",
+                        connector_name,
+                        connector_error_response
+                    );
+                }
             }
-            Err(connector_error) => {
-                logger::error!(
-                    "sessions_connector_error {} {:?}",
-                    connector_name,
-                    connector_error
-                );
+            Err(api_error) => {
+                logger::error!("sessions_api_error {} {:?}", connector_name, api_error);
             }
         }
     }

@@ -332,6 +332,7 @@ where
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                     };
