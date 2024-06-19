@@ -1,4 +1,4 @@
-use router_env::opentelemetry;
+use router_env::{metrics::add_attributes, opentelemetry};
 
 use super::utils as metric_utils;
 use crate::services::ApplicationResponse;
@@ -11,12 +11,16 @@ where
     F: futures::Future<Output = R>,
 {
     let key = "request_type";
-    super::REQUESTS_RECEIVED.add(&super::CONTEXT, 1, &[add_attributes(key, flow.to_string())]);
+    super::REQUESTS_RECEIVED.add(
+        &super::CONTEXT,
+        1,
+        &add_attributes([(key, flow.to_string())]),
+    );
     let (result, time) = metric_utils::time_future(future).await;
     super::REQUEST_TIME.record(
         &super::CONTEXT,
         time.as_secs_f64(),
-        &[add_attributes(key, flow.to_string())],
+        &add_attributes([(key, flow.to_string())]),
     );
     result
 }
@@ -35,22 +39,15 @@ where
     result
 }
 
-pub fn add_attributes<T: Into<opentelemetry::Value>>(
-    key: &'static str,
-    value: T,
-) -> opentelemetry::KeyValue {
-    opentelemetry::KeyValue::new(key, value)
-}
-
-pub fn status_code_metrics(status_code: i64, flow: String, merchant_id: String) {
+pub fn status_code_metrics(status_code: String, flow: String, merchant_id: String) {
     super::REQUEST_STATUS.add(
         &super::CONTEXT,
         1,
-        &[
-            add_attributes("status_code", status_code),
-            add_attributes("flow", flow),
-            add_attributes("merchant_id", merchant_id),
-        ],
+        &add_attributes([
+            ("status_code", status_code),
+            ("flow", flow),
+            ("merchant_id", merchant_id),
+        ]),
     )
 }
 
