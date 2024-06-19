@@ -113,38 +113,6 @@ pub async fn list_customer_payment_method_api() {}
 )]
 pub async fn list_customer_payment_method_api_client() {}
 
-/// Generate a form link for collecting payment methods for a customer
-#[utoipa::path(
-    post,
-    path = "/payment_methods/collect",
-    request_body=PaymentMethodCollectLinkRequest,
-    responses(
-        (status = 200, description = "Payment method collect link generated", body = PaymentMethodCollectLinkResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Payment Methods Collect",
-    operation_id = "Generate form link for collecting payment methods for a customer",
-    security(("api_key" = []))
-)]
-pub async fn initiate_pm_collect_link_flow() {}
-
-/// Generate a form link for collecting payment methods for a customer
-#[utoipa::path(
-    post,
-    path = "/payment_methods/collect/{merchant_id}/{collect_id}",
-    params (
-        ("merchant_id" = String, Path, description = "The identifier for the merchant"),
-        ("collect_id" = String, Path, description = "The identifier for the payment method collect link")
-    ),
-    responses(
-        (status = 200, description = "Payment method collect link rendered")
-    ),
-    tag = "Payment Methods Collect",
-    operation_id = "Render form link for collecting payment methods for a customer",
-    security(("api_key" = []))
-)]
-pub async fn render_pm_collect_link() {}
-
 /// Payment Method - Retrieve
 ///
 /// Retrieves a payment method of a customer.

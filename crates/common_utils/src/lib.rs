@@ -19,6 +19,8 @@ pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod id_type;
+#[allow(missing_docs)] 
+pub mod link_utils;
 pub mod macros;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs

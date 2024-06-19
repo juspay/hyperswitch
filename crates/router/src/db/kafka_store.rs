@@ -2839,7 +2839,7 @@ impl GenericLinkInterface for KafkaStore {
     async fn find_generic_link_by_link_id(
         &self,
         link_id: &str,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError> {
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
         self.diesel_store
             .find_generic_link_by_link_id(link_id)
             .await
@@ -2864,7 +2864,7 @@ impl GenericLinkInterface for KafkaStore {
     async fn insert_generic_link(
         &self,
         generic_link: storage::GenericLinkNew,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError> {
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
         self.diesel_store.insert_generic_link(generic_link).await
     }
 

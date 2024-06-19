@@ -1,4 +1,4 @@
-use common_utils::{errors, ext_traits::ValueExt, types::GenericLinkStatus};
+use common_utils::{errors, ext_traits::ValueExt, link_utils::GenericLinkStatus};
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::{report, Report, ResultExt};
 
@@ -6,7 +6,7 @@ use super::generics;
 use crate::{
     errors as db_errors,
     generic_link::{
-        GenericLink, GenericLinkData, GenericLinkNew, GenericLinkS, GenericLinkUpdateInternal,
+        GenericLink, GenericLinkData, GenericLinkNew, GenericLinkState, GenericLinkUpdateInternal,
         PaymentMethodCollectLink, PayoutLink, PayoutLinkUpdate,
     },
     schema::generic_link::dsl,
@@ -14,13 +14,13 @@ use crate::{
 };
 
 impl GenericLinkNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GenericLinkS> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GenericLinkState> {
         let res: Result<GenericLink, Report<db_errors::DatabaseError>> =
             generics::generic_insert(conn, self).await;
 
         match res {
             Err(e) => Err(e),
-            Ok(res) => GenericLinkS::try_from(res)
+            Ok(res) => GenericLinkState::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
                 .attach_printable("failed to parse generic link data from DB for id - {link_id}"),
         }
@@ -60,7 +60,7 @@ impl GenericLink {
     pub async fn find_generic_link_by_link_id(
         conn: &PgPooledConn,
         link_id: &str,
-    ) -> StorageResult<GenericLinkS> {
+    ) -> StorageResult<GenericLinkState> {
         let res: Result<Self, Report<db_errors::DatabaseError>> =
             generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
                 conn,
@@ -70,7 +70,7 @@ impl GenericLink {
 
         match res {
             Err(e) => Err(e),
-            Ok(res) => GenericLinkS::try_from(res)
+            Ok(res) => GenericLinkState::try_from(res)
                 .change_context(db_errors::DatabaseError::Others)
                 .attach_printable("failed to parse generic link data from DB for id - {link_id}"),
         }
@@ -145,7 +145,7 @@ impl PayoutLink {
     }
 }
 
-impl TryFrom<GenericLink> for GenericLinkS {
+impl TryFrom<GenericLink> for GenericLinkState {
     type Error = Report<errors::ParsingError>;
     fn try_from(db_val: GenericLink) -> Result<Self, Self::Error> {
         let link_data = match db_val.link_type {

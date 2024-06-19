@@ -1,4 +1,4 @@
 pub use diesel_models::generic_link::{
-    GenericLink, GenericLinkData, GenericLinkNew, GenericLinkS, GenericLinkUpdateInternal,
+    GenericLink, GenericLinkData, GenericLinkNew, GenericLinkState, GenericLinkUpdateInternal,
     PaymentMethodCollectLink, PayoutLink, PayoutLinkUpdate,
 };

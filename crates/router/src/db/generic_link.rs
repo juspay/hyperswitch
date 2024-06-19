@@ -14,7 +14,7 @@ pub trait GenericLinkInterface {
     async fn find_generic_link_by_link_id(
         &self,
         link_id: &str,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError>;
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError>;
 
     async fn find_pm_collect_link_by_link_id(
         &self,
@@ -29,7 +29,7 @@ pub trait GenericLinkInterface {
     async fn insert_generic_link(
         &self,
         _generic_link: storage::GenericLinkNew,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError>;
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError>;
 
     async fn insert_pm_collect_link(
         &self,
@@ -54,7 +54,7 @@ impl GenericLinkInterface for Store {
     async fn find_generic_link_by_link_id(
         &self,
         link_id: &str,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError> {
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::GenericLink::find_generic_link_by_link_id(&conn, link_id)
             .await
@@ -87,7 +87,7 @@ impl GenericLinkInterface for Store {
     async fn insert_generic_link(
         &self,
         generic_link: storage::GenericLinkNew,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError> {
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         generic_link
             .insert(&conn)
@@ -138,7 +138,7 @@ impl GenericLinkInterface for MockDb {
     async fn find_generic_link_by_link_id(
         &self,
         _generic_link_id: &str,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError> {
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
         // TODO: Implement function for `MockDb`x
         Err(errors::StorageError::MockDbError)?
     }
@@ -162,7 +162,7 @@ impl GenericLinkInterface for MockDb {
     async fn insert_generic_link(
         &self,
         _generic_link: storage::GenericLinkNew,
-    ) -> CustomResult<storage::GenericLinkS, errors::StorageError> {
+    ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

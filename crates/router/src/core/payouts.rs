@@ -11,7 +11,8 @@ use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ValueExt},
     pii,
-    types::{MinorUnit, PayoutLinkStatus},
+    types::MinorUnit,
+    link_utils::PayoutLinkStatus,
 };
 use diesel_models::{enums as storage_enums, generic_link::PayoutLink};
 use error_stack::{report, ResultExt};
@@ -356,7 +357,6 @@ pub async fn payouts_confirm_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let _payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
@@ -2062,36 +2062,12 @@ pub async fn payout_create_db_entries(
             })
         })?
         .customer_id;
-    let payout_link = if let Some(payout_link_create) = req.payout_link {
-        if payout_link_create {
-            Some(
-                validator::create_payout_link(
-                    state,
-                    merchant_account,
-                    &req.payout_link_config,
-                    &customer_id,
-                    req.return_url.to_owned(),
-                    payout_id,
-                    req.amount
-                        .as_ref()
-                        .get_required_value("amount")
-                        .attach_printable(
-                            "amount is a required value when creating payout links",
-                        )?,
-                    req.currency
-                        .as_ref()
-                        .get_required_value("currency")
-                        .attach_printable(
-                            "currency is a required value when creating payout links",
-                        )?,
-                )
+    let payout_link = match req.payout_link {
+        Some(true) => Some(
+            validator::create_payout_link(state, merchant_account, &customer_id, req, payout_id)
                 .await?,
-            )
-        } else {
-            None
-        }
-    } else {
-        None
+        ),
+        _ => None,
     };
 
     // Get or create address

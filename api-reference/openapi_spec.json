@@ -2757,86 +2757,6 @@
         ]
       }
     },
-    "/payment_methods/collect": {
-      "post": {
-        "tags": [
-          "Payment Methods Collect"
-        ],
-        "summary": "Generate a form link for collecting payment methods for a customer",
-        "description": "Generate a form link for collecting payment methods for a customer",
-        "operationId": "Generate form link for collecting payment methods for a customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodCollectLinkRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment method collect link generated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodCollectLinkResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/payment_methods/collect/{merchant_id}/{collect_id}": {
-      "post": {
-        "tags": [
-          "Payment Methods Collect"
-        ],
-        "summary": "Generate a form link for collecting payment methods for a customer",
-        "description": "Generate a form link for collecting payment methods for a customer",
-        "operationId": "Render form link for collecting payment methods for a customer",
-        "parameters": [
-          {
-            "name": "merchant_id",
-            "in": "path",
-            "description": "The identifier for the merchant",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "collect_id",
-            "in": "path",
-            "description": "The identifier for the payment method collect link",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment method collect link rendered"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/account/{account_id}/business_profile": {
       "post": {
         "tags": [
@@ -4243,6 +4163,57 @@
           },
           "404": {
             "description": "Payout not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}/confirm": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Confirm",
+        "description": "Payouts - Confirm",
+        "operationId": "Confirm a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout]",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payout updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
           }
         },
         "security": [
@@ -16753,14 +16724,6 @@
                 "example": "pm_collect_link_2bdacf398vwzq5n422S1",
                 "nullable": true
               },
-              "session_expiry": {
-                "type": "integer",
-                "format": "int32",
-                "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
-                "example": 900,
-                "nullable": true,
-                "minimum": 0
-              },
               "enabled_payment_methods": {
                 "type": "array",
                 "items": {
@@ -16962,6 +16925,14 @@
               }
             ],
             "nullable": true
+          },
+          "session_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
           }
         },
         "additionalProperties": false

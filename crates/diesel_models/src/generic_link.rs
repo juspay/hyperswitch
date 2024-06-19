@@ -1,6 +1,6 @@
 use common_utils::{
     consts, id_type,
-    types::{GenericLinkStatus, PaymentMethodCollectStatus, PayoutLinkData, PayoutLinkStatus},
+    link_utils::{GenericLinkStatus, PaymentMethodCollectStatus, PayoutLinkData, PayoutLinkStatus},
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
@@ -30,7 +30,7 @@ pub struct GenericLink {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GenericLinkS {
+pub struct GenericLinkState {
     pub link_id: String,
     pub primary_reference: String,
     pub merchant_id: String,

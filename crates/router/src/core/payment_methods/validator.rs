@@ -69,9 +69,11 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let default_config = &state.conf.generic_link.payment_method_collect;
     let merchant_config = merchant_account
         .pm_collect_link_config
-        .clone()
+        .as_ref()
         .map(|config| {
-            config.parse_value::<admin::MerchantCollectLinkConfig>("MerchantCollectLinkConfig")
+            config
+                .clone()
+                .parse_value::<admin::MerchantCollectLinkConfig>("MerchantCollectLinkConfig")
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -79,18 +81,10 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         })?;
     let ui_config = &req.ui_config;
 
-    let fallback_ui_config = match &merchant_account.pm_collect_link_config {
-        Some(config) => {
-            config
-                .clone()
-                .parse_value::<admin::MerchantCollectLinkConfig>("MerchantCollectLinkConfig")
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "pm_collect_link_config in merchant_account",
-                })?
-                .ui_config
-        }
-        None => default_config.ui_config.clone(),
-    };
+    let fallback_ui_config = merchant_config
+        .as_ref()
+        .map(|config| config.ui_config.clone())
+        .unwrap_or(default_config.ui_config.clone());
 
     // Form data to be injected in HTML
     let sdk_host = default_config.sdk_url.clone();

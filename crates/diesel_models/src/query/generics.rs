@@ -89,7 +89,6 @@ where
     {
         Ok(value) => Ok(value),
         Err(err) => {
-            logger::debug!("[DEBUG] [ERR], {:?}", err);
             match err {
                 DieselError::DatabaseError(
                     diesel::result::DatabaseErrorKind::UniqueViolation,

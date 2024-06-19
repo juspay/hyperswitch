@@ -5,7 +5,8 @@ use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
     id_type, pii,
-    types::{MinorUnit, PaymentMethodCollectStatus, Percentage, Surcharge},
+    types::{MinorUnit, Percentage, Surcharge},
+    link_utils::PaymentMethodCollectStatus
 };
 use serde::de;
 use utoipa::{schema, ToSchema};

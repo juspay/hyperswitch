@@ -160,6 +160,11 @@ pub struct PayoutCreateRequest {
     /// custom payout link config for the particular payout
     #[schema(value_type = Option<PayoutCreatePayoutLinkConfig>)]
     pub payout_link_config: Option<PayoutCreatePayoutLinkConfig>,
+
+    /// Will be used to expire client secret after certain amount of time to be supplied in seconds
+    /// (900) for 15 mins
+    #[schema(value_type = Option<u32>, example = 900)]
+    pub session_expiry: Option<u32>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
@@ -171,11 +176,6 @@ pub struct PayoutCreatePayoutLinkConfig {
     #[serde(flatten)]
     #[schema(value_type = Option<CollectLinkConfig>)]
     pub ui_config: Option<api_enums::CollectLinkConfig>,
-
-    /// Will be used to expire client secret after certain amount of time to be supplied in seconds
-    /// (900) for 15 mins
-    #[schema(value_type = Option<u32>, example = 900)]
-    pub session_expiry: Option<u32>,
 
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
@@ -723,7 +723,7 @@ pub struct PayoutLinkDetails {
     #[serde(flatten)]
     pub ui_config: api_enums::CollectLinkConfig,
     pub enabled_payment_methods: Vec<api_enums::EnabledPaymentMethod>,
-    pub amount: i64,
+    pub amount: String,
     pub currency: common_enums::Currency,
 }
 

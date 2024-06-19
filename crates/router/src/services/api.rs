@@ -1063,15 +1063,71 @@ where
         }
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            match generic_link_response::build_generic_link_html(*boxed_generic_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
-                Err(_) => http_response_err(
-                    r#"{
-                        "error": {
-                            "message": "Error while rendering payment method collect link"
-                        }
-                    }"#,
-                ),
+            match *boxed_generic_link_data {
+                GenericLinks::ExpiredLink(link_data) => {
+                    match generic_link_response::build_generic_expired_link_html(&link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering expired link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                GenericLinks::PaymentMethodCollect(pm_collect_data) => {
+                    match generic_link_response::build_pm_collect_link_html(&pm_collect_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment method collect link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                GenericLinks::PaymentMethodCollectStatus(pm_collect_data) => {
+                    match generic_link_response::build_pm_collect_link_status_html(
+                        &pm_collect_data,
+                    ) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment method collect link status page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                GenericLinks::PayoutLink(payout_link_data) => {
+                    match generic_link_response::build_payout_link_html(&payout_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payout link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                GenericLinks::PayoutLinkStatus(payout_link_data) => {
+                    match generic_link_response::build_payout_link_status_html(
+                        &payout_link_data,
+                    ) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payout link status page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
             }
         }
 

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::payouts;
-use common_utils::{ext_traits::OptionExt, types};
+use common_utils::{ext_traits::OptionExt};
 use diesel_models::PayoutLinkUpdate;
 use error_stack::ResultExt;
 
@@ -13,6 +13,7 @@ use crate::{
     services::{self, logger, GenericLinks},
     types::{api::enums, domain},
 };
+use common_utils::link_utils;
 
 pub async fn initiate_payout_link(
     state: SessionState,
@@ -60,16 +61,16 @@ pub async fn initiate_payout_link(
     let link_data = payout_link.link_data.clone();
     match (has_expired, status) {
         // Send back generic expired page
-        (true, _) | (_, types::PayoutLinkStatus::Invalidated) => {
+        (true, _) | (_, link_utils::PayoutLinkStatus::Invalidated) => {
             let expired_link_data = services::GenericExpiredLinkData {
                 title: "Payout Expired".to_string(),
                 message: "This payout link has expired.".to_string(),
                 theme: link_data.ui_config.theme,
             };
 
-            if status != types::PayoutLinkStatus::Invalidated {
+            if status != link_utils::PayoutLinkStatus::Invalidated {
                 let payout_link_update = PayoutLinkUpdate::StatusUpdate {
-                    link_status: types::PayoutLinkStatus::Invalidated,
+                    link_status: link_utils::PayoutLinkStatus::Invalidated,
                 };
                 db.update_payout_link_by_merchant_id_link_id(payout_link, payout_link_update)
                     .await
@@ -83,8 +84,12 @@ pub async fn initiate_payout_link(
         }
 
         // Initiate Payout link flow
-        (_, types::PayoutLinkStatus::Initiated) => {
+        (_, link_utils::PayoutLinkStatus::Initiated) => {
             let customer_id = link_data.customer_id;
+            let amount = payout
+                .destination_currency
+                .to_currency_base_unit(payout.amount)
+                .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
             // Fetch customer
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
@@ -138,7 +143,7 @@ pub async fn initiate_payout_link(
                 return_url: payout_link.return_url,
                 ui_config: link_data.ui_config,
                 enabled_payment_methods,
-                amount: payout.amount,
+                amount,
                 currency: payout.destination_currency,
             };
 
@@ -159,7 +164,7 @@ pub async fn initiate_payout_link(
         }
 
         // Send back status page
-        (_, types::PayoutLinkStatus::Submitted) => {
+        (_, link_utils::PayoutLinkStatus::Submitted) => {
             let js_data = payouts::PayoutLinkStatusDetails {
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,

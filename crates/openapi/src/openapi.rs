@@ -130,8 +130,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_delete_api,
-        routes::payment_method::initiate_pm_collect_link_flow,
-        routes::payment_method::render_pm_collect_link,
 
         // Routes for Business Profile
         routes::business_profile::business_profile_create,
@@ -170,6 +168,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payouts::payouts_fulfill,
         routes::payouts::payouts_list,
         routes::payouts::payouts_filter,
+        routes::payouts::payouts_confirm,
 
         // Routes for api keys
         routes::api_keys::api_key_create,
