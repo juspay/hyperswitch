@@ -515,7 +515,7 @@ where
                         }
                     },
                     None => {
-                        let customer_apple_pay_saved_pm_id_option = if payment_method_type
+                        let customer_saved_pm_id_option = if payment_method_type
                             == Some(api_models::enums::PaymentMethodType::ApplePay)
                             || payment_method_type
                                 == Some(api_models::enums::PaymentMethodType::GooglePay)
@@ -553,10 +553,8 @@ where
                             Ok(None)
                         }?;
 
-                        if let Some(customer_apple_pay_saved_pm_id) =
-                            customer_apple_pay_saved_pm_id_option
-                        {
-                            resp.payment_method_id = customer_apple_pay_saved_pm_id;
+                        if let Some(customer_saved_pm_id) = customer_saved_pm_id_option {
+                            resp.payment_method_id = customer_saved_pm_id;
                         } else {
                             let pm_metadata =
                                 create_payment_method_metadata(None, connector_token)?;
