@@ -21,7 +21,9 @@ use crate::{
         metrics,
     },
     db::StorageInterface,
-    events::outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
+    events::outgoing_webhook_logs::{
+        OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
+    },
     logger,
     routes::{app::SessionStateInfo, SessionState},
     services,
@@ -444,7 +446,9 @@ fn raise_webhooks_analytics_event(
 
     let outgoing_webhook_event_content = content
         .as_ref()
-        .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content);
+        .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content)
+        .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
+
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
         event.event_id,
@@ -842,4 +846,47 @@ impl ForeignFrom<(&api::OutgoingWebhookContent, &str)> for storage::EventMetadat
             },
         }
     }
+}
+
+fn get_outgoing_webhook_event_content_from_event_metadata(
+    event_metadata: Option<storage::EventMetadata>,
+) -> Option<OutgoingWebhookEventContent> {
+    event_metadata.map(|metadata| match metadata {
+        diesel_models::EventMetadata::Payment { payment_id } => {
+            OutgoingWebhookEventContent::Payment {
+                payment_id: Some(payment_id),
+                content: serde_json::Value::Null,
+            }
+        }
+        diesel_models::EventMetadata::Payout { payout_id } => OutgoingWebhookEventContent::Payout {
+            payout_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Refund {
+            payment_id,
+            refund_id,
+        } => OutgoingWebhookEventContent::Refund {
+            payment_id,
+            refund_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Dispute {
+            payment_id,
+            attempt_id,
+            dispute_id,
+        } => OutgoingWebhookEventContent::Dispute {
+            payment_id,
+            attempt_id,
+            dispute_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Mandate {
+            payment_method_id,
+            mandate_id,
+        } => OutgoingWebhookEventContent::Mandate {
+            payment_method_id,
+            mandate_id,
+            content: serde_json::Value::Null,
+        },
+    })
 }
