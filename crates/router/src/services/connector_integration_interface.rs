@@ -22,8 +22,7 @@ use crate::{
         domain,
     },
 };
-
-pub trait Conversion<T, Req: Clone, Resp: Clone> {
+pub trait RouterDataConversion<T, Req: Clone, Resp: Clone> {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
     ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
@@ -58,7 +57,7 @@ impl ConnectorEnum {
     where
         dyn Connector + Sync: ConnectorIntegration<F, Req, Resp>,
         dyn ConnectorV2 + Sync: ConnectorIntegrationV2<F, ResourceCommonData, Req, Resp>,
-        ResourceCommonData: Conversion<F, Req, Resp> + Clone + 'static,
+        ResourceCommonData: RouterDataConversion<F, Req, Resp> + Clone + 'static,
         F: Clone + 'static,
         Req: Clone + 'static,
         Resp: Clone + 'static,
@@ -567,7 +566,7 @@ impl<T: 'static, ResourceCommonData: 'static, Req: 'static, Resp: 'static>
     ConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>
     for ConnectorIntegrationEnum<'static, T, ResourceCommonData, Req, Resp>
 where
-    ResourceCommonData: Conversion<T, Req, Resp> + Clone,
+    ResourceCommonData: RouterDataConversion<T, Req, Resp> + Clone,
     T: Clone,
     Req: Clone,
     Resp: Clone,

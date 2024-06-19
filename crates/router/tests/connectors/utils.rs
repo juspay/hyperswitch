@@ -815,7 +815,10 @@ pub trait ConnectorActions: Connector {
 
 async fn call_connector<
     T: Debug + Clone + 'static,
-    ResourceCommonData: Debug + Clone + services::connector_integration_interface::Conversion<T, Req, Resp> + 'static,
+    ResourceCommonData: Debug
+        + Clone
+        + services::connector_integration_interface::RouterDataConversion<T, Req, Resp>
+        + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(

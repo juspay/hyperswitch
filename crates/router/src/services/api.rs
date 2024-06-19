@@ -56,7 +56,7 @@ use crate::{
         metrics::{self, request as metrics_request},
         AppState, SessionState,
     },
-    services::connector_integration_interface::Conversion,
+    services::connector_integration_interface::RouterDataConversion,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -307,7 +307,7 @@ pub async fn execute_connector_processing_step<
     'b,
     'a,
     T,
-    ResourceCommonData: Clone + Conversion<T, Req, Resp> + 'static,
+    ResourceCommonData: Clone + RouterDataConversion<T, Req, Resp> + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
