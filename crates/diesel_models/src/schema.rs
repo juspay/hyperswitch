@@ -712,8 +712,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_attempt (id) {
-        id -> Int4,
+    payment_attempt (attempt_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -802,8 +801,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_intent (id) {
-        id -> Int4,
+    payment_intent (payment_id, merchant_id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -1004,7 +1002,7 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         address_id -> Varchar,
-        payout_type -> PayoutType,
+        payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
         amount -> Int8,
@@ -1223,7 +1221,7 @@ diesel::table! {
         #[max_length = 255]
         name -> Varchar,
         #[max_length = 255]
-        password -> Varchar,
+        password -> Nullable<Varchar>,
         is_verified -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,

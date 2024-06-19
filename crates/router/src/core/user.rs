@@ -368,7 +368,7 @@ pub async fn change_password(
         .update_user_by_user_id(
             user.get_user_id(),
             diesel_models::user::UserUpdate::PasswordUpdate {
-                password: Some(new_password_hash),
+                password: new_password_hash,
             },
         )
         .await
@@ -459,7 +459,7 @@ pub async fn rotate_password(
         .update_user_by_user_id(
             &user_token.user_id,
             storage_user::UserUpdate::PasswordUpdate {
-                password: Some(hash_password),
+                password: hash_password,
             },
         )
         .await
@@ -505,16 +505,25 @@ pub async fn reset_password_token_only_flow(
 
     let user = state
         .global_store
-        .update_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
             storage_user::UserUpdate::PasswordUpdate {
-                password: Some(hash_password),
+                password: hash_password,
             },
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
+
+    if !user_from_db.is_verified() {
+        let _ = state
+            .global_store
+            .update_user_by_user_id(
+                user_from_db.get_user_id(),
+                storage_user::UserUpdate::VerifyUser,
+            )
+            .await
+            .map_err(|e| logger::error!(?e));
+    }
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
@@ -548,7 +557,7 @@ pub async fn reset_password(
                 .get_email()
                 .change_context(UserErrors::InternalServerError)?,
             storage_user::UserUpdate::PasswordUpdate {
-                password: Some(hash_password),
+                password: hash_password,
             },
         )
         .await
@@ -838,11 +847,9 @@ async fn handle_new_user_invitation(
 
     Ok(InviteMultipleUserResponse {
         is_email_sent,
-        password: if cfg!(not(feature = "email")) {
-            Some(new_user.get_password().get_secret())
-        } else {
-            None
-        },
+        password: new_user
+            .get_password()
+            .map(|password| password.get_secret()),
         email: request.email.clone(),
         error: None,
     })
@@ -1022,6 +1029,17 @@ pub async fn accept_invite_from_email_token_only_flow(
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
+
+    if !user_from_db.is_verified() {
+        let _ = state
+            .global_store
+            .update_user_by_user_id(
+                user_from_db.get_user_id(),
+                storage_user::UserUpdate::VerifyUser,
+            )
+            .await
+            .map_err(|e| logger::error!(?e));
+    }
 
     let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
         .await
@@ -1478,13 +1496,9 @@ pub async fn verify_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if matches!(user_token.origin, domain::Origin::VerifyEmail)
-        || matches!(user_token.origin, domain::Origin::MagicLink)
-    {
-        let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
-            .await
-            .map_err(|e| logger::error!(?e));
-    }
+    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+        .await
+        .map_err(|e| logger::error!(?e));
 
     let current_flow =
         domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;

@@ -299,6 +299,7 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
+        key_store,
         merchant_account.storage_scheme,
         router_data,
         is_step_up,
@@ -329,6 +330,7 @@ pub async fn modify_trackers<F, FData>(
     state: &routes::SessionState,
     connector: String,
     payment_data: &mut payments::PaymentData<F>,
+    key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     is_step_up: bool,
@@ -462,6 +464,7 @@ where
                 attempt_count: new_attempt_count,
                 updated_by: storage_scheme.to_string(),
             },
+            key_store,
             storage_scheme,
         )
         .await

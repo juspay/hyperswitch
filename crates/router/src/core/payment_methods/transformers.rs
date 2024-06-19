@@ -346,7 +346,7 @@ pub fn mk_add_card_response_hs(
     let card = api::CardDetailFromLocker {
         scheme: None,
         last4_digits: Some(last4_digits),
-        issuer_country: None,
+        issuer_country: card.card_issuing_country,
         card_number: Some(card.card_number.clone()),
         expiry_month: Some(card.card_exp_month.clone()),
         expiry_year: Some(card.card_exp_year.clone()),
