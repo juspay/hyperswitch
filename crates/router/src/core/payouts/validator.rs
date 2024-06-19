@@ -4,8 +4,8 @@ use common_utils::errors::CustomResult;
 use common_utils::{
     ext_traits::ValueExt,
     id_type::CustomerId,
+    link_utils::{GenericLinkStatus, PayoutLinkData, PayoutLinkStatus},
     types::MinorUnit,
-    link_utils::{GenericLinkStatus,PayoutLinkStatus,PayoutLinkData}
 };
 use diesel_models::{
     enums::CollectLinkConfig,

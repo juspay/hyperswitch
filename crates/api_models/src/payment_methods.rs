@@ -4,9 +4,10 @@ use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
-    id_type, pii,
+    id_type,
+    link_utils::PaymentMethodCollectStatus,
+    pii,
     types::{MinorUnit, Percentage, Surcharge},
-    link_utils::PaymentMethodCollectStatus
 };
 use serde::de;
 use utoipa::{schema, ToSchema};

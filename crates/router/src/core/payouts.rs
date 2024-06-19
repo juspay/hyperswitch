@@ -10,9 +10,9 @@ use common_utils::{
     consts,
     crypto::Encryptable,
     ext_traits::{AsyncExt, ValueExt},
+    link_utils::PayoutLinkStatus,
     pii,
     types::MinorUnit,
-    link_utils::PayoutLinkStatus,
 };
 use diesel_models::{enums as storage_enums, generic_link::PayoutLink};
 use error_stack::{report, ResultExt};

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::payouts;
-use common_utils::{ext_traits::OptionExt};
+use common_utils::{ext_traits::OptionExt, link_utils};
 use diesel_models::PayoutLinkUpdate;
 use error_stack::ResultExt;
 
@@ -13,7 +13,6 @@ use crate::{
     services::{self, logger, GenericLinks},
     types::{api::enums, domain},
 };
-use common_utils::link_utils;
 
 pub async fn initiate_payout_link(
     state: SessionState,

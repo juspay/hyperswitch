@@ -1,6 +1,4 @@
-use std::{
-    primitive::i64,
-};
+use std::primitive::i64;
 
 use common_enums::enums;
 use diesel::{
@@ -17,12 +15,7 @@ use masking::Secret;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::{
-    types::MinorUnit,
-    errors::ParsingError,
-    ext_traits::Encode,
-    id_type,
-};
+use crate::{errors::ParsingError, ext_traits::Encode, id_type, types::MinorUnit};
 
 #[derive(
     Clone,

@@ -1089,9 +1089,8 @@ where
                     }
                 }
                 GenericLinks::PaymentMethodCollectStatus(pm_collect_data) => {
-                    match generic_link_response::build_pm_collect_link_status_html(
-                        &pm_collect_data,
-                    ) {
+                    match generic_link_response::build_pm_collect_link_status_html(&pm_collect_data)
+                    {
                         Ok(rendered_html) => http_response_html_data(rendered_html),
                         Err(_) => http_response_err(
                             r#"{
@@ -1115,9 +1114,7 @@ where
                     }
                 }
                 GenericLinks::PayoutLinkStatus(payout_link_data) => {
-                    match generic_link_response::build_payout_link_status_html(
-                        &payout_link_data,
-                    ) {
+                    match generic_link_response::build_payout_link_status_html(&payout_link_data) {
                         Ok(rendered_html) => http_response_html_data(rendered_html),
                         Err(_) => http_response_err(
                             r#"{
