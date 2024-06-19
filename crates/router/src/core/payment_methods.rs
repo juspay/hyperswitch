@@ -3,12 +3,11 @@ pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
 pub mod vault;
-use common_utils::id_type;
-
 pub use api_models::enums::Connector;
 use api_models::payments::CardToken;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
+use common_utils::id_type;
 use diesel_models::enums;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use router_env::{instrument, tracing};
