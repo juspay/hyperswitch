@@ -20,6 +20,12 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   redis-standalone:
     image: redis:7
@@ -27,6 +33,12 @@ services:
       - router_net
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   migration_runner:
     image: rust:latest
@@ -55,14 +67,19 @@ services:
     volumes:
       - ./config:/local/config
       - ./files:/local/bin/files
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-standalone:
+        condition: service_healthy
     labels:
       logs: "promtail"
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
-      interval: 10s
+      interval: 5s
       retries: 3
       start_period: 5s
-      timeout: 10s
+      timeout: 5s
 
   hyperswitch-producer:
     image: juspaydotin/hyperswitch-producer:standalone
@@ -96,7 +113,7 @@ services:
       - SCHEDULER_FLOW=consumer
     depends_on:
       hyperswitch-server:
-        condition: service_started
+        condition: service_healthy
     labels:
       logs: "promtail"
     healthcheck:
@@ -121,7 +138,7 @@ services:
     restart: unless-stopped
     depends_on:
       hyperswitch-server:
-        condition: service_started
+        condition: service_healthy
     labels:
       logs: "promtail"
 
@@ -131,21 +148,25 @@ services:
       - "9050:9050"
       - "9060:9060"
       - "5252:5252"
+    networks:
+      - router_net
     build:
       context: ./docker
       dockerfile: web.Dockerfile
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
     environment:
-      - HYPERSWITCH_PUBLISHABLE_KEY=${HYPERSWITCH_PUBLISHABLE_KEY:-PUBLISHABLE_KEY}
-      - HYPERSWITCH_SECRET_KEY=${HYPERSWITCH_SECRET_KEY:-SECRET_KEY}
-      - HYPERSWITCH_SERVER_URL=${HYPERSWITCH_SERVER_URL:-http://hyperswitch-server:8080}
-      - HYPERSWITCH_CLIENT_URL=${HYPERSWITCH_CLIENT_URL:-http://localhost:9050}
-      - SELF_SERVER_URL=${SELF_SERVER_URL:-http://localhost:5252}
-      - SDK_ENV=${SDK_ENV:-local}
-      - ENV_SDK_URL=${ENV_SDK_URL:-http://localhost:9050}
-      - ENV_BACKEND_URL=${ENV_BACKEND_URL:-http://localhost:8080}
-      - ENV_LOGGING_URL=${ENV_LOGGING_URL:-http://localhost:3100}
+      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
+      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
+      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+      - HYPERSWITCH_SERVER_URL_FOR_DEMO_APP=http://hyperswitch-server:8080
+      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
+      - SELF_SERVER_URL=http://localhost:5252
+      - SDK_ENV=local
+      - ENV_LOGGING_URL=http://localhost:3100
     labels:  
-      logs: "promtail"  
+      logs: "promtail"
 
   ### Control Center
   hyperswitch-control-center:
@@ -158,7 +179,10 @@ services:
     volumes:
       - ./config/dashboard.toml:/tmp/dashboard-config.toml
     depends_on:
-      - hyperswitch-web
+      hyperswitch-server:
+        condition: service_healthy
+      hyperswitch-web:
+        condition: service_started
     labels:  
       logs: "promtail" 
 

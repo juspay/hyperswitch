@@ -101,4 +101,18 @@ Here's an example of how to do this:
 [default.features]
 audit_trail=true
 system_metrics=true
+global_search=true
 ```
+
+## Viewing the data on OpenSearch Dashboard
+
+To view the data on the OpenSearch dashboard perform the following steps:
+
+- Go to the OpenSearch Dashboard home and click on `Stack Management` under the Management tab
+- Select `Index Patterns`
+- Click on `Create index pattern`
+- Define an index pattern with the same name that matches your indices and click on `Next Step`
+- Select a time field that will be used for time-based queries
+- Save the index pattern
+
+Now, head on to the `Discover` tab, to select the newly created index pattern and query the data

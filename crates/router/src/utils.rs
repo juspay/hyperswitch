@@ -29,6 +29,7 @@ use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
+use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
@@ -553,12 +554,12 @@ pub async fn get_mca_from_object_reference_id(
 // validate json format for the error
 pub fn handle_json_response_deserialization_failure(
     res: types::Response,
-    connector: String,
+    connector: &'static str,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("connector", connector)],
+        &add_attributes([("connector", connector)]),
     );
 
     let response_data = String::from_utf8(res.response.to_vec())
@@ -781,24 +782,24 @@ pub fn add_apple_pay_flow_metrics(
             domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                ],
+                    ("merchant_id", merchant_id.to_owned()),
+                ]),
             ),
             domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                ],
+                    ("merchant_id", merchant_id.to_owned()),
+                ]),
             ),
         }
     }
@@ -817,26 +818,26 @@ pub fn add_apple_pay_payment_status_metrics(
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     ),
             }
         }
@@ -847,25 +848,25 @@ pub fn add_apple_pay_payment_status_metrics(
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
                     &metrics::CONTEXT,
                     1,
-                    &[
-                        metrics::request::add_attributes(
+                    &add_attributes([
+                        (
                             "connector",
                             connector.to_owned().unwrap_or("null".to_string()),
                         ),
-                        metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                    ],
+                        ("merchant_id", merchant_id.to_owned()),
+                    ]),
                 ),
             }
         }
