@@ -1189,7 +1189,7 @@ diesel::table! {
         owner_type -> Varchar,
         #[max_length = 64]
         auth_method -> Varchar,
-        config -> Nullable<Jsonb>,
+        config -> Nullable<Bytea>,
         allow_signup -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,

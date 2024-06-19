@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS user_authentication_methods (
     owner_id VARCHAR(64) NOT NULL,
     owner_type VARCHAR(64) NOT NULL,
     auth_method VARCHAR(64) NOT NULL,
-    config JSONB,
+    config bytea,
     allow_signup BOOLEAN NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     last_modified_at TIMESTAMP NOT NULL DEFAULT now()

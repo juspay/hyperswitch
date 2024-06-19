@@ -1972,9 +1972,30 @@ pub async fn create_user_authentication_method(
     state: SessionState,
     req: user_api::CreateUserAuthenticationMethodRequest,
 ) -> UserResponse<()> {
-    let config = serde_json::to_value(req.config)
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let auth_config = serde_json::to_value(req.config)
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to convert auth config to json")?;
+
+    let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+        auth_config.into(),
+        &user_auth_encryption_key,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to encrypt auth config")?
+    .into();
 
     let auth_methods = state
         .store
@@ -1982,6 +2003,7 @@ pub async fn create_user_authentication_method(
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get list of auth methods for the owner id")?;
+
     let auth_id = if let Some(auth_method) = auth_methods.first() {
         auth_method.auth_id.clone()
     } else {
@@ -1997,13 +2019,14 @@ pub async fn create_user_authentication_method(
             owner_id: req.owner_id,
             owner_type: req.owner_type,
             auth_method: req.auth_method,
-            config: Some(config),
+            config: Some(encrypted_config),
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
         })
         .await
         .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
+
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -2011,15 +2034,36 @@ pub async fn update_user_authentication_method(
     state: SessionState,
     req: user_api::UpdateUserAuthenticationMethodRequest,
 ) -> UserResponse<()> {
-    let updated_config = serde_json::to_value(req.config)
+    let user_auth_encryption_key = hex::decode(
+        state
+            .conf
+            .user_auth_methods
+            .get_inner()
+            .encryption_key
+            .clone()
+            .expose(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to decode DEK")?;
+
+    let auth_config = serde_json::to_value(req.config)
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to convert auth config to json")?;
+
+    let updated_encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
+        auth_config.into(),
+        &user_auth_encryption_key,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?
+    .into();
+
     state
         .store
         .update_user_authentication_method(
             &req.id,
             UserAuthenticationMethodUpdate::UpdateConfig {
-                config: Some(updated_config),
+                config: Some(updated_encrypted_config),
             },
         )
         .await

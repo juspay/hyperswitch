@@ -1,7 +1,7 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
-use crate::{enums, schema::user_authentication_methods};
+use crate::{encryption::Encryption, enums, schema::user_authentication_methods};
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(table_name = user_authentication_methods)]
@@ -11,7 +11,7 @@ pub struct UserAuthenticationMethod {
     pub owner_id: String,
     pub owner_type: enums::Owner,
     pub auth_method: enums::AuthMethod,
-    pub config: Option<serde_json::Value>,
+    pub config: Option<Encryption>,
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
@@ -25,7 +25,7 @@ pub struct UserAuthenticationMethodNew {
     pub owner_id: String,
     pub owner_type: enums::Owner,
     pub auth_method: enums::AuthMethod,
-    pub config: Option<serde_json::Value>,
+    pub config: Option<Encryption>,
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
@@ -34,12 +34,12 @@ pub struct UserAuthenticationMethodNew {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = user_authentication_methods)]
 pub struct OrgAuthenticationMethodUpdateInternal {
-    pub config: Option<serde_json::Value>,
+    pub config: Option<Encryption>,
     pub last_modified_at: PrimitiveDateTime,
 }
 
 pub enum UserAuthenticationMethodUpdate {
-    UpdateConfig { config: Option<serde_json::Value> },
+    UpdateConfig { config: Option<Encryption> },
 }
 
 impl From<UserAuthenticationMethodUpdate> for OrgAuthenticationMethodUpdateInternal {
