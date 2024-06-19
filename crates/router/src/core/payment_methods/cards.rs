@@ -282,7 +282,7 @@ pub async fn get_client_secret_or_add_payment_method(
     let condition = req.payment_method_data.is_some();
 
     if condition {
-        if is_v2 {
+        if !is_v2 {
             Box::pin(add_payment_method(
                 state,
                 req,
@@ -4364,6 +4364,10 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
     ) -> errors::RouterResult<pm_core::PaymentMethodVaultingData> {
         let db = &*state.store;
         let pm_id = data.pm_id.clone().get_required_value("payment_method_id")?;
+        let _payment_method = req.payment_method.get_required_value("payment_method")?;
+        let _pmt = req
+            .payment_method_type
+            .get_required_value("payment_method_type")?;
 
         let pm = db
             .find_payment_method(pm_id.as_str(), merchant_account.storage_scheme)
@@ -4708,10 +4712,14 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
         req: &api::PaymentMethodCreate,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
-        data: pm_core::PaymentMethodVaultingData,
+        _data: pm_core::PaymentMethodVaultingData,
     ) -> errors::RouterResult<pm_core::PaymentMethodVaultingData> {
         let db = &*state.store;
         let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
+        let _payment_method = req.payment_method.get_required_value("payment_method")?;
+        let _pmt = req
+            .payment_method_type
+            .get_required_value("payment_method_type")?;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
                 &customer_id,
