@@ -95,9 +95,3 @@ pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
 
 /// Minimum allowed length for MerchantReferenceId
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
-
-/// No error message string const
-pub const NO_ERROR_MESSAGE: &str = "No error message";
-
-/// No error code string const
-pub const NO_ERROR_CODE: &str = "No error code";

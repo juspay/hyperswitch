@@ -1,3 +1,4 @@
+//! definition of the new connector integration trait
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},

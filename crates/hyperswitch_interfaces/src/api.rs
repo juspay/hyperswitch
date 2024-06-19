@@ -1,7 +1,6 @@
 //! API interface
 
 use common_utils::{
-    consts,
     errors::CustomResult,
     request::{Method, Request, RequestContent},
 };
@@ -11,7 +10,7 @@ use router_env::metrics::add_attributes;
 use serde_json::json;
 
 use crate::{
-    configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
+    configs::Connectors, consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
 /// type BoxedConnectorIntegration
