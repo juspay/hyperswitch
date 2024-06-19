@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -209,13 +210,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     &metrics::CONTEXT,
                     1,
-                    &[
-                        metrics::request::add_attributes(
-                            "connector",
-                            connector.connector_name.to_string(),
-                        ),
-                        metrics::request::add_attributes("flow", format!("{:?}", api::Authorize)),
-                    ],
+                    &add_attributes([
+                        ("connector", connector.connector_name.to_string()),
+                        ("flow", format!("{:?}", api::Authorize)),
+                    ]),
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
@@ -333,13 +331,10 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         metrics::PREPROCESSING_STEPS_COUNT.add(
             &metrics::CONTEXT,
             1,
-            &[
-                metrics::request::add_attributes("connector", connector.connector_name.to_string()),
-                metrics::request::add_attributes(
-                    "payment_method",
-                    router_data.payment_method.to_string(),
-                ),
-                metrics::request::add_attributes(
+            &add_attributes([
+                ("connector", connector.connector_name.to_string()),
+                ("payment_method", router_data.payment_method.to_string()),
+                (
                     "payment_method_type",
                     router_data
                         .request
@@ -348,7 +343,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                         .map(|inner| inner.to_string())
                         .unwrap_or("null".to_string()),
                 ),
-            ],
+            ]),
         );
         let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
             resp.clone(),

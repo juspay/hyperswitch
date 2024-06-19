@@ -3,7 +3,7 @@ use common_utils::date_time;
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
     configs::settings,
@@ -151,7 +151,7 @@ pub async fn create_api_key(
     metrics::API_KEY_CREATED.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("merchant", merchant_id)],
+        &add_attributes([("merchant", merchant_id)]),
     );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
@@ -236,7 +236,7 @@ pub async fn add_api_key_expiry_task(
     metrics::TASKS_ADDED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+        &add_attributes([("flow", "ApiKeyExpiry")]),
     );
 
     Ok(())

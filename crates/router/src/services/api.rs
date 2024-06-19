@@ -19,7 +19,7 @@ use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY,
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
@@ -34,7 +34,7 @@ pub use hyperswitch_interfaces::{
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Tera};
@@ -183,9 +183,9 @@ where
             metrics::CONNECTOR_CALL_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes("connector", req.connector.to_string()),
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    ("connector", req.connector.to_string()),
+                    (
                         "flow",
                         std::any::type_name::<T>()
                             .split("::")
@@ -193,7 +193,7 @@ where
                             .unwrap_or_default()
                             .to_string(),
                     ),
-                ],
+                ]),
             );
 
             let connector_request = match connector_request {
@@ -209,10 +209,7 @@ where
                             metrics::REQUEST_BUILD_FAILURE.add(
                                 &metrics::CONTEXT,
                                 1,
-                                &[metrics::request::add_attributes(
-                                    "connector",
-                                    req.connector.to_string(),
-                                )],
+                                &add_attributes([("connector", req.connector.to_string())]),
                             )
                         }
                         error
@@ -277,10 +274,10 @@ where
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
                                                 &metrics::CONTEXT,
                                                 1,
-                                                &[metrics::request::add_attributes(
+                                                &add_attributes([(
                                                     "connector",
                                                     req.connector.to_string(),
-                                                )],
+                                                )]),
                                             )
                                         }
                                             error
@@ -318,10 +315,7 @@ where
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
-                                        &[metrics::request::add_attributes(
-                                            "connector",
-                                            req.connector.clone(),
-                                        )],
+                                        &add_attributes([("connector", req.connector.clone())]),
                                     );
 
                                     let error = match body.status_code {
@@ -794,10 +788,10 @@ where
         .into_iter()
         .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
-        common_utils::consts::DEFAULT_TENANT.to_string()
+        DEFAULT_TENANT.to_string()
     } else {
         incoming_request_header
-            .get("x-tenant-id")
+            .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
             .map(|req_tenant_id| {
@@ -920,7 +914,11 @@ where
     );
     state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
+    metrics::request::status_code_metrics(
+        status_code.to_string(),
+        flow.to_string(),
+        merchant_id.to_string(),
+    );
 
     output
 }

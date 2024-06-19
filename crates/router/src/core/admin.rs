@@ -15,6 +15,7 @@ use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
+use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
 use crate::{
@@ -1009,10 +1010,10 @@ pub async fn create_payment_connector(
     metrics::MCA_CREATE.add(
         &metrics::CONTEXT,
         1,
-        &[
-            metrics::request::add_attributes("connector", req.connector_name.to_string()),
-            metrics::request::add_attributes("merchant", merchant_id.to_string()),
-        ],
+        &add_attributes([
+            ("connector", req.connector_name.to_string()),
+            ("merchant", merchant_id.to_string()),
+        ]),
     );
 
     let mca_response = mca.try_into()?;
