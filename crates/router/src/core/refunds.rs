@@ -57,6 +57,7 @@ pub async fn refund_create_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id,
             merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -363,6 +364,7 @@ pub async fn refund_retrieve_core(
         .find_payment_intent_by_payment_id_merchant_id(
             payment_id,
             merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -1127,6 +1129,7 @@ pub async fn trigger_refund_execute_workflow(
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_attempt.payment_id,
                     &refund.merchant_id,
+                    &key_store,
                     merchant_account.storage_scheme,
                 )
                 .await

@@ -51,8 +51,7 @@ use crate::{
     logger,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
-        metrics::{self, request as metrics_request},
-        AppState, SessionState,
+        metrics, AppState, SessionState,
     },
     types::{
         self,
@@ -537,9 +536,10 @@ pub async fn send_request(
             .attach_printable("Unable to send request to connector")
     };
 
-    let response = metrics_request::record_operation_time(
+    let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
+        &metrics::CONTEXT,
         &[metrics_tag.clone()],
     )
     .await;
@@ -564,9 +564,10 @@ pub async fn send_request(
                     logger::info!(
                         "Retrying request due to connection closed before message could complete"
                     );
-                    metrics_request::record_operation_time(
+                    common_utils::metrics::utils::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
+                        &metrics::CONTEXT,
                         &[metrics_tag],
                     )
                     .await
