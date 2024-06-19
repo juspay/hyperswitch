@@ -1,5 +1,4 @@
 use common_utils::ext_traits::ValueExt;
-// use router_env::logger;
 use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
@@ -7,7 +6,7 @@ use scheduler::{
 use crate::{
     errors,
     logger::error,
-    routes::{metrics, SessionState},
+    routes::SessionState,
     types::storage::{self, PaymentMethodStatusTrackingData},
 };
 
