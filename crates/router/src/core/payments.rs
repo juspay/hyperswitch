@@ -4177,6 +4177,7 @@ pub async fn payments_manual_update(
         .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
             &merchant_account.merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -4236,6 +4237,7 @@ pub async fn payments_manual_update(
             .update_payment_intent(
                 payment_intent,
                 payment_intent_update,
+                &key_store,
                 merchant_account.storage_scheme,
             )
             .await
