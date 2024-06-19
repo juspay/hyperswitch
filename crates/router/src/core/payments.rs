@@ -1461,7 +1461,12 @@ where
         .await?;
 
     let add_access_token_result = router_data
-        .add_access_token(state, &connector, merchant_account)
+        .add_access_token(
+            state,
+            &connector,
+            merchant_account,
+            payment_data.creds_identifier.as_ref(),
+        )
         .await?;
 
     router_data = router_data.add_session_token(state, &connector).await?;

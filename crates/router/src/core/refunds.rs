@@ -181,13 +181,19 @@ pub async fn trigger_refund_to_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        creds_identifier,
+        creds_identifier.clone(),
         charges,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
+    let add_access_token_result = access_token::add_access_token(
+        state,
+        &connector,
+        merchant_account,
+        &router_data,
+        creds_identifier.as_ref(),
+    )
+    .await?;
 
     logger::debug!(refund_router_data=?router_data);
 
@@ -458,13 +464,19 @@ pub async fn sync_refund_with_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        creds_identifier,
+        creds_identifier.clone(),
         None,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_account, &router_data).await?;
+    let add_access_token_result = access_token::add_access_token(
+        state,
+        &connector,
+        merchant_account,
+        &router_data,
+        creds_identifier.as_ref(),
+    )
+    .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
