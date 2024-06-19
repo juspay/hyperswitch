@@ -31,6 +31,8 @@ describe("[Payout] Saved Card", () => {
   });
 
   context("[Payout] [Card] Onboard customer prior to transaction", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    
     // This is needed to get customer payment methods
     beforeEach("seed global state", () => {
       createPayoutBody = Cypress._.cloneDeep(initialCreatePayoutBody);
@@ -80,6 +82,8 @@ describe("[Payout] Saved Card", () => {
   context(
     "[Payout] [Card] Save payment method after successful transaction",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
       it("create customer", () => {
         cy.createCustomerCallTest(customerCreateBody, globalState);
       });
@@ -160,6 +164,7 @@ describe("[Payout] Saved Bank transfer", () => {
   context(
     "[Payout] [Bank Transfer] Onboard Customer Prior to Transaction",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
       beforeEach("reset createPayoutBody", () => {
         createPayoutBody = Cypress._.cloneDeep(initialCreatePayoutBody);
       });
@@ -209,6 +214,8 @@ describe("[Payout] Saved Bank transfer", () => {
   context(
     "[Payout] [Bank Transfer] Save payment method after successful transaction",
     () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
       it("create customer", () => {
         cy.createCustomerCallTest(customerCreateBody, globalState);
       });

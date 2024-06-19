@@ -81,6 +81,8 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   context("[Payout] [Bank transfer - SEPA] Auto Fulfill", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
@@ -106,6 +108,8 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   context("[Payout] [Bank transfer - SEPA] Manual Fulfill", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
@@ -141,6 +145,8 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   context("[Payout] [Bank transfer - SEPA] Manual Confirm", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     it("confirm-payout-call-with-manual-confirm-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
@@ -187,6 +193,8 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   context("[Payout] [Bank transfer - SEPA] Manual", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     it("create-payout-call", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
