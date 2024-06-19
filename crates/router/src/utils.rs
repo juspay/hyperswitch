@@ -29,6 +29,7 @@ use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
+use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
@@ -415,6 +416,60 @@ pub async fn get_mca_from_payment_intent(
     }
 }
 
+#[cfg(feature = "payouts")]
+pub async fn get_mca_from_payout_attempt(
+    db: &dyn StorageInterface,
+    merchant_account: &domain::MerchantAccount,
+    payout_id_type: webhooks::PayoutIdType,
+    connector_name: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let payout = match payout_id_type {
+        webhooks::PayoutIdType::PayoutAttemptId(payout_attempt_id) => db
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                &merchant_account.merchant_id,
+                &payout_attempt_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
+        webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id) => db
+            .find_payout_attempt_by_merchant_id_connector_payout_id(
+                &merchant_account.merchant_id,
+                &connector_payout_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
+    };
+
+    match payout.merchant_connector_id {
+        Some(merchant_connector_id) => db
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &merchant_account.merchant_id,
+                &merchant_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id,
+            }),
+        None => db
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                &payout.profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: format!(
+                    "profile_id {} and connector_name {}",
+                    payout.profile_id, connector_name
+                ),
+            }),
+    }
+}
+
 pub async fn get_mca_from_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -481,6 +536,17 @@ pub async fn get_mca_from_object_reference_id(
                 )
                 .await
             }
+            #[cfg(feature = "payouts")]
+            webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
+                get_mca_from_payout_attempt(
+                    db,
+                    merchant_account,
+                    payout_id_type,
+                    connector_name,
+                    key_store,
+                )
+                .await
+            }
         },
     }
 }
@@ -488,12 +554,12 @@ pub async fn get_mca_from_object_reference_id(
 // validate json format for the error
 pub fn handle_json_response_deserialization_failure(
     res: types::Response,
-    connector: String,
+    connector: &'static str,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("connector", connector)],
+        &add_attributes([("connector", connector)]),
     );
 
     let response_data = String::from_utf8(res.response.to_vec())
@@ -707,33 +773,33 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 }
 
 pub fn add_apple_pay_flow_metrics(
-    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    apple_pay_flow: &Option<domain::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
-            enums::ApplePayFlow::Simplified => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
+            domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                ],
+                    ("merchant_id", merchant_id.to_owned()),
+                ]),
             ),
-            enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+            domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                ],
+                    ("merchant_id", merchant_id.to_owned()),
+                ]),
             ),
         }
     }
@@ -741,66 +807,66 @@ pub fn add_apple_pay_flow_metrics(
 
 pub fn add_apple_pay_payment_status_metrics(
     payment_attempt_status: enums::AttemptStatus,
-    apple_pay_flow: Option<enums::ApplePayFlow>,
+    apple_pay_flow: Option<domain::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                enums::ApplePayFlow::Simplified => {
+                domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     )
                 }
-                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
+                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     ),
             }
         }
     } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                enums::ApplePayFlow::Simplified => {
+                domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[
-                            metrics::request::add_attributes(
+                        &add_attributes([
+                            (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
+                            ("merchant_id", merchant_id.to_owned()),
+                        ]),
                     )
                 }
-                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
                     &metrics::CONTEXT,
                     1,
-                    &[
-                        metrics::request::add_attributes(
+                    &add_attributes([
+                        (
                             "connector",
                             connector.to_owned().unwrap_or("null".to_string()),
                         ),
-                        metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                    ],
+                        ("merchant_id", merchant_id.to_owned()),
+                    ]),
                 ),
             }
         }
@@ -826,7 +892,7 @@ pub async fn trigger_payments_webhook<F, Op>(
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     customer: Option<domain::Customer>,
-    state: &crate::routes::AppState,
+    state: &crate::routes::SessionState,
     operation: Op,
 ) -> RouterResult<()>
 where
@@ -858,7 +924,7 @@ where
             captures,
             customer,
             services::AuthFlow::Merchant,
-            &state.conf.server,
+            &state.base_url,
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,

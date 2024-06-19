@@ -9,9 +9,10 @@ use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     types::MinorUnit,
 };
+use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
@@ -24,7 +25,7 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -42,7 +43,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn refund_create_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
@@ -134,7 +135,7 @@ pub async fn refund_create_core(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn trigger_refund_to_gateway(
-    state: &AppState,
+    state: &SessionState,
     refund: &storage::Refund,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -153,10 +154,7 @@ pub async fn trigger_refund_to_gateway(
     metrics::REFUND_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            routed_through.clone(),
-        )],
+        &add_attributes([("connector", routed_through.clone())]),
     );
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -279,10 +277,7 @@ pub async fn trigger_refund_to_gateway(
                 metrics::SUCCESSFUL_REFUND.add(
                     &metrics::CONTEXT,
                     1,
-                    &[metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    )],
+                    &add_attributes([("connector", connector.connector_name.to_string())]),
                 )
             }
             storage::RefundUpdate::Update {
@@ -317,14 +312,14 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(SessionState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
@@ -337,7 +332,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
@@ -432,7 +427,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
@@ -546,7 +541,7 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -584,7 +579,7 @@ pub async fn refund_update_core(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn validate_and_create_refund(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
@@ -726,7 +721,7 @@ pub async fn validate_and_create_refund(
         .await
     {
         Ok(refund) => {
-            schedule_refund_execution(
+            Box::pin(schedule_refund_execution(
                 state,
                 refund.clone(),
                 refund_type,
@@ -736,7 +731,7 @@ pub async fn validate_and_create_refund(
                 payment_intent,
                 creds_identifier,
                 charges,
-            )
+            ))
             .await?
         }
         Err(err) => {
@@ -767,7 +762,7 @@ pub async fn validate_and_create_refund(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
@@ -812,7 +807,7 @@ pub async fn refund_list(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api_models::payments::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
@@ -832,7 +827,7 @@ pub async fn refund_filter_list(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_refunds(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
@@ -900,7 +895,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn schedule_refund_execution(
-    state: &AppState,
+    state: &SessionState,
     refund: storage::Refund,
     refund_type: api_models::refunds::RefundType,
     merchant_account: &domain::MerchantAccount,
@@ -979,7 +974,7 @@ pub async fn schedule_refund_execution(
 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let refund_core =
@@ -1028,7 +1023,7 @@ pub async fn sync_refund_with_gateway_workflow(
                 .as_scheduler()
                 .finish_process_with_business_status(
                     refund_tracker.clone(),
-                    "COMPLETED_BY_PT".to_string(),
+                    business_status::COMPLETED_BY_PT,
                 )
                 .await?
         }
@@ -1048,7 +1043,7 @@ pub async fn sync_refund_with_gateway_workflow(
 
 #[instrument(skip_all)]
 pub async fn start_refund_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
@@ -1064,7 +1059,7 @@ pub async fn start_refund_workflow(
 
 #[instrument(skip_all)]
 pub async fn trigger_refund_execute_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
@@ -1193,7 +1188,7 @@ pub async fn trigger_refund_execute_workflow(
             db.as_scheduler()
                 .finish_process_with_business_status(
                     refund_tracker.clone(),
-                    "COMPLETED_BY_PT".to_string(),
+                    business_status::COMPLETED_BY_PT,
                 )
                 .await?;
         }
@@ -1245,11 +1240,7 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &[metrics::request::add_attributes("flow", "Refund")],
-    );
+    metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &add_attributes([("flow", "Refund")]));
 
     Ok(response)
 }
