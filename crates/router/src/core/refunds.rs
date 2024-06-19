@@ -12,7 +12,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
@@ -154,10 +154,7 @@ pub async fn trigger_refund_to_gateway(
     metrics::REFUND_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            routed_through.clone(),
-        )],
+        &add_attributes([("connector", routed_through.clone())]),
     );
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -280,10 +277,7 @@ pub async fn trigger_refund_to_gateway(
                 metrics::SUCCESSFUL_REFUND.add(
                     &metrics::CONTEXT,
                     1,
-                    &[metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    )],
+                    &add_attributes([("connector", connector.connector_name.to_string())]),
                 )
             }
             storage::RefundUpdate::Update {
@@ -1246,11 +1240,7 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &[metrics::request::add_attributes("flow", "Refund")],
-    );
+    metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &add_attributes([("flow", "Refund")]));
 
     Ok(response)
 }

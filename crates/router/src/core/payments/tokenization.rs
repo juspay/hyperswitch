@@ -8,7 +8,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::helpers;
 use crate::{
@@ -469,9 +469,10 @@ where
                                 };
 
                                 let updated_card = Some(CardDetailFromLocker {
-                                    scheme: None,
+                                    scheme: existing_pm.scheme.clone(),
                                     last4_digits: Some(card.card_number.get_last4()),
-                                    issuer_country: None,
+                                    issuer_country: card.card_issuing_country,
+                                    card_isin: Some(card.card_number.get_card_isin()),
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),
                                     expiry_year: Some(card.card_exp_year),
@@ -479,10 +480,9 @@ where
                                     card_fingerprint: None,
                                     card_holder_name: card.card_holder_name,
                                     nick_name: card.nick_name,
-                                    card_network: None,
-                                    card_isin: None,
-                                    card_issuer: None,
-                                    card_type: None,
+                                    card_network: card.card_network,
+                                    card_issuer: card.card_issuer,
+                                    card_type: card.card_type,
                                     saved_to_locker: true,
                                 });
 
@@ -806,16 +806,10 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    ),
-                    metrics::request::add_attributes(
-                        "payment_method",
-                        router_data.payment_method.to_string(),
-                    ),
-                ],
+                &add_attributes([
+                    ("connector", connector.connector_name.to_string()),
+                    ("payment_method", router_data.payment_method.to_string()),
+                ]),
             );
 
             let pm_token = match resp.response {

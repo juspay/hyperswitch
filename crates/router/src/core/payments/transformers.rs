@@ -11,7 +11,7 @@ use common_utils::{consts::X_HS_LATENCY, fp_utils, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
@@ -844,12 +844,12 @@ where
     metrics::PAYMENT_OPS_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[
-            metrics::request::add_attributes("operation", format!("{:?}", operation)),
-            metrics::request::add_attributes("merchant", merchant_id),
-            metrics::request::add_attributes("payment_method_type", payment_method_type),
-            metrics::request::add_attributes("payment_method", payment_method),
-        ],
+        &add_attributes([
+            ("operation", format!("{:?}", operation)),
+            ("merchant", merchant_id),
+            ("payment_method_type", payment_method_type),
+            ("payment_method", payment_method),
+        ]),
     );
 
     Ok(output)

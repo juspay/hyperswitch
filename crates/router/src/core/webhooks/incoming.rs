@@ -10,7 +10,7 @@ use api_models::{
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
 use crate::{
@@ -25,9 +25,7 @@ use crate::{
     logger,
     routes::{
         app::{ReqState, SessionStateInfo},
-        lock_utils,
-        metrics::request::add_attributes,
-        SessionState,
+        lock_utils, SessionState,
     },
     services::{self, authentication as auth},
     types::{
@@ -567,10 +565,7 @@ async fn payments_incoming_webhook_flow(
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
                         &metrics::CONTEXT,
                         1,
-                        &[add_attributes(
-                            "merchant_id",
-                            merchant_account.merchant_id.clone(),
-                        )],
+                        &add_attributes([("merchant_id", merchant_account.merchant_id.clone())]),
                     );
                     return Ok(WebhookResponseTracker::NoEffect);
                 }

@@ -129,6 +129,7 @@ pub struct Settings<S: SecretState> {
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
+    pub global_tenant: GlobalTenant,
 }
 
 impl Multitenancy {
@@ -153,6 +154,7 @@ pub struct Tenant {
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
@@ -161,6 +163,12 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
+    }
+}
+
+impl storage_impl::config::ClickHouseConfig for Tenant {
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database.as_str()
     }
 }
 
