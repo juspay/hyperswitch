@@ -27,7 +27,7 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -1230,10 +1230,7 @@ where
                     metrics::TASKS_ADDED_COUNT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[metrics::request::add_attributes(
-                            "flow",
-                            format!("{:#?}", operation),
-                        )],
+                        &add_attributes([("flow", format!("{:#?}", operation))]),
                     );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
@@ -1244,10 +1241,7 @@ where
                     metrics::TASKS_RESET_COUNT.add(
                         &metrics::CONTEXT,
                         1,
-                        &[metrics::request::add_attributes(
-                            "flow",
-                            format!("{:#?}", operation),
-                        )],
+                        &add_attributes([("flow", format!("{:#?}", operation))]),
                     );
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
@@ -2316,6 +2310,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Eps
                 | api_enums::PaymentMethodType::BancontactCard
                 | api_enums::PaymentMethodType::Blik
+                | api_enums::PaymentMethodType::LocalBankRedirect
                 | api_enums::PaymentMethodType::OnlineBankingThailand
                 | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
                 | api_enums::PaymentMethodType::OnlineBankingFinland
@@ -2359,6 +2354,13 @@ pub fn validate_payment_method_type_against_payment_method(
         api_enums::PaymentMethod::Reward => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::Evoucher | api_enums::PaymentMethodType::ClassicReward
+        ),
+        api_enums::PaymentMethod::RealTimePayment => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Fps
+                | api_enums::PaymentMethodType::DuitNow
+                | api_enums::PaymentMethodType::PromptPay
+                | api_enums::PaymentMethodType::VietQr
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
@@ -3354,6 +3356,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         merchant_id: router_data.merchant_id,
         address: router_data.address,
         amount_captured: router_data.amount_captured,
+        minor_amount_captured: router_data.minor_amount_captured,
         auth_type: router_data.auth_type,
         connector: router_data.connector,
         connector_auth_type: router_data.connector_auth_type,
@@ -3408,10 +3411,7 @@ pub fn get_attempt_type(
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     &metrics::CONTEXT,
                     1,
-                    &[metrics::request::add_attributes(
-                        "merchant_id",
-                        payment_attempt.merchant_id.clone(),
-                    )],
+                    &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
                 );
                 match payment_attempt.status {
                     enums::AttemptStatus::Started
@@ -3435,10 +3435,7 @@ pub fn get_attempt_type(
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             &metrics::CONTEXT,
                             1,
-                            &[metrics::request::add_attributes(
-                                "merchant_id",
-                                payment_attempt.merchant_id.clone(),
-                            )],
+                            &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
                         );
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Payment Attempt unexpected state")
@@ -3450,10 +3447,7 @@ pub fn get_attempt_type(
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             &metrics::CONTEXT,
                             1,
-                            &[metrics::request::add_attributes(
-                                "merchant_id",
-                                payment_attempt.merchant_id.clone(),
-                            )],
+                            &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
                         );
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message:
@@ -3468,10 +3462,7 @@ pub fn get_attempt_type(
                         metrics::MANUAL_RETRY_COUNT.add(
                             &metrics::CONTEXT,
                             1,
-                            &[metrics::request::add_attributes(
-                                "merchant_id",
-                                payment_attempt.merchant_id.clone(),
-                            )],
+                            &add_attributes([("merchant_id", payment_attempt.merchant_id.clone())]),
                         );
                         Ok(AttemptType::New)
                     }
@@ -3890,6 +3881,9 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::Reward => {
             api_models::payments::AdditionalPaymentData::Reward {}
         }
+        api_models::payments::PaymentMethodData::RealTimePayment(_) => {
+            api_models::payments::AdditionalPaymentData::RealTimePayment {}
+        }
         api_models::payments::PaymentMethodData::Upi(_) => {
             api_models::payments::AdditionalPaymentData::Upi {}
         }
@@ -4032,7 +4026,7 @@ pub async fn get_apple_pay_retryable_connectors<F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
-    decided_connector_data: api::ConnectorData,
+    pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&String>,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
@@ -4047,13 +4041,17 @@ where
             field_name: "profile_id",
         })?;
 
+    let pre_decided_connector_data_first = pre_routing_connector_data_list
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
     let merchant_connector_account_type = get_merchant_connector_account(
         &state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
         profile_id,
-        &decided_connector_data.connector_name.to_string(),
+        &pre_decided_connector_data_first.connector_name.to_string(),
         merchant_connector_id,
     )
     .await?;
@@ -4080,7 +4078,7 @@ where
             Some(profile_id.to_string()),
         );
 
-        let mut connector_data_list = vec![decided_connector_data.clone()];
+        let mut connector_data_list = vec![pre_decided_connector_data_first.clone()];
 
         for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
@@ -4117,16 +4115,31 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
 
+        let mut routing_connector_data_list = Vec::new();
+
+        pre_routing_connector_data_list.iter().for_each(|pre_val| {
+            routing_connector_data_list.push(pre_val.merchant_connector_id.clone())
+        });
+
+        fallback_connetors_list.iter().for_each(|fallback_val| {
+            routing_connector_data_list
+                .iter()
+                .all(|val| *val != fallback_val.merchant_connector_id)
+                .then(|| {
+                    routing_connector_data_list.push(fallback_val.merchant_connector_id.clone())
+                });
+        });
+
         // connector_data_list is the list of connectors for which Apple Pay simplified flow is configured.
-        // This list is arranged in the same order as the merchant's default fallback connectors configuration.
-        let mut ordered_connector_data_list = vec![decided_connector_data.clone()];
-        fallback_connetors_list
+        // This list is arranged in the same order as the merchant's connectors routingconfiguration.
+
+        let mut ordered_connector_data_list = Vec::new();
+
+        routing_connector_data_list
             .iter()
-            .for_each(|fallback_connector| {
+            .for_each(|merchant_connector_id| {
                 let connector_data = connector_data_list.iter().find(|connector_data| {
-                    fallback_connector.merchant_connector_id == connector_data.merchant_connector_id
-                        && fallback_connector.merchant_connector_id
-                            != decided_connector_data.merchant_connector_id
+                    *merchant_connector_id == connector_data.merchant_connector_id
                 });
                 if let Some(connector_data_details) = connector_data {
                     ordered_connector_data_list.push(connector_data_details.clone());
@@ -4357,6 +4370,11 @@ pub fn get_key_params_for_surcharge_details(
         )),
         api_models::payments::PaymentMethodData::MandatePayment => None,
         api_models::payments::PaymentMethodData::Reward => None,
+        api_models::payments::PaymentMethodData::RealTimePayment(real_time_payment) => Some((
+            common_enums::PaymentMethod::RealTimePayment,
+            real_time_payment.get_payment_method_type(),
+            None,
+        )),
         api_models::payments::PaymentMethodData::Upi(upi_data) => Some((
             common_enums::PaymentMethod::Upi,
             upi_data.get_payment_method_type(),
@@ -4767,4 +4785,27 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
 
 pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
     format!("{merchant_id}_{payment_id}_extended_card_info")
+}
+
+pub async fn config_skip_saving_wallet_at_connector(
+    db: &dyn StorageInterface,
+    merchant_id: &String,
+) -> CustomResult<Option<Vec<storage_enums::PaymentMethodType>>, errors::ApiErrorResponse> {
+    let config = db
+        .find_config_by_key_unwrap_or(
+            format!("skip_saving_wallet_at_connector_{}", merchant_id).as_str(),
+            Some("[]".to_string()),
+        )
+        .await;
+    Ok(match config {
+        Ok(conf) => Some(
+            serde_json::from_str::<Vec<storage_enums::PaymentMethodType>>(&conf.config)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
+        ),
+        Err(err) => {
+            logger::error!("{err}");
+            None
+        }
+    })
 }

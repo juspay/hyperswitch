@@ -30,7 +30,7 @@ use crate::{
 
 // Valid consumer business statuses
 pub fn valid_business_statuses() -> Vec<&'static str> {
-    vec!["Pending"]
+    vec![storage::business_status::PENDING]
 }
 
 #[instrument(skip_all)]
@@ -262,7 +262,7 @@ pub async fn consumer_error_handler(
             vec![process.id],
             storage::ProcessTrackerUpdate::StatusUpdate {
                 status: enums::ProcessTrackerStatus::Finish,
-                business_status: Some("GLOBAL_ERROR".to_string()),
+                business_status: Some(String::from(storage::business_status::GLOBAL_ERROR)),
             },
         )
         .await
