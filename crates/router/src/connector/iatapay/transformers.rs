@@ -153,32 +153,7 @@ impl
                             (common_enums::CountryAlpha2::NL, None, None)
                         }
                         domain::BankRedirectData::LocalBankRedirect {} => {
-                            let billing_country = item.router_data.get_billing_country()?;
-                            (
-                                if matches!(
-                                    billing_country,
-                                    common_enums::CountryAlpha2::AT
-                                        | common_enums::CountryAlpha2::BE
-                                        | common_enums::CountryAlpha2::DE
-                                        | common_enums::CountryAlpha2::EE
-                                        | common_enums::CountryAlpha2::ES
-                                        | common_enums::CountryAlpha2::FI
-                                        | common_enums::CountryAlpha2::FR
-                                        | common_enums::CountryAlpha2::IE
-                                        | common_enums::CountryAlpha2::IT
-                                        | common_enums::CountryAlpha2::LU
-                                        | common_enums::CountryAlpha2::LV
-                                        | common_enums::CountryAlpha2::LT
-                                        | common_enums::CountryAlpha2::NL
-                                        | common_enums::CountryAlpha2::PT
-                                ) {
-                                    billing_country
-                                } else {
-                                    common_enums::CountryAlpha2::AT
-                                },
-                                None,
-                                None,
-                            )
+                            (common_enums::CountryAlpha2::AT, None, None)
                         }
                         domain::BankRedirectData::BancontactCard { .. }
                         | domain::BankRedirectData::Bizum {}
