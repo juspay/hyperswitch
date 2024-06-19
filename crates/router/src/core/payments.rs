@@ -42,7 +42,7 @@ pub use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 use redis_interface::errors::RedisError;
-use router_env::{instrument, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
@@ -859,16 +859,13 @@ pub trait PaymentRedirectFlow: Sync {
         metrics::REDIRECTION_TRIGGERED.add(
             &metrics::CONTEXT,
             1,
-            &[
-                metrics::request::add_attributes(
+            &add_attributes([
+                (
                     "connector",
                     req.connector.to_owned().unwrap_or("null".to_string()),
                 ),
-                metrics::request::add_attributes(
-                    "merchant_id",
-                    merchant_account.merchant_id.to_owned(),
-                ),
-            ],
+                ("merchant_id", merchant_account.merchant_id.to_owned()),
+            ]),
         );
         let connector = req.connector.clone().get_required_value("connector")?;
 
@@ -3572,6 +3569,25 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
             Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
         }
         _ => {
+            let skip_saving_wallet_at_connector_optional =
+                helpers::config_skip_saving_wallet_at_connector(
+                    &*state.store,
+                    &payment_data.payment_intent.merchant_id,
+                )
+                .await?;
+
+            if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional
+            {
+                if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type
+                {
+                    if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                        logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                        payment_data.payment_intent.setup_future_usage =
+                            Some(enums::FutureUsage::OnSession);
+                    }
+                }
+            };
+
             let first_choice = connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
