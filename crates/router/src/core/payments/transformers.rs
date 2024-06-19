@@ -1482,6 +1482,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
+            minor_amount: Some(amount),
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector
