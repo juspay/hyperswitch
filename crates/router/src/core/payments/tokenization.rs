@@ -532,12 +532,7 @@ where
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type
-                                            == Some(api_models::enums::PaymentMethodType::ApplePay)
-                                            || payment_method.payment_method_type
-                                                == Some(
-                                                    api_models::enums::PaymentMethodType::GooglePay,
-                                                )
+                                        payment_method.payment_method_type == payment_method_type
                                     })
                                     .map(|pm| pm.payment_method_id.clone())),
                                 Err(error) => {
