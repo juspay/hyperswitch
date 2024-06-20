@@ -841,13 +841,13 @@ Cypress.Commands.add(
     payment_type,
     globalState
   ) => {
-    requestBody.payment_method_data.card = req_data.card;
+    for (const key in req_data) {
+      requestBody[key] = req_data[key];
+    }
     requestBody.payment_type = payment_type;
     requestBody.confirm = confirm;
     requestBody.amount = amount;
-    requestBody.currency = req_data.currency;
     requestBody.capture_method = capture_method;
-    requestBody.mandate_data.mandate_type = req_data.mandate_type;
     requestBody.customer_id = globalState.get("customerId");
     globalState.set("paymentAmount", requestBody.amount);
     cy.request({
@@ -863,10 +863,17 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(res_data.status).to.equal(response.status);
       expect(response.headers["content-type"]).to.include("application/json");
-      globalState.set("mandateId", response.body.mandate_id);
       globalState.set("paymentID", response.body.payment_id);
 
       if (response.status === 200) {
+        globalState.set("paymentID", response.body.payment_id);
+        if (requestBody.mandate_data === null) {
+          expect(response.body).to.have.property("payment_method_id");
+          globalState.set("paymentMethodId", response.body.payment_method_id);
+        } else {
+          expect(response.body).to.have.property("mandate_id");
+          globalState.set("mandateId", response.body.mandate_id);
+        }
         if (response.body.capture_method === "automatic") {
           expect(response.body).to.have.property("mandate_id");
           if (response.body.authentication_type === "three_ds") {
@@ -889,9 +896,13 @@ Cypress.Commands.add(
             expect(res_data.body[key]).to.equal(response.body[key]);
           }
         } else if (response.body.capture_method === "manual") {
-          expect(response.body).to.have.property("mandate_id");
           if (response.body.authentication_type === "three_ds") {
             expect(response.body).to.have.property("next_action");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
           }
           for (const key in res_data.body) {
             expect(res_data.body[key]).to.equal(response.body[key]);
@@ -913,6 +924,58 @@ Cypress.Commands.add(
     requestBody.mandate_id = globalState.get("mandateId");
     requestBody.customer_id = globalState.get("customerId");
     globalState.set("paymentAmount", requestBody.amount);
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.headers["content-type"]).to.include("application/json");
+      globalState.set("paymentID", response.body.payment_id);
+      if (response.body.capture_method === "automatic") {
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body)
+            .to.have.property("next_action")
+            .to.have.property("redirect_to_url");
+          const nextActionUrl = response.body.next_action.redirect_to_url;
+          cy.log(response.body);
+          cy.log(nextActionUrl);
+        } else if (response.body.authentication_type === "no_three_ds") {
+          expect(response.body.status).to.equal("succeeded");
+        } else {
+          defaultErrorHandler(response, res_data);
+        }
+      } else if (response.body.capture_method === "manual") {
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body)
+            .to.have.property("next_action")
+            .to.have.property("redirect_to_url");
+          const nextActionUrl = response.body.next_action.redirect_to_url;
+          cy.log(response.body);
+          cy.log(nextActionUrl);
+        } else if (response.body.authentication_type === "no_three_ds") {
+          expect(response.body.status).to.equal("requires_capture");
+        } else {
+          defaultErrorHandler(response, res_data);
+        }
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "mitUsingPMId",
+  (requestBody, amount, confirm, capture_method, globalState) => {
+    requestBody.amount = amount;
+    requestBody.confirm = confirm;
+    requestBody.capture_method = capture_method;
+    requestBody.recurring_details.data = globalState.get("paymentMethodId");
+    requestBody.customer_id = globalState.get("customerId");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
