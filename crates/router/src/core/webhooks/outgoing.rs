@@ -841,6 +841,7 @@ impl ForeignFrom<(&api::OutgoingWebhookContent, &str)> for storage::EventMetadat
                 payment_method_id: mandate_response.payment_method_id.clone(),
                 mandate_id: mandate_response.mandate_id.clone(),
             },
+            #[cfg(feature = "payouts")]
             webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
                 payout_id: payout_response.payout_id.clone(),
             },
