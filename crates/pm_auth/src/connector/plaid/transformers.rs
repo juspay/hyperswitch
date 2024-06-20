@@ -260,11 +260,7 @@ impl<F, T>
                 available_balance,
             )) = id_to_subtype.get(&ach.account_id)
             {
-                (
-                    _type.to_owned(),
-                    Some(name.clone()),
-                    available_balance.clone(),
-                )
+                (_type.to_owned(), Some(name.clone()), *available_balance)
             } else {
                 (None, None, None)
             };
@@ -292,11 +288,7 @@ impl<F, T>
             let (acc_type, acc_name, available_balance) =
                 if let Some((_type, name, available_balance)) = id_to_subtype.get(&bacs.account_id)
                 {
-                    (
-                        _type.to_owned(),
-                        Some(name.clone()),
-                        available_balance.clone(),
-                    )
+                    (_type.to_owned(), Some(name.clone()), *available_balance)
                 } else {
                     (None, None, None)
                 };
@@ -324,11 +316,7 @@ impl<F, T>
             let (acc_type, acc_name, available_balance) =
                 if let Some((_type, name, available_balance)) = id_to_subtype.get(&sepa.account_id)
                 {
-                    (
-                        _type.to_owned(),
-                        Some(name.clone()),
-                        available_balance.clone(),
-                    )
+                    (_type.to_owned(), Some(name.clone()), *available_balance)
                 } else {
                     (None, None, None)
                 };
