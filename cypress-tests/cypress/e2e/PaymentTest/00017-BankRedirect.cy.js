@@ -29,7 +29,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Blik Create and Confirm flow test", () => {
-   it("create-payment-call-test", () => {
+    it("create-payment-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["blikPaymentIntent"];
