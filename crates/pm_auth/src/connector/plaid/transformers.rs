@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{PaymentMethod, PaymentMethodType};
-use common_utils::id_type;
+use common_utils::{id_type, types as util_types};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -120,7 +120,7 @@ pub struct PlaidBankAccountCredentialsRequest {
     options: Option<BankAccountCredentialsOptions>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 
 pub struct PlaidBankAccountCredentialsResponse {
     pub accounts: Vec<PlaidBankAccountCredentialsAccounts>,
@@ -135,7 +135,7 @@ pub struct BankAccountCredentialsOptions {
     account_ids: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 
 pub struct PlaidBankAccountCredentialsAccounts {
     pub account_id: String,
@@ -144,11 +144,11 @@ pub struct PlaidBankAccountCredentialsAccounts {
     pub balances: Option<PlaidBankAccountCredentialsBalances>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct PlaidBankAccountCredentialsBalances {
-    pub available: Option<i32>,
-    pub current: Option<i32>,
-    pub limit: Option<i32>,
+    pub available: Option<util_types::FloatMajorUnit>,
+    pub current: Option<util_types::FloatMajorUnit>,
+    pub limit: Option<util_types::FloatMajorUnit>,
     pub iso_currency_code: Option<String>,
     pub unofficial_currency_code: Option<String>,
     pub last_updated_datetime: Option<String>,

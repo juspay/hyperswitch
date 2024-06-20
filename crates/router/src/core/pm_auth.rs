@@ -15,6 +15,7 @@ use common_utils::{
     crypto::{HmacSha256, SignMessage},
     ext_traits::AsyncExt,
     generate_id,
+    types::{self as util_types, AmountConvertor},
 };
 use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
@@ -717,7 +718,13 @@ pub async fn retrieve_payment_method_from_auth_service(
         .attach_printable("Bank account details not found")?;
 
     if let Some(balance) = bank_account.balance {
-        if i64::from(balance) < payment_intent.amount.get_amount_as_i64() {
+        let required_conversion = util_types::FloatMajorUnitForConnector;
+        let converted_amount = required_conversion
+            .convert_back(balance, enums::Currency::USD)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not convert to MinorUnit")?;
+
+        if converted_amount < payment_intent.amount {
             return Err((ApiErrorResponse::InvalidRequestData {
                 message:
                     "Payment amount is less than the available amount in selected bank account"
