@@ -51,7 +51,6 @@ pub struct PaymentInfo {
     #[cfg(feature = "payouts")]
     pub payout_method_data: Option<types::api::PayoutMethodData>,
     pub currency: Option<enums::Currency>,
-    pub country: Option<enums::CountryAlpha2>,
 }
 
 impl PaymentInfo {

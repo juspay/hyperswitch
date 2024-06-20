@@ -2,7 +2,7 @@ pub mod bg_metrics_collector;
 pub mod request;
 pub mod utils;
 
-use router_env::{counter_metric, gauge_metric, global_meter, histogram_metric, metrics_context};
+use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
 
 metrics_context!(CONTEXT);
 global_meter!(GLOBAL_METER, "ROUTER_API");
@@ -76,7 +76,6 @@ counter_metric!(REDIRECTION_TRIGGERED, GLOBAL_METER);
 
 // Connector Level Metric
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
-counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
 // Connector http status code metrics
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT, GLOBAL_METER);
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT, GLOBAL_METER);
@@ -91,10 +90,6 @@ counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
 histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
 histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
-
-// Encryption and Decryption metrics
-histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
-histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
 
 // Apple Pay Flow Metrics
 counter_metric!(APPLE_PAY_MANUAL_FLOW, GLOBAL_METER);
@@ -136,6 +131,3 @@ counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
 
 // A counter to indicate the access token cache miss
 counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
-
-// Metrics for In-memory cache
-gauge_metric!(CACHE_ENTRY_COUNT, GLOBAL_METER);
