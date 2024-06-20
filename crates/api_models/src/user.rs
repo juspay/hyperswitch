@@ -324,11 +324,6 @@ pub struct GetUserAuthenticationMethodsRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct ListUserAuthenticationMethods {
-    pub user_authentication_methods: Vec<UserAuthenticationMethodResponse>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserAuthenticationMethodResponse {
     pub id: String,
     pub auth_id: String,

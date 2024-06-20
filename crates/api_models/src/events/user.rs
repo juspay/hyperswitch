@@ -14,12 +14,12 @@ use crate::user::{
     ConnectAccountRequest, CreateInternalUserRequest, CreateUserAuthenticationMethodRequest,
     DashboardEntryResponse, ForgotPasswordRequest, GetUserAuthenticationMethodsRequest,
     GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListUserAuthenticationMethods, ListUsersResponse, ReInviteUserRequest,
-    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
-    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
-    TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
-    UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest, UserFromEmailRequest,
-    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
+    RotatePasswordRequest, SendVerifyEmailRequest, SignInResponse, SignUpRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
+    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
+    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
+    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -81,8 +81,7 @@ common_utils::impl_misc_api_event_type!(
     RecoveryCodes,
     GetUserAuthenticationMethodsRequest,
     CreateUserAuthenticationMethodRequest,
-    UpdateUserAuthenticationMethodRequest,
-    ListUserAuthenticationMethods
+    UpdateUserAuthenticationMethodRequest
 );
 
 #[cfg(feature = "dummy_connector")]

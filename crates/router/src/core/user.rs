@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -2001,18 +2001,28 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let auth_config = serde_json::to_value(req.config)
-        .change_context(UserErrors::AuthConfigParsingError)
-        .attach_printable("Failed to convert auth config to json")?;
+    let auth_config = req
+        .config
+        .map(|config| {
+            serde_json::to_value(config)
+                .change_context(UserErrors::AuthConfigParsingError)
+                .attach_printable("Failed to convert auth config to json")
+        })
+        .transpose()?;
 
-    let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-        auth_config.into(),
-        &user_auth_encryption_key,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("Failed to encrypt auth config")?
-    .into();
+    let encrypted_config = auth_config
+        .async_map(|config| async {
+            domain::types::encrypt::<serde_json::Value, masking::WithType>(
+                config.into(),
+                &user_auth_encryption_key,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")
+        })
+        .await
+        .transpose()?
+        .map(Into::into);
 
     let auth_methods = state
         .store
@@ -2035,7 +2045,7 @@ pub async fn create_user_authentication_method(
             owner_id: req.owner_id,
             owner_type: req.owner_type,
             auth_method: req.auth_method,
-            config: Some(encrypted_config),
+            config: encrypted_config,
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
@@ -2090,7 +2100,7 @@ pub async fn update_user_authentication_method(
 pub async fn list_user_authentication_methods(
     state: SessionState,
     req: user_api::GetUserAuthenticationMethodsRequest,
-) -> UserResponse<user_api::ListUserAuthenticationMethods> {
+) -> UserResponse<Vec<user_api::UserAuthenticationMethodResponse>> {
     let user_auth_encryption_key = hex::decode(
         state
             .conf
@@ -2120,6 +2130,11 @@ pub async fn list_user_authentication_methods(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to decrypt auth config")?;
 
+            // println!(
+            //     "decrypted: {:#?}",
+            //     decrypted_config_data.clone().unwrap().into_inner().expose(),
+            // );
+
             let decrypted_config: Option<user_api::AuthConfig> = decrypted_config_data
                 .map(|decrypted_data| decrypted_data.into_inner().expose())
                 .map(|decrypted_value| decrypted_value.parse_value("AuthConfig"))
@@ -2132,35 +2147,32 @@ pub async fn list_user_authentication_methods(
     )
     .await?;
 
-    let some = user_auth_method_with_decrypted_configs
-        .into_iter()
-        .map(|(auth_method, config)| {
-            let auth_name = match (auth_method.auth_method, config) {
-                (
-                    common_enums::AuthMethod::OpenIdConnect,
-                    Some(user_api::AuthConfig::OpenIdConnect(config)),
-                ) => Ok(Some(config.name)),
-                (common_enums::AuthMethod::OpenIdConnect, None) => {
-                    Err(UserErrors::InternalServerError)
-                }
-                _ => Ok(None),
-            }?;
-
-            Ok(user_api::UserAuthenticationMethodResponse {
-                id: auth_method.id,
-                auth_id: auth_method.auth_id,
-                auth_method: user_api::AuthMethodDetails {
-                    name: auth_name,
-                    auth_type: auth_method.auth_method,
-                },
-                allow_signup: auth_method.allow_signup,
-            })
-        })
-        .collect::<UserResult<_>>()?;
-
     Ok(ApplicationResponse::Json(
-        user_api::ListUserAuthenticationMethods {
-            user_authentication_methods: some,
-        },
+        user_auth_method_with_decrypted_configs
+            .into_iter()
+            .map(|(auth_method, config)| {
+                let auth_name = match (auth_method.auth_method, config) {
+                    (
+                        common_enums::AuthMethod::OpenIdConnect,
+                        Some(user_api::AuthConfig::OpenIdConnect(config)),
+                    ) => Ok(Some(config.name)),
+                    (common_enums::AuthMethod::OpenIdConnect, None) => {
+                        Err(UserErrors::InternalServerError)
+                            .attach_printable("No config found for open_id_connect auth_method")
+                    }
+                    _ => Ok(None),
+                }?;
+
+                Ok(user_api::UserAuthenticationMethodResponse {
+                    id: auth_method.id,
+                    auth_id: auth_method.auth_id,
+                    auth_method: user_api::AuthMethodDetails {
+                        name: auth_name,
+                        auth_type: auth_method.auth_method,
+                    },
+                    allow_signup: auth_method.allow_signup,
+                })
+            })
+            .collect::<UserResult<_>>()?,
     ))
 }
