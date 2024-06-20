@@ -580,6 +580,13 @@ impl utoipa::Modify for SecurityAddon {
                         to a single customer object for a short period of time."
                     ))),
                 ),
+                (
+                    "jwt_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "The 'jwt_key' is used to authenticate requests made from the Control Centre and is visible in the requests sent to the server. It helps in managing authorization among different roles on the server."
+                    ))),
+                ),
             ]);
         }
     }

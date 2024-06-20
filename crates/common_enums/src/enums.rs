@@ -2115,6 +2115,7 @@ pub enum CanadaStatesAbbreviation {
     YT,
 }
 
+/// Current status of the Payout
 #[derive(
     Clone,
     Copy,
@@ -2148,6 +2149,7 @@ pub enum PayoutStatus {
     RequiresVendorAccountCreation,
 }
 
+ /// The payout_type of the payout request can be specified here
 #[derive(
     Clone,
     Copy,
@@ -2174,6 +2176,7 @@ pub enum PayoutType {
     Wallet,
 }
 
+/// Type of entity to whom the payout is being carried out to
 #[derive(
     Clone,
     Copy,
@@ -2207,6 +2210,7 @@ pub enum PayoutEntityType {
     Personal,
 }
 
+/// Payout's send priority (if applicable)
 #[derive(
     Clone,
     Copy,

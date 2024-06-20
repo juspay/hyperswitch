@@ -154,6 +154,7 @@ pub struct PayoutCreateRequest {
     pub priority: Option<api_enums::PayoutSendPriority>,
 }
 
+/// The payout method information required for carrying out a payout
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
@@ -482,7 +483,7 @@ pub struct PayoutAttemptResponse {
     /// The payout method that was used
     #[schema(value_type = Option<PayoutType>, example = "bank")]
     pub payment_method: Option<api_enums::PayoutType>,
-    /// Payment Method Type
+    /// Type of the Payment Method 
     #[schema(value_type = Option<PaymentMethodType>, example = "bacs")]
     pub payout_method_type: Option<api_enums::PaymentMethodType>,
     /// A unique identifier for a payout provided by the connector

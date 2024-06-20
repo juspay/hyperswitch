@@ -76,14 +76,22 @@ pub enum LinkedRoutingConfigRetrieveResponse {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 /// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
+    /// Identifier for routing algorithm
     pub id: String,
+    /// Identifier for Business profile
     #[cfg(feature = "business_profile_routing")]
     pub profile_id: String,
+    /// Name of the routing algorithm
     pub name: String,
+    /// Description of the routing algorithm
     pub description: String,
+    /// Type of routing algorithm
     pub algorithm: RoutingAlgorithm,
+    /// Time of creation of the routing algorithm
     pub created_at: i64,
+    /// Time of latest modification of routing algorithm
     pub modified_at: i64,
+    /// Transaction type for which the routing algorithm will be used
     pub algorithm_for: TransactionType,
 }
 
@@ -196,7 +204,9 @@ pub struct RoutableConnectorChoice {
     #[cfg(feature = "connector_choice_bcompat")]
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
+    /// Connector being used for this particular routing algorithm
     pub connector: RoutableConnectors,
+    /// Identifier for connector for each Merchant
     #[cfg(feature = "connector_choice_mca_id")]
     pub merchant_connector_id: Option<String>,
     #[cfg(not(feature = "connector_choice_mca_id"))]
@@ -497,21 +507,32 @@ impl RoutingAlgorithmRef {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct RoutingDictionaryRecord {
+    /// Identifier for routing algorithm
     pub id: String,
+    /// Identifier for the business profile
     #[cfg(feature = "business_profile_routing")]
     pub profile_id: String,
+    /// Name of routing algorithm
     pub name: String,
+    /// Kind of the routing algorithm
     pub kind: RoutingAlgorithmKind,
+    /// Description of the routing algorithm
     pub description: String,
+    /// Time of creation of routing algorithm
     pub created_at: i64,
+    /// Time of latest modification of routing algorithm
     pub modified_at: i64,
+    /// Transaction type for which the routing algorithm will be used
     pub algorithm_for: Option<TransactionType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
+    /// Identifier for merchant 
     pub merchant_id: String,
+    /// Refers to Currently active routing algorithm
     pub active_id: Option<String>,
+    /// List of all the routing algortihm
     pub records: Vec<RoutingDictionaryRecord>,
 }
 
