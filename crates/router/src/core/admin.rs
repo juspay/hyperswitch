@@ -284,7 +284,7 @@ pub async fn create_merchant_account(
     insert_merchant_configs(db, &merchant_account.merchant_id).await?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::try_from(merchant_account)
+        api::MerchantAccountResponse::foreign_try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -399,7 +399,7 @@ pub async fn create_merchant_account_v2(
     insert_merchant_configs(db, &merchant_account.merchant_id).await?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::try_from(merchant_account)
+        api::MerchantAccountResponse::foreign_try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -419,7 +419,7 @@ pub async fn list_merchant_account(
     let merchant_accounts = merchant_accounts
         .into_iter()
         .map(|merchant_account| {
-            api::MerchantAccountResponse::try_from(merchant_account).change_context(
+            api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "merchant_account",
                 },
@@ -449,7 +449,7 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::try_from(merchant_account)
+        api::MerchantAccountResponse::foreign_try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))
@@ -731,7 +731,7 @@ pub async fn merchant_account_update(
     // If there are any new business labels generated, create business profile
 
     Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountResponse::try_from(response)
+        api::MerchantAccountResponse::foreign_try_from(response)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))

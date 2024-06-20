@@ -18,9 +18,9 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
+impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
@@ -54,9 +54,9 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 }
 
 #[cfg(feature = "v2")]
-impl TryFrom<domain::MerchantAccount> for MerchantAccountResponseV2 {
+impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponseV2 {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
