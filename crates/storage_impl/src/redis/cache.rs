@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Redis channel name used for publishing invalidation messages
-pub const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
+pub const IMC_INVALIDATION_CHANNEL: &str = "hyperswitch_invalidate";
 
 /// Prefix for config cache key
 const CONFIG_CACHE_PREFIX: &str = "config";
@@ -392,7 +392,7 @@ pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a
     let futures = keys.into_iter().map(|key| async {
         redis_conn
             .clone()
-            .publish(PUB_SUB_CHANNEL, key)
+            .publish(IMC_INVALIDATION_CHANNEL, key)
             .await
             .change_context(StorageError::KVError)
     });
