@@ -515,8 +515,10 @@ where
                         }
                     },
                     None => {
-                        let customer_apple_pay_saved_pm_id_option = if payment_method_type
+                        let customer_saved_pm_id_option = if payment_method_type
                             == Some(api_models::enums::PaymentMethodType::ApplePay)
+                            || payment_method_type
+                                == Some(api_models::enums::PaymentMethodType::GooglePay)
                         {
                             match state
                                 .store
@@ -530,8 +532,7 @@ where
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type
-                                            == Some(api_models::enums::PaymentMethodType::ApplePay)
+                                        payment_method.payment_method_type == payment_method_type
                                     })
                                     .map(|pm| pm.payment_method_id.clone())),
                                 Err(error) => {
@@ -552,10 +553,8 @@ where
                             Ok(None)
                         }?;
 
-                        if let Some(customer_apple_pay_saved_pm_id) =
-                            customer_apple_pay_saved_pm_id_option
-                        {
-                            resp.payment_method_id = customer_apple_pay_saved_pm_id;
+                        if let Some(customer_saved_pm_id) = customer_saved_pm_id_option {
+                            resp.payment_method_id = customer_saved_pm_id;
                         } else {
                             let pm_metadata =
                                 create_payment_method_metadata(None, connector_token)?;

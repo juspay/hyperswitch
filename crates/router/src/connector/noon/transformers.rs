@@ -1,4 +1,4 @@
-use common_utils::{ext_traits::Encode, pii};
+use common_utils::{ext_traits::Encode, pii, types::StringMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use crate::{
         self as conn_utils, is_refund_failure, CardData, PaymentsAuthorizeRequestData,
         RevokeMandateRequestData, RouterData, WalletData,
     },
-    core::{errors, mandate::MandateBehaviour},
+    core::errors,
     services,
     types::{self, api, domain, storage::enums, transformers::ForeignFrom, ErrorResponse},
 };
@@ -16,6 +16,25 @@ use crate::{
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
 const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
 const GOOGLEPAY_API_VERSION: u8 = 2;
+
+#[derive(Debug, Serialize)]
+pub struct NoonRouterData<T> {
+    pub amount: StringMajorUnit,
+    pub router_data: T,
+    pub mandate_amount: Option<StringMajorUnit>,
+}
+
+impl<T> From<(StringMajorUnit, T, Option<StringMajorUnit>)> for NoonRouterData<T> {
+    fn from(
+        (amount, router_data, mandate_amount): (StringMajorUnit, T, Option<StringMajorUnit>),
+    ) -> Self {
+        Self {
+            amount,
+            router_data,
+            mandate_amount,
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -36,7 +55,7 @@ pub struct NoonSubscriptionData {
     subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
-    max_amount: String,
+    max_amount: StringMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -59,7 +78,7 @@ pub struct NoonBilling {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
-    amount: String,
+    amount: StringMajorUnit,
     currency: Option<diesel_models::enums::Currency>,
     channel: NoonChannels,
     category: Option<String>,
@@ -226,9 +245,15 @@ pub struct NoonPaymentsRequest {
     billing: Option<NoonBilling>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
+impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: &NoonRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = data.router_data;
+        let amount = &data.amount;
+        let mandate_amount = &data.mandate_amount;
+
         let (payment_data, currency, category) = match item.request.connector_mandate_id() {
             Some(mandate_id) => (
                 NoonPaymentData::Subscription(NoonSubscription {
@@ -342,15 +367,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             ),
         };
 
-        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
-        let name: String = item
-            .get_description()?
-            .trim()
-            .replace("  ", " ")
-            .chars()
-            .take(50)
-            .collect();
-
         let ip_address = item.request.get_ip_address_as_optional();
 
         let channel = NoonChannels::Web;
@@ -370,47 +386,27 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 },
             });
 
-        let subscription: Option<NoonSubscriptionData> = item
-            .request
-            .get_setup_mandate_details()
-            .map(|mandate_data| {
-                let max_amount = match &mandate_data.mandate_type {
-                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        mandate,
-                    ))
-                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        mandate,
-                    ))) => conn_utils::to_currency_base_unit(
-                        mandate.amount.get_amount_as_i64(),
-                        mandate.currency,
-                    ),
-                    Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
-                        Err(errors::ConnectorError::MissingRequiredField {
-                            field_name:
-                                "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                        }
-                        .into())
-                    }
-                    None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "setup_future_usage.mandate_data.mandate_type",
-                    }
-                    .into()),
-                }?;
+        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
+        let name: String = item
+            .get_description()?
+            .trim()
+            .replace("  ", " ")
+            .chars()
+            .take(50)
+            .collect();
 
-                Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(
-                    NoonSubscriptionData {
-                        subscription_type: NoonSubscriptionType::Unscheduled,
-                        name: name.clone(),
-                        max_amount,
-                    },
-                )
-            })
-            .transpose()?;
+        let subscription = mandate_amount
+            .as_ref()
+            .map(|mandate_max_amount| NoonSubscriptionData {
+                subscription_type: NoonSubscriptionType::Unscheduled,
+                name: name.clone(),
+                max_amount: mandate_max_amount.to_owned(),
+            });
 
         let tokenize_c_c = subscription.is_some().then_some(true);
 
         let order = NoonOrder {
-            amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            amount: amount.to_owned(),
             currency,
             channel,
             category,
@@ -613,7 +609,7 @@ impl<F, T>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionTransaction {
-    amount: String,
+    amount: StringMajorUnit,
     currency: diesel_models::enums::Currency,
     transaction_reference: Option<String>,
 }
@@ -632,17 +628,18 @@ pub struct NoonPaymentsActionRequest {
     transaction: NoonActionTransaction,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
+impl TryFrom<&NoonRouterData<&types::PaymentsCaptureRouterData>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: &NoonRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = data.router_data;
+        let amount = &data.amount;
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
         let transaction = NoonActionTransaction {
-            amount: conn_utils::to_currency_base_unit(
-                item.request.amount_to_capture,
-                item.request.currency,
-            )?,
+            amount: amount.to_owned(),
             currency: item.request.currency,
             transaction_reference: None,
         };
@@ -693,17 +690,16 @@ impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
+impl<F> TryFrom<&NoonRouterData<&types::RefundsRouterData<F>>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(data: &NoonRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let item = data.router_data;
+        let refund_amount = &data.amount;
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
         let transaction = NoonActionTransaction {
-            amount: conn_utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
-            )?,
+            amount: refund_amount.to_owned(),
             currency: item.request.currency,
             transaction_reference: Some(item.request.refund_id.clone()),
         };

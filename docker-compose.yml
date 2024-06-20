@@ -378,6 +378,8 @@ services:
       - "8123:8123"
     volumes:
       - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
+    environment:
+      - TZ=Asia/Kolkata
     profiles:
       - olap
     ulimits:

@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.20.0
+
+### Features
+
+- **core:** Add logger for sessions call failure ([#5036](https://github.com/juspay/hyperswitch/pull/5036)) ([`397d221`](https://github.com/juspay/hyperswitch/commit/397d2212405d63dab17272f8c26e4b3a5fc47aa8))
+- **router:** Add payment method type duplication check for `google_pay` ([#5023](https://github.com/juspay/hyperswitch/pull/5023)) ([`7d46afd`](https://github.com/juspay/hyperswitch/commit/7d46afd9852a793befa5321835ae9413fafb3fd9))
+
+### Bug Fixes
+
+- **connector:** Add local bank redirect type in compatibility layer, default the country to AT for Local Bank Redirect and add creds_identifier in access token ([#5038](https://github.com/juspay/hyperswitch/pull/5038)) ([`655b81d`](https://github.com/juspay/hyperswitch/commit/655b81d69743e64fb982a1e222d7a102a4b3459f))
+- **events:** Correct parsing of API events with user event_type for Clickhouse ([#5022](https://github.com/juspay/hyperswitch/pull/5022)) ([`2106a27`](https://github.com/juspay/hyperswitch/commit/2106a27f4059f7d562ae4c6d0d69cc3acbb43eca))
+- **logging:** Fix stack overflow on recording restricted keys ([#4423](https://github.com/juspay/hyperswitch/pull/4423)) ([`7208ca4`](https://github.com/juspay/hyperswitch/commit/7208ca4db4876015c5beadeacdcbaeeaba3b56e9))
+
+### Refactors
+
+- **connector:** Add amount conversion framework for noon ([#4843](https://github.com/juspay/hyperswitch/pull/4843)) ([`8c7e1a3`](https://github.com/juspay/hyperswitch/commit/8c7e1a3b8bbb7ad7fef460659e9daaa13d71521b))
+- **core:** Reverts the payment method list filtering using constraint graph ([#5044](https://github.com/juspay/hyperswitch/pull/5044)) ([`e486641`](https://github.com/juspay/hyperswitch/commit/e486641c97e0a00835ed49257c2665293591901c))
+- **storage:** Remove `id` from payment intent, attempt and remove datamodel ext from payment intent ([#4923](https://github.com/juspay/hyperswitch/pull/4923)) ([`bec51a3`](https://github.com/juspay/hyperswitch/commit/bec51a35574fcee2473465dc30c8f0f85de18145))
+
+**Full Changelog:** [`2024.06.19.0...2024.06.20.0`](https://github.com/juspay/hyperswitch/compare/2024.06.19.0...2024.06.20.0)
+
+- - -
+
 ## 2024.06.19.0
 
 ### Features
