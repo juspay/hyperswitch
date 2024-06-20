@@ -14,7 +14,6 @@ use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
-use std::str::FromStr;
 
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsRequestData};
@@ -46,15 +45,12 @@ use crate::{
 #[derive(Clone)]
 pub struct Stripe {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-    authorise_integrity_check:
-        &'static (dyn ConnectorIntegrity<IntegrityObject = AuthoriseIntegrityObject> + Sync),
 }
 
 impl Stripe {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
-            authorise_integrity_check: &AuthoriseIntegrity,
         }
     }
 }
@@ -834,18 +830,11 @@ impl
                     .parse_struct("PaymentIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                let amount_in_minor_unit =  connector_utils::convert_back_amount_to_minor_units(
+                let response_integrity_object = connector_utils::get_sync_integrity_object(
                     self.amount_converter,
                     response.amount.clone(),
                     response.currency.clone(),
                 )?;
-
-                let currency_enum = enums::Currency::from_str(response.currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
-
-                let response_integrity_object = SyncIntegrityObject {
-                    amount: Some(amount_in_minor_unit),
-                    currency: Some(currency_enum),
-                };
 
 
                 event_builder.map(|i| i.set_response_body(&response));
@@ -1037,19 +1026,11 @@ impl
                         .parse_struct("ChargesResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                     
-                    let amount_in_minor_unit =  connector_utils::convert_back_amount_to_minor_units(
+                    let response_integrity_object = connector_utils::get_authorise_integrity_object(
                         self.amount_converter,
                         response.amount.clone(),
                         response.currency.clone(),
                     )?;
-
-                    let currency_enum = enums::Currency::from_str(response.currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
-
-                    let response_integrity_object = AuthoriseIntegrityObject {
-                        amount: amount_in_minor_unit,
-                        currency: currency_enum,
-                    };
-
 
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
@@ -1072,19 +1053,12 @@ impl
                         .response
                         .parse_struct("PaymentIntentResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                    let amount_in_minor_unit =  connector_utils::convert_back_amount_to_minor_units(
+                    
+                    let response_integrity_object = connector_utils::get_authorise_integrity_object(
                         self.amount_converter,
                         response.amount.clone(),
                         response.currency.clone(),
                     )?;
-                    
-                    let currency_enum = enums::Currency::from_str(response.currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
-                    
-                    let response_integrity_object = AuthoriseIntegrityObject {
-                        amount: amount_in_minor_unit,
-                        currency: currency_enum,
-                    };
 
 
                     event_builder.map(|i| i.set_response_body(&response));
@@ -1109,18 +1083,11 @@ impl
                     .parse_struct("PaymentIntentResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                let amount_in_minor_unit =  connector_utils::convert_back_amount_to_minor_units(
+                let response_integrity_object = connector_utils::get_authorise_integrity_object(
                     self.amount_converter,
                     response.amount.clone(),
                     response.currency.clone(),
                 )?;
-                
-                let currency_enum = enums::Currency::from_str(response.currency.to_uppercase().as_str()).change_context(errors::ConnectorError::ParsingFailed)?;
-
-                let response_integrity_object = AuthoriseIntegrityObject {
-                    amount: amount_in_minor_unit,
-                    currency: currency_enum
-                };
 
 
                 event_builder.map(|i| i.set_response_body(&response));

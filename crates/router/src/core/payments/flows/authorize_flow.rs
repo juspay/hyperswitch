@@ -83,6 +83,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 connector_request,
             )
             .await.to_payment_failed_response()?;
+            
+            let flow = self.flow;
             // Initiating Integrity checks
             let connector_transaction_id = match resp.response.clone() {
                 Ok(types::PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),

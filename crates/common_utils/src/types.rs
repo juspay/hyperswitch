@@ -24,7 +24,6 @@ use rust_decimal::{
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
-
 use crate::{
     consts,
     errors::{CustomResult, ParsingError, PercentageError, IntegrityCheckError},
@@ -834,3 +833,33 @@ impl ConnectorIntegrity for SyncIntegrity {
         }
     }
 }
+
+
+// pub fn check_connector_integrity_based_on_flow<Flow, Request, Response>(
+//     flow:Flow,
+//     resp: RouterData<Flow, Request, Response>
+// ) -> Result<(), IntegrityCheckError> {
+//     match flow {
+//         api::Authorize => {
+//             let connector_transaction_id = match resp.response.clone() {
+//                 Ok(types::PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
+//                 _ => None,
+//             };
+
+//             let integrity_result = match resp.request.integrity_object.clone() {
+//                 Some(res_integrity_object) => {
+//                     let integrity_check = AuthoriseIntegrity;
+//                     let req_integrity_object = AuthoriseIntegrityObject {
+//                         amount: resp.request.minor_amount,
+//                         currency: resp.request.currency,
+//                     };
+//                     integrity_check.compare(req_integrity_object, res_integrity_object, connector_transaction_id)
+//                 }
+//                 None => Ok(()),
+//             };
+//             integrity_result
+
+//         }
+//         _ => Ok(())
+//     }
+// }

@@ -301,7 +301,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
-                data.request.currency.to_string(),
+                data.request.currency,
             )?),
             None => None,
         };
@@ -397,7 +397,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
-                data.request.currency.to_string(),
+                data.request.currency,
             )?),
             None => None,
         };

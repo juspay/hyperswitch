@@ -1,5 +1,5 @@
 use std::{borrow::Cow, str::FromStr};
-
+use common_utils::types::ConnectorIntegrity;
 use api_models::{
     mandates::RecurringDetails,
     payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails},
@@ -16,7 +16,8 @@ use error_stack::{report, ResultExt};
 use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent}, router_response_types::PaymentsResponseData,
+    
 };
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
@@ -4679,3 +4680,33 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
 pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
     format!("{merchant_id}_{payment_id}_extended_card_info")
 }
+
+
+// pub fn check_connector_integrity_based_on_flow<Flow, Request, Response>(
+//     flow:Flow,
+//     resp: RouterData<Flow, Request, Response>
+// ) -> Result<(), common_utils::errors::IntegrityCheckError> {
+//     match flow {
+//         api::Authorize => {
+//             let connector_transaction_id = match resp.response {
+//                 Ok(PaymentsResponseData::TransactionResponse { connector_response_reference_id, .. } )=> connector_response_reference_id.clone(),
+//                 _ => None,
+//             };
+            
+//             let integrity_result = match resp.request.integrity_object.clone() {
+//                 Some(res_integrity_object) => {
+//                     let integrity_check = common_utils::types::AuthoriseIntegrity;
+//                     let req_integrity_object = common_utils::types::AuthoriseIntegrityObject {
+//                         amount: resp.request.minor_amount,
+//                         currency: resp.request.currency,
+//                     };
+//                     integrity_check.compare(req_integrity_object, res_integrity_object, connector_transaction_id)
+//                 }
+//                 None => Ok(()),
+//             };
+//             integrity_result
+
+//         }
+//         _ => Ok(())
+//     }
+// }
