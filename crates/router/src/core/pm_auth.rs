@@ -720,7 +720,10 @@ pub async fn retrieve_payment_method_from_auth_service(
     if let Some(balance) = bank_account.balance {
         let required_conversion = util_types::FloatMajorUnitForConnector;
         let converted_amount = required_conversion
-            .convert_back(balance, enums::Currency::USD)
+            .convert_back(
+                balance,
+                payment_intent.currency.unwrap_or(enums::Currency::USD),
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not convert to MinorUnit")?;
 
