@@ -2,7 +2,7 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
 };
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 #[cfg(feature = "olap")]

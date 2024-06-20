@@ -1,6 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
-use router_env::logger;
 
 use super::generics;
 use crate::{
