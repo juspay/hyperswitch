@@ -2999,7 +2999,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
-            guest_customer_details: None,
+            customer_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3059,7 +3059,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
-            guest_customer_details: None,
+            customer_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3118,7 +3118,7 @@ mod tests {
             request_external_three_ds_authentication: None,
             charges: None,
             frm_metadata: None,
-            guest_customer_details: None,
+            customer_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

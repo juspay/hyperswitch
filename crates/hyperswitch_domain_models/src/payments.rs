@@ -62,5 +62,5 @@ pub struct PaymentIntent {
     pub request_external_three_ds_authentication: Option<bool>,
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub guest_customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }

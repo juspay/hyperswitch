@@ -1130,13 +1130,15 @@ impl
         ),
     ) -> Self {
         let (payment_attempt, shipping, billing, customer) = value;
+        let guest_customer_details = pi.cus;
         Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
             billing: billing.map(api_types::Address::from),
             amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
             email: customer
-                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
+                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
+                .or(),
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()

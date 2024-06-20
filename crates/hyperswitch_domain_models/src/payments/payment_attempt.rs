@@ -519,7 +519,7 @@ impl behaviour::Conversion for PaymentIntent {
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
             charges: self.charges,
             frm_metadata: self.frm_metadata,
-            guest_customer_details: self.guest_customer_details.map(Encryption::from),
+            customer_details: self.customer_details.map(Encryption::from),
         })
     }
 
@@ -577,8 +577,8 @@ impl behaviour::Conversion for PaymentIntent {
                     .request_external_three_ds_authentication,
                 charges: storage_model.charges,
                 frm_metadata: storage_model.frm_metadata,
-                guest_customer_details: storage_model
-                    .guest_customer_details
+                customer_details: storage_model
+                    .customer_details
                     .async_lift(inner_decrypt)
                     .await
                     .change_context(ValidationError::InvalidValue {
@@ -634,7 +634,7 @@ impl behaviour::Conversion for PaymentIntent {
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
             charges: self.charges,
             frm_metadata: self.frm_metadata,
-            guest_customer_details: self.guest_customer_details.map(Encryption::from),
+            customer_details: self.customer_details.map(Encryption::from),
         })
     }
 }
