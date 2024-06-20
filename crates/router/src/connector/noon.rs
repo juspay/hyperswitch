@@ -1,9 +1,12 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
@@ -16,6 +19,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult},
+        mandate::MandateBehaviour,
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
@@ -33,8 +37,18 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Noon;
+#[derive(Clone)]
+pub struct Noon {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Noon {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Noon {}
 impl api::PaymentSession for Noon {}
@@ -260,7 +274,26 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = noon::NoonPaymentsRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let mandate_details =
+            connector_utils::get_mandate_details(req.request.get_setup_mandate_details())?;
+        let mandate_amount = mandate_details
+            .map(|mandate| {
+                connector_utils::convert_amount(
+                    self.amount_converter,
+                    mandate.amount,
+                    mandate.currency,
+                )
+            })
+            .transpose()?;
+
+        let connector_router_data = noon::NoonRouterData::from((amount, req, mandate_amount));
+        let connector_req = noon::NoonPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -416,7 +449,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = noon::NoonPaymentsActionRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_router_data = noon::NoonRouterData::from((amount, req, None));
+        let connector_req = noon::NoonPaymentsActionRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -656,7 +695,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = noon::NoonPaymentsActionRequest::try_from(req)?;
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = noon::NoonRouterData::from((refund_amount, req, None));
+        let connector_req = noon::NoonPaymentsActionRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

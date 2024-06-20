@@ -91,6 +91,7 @@ pub async fn accept_dispute(
         .find_payment_intent_by_payment_id_merchant_id(
             &dispute.payment_id,
             &merchant_account.merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -204,6 +205,7 @@ pub async fn submit_evidence(
         .find_payment_intent_by_payment_id_merchant_id(
             &dispute.payment_id,
             &merchant_account.merchant_id,
+            &key_store,
             merchant_account.storage_scheme,
         )
         .await

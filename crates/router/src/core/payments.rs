@@ -331,6 +331,7 @@ where
                             &validate_result.payment_id,
                             payment_data,
                             router_data,
+                            &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await?
@@ -435,6 +436,7 @@ where
                             &validate_result.payment_id,
                             payment_data,
                             router_data,
+                            &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await?
@@ -1159,6 +1161,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 &merchant_id,
+                &merchant_key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -1438,7 +1441,7 @@ where
     *payment_data = pd;
 
     // Validating the blocklist guard and generate the fingerprint
-    blocklist_guard(state, merchant_account, operation, payment_data).await?;
+    blocklist_guard(state, merchant_account, key_store, operation, payment_data).await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -1462,7 +1465,12 @@ where
         .await?;
 
     let add_access_token_result = router_data
-        .add_access_token(state, &connector, merchant_account)
+        .add_access_token(
+            state,
+            &connector,
+            merchant_account,
+            payment_data.creds_identifier.as_ref(),
+        )
         .await?;
 
     router_data = router_data.add_session_token(state, &connector).await?;
@@ -1618,6 +1626,7 @@ where
 async fn blocklist_guard<F, ApiRequest>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     operation: &BoxedOperation<'_, F, ApiRequest>,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
@@ -1646,7 +1655,7 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, merchant_account, payment_data)
+            .guard_payment_against_blocklist(state, merchant_account, key_store, payment_data)
             .await?)
     } else {
         Ok(false)
@@ -1741,7 +1750,7 @@ where
                 if let Ok(router_types::PaymentsResponseData::SessionResponse {
                     session_token,
                     ..
-                }) = connector_response.response
+                }) = connector_response.response.clone()
                 {
                     // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
                     // In case of error, that error is already logged
@@ -1752,13 +1761,16 @@ where
                         payment_data.sessions_token.push(session_token);
                     }
                 }
+                if let Err(connector_error_response) = connector_response.response {
+                    logger::error!(
+                        "sessions_connector_error {} {:?}",
+                        connector_name,
+                        connector_error_response
+                    );
+                }
             }
-            Err(connector_error) => {
-                logger::error!(
-                    "sessions_connector_error {} {:?}",
-                    connector_name,
-                    connector_error
-                );
+            Err(api_error) => {
+                logger::error!("sessions_api_error {} {:?}", connector_name, api_error);
             }
         }
     }
@@ -2653,16 +2665,22 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
     use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let db = state.store.as_ref();
-    let payment_intents =
-        helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_intents = helpers::filter_by_constraints(
+        db,
+        &constraints,
+        merchant_id,
+        &key_store,
+        merchant.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
@@ -2719,6 +2737,7 @@ pub async fn list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     let limit = &constraints.limit;
@@ -2728,6 +2747,7 @@ pub async fn apply_filters_on_payments(
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
             &constraints.clone().into(),
+            &merchant_key_store,
             merchant.storage_scheme,
         )
         .await
@@ -2772,6 +2792,7 @@ pub async fn apply_filters_on_payments(
 pub async fn get_filters_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    merchant_key_store: domain::MerchantKeyStore,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
     let db = state.store.as_ref();
@@ -2779,6 +2800,7 @@ pub async fn get_filters_for_payments(
         .filter_payment_intents_by_time_range_constraints(
             &merchant.merchant_id,
             &time_range,
+            &merchant_key_store,
             merchant.storage_scheme,
         )
         .await
@@ -3884,7 +3906,12 @@ pub async fn payment_external_authentication(
     let storage_scheme = merchant_account.storage_scheme;
     let payment_id = req.payment_id;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+        .find_payment_intent_by_payment_id_merchant_id(
+            &payment_id,
+            merchant_id,
+            &key_store,
+            storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     let attempt_id = payment_intent.active_attempt.get_id().clone();
