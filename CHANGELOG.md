@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.06.20.1
+
+### Features
+
+- **cypress:** Add 2 more payout connectors and bank transfer support for payout ([#4993](https://github.com/juspay/hyperswitch/pull/4993)) ([`45a908b`](https://github.com/juspay/hyperswitch/commit/45a908b4407db160b5f92b0bf84a9612cfaf44ef))
+
+### Bug Fixes
+
+- **cypress:** Address cypress skipping tests ([#5046](https://github.com/juspay/hyperswitch/pull/5046)) ([`973ecbf`](https://github.com/juspay/hyperswitch/commit/973ecbf84ec62d05556ccd568992243e460f8b10))
+- **payment_methods:** Support last used for off session token payments ([#5039](https://github.com/juspay/hyperswitch/pull/5039)) ([`d98293a`](https://github.com/juspay/hyperswitch/commit/d98293ae9a01ccdcd62466d9c64c6b6f492f227b))
+
+### Refactors
+
+- **connector:** [Mifinity]dynamic fields for mifinity ([#5056](https://github.com/juspay/hyperswitch/pull/5056)) ([`6f58b4e`](https://github.com/juspay/hyperswitch/commit/6f58b4efbd111b2d0b8ef33cbcd377c434f181e2))
+- **payment_method:** [Klarna] store and populate payment_type for klarna_sdk Paylater in response ([#4956](https://github.com/juspay/hyperswitch/pull/4956)) ([`c9bfb89`](https://github.com/juspay/hyperswitch/commit/c9bfb89f7eb03d73d5af3fe2bcd7632347ec17b4))
+- Introduce ConnectorIntegrationNew and add default implementation for each Connector ([#4989](https://github.com/juspay/hyperswitch/pull/4989)) ([`84bed81`](https://github.com/juspay/hyperswitch/commit/84bed81defce0671274241318204029a2bb30a12))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`d546415`](https://github.com/juspay/hyperswitch/commit/d546415c26c2727c22ad0e46dba1c0235501cd2e))
+
+**Full Changelog:** [`2024.06.20.0...2024.06.20.1`](https://github.com/juspay/hyperswitch/compare/2024.06.20.0...2024.06.20.1)
+
+- - -
+
 ## 2024.06.20.0
 
 ### Features
