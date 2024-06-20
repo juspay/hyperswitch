@@ -14,11 +14,9 @@ impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
         match generics::generic_insert(conn, self).await {
             Ok(v) => {
-                logger::debug!("[DEBUG], {:?}", v);
                 Ok(v)
             }
             Err(e) => {
-                logger::debug!("[DEBUG] [ERR], {:?}", e);
                 Err(e)
             }
         }

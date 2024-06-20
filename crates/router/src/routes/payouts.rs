@@ -139,7 +139,6 @@ pub async fn payouts_confirm(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
-    logger::debug!("payouts_confirm called");
     let flow = Flow::PayoutsConfirm;
     let mut payload = json_payload.into_inner();
     let payout_id = path.into_inner();
